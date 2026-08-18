@@ -2,14 +2,14 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
-    QLineEdit,
     QListWidget,
     QMainWindow,
     QPushButton,
-    QTextEdit,
     QVBoxLayout,
     QWidget,
 )
+
+from chat_panel import ChatPanel
 
 DARK_STYLE = """
 QWidget {
@@ -42,6 +42,24 @@ QMainWindow {
     font-size: 15px;
     font-weight: bold;
     padding: 6px 0;
+}
+#CenterSubtitle {
+    font-size: 12px;
+    color: #9a9a9a;
+    padding-bottom: 6px;
+}
+#ChatScrollArea {
+    border: none;
+}
+#UserBubble {
+    background-color: #2b5278;
+    border-radius: 8px;
+    padding: 8px 10px;
+}
+#BrainBubble {
+    background-color: #2d2d30;
+    border-radius: 8px;
+    padding: 8px 10px;
 }
 QListWidget, QTextEdit, QLineEdit {
     background-color: #1e1e1e;
@@ -138,28 +156,7 @@ class MainWindow(QMainWindow):
         return row
 
     def _build_center_panel(self) -> QWidget:
-        panel = QWidget()
-        layout = QVBoxLayout(panel)
-
-        prompt_label = QLabel("무엇을 만들까요?")
-        prompt_label.setObjectName("CenterPrompt")
-        prompt_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(prompt_label)
-
-        self.chat_display = QTextEdit()
-        self.chat_display.setReadOnly(True)
-        layout.addWidget(self.chat_display, stretch=1)
-
-        input_row = QHBoxLayout()
-        self.chat_input = QLineEdit()
-        self.chat_input.setPlaceholderText("메시지를 입력하세요...")
-        send_button = QPushButton("보내기")
-        send_button.clicked.connect(self._on_send_clicked)
-        input_row.addWidget(self.chat_input)
-        input_row.addWidget(send_button)
-        layout.addLayout(input_row)
-
-        return panel
+        return ChatPanel()
 
     def _build_right_panel(self) -> QWidget:
         panel = QWidget()
@@ -190,10 +187,3 @@ class MainWindow(QMainWindow):
     def _on_new_project_clicked(self):
         count = self.project_list.count() + 1
         self.project_list.addItem(f"새 프로젝트 {count}")
-
-    def _on_send_clicked(self):
-        text = self.chat_input.text().strip()
-        if not text:
-            return
-        self.chat_display.append(f"사용자: {text}")
-        self.chat_input.clear()
