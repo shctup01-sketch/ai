@@ -9,6 +9,7 @@ from openai import (
     RateLimitError,
 )
 
+from .brain_instructions import BRAIN_INSTRUCTIONS
 from .provider import AIProvider
 
 load_dotenv()
@@ -33,7 +34,11 @@ class OpenAIProvider(AIProvider):
         client = OpenAI(api_key=api_key)
 
         try:
-            response = client.responses.create(model=self._model, input=messages)
+            response = client.responses.create(
+                model=self._model,
+                instructions=BRAIN_INSTRUCTIONS,
+                input=messages,
+            )
         except AuthenticationError as exc:
             raise RuntimeError(
                 "OpenAI API Key가 올바르지 않습니다. .env 파일의 값을 확인해주세요."
