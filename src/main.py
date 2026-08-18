@@ -1,8 +1,12 @@
 import sys
 
-from PySide6.QtWidgets import QApplication
+from bootstrap import ensure_dependencies
 
-from main_window import MainWindow
+ensure_dependencies()  # PySide6/openai/dotenv를 import하기 전에 먼저 실행되어야 한다.
+
+from PySide6.QtWidgets import QApplication  # noqa: E402
+
+from main_window import MainWindow  # noqa: E402
 
 
 def main():
