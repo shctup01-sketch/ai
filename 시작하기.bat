@@ -74,22 +74,18 @@ if errorlevel 1 (
 )
 
 echo [3/5] 필요한 패키지 확인 중...
-python -c "import PySide6" >nul 2>nul
+echo     -^> requirements.txt 기준으로 확인합니다. 잠시만 기다려주세요...
+python -m pip install -r requirements.txt
 if errorlevel 1 (
-    echo     -^> 필요한 구성 요소를 설치합니다. 잠시만 기다려주세요...
-    pip install -r requirements.txt
-    if errorlevel 1 (
-        echo.
-        echo 프로그램 실행 중 문제가 발생했습니다. ^( 패키지 설치 실패 ^)
-        echo 위 오류 내용을 확인한 뒤 다시 시도해주세요.
-        echo.
-        echo 창을 닫으려면 아무 키나 누르세요.
-        pause >nul
-        exit /b 1
-    )
-) else (
-    echo     -^> 필요한 패키지가 이미 설치되어 있습니다.
+    echo.
+    echo 프로그램 실행 중 문제가 발생했습니다. ^( 패키지 설치 실패 ^)
+    echo 위 오류 내용을 확인한 뒤 다시 시도해주세요.
+    echo.
+    echo 창을 닫으려면 아무 키나 누르세요.
+    pause >nul
+    exit /b 1
 )
+echo     -^> 필요한 패키지가 모두 준비되었습니다.
 echo.
 
 echo [4/5] 프로그램 실행 준비 중...
