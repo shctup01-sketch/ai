@@ -10,6 +10,7 @@ from openai import (
 )
 
 from .brain_instructions import BRAIN_INSTRUCTIONS
+from .brain_response import BrainResponse
 from .provider import AIProvider
 
 load_dotenv()
@@ -18,12 +19,12 @@ DEFAULT_MODEL = "gpt-5.6-terra"
 
 
 class OpenAIProvider(AIProvider):
-    """OpenAI Responses API를 사용하는 Provider 구현."""
+    """OpenAI Responses API(Structured Outputs)를 사용하는 Provider 구현."""
 
     def __init__(self, model: str = DEFAULT_MODEL):
         self._model = model
 
-    def send_message(self, messages: list[dict]) -> str:
+    def send_message(self, messages: list[dict]) -> BrainResponse:
         api_key = os.environ.get("OPENAI_API_KEY")
         if not api_key:
             raise RuntimeError(
@@ -34,10 +35,11 @@ class OpenAIProvider(AIProvider):
         client = OpenAI(api_key=api_key)
 
         try:
-            response = client.responses.create(
+            response = client.responses.parse(
                 model=self._model,
                 instructions=BRAIN_INSTRUCTIONS,
                 input=messages,
+                text_format=BrainResponse,
             )
         except AuthenticationError as exc:
             raise RuntimeError(
@@ -56,4 +58,7 @@ class OpenAIProvider(AIProvider):
                 "OpenAI API 호출 중 문제가 발생했습니다. 잠시 후 다시 시도해주세요."
             ) from exc
 
-        return response.output_text
+        if response.output_parsed is None:
+            raise RuntimeError("Brain의 응답을 이해하지 못했습니다. 다시 시도해주세요.")
+
+        return response.output_parsed

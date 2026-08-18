@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ai.brain_response import BrainResponse
 from ai.brain_service import BrainService
 
 BRAIN_GREETING = (
@@ -55,6 +56,8 @@ def _build_message_row(text: str, is_user: bool) -> QWidget:
 
 
 class ChatPanel(QWidget):
+    plan_ready = Signal(object)
+
     def __init__(self, parent=None):
         super().__init__(parent)
 
@@ -121,10 +124,13 @@ class ChatPanel(QWidget):
         self._set_waiting(True)
         self.brain_service.send_message(list(self._history))
 
-    def _on_brain_response(self, text: str):
-        self._history.append({"role": "assistant", "content": text})
-        self._add_message(text, is_user=False)
+    def _on_brain_response(self, response: BrainResponse):
+        self._history.append({"role": "assistant", "content": response.reply_to_user})
+        self._add_message(response.reply_to_user, is_user=False)
         self._set_waiting(False)
+
+        if response.plan_ready:
+            self.plan_ready.emit(response)
 
     def _on_brain_error(self, message: str):
         self._add_message(f"Brain 응답 중 오류가 발생했습니다: {message}", is_user=False)

@@ -5,7 +5,7 @@ from .provider import AIProvider
 
 
 class _BrainWorker(QThread):
-    response_ready = Signal(str)
+    response_ready = Signal(object)
     error_occurred = Signal(str)
 
     def __init__(self, provider: AIProvider, messages: list[dict], parent=None):
@@ -29,7 +29,7 @@ class BrainService(QObject):
     알지 못한다. 요청은 별도 QThread에서 실행되어 GUI가 멈추지 않는다.
     """
 
-    response_ready = Signal(str)
+    response_ready = Signal(object)
     error_occurred = Signal(str)
 
     def __init__(self, provider: AIProvider | None = None, parent=None):

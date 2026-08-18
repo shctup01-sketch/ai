@@ -4,11 +4,13 @@ from PySide6.QtWidgets import (
     QLabel,
     QListWidget,
     QMainWindow,
+    QMessageBox,
     QPushButton,
     QVBoxLayout,
     QWidget,
 )
 
+from ai.brain_response import BrainResponse
 from chat_panel import ChatPanel
 
 DARK_STYLE = """
@@ -92,6 +94,8 @@ class MainWindow(QMainWindow):
         self.resize(1100, 700)
         self.setStyleSheet(DARK_STYLE)
 
+        self._current_plan: BrainResponse | None = None
+
         central_widget = QWidget()
         root_layout = QVBoxLayout(central_widget)
         root_layout.setContentsMargins(0, 0, 0, 0)
@@ -156,7 +160,9 @@ class MainWindow(QMainWindow):
         return row
 
     def _build_center_panel(self) -> QWidget:
-        return ChatPanel()
+        self.chat_panel = ChatPanel()
+        self.chat_panel.plan_ready.connect(self._on_plan_ready)
+        return self.chat_panel
 
     def _build_right_panel(self) -> QWidget:
         panel = QWidget()
@@ -169,17 +175,20 @@ class MainWindow(QMainWindow):
         layout.addWidget(status_label)
 
         layout.addWidget(QLabel("현재 작업"))
-        layout.addWidget(QLabel("대기 중"))
+        self.current_task_value_label = QLabel("대기 중")
+        layout.addWidget(self.current_task_value_label)
         layout.addWidget(QLabel("작업 단계"))
-        layout.addWidget(QLabel("아직 시작된 작업 없음"))
+        self.work_step_value_label = QLabel("아직 시작된 작업 없음")
+        layout.addWidget(self.work_step_value_label)
 
         layout.addStretch(1)
 
-        plan_button = QPushButton("작업 계획")
-        plan_button.setEnabled(False)
+        self.plan_button = QPushButton("작업 계획")
+        self.plan_button.setEnabled(False)
+        self.plan_button.clicked.connect(self._on_plan_button_clicked)
         develop_button = QPushButton("개발 실행")
         develop_button.setEnabled(False)
-        layout.addWidget(plan_button)
+        layout.addWidget(self.plan_button)
         layout.addWidget(develop_button)
 
         return panel
@@ -187,3 +196,26 @@ class MainWindow(QMainWindow):
     def _on_new_project_clicked(self):
         count = self.project_list.count() + 1
         self.project_list.addItem(f"새 프로젝트 {count}")
+
+    def _on_plan_ready(self, plan: BrainResponse):
+        self._current_plan = plan
+        self.current_task_value_label.setText(plan.project_name or "")
+        self.work_step_value_label.setText("계획 완료")
+        self.plan_button.setEnabled(True)
+
+    def _on_plan_button_clicked(self):
+        if self._current_plan is None:
+            return
+
+        plan = self._current_plan
+        features = "\n".join(f"- {item}" for item in (plan.feature_list or []))
+        steps = "\n".join(f"{i}. {item}" for i, item in enumerate(plan.task_steps or [], start=1))
+
+        message = (
+            f"프로젝트 이름\n{plan.project_name or '(없음)'}\n\n"
+            f"요구사항 요약\n{plan.requirements_summary or '(없음)'}\n\n"
+            f"기능 목록\n{features or '(없음)'}\n\n"
+            f"작업 단계\n{steps or '(없음)'}"
+        )
+
+        QMessageBox.information(self, "작업 계획", message)
