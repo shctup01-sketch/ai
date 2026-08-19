@@ -13,14 +13,21 @@ from PySide6.QtWidgets import (
 )
 
 from ai.brain_response import BrainResponse
+from ai.developer_fix_request import DeveloperFixRequest
 from ai.developer_request import DeveloperRequest
 from ai.developer_result import DeveloperResult
 from ai.developer_service import DeveloperService
 from ai.execution_result import ExecutionResult
 from ai.execution_service import ExecutionService
+from ai.package_fix_service import PackageFixService
 from chat_panel import ChatPanel
-from project_runner import find_entry_point
+from project_runner import EntryPointError, resolve_entry_point
 from project_venv import find_unsafe_requirements, parse_requirements
+
+# 한 번의 "프로그램 실행" 시도 동안 사용자가 "AI에게 수정 요청"을 누를 수
+# 있는 최대 횟수. 자동으로 반복 실행되지 않고, 매번 사용자가 다시 눌러야
+# 다음 시도가 시작된다.
+MAX_PACKAGE_FIX_ATTEMPTS = 2
 
 DARK_STYLE = """
 QWidget {
@@ -105,6 +112,7 @@ class MainWindow(QMainWindow):
 
         self._current_plan: BrainResponse | None = None
         self._current_developer_result: DeveloperResult | None = None
+        self._package_fix_attempts = 0
 
         self.developer_service = DeveloperService(parent=self)
         self.developer_service.result_ready.connect(self._on_developer_result)
@@ -114,6 +122,10 @@ class MainWindow(QMainWindow):
         self.execution_service.result_ready.connect(self._on_execution_result)
         self.execution_service.error_occurred.connect(self._on_execution_error)
         self.execution_service.stage_changed.connect(self._on_execution_stage_changed)
+
+        self.package_fix_service = PackageFixService(parent=self)
+        self.package_fix_service.result_ready.connect(self._on_package_fix_result)
+        self.package_fix_service.error_occurred.connect(self._on_package_fix_error)
 
         central_widget = QWidget()
         root_layout = QVBoxLayout(central_widget)
@@ -226,6 +238,7 @@ class MainWindow(QMainWindow):
     def _on_plan_ready(self, plan: BrainResponse):
         self._current_plan = plan
         self._current_developer_result = None
+        self._package_fix_attempts = 0
         self.current_task_value_label.setText(plan.project_name or "")
         self.work_step_value_label.setText("계획 완료")
         self.plan_button.setEnabled(True)
@@ -273,6 +286,7 @@ class MainWindow(QMainWindow):
             self.developer_status_label.setText("완료")
             self.work_step_value_label.setText("개발 완료")
             self._current_developer_result = result
+            self._package_fix_attempts = 0
             self.execute_button.setEnabled(True)
             self._show_developer_result_popup(result)
         else:
@@ -304,14 +318,29 @@ class MainWindow(QMainWindow):
         if self._current_developer_result is None:
             return
 
-        project_path = Path(self._current_developer_result.project_path)
+        # 사용자가 직접 "프로그램 실행"을 눌러 새로 시작하는 시도이므로,
+        # 이전 시도에서 쌓인 AI 패키지 수정 횟수를 여기서 초기화한다.
+        # (AI 수정 이후 자동으로 이어지는 재실행에서는 이 메서드를 거치지
+        # 않고 _run_project()를 직접 호출하므로 횟수가 유지된다.)
+        self._package_fix_attempts = 0
 
-        entry_point = find_entry_point(project_path)
-        if entry_point is None:
+        project_path = Path(self._current_developer_result.project_path)
+        self._run_project(project_path, self._current_developer_result.entry_point)
+
+    def _run_project(self, project_path: Path, entry_point_str: str):
+        """entry_point 검증 → requirements 보안 검사 → 설치 승인 → 실행.
+
+        최초 실행과, AI 패키지 수정 이후 재실행이 모두 이 메서드를
+        공유한다. 실제 설치/실행은 항상 기존 ExecutionService를 통해서만
+        이뤄진다 — MainWindow가 pip나 subprocess를 직접 다루지 않는다.
+        """
+        try:
+            entry_point = resolve_entry_point(project_path, entry_point_str)
+        except EntryPointError:
             QMessageBox.warning(
                 self,
                 "실행 불가",
-                "프로젝트 폴더에 main.py 파일이 없습니다.\nv0.1에서는 main.py만 실행할 수 있습니다.",
+                "프로그램 실행 파일을 확인할 수 없습니다.",
             )
             return
 
@@ -361,10 +390,23 @@ class MainWindow(QMainWindow):
             self.developer_status_label.setText("완료")
             self.work_step_value_label.setText("실행 완료")
             self._show_execution_result_popup(result, title="실행 완료")
+            return
+
+        self.developer_status_label.setText("오류")
+        self.work_step_value_label.setText("실행 오류")
+
+        # AI 수정 요청은 "패키지 설치" 단계 실패에서만 제공한다. main.py
+        # 실행 자체가 실패한 일반 runtime 오류는 이 기능과 연결하지 않는다.
+        if result.stage == "package_install" and self._package_fix_attempts < MAX_PACKAGE_FIX_ATTEMPTS:
+            self._offer_package_fix(result)
         else:
-            self.developer_status_label.setText("오류")
-            self.work_step_value_label.setText("실행 오류")
             self._show_execution_result_popup(result, title="실행 실패")
+            if result.stage == "package_install":
+                QMessageBox.information(
+                    self,
+                    "안내",
+                    "AI 패키지 수정 최대 시도 횟수에 도달했습니다.",
+                )
 
     def _on_execution_error(self, message: str):
         self.execute_button.setEnabled(True)
@@ -386,3 +428,67 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, title, message)
         else:
             QMessageBox.warning(self, title, message)
+
+    def _offer_package_fix(self, result: ExecutionResult):
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Icon.Warning)
+        box.setWindowTitle("패키지 설치 실패")
+        box.setText(result.summary)
+        if result.stderr:
+            box.setDetailedText(result.stderr)
+        box.addButton("닫기", QMessageBox.ButtonRole.RejectRole)
+        fix_button = box.addButton("AI에게 수정 요청", QMessageBox.ButtonRole.AcceptRole)
+        box.exec()
+
+        if box.clickedButton() is fix_button:
+            self._start_package_fix(result)
+
+    def _start_package_fix(self, failed_result: ExecutionResult):
+        if self._current_developer_result is None:
+            return
+
+        self._package_fix_attempts += 1
+
+        project_path = Path(self._current_developer_result.project_path)
+        requirements_path = project_path / "requirements.txt"
+        requirements_text = (
+            requirements_path.read_text(encoding="utf-8") if requirements_path.exists() else ""
+        )
+
+        request = DeveloperFixRequest(
+            project_name=self._current_plan.project_name if self._current_plan else "",
+            entry_point=self._current_developer_result.entry_point,
+            requirements_text=requirements_text,
+            pip_stderr=failed_result.stderr,
+        )
+
+        self.execute_button.setEnabled(False)
+        self.developer_status_label.setText("작업 중")
+        self.work_step_value_label.setText("AI 패키지 수정 중")
+
+        self.package_fix_service.fix_packages(project_path, request)
+
+    def _on_package_fix_result(self, result: DeveloperResult):
+        if result.status != "success":
+            self.execute_button.setEnabled(True)
+            self.developer_status_label.setText("오류")
+            self.work_step_value_label.setText("AI 패키지 수정 실패")
+            error_text = "\n".join(result.errors) if result.errors else result.summary
+            QMessageBox.warning(self, "AI 패키지 수정 실패", error_text)
+            return
+
+        # Developer가 파일을 수정했으므로 최신 상태(entry_point, 생성/수정된
+        # 파일 목록 등)로 갱신한다. 실제 재설치/재실행은 기존 승인 흐름을
+        # 그대로 타야 하므로 여기서 곧바로 pip를 실행하지 않는다.
+        self._current_developer_result = result
+        self.developer_status_label.setText("완료")
+        self.work_step_value_label.setText("AI 패키지 수정 완료")
+
+        project_path = Path(result.project_path)
+        self._run_project(project_path, result.entry_point)
+
+    def _on_package_fix_error(self, message: str):
+        self.execute_button.setEnabled(True)
+        self.developer_status_label.setText("오류")
+        self.work_step_value_label.setText("AI 패키지 수정 실패")
+        QMessageBox.warning(self, "AI 패키지 수정 실패", message)

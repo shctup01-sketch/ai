@@ -3,7 +3,12 @@ from pathlib import Path
 from PySide6.QtCore import QObject, QThread, Signal
 
 from project_runner import run_entry_point
-from project_venv import ExecutionStageError, ensure_project_venv, install_requirements
+from project_venv import (
+    STAGE_PACKAGE_INSTALL,
+    ExecutionStageError,
+    ensure_project_venv,
+    install_requirements,
+)
 
 from .execution_result import ExecutionResult
 
@@ -37,6 +42,7 @@ class _ExecutionWorker(QThread):
             self.stage_changed.emit("실행 중")
             result = run_entry_point(venv_python, self._entry_point, self._project_path)
         except ExecutionStageError as exc:
+            failed_stage = "package_install" if exc.stage == STAGE_PACKAGE_INSTALL else "venv_setup"
             result = ExecutionResult(
                 status="failed",
                 summary=f"{exc.stage} 실패",
@@ -45,6 +51,7 @@ class _ExecutionWorker(QThread):
                 return_code=None,
                 stdout="",
                 stderr=exc.message,
+                stage=failed_stage,
             )
             self.result_ready.emit(result)
         except Exception as exc:

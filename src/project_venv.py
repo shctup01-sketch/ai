@@ -13,6 +13,12 @@ from pathlib import Path
 VENV_DIR_NAME = ".venv"
 INSTALL_TIMEOUT_SECONDS = 180
 
+# ExecutionStageError.stage에 쓰이는 표시용 문자열. execution_service.py가
+# 이 상수로 실패 단계를 구분해 ExecutionResult.stage(venv_setup/package_install)를
+# 정한다 — 문자열을 따로 하드코딩하지 않고 이 상수를 그대로 재사용한다.
+STAGE_VENV_SETUP = "가상환경 생성"
+STAGE_PACKAGE_INSTALL = "패키지 설치"
+
 _DANGEROUS_SUBSTRINGS = (
     "http://",
     "https://",
@@ -80,10 +86,10 @@ def ensure_project_venv(project_path: Path) -> Path:
             timeout=INSTALL_TIMEOUT_SECONDS,
         )
     except subprocess.TimeoutExpired as exc:
-        raise ExecutionStageError("가상환경 생성", "시간 초과") from exc
+        raise ExecutionStageError(STAGE_VENV_SETUP, "시간 초과") from exc
 
     if result.returncode != 0 or not venv_python.exists():
-        raise ExecutionStageError("가상환경 생성", result.stderr or "알 수 없는 오류")
+        raise ExecutionStageError(STAGE_VENV_SETUP, result.stderr or "알 수 없는 오류")
 
     return venv_python
 
@@ -128,7 +134,7 @@ def install_requirements(venv_python: Path, requirements_path: Path) -> None:
             timeout=INSTALL_TIMEOUT_SECONDS,
         )
     except subprocess.TimeoutExpired as exc:
-        raise ExecutionStageError("패키지 설치", "시간 초과") from exc
+        raise ExecutionStageError(STAGE_PACKAGE_INSTALL, "시간 초과") from exc
 
     if result.returncode != 0:
-        raise ExecutionStageError("패키지 설치", result.stderr or "알 수 없는 오류")
+        raise ExecutionStageError(STAGE_PACKAGE_INSTALL, result.stderr or "알 수 없는 오류")
