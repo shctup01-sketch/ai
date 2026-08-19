@@ -1,3 +1,4 @@
+import logging
 import os
 
 from dotenv import load_dotenv
@@ -11,11 +12,21 @@ from openai import (
 
 from .brain_instructions import BRAIN_INSTRUCTIONS
 from .brain_response import BrainResponse
+from .intent_router import build_corrected_research_response, classify_intent
 from .provider import AIProvider
 
 load_dotenv()
 
+logger = logging.getLogger(__name__)
+
 DEFAULT_MODEL = "gpt-5.6-terra"
+
+
+def _extract_last_user_message(messages: list[dict]) -> str:
+    for message in reversed(messages):
+        if message.get("role") == "user":
+            return str(message.get("content", ""))
+    return ""
 
 
 class OpenAIProvider(AIProvider):
@@ -61,4 +72,40 @@ class OpenAIProvider(AIProvider):
         if response.output_parsed is None:
             raise RuntimeError("Brain의 응답을 이해하지 못했습니다. 다시 시도해주세요.")
 
-        return response.output_parsed
+        parsed = response.output_parsed
+
+        # Brain 자체 분류(task_type)가 15-1/16단계 수정 이후에도 실기에서
+        # 반복적으로 새는 것이 확인되어, 사용자 원문만 보는 순수 규칙 기반
+        # IntentRouter로 명백한 research 요청을 놓치지 않는지 마지막으로
+        # 한 번 더 확인한다. IntentRouter가 "research"라고 판단했는데
+        # Brain 응답이 research+plan_ready 조합이 아니면, Brain의 (조사
+        # 결과를 흉내 낸) 긴 답변을 그대로 쓰지 않고 결정적으로 만든
+        # 최소한의 Research용 응답으로 교정한다. IntentRouter가
+        # "development"나 "unknown"이면 Brain의 판단을 그대로 존중한다.
+        last_user_message = _extract_last_user_message(messages)
+        router_intent = classify_intent(last_user_message)
+
+        final_response = parsed
+        if router_intent == "research" and (
+            parsed.task_type != "research" or not parsed.plan_ready
+        ):
+            final_response = build_corrected_research_response(last_user_message, parsed)
+
+        # 실기 분류 오류를 재현 없이 진단하기 위한 개발용 로그. API Key/
+        # 시스템 지시문/사용자 원문 등 민감한 내용은 남기지 않는다 -
+        # 분류 결과(enum 값)만 기록한다.
+        logger.debug(
+            "Intent router: %s | Brain classification: %s | Final classification: %s",
+            router_intent,
+            parsed.task_type,
+            final_response.task_type,
+        )
+        logger.debug(
+            "Final response fields: task_type=%s is_dev_request=%s "
+            "needs_more_info=%s plan_ready=%s",
+            final_response.task_type,
+            final_response.is_dev_request,
+            final_response.needs_more_info,
+            final_response.plan_ready,
+        )
+        return final_response

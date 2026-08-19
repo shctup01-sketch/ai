@@ -1,5 +1,7 @@
+import os
 from pathlib import Path
 
+from openai import OpenAI
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QHBoxLayout,
@@ -20,6 +22,9 @@ from ai.developer_service import DeveloperService
 from ai.execution_result import ExecutionResult
 from ai.execution_service import ExecutionService
 from ai.package_fix_service import PackageFixService
+from ai.task import Task
+from ai.task_execution_service import TaskExecutionService
+from ai.task_system import TaskSystem
 from chat_panel import ChatPanel
 from project_runner import EntryPointError, resolve_entry_point
 from project_venv import find_unsafe_requirements, parse_requirements
@@ -113,6 +118,13 @@ class MainWindow(QMainWindow):
         self._current_plan: BrainResponse | None = None
         self._current_developer_result: DeveloperResult | None = None
         self._package_fix_attempts = 0
+        self._current_task: Task | None = None
+
+        # research 기능을 실제로 쓸 때만 지연 생성한다(_ensure_task_system).
+        # 개발 기능만 쓰는 사용자가 OpenAI API Key 문제로 시작부터 영향받지
+        # 않도록 하기 위함이다.
+        self.task_system: TaskSystem | None = None
+        self.task_execution_service: TaskExecutionService | None = None
 
         self.developer_service = DeveloperService(parent=self)
         self.developer_service.result_ready.connect(self._on_developer_result)
@@ -225,9 +237,15 @@ class MainWindow(QMainWindow):
         self.execute_button = QPushButton("프로그램 실행")
         self.execute_button.setEnabled(False)
         self.execute_button.clicked.connect(self._on_execute_button_clicked)
+        # "프로그램 실행"은 Developer가 만든 Python 프로그램 실행 전용이다.
+        # research Task 실행은 이 버튼을 재사용하지 않고 별도 버튼을 쓴다.
+        self.task_execute_button = QPushButton("작업 실행")
+        self.task_execute_button.setEnabled(False)
+        self.task_execute_button.clicked.connect(self._on_task_execute_button_clicked)
         layout.addWidget(self.plan_button)
         layout.addWidget(self.develop_button)
         layout.addWidget(self.execute_button)
+        layout.addWidget(self.task_execute_button)
 
         return panel
 
@@ -239,17 +257,47 @@ class MainWindow(QMainWindow):
         self._current_plan = plan
         self._current_developer_result = None
         self._package_fix_attempts = 0
-        self.current_task_value_label.setText(plan.project_name or "")
-        self.work_step_value_label.setText("계획 완료")
+        self._current_task = None
+
         self.plan_button.setEnabled(True)
-        self.develop_button.setEnabled(True)
+        self.develop_button.setEnabled(False)
         self.execute_button.setEnabled(False)
+        self.task_execute_button.setEnabled(False)
+
+        if plan.task_type == "development":
+            self.current_task_value_label.setText(plan.project_name or "")
+            self.work_step_value_label.setText("계획 완료")
+            self.develop_button.setEnabled(True)
+        elif plan.task_type == "research":
+            self.current_task_value_label.setText(plan.research_title or "")
+            self.work_step_value_label.setText("계획 완료")
+
+            task_system = self._ensure_task_system()
+            if task_system is None:
+                return
+
+            task = task_system.create_task(
+                task_type="research",
+                title=plan.research_title or "",
+                goal=plan.research_goal or "",
+            )
+            self._current_task = task
+            self.task_execute_button.setEnabled(True)
 
     def _on_plan_button_clicked(self):
         if self._current_plan is None:
             return
 
         plan = self._current_plan
+
+        if plan.task_type == "research":
+            message = (
+                f"조사 제목\n{plan.research_title or '(없음)'}\n\n"
+                f"조사 목표\n{plan.research_goal or '(없음)'}"
+            )
+            QMessageBox.information(self, "작업 계획", message)
+            return
+
         features = "\n".join(f"- {item}" for item in (plan.feature_list or []))
         steps = "\n".join(f"{i}. {item}" for i, item in enumerate(plan.task_steps or [], start=1))
 
@@ -492,3 +540,76 @@ class MainWindow(QMainWindow):
         self.developer_status_label.setText("오류")
         self.work_step_value_label.setText("AI 패키지 수정 실패")
         QMessageBox.warning(self, "AI 패키지 수정 실패", message)
+
+    def _ensure_task_system(self) -> TaskSystem | None:
+        """research 기능을 실제로 쓸 때만 TaskSystem을 지연 생성한다.
+
+        Brain(OpenAIProvider)과 동일한 방식으로 OPENAI_API_KEY를 읽어 OpenAI
+        client를 만들고, 그 client를 TaskSystem에 그대로 주입한다.
+        TaskSystem 내부에서는 API Key를 다시 읽지 않는다.
+        """
+        if self.task_system is not None:
+            return self.task_system
+
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if not api_key:
+            QMessageBox.warning(
+                self,
+                "조사 실행 불가",
+                "OpenAI API Key가 설정되지 않았습니다. "
+                "프로젝트 루트의 .env 파일에 OPENAI_API_KEY 값을 입력한 뒤 다시 시도해주세요.",
+            )
+            return None
+
+        client = OpenAI(api_key=api_key)
+        self.task_system = TaskSystem(client)
+        self.task_execution_service = TaskExecutionService(self.task_system, parent=self)
+        self.task_execution_service.result_ready.connect(self._on_task_execution_result)
+        self.task_execution_service.error_occurred.connect(self._on_task_execution_error)
+        return self.task_system
+
+    def _on_task_execute_button_clicked(self):
+        if self._current_task is None or self.task_execution_service is None:
+            return
+
+        self.task_execute_button.setEnabled(False)
+        self.work_step_value_label.setText("조사 중")
+
+        self.task_execution_service.execute_task(self._current_task.task_id)
+
+    def _on_task_execution_result(self, task: Task):
+        self.task_execute_button.setEnabled(True)
+        self._current_task = task
+
+        if task.status == "success":
+            self.work_step_value_label.setText("조사 완료")
+            self._show_research_result_popup(task)
+        else:
+            self.work_step_value_label.setText("조사 오류")
+            error_text = "\n".join(task.errors) if task.errors else "조사 중 오류가 발생했습니다."
+            QMessageBox.warning(self, "조사 실패", error_text)
+
+    def _on_task_execution_error(self, message: str):
+        self.task_execute_button.setEnabled(True)
+        self.work_step_value_label.setText("조사 오류")
+        QMessageBox.warning(self, "조사 실패", message)
+
+    def _show_research_result_popup(self, task: Task):
+        result = task.result or {}
+        query = result.get("query", "")
+        search_results = result.get("search_results", [])
+
+        if search_results:
+            results_text = "\n\n".join(
+                f"- {item.get('title', '')}\n  {item.get('url', '')}\n  {item.get('snippet', '')}"
+                for item in search_results
+            )
+        else:
+            results_text = "(검색 결과 없음)"
+
+        message = (
+            f"제목:\n{task.title}\n\n"
+            f"검색어:\n{query}\n\n"
+            f"검색 결과:\n{results_text}"
+        )
+        QMessageBox.information(self, "조사 완료", message)
