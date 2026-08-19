@@ -14,6 +14,10 @@ MAX_FILE_SIZE_BYTES = 1024 * 1024  # 파일 1개당 최대 1MB
 MAX_FILES_PER_PROJECT = 100  # 프로젝트당 최대 파일 개수
 
 _FORBIDDEN_NAME_PREFIXES = (".env", ".git")
+# 프로젝트 실행 시스템(project_venv.py)이 만들고 사용하는 가상환경 폴더.
+# Developer의 파일 도구(list_files/read_file/write_file)는 이 이름의
+# 폴더와 그 아래 어떤 경로에도 접근할 수 없다.
+_FORBIDDEN_DIR_NAMES = (".venv",)
 _WINDOWS_FORBIDDEN_CHARS = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
 _DRIVE_LETTER_PATTERN = re.compile(r"^[a-zA-Z]:")
 
@@ -69,11 +73,16 @@ class WorkspaceGuard:
         resolved = (self._project_root / relative_path).resolve()
 
         try:
-            resolved.relative_to(self._project_root)
+            relative_parts = resolved.relative_to(self._project_root).parts
         except ValueError:
             raise WorkspaceSecurityError(
                 f"프로젝트 폴더 밖에는 접근할 수 없습니다: {relative_path}"
             ) from None
+
+        if any(part in _FORBIDDEN_DIR_NAMES for part in relative_parts):
+            raise WorkspaceSecurityError(
+                f"이 경로는 실행 시스템 전용이라 접근할 수 없습니다: {relative_path}"
+            )
 
         if any(resolved.name.startswith(prefix) for prefix in _FORBIDDEN_NAME_PREFIXES):
             raise WorkspaceSecurityError(f"이 이름의 파일/폴더는 사용할 수 없습니다: {resolved.name}")
@@ -85,6 +94,10 @@ class WorkspaceGuard:
             str(path.relative_to(self._project_root))
             for path in self._project_root.rglob("*")
             if path.is_file()
+            and not any(
+                part in _FORBIDDEN_DIR_NAMES
+                for part in path.relative_to(self._project_root).parts
+            )
         )
 
     def read_file(self, relative_path: str) -> str:

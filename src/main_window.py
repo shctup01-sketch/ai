@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QHBoxLayout,
@@ -14,7 +16,11 @@ from ai.brain_response import BrainResponse
 from ai.developer_request import DeveloperRequest
 from ai.developer_result import DeveloperResult
 from ai.developer_service import DeveloperService
+from ai.execution_result import ExecutionResult
+from ai.execution_service import ExecutionService
 from chat_panel import ChatPanel
+from project_runner import find_entry_point
+from project_venv import find_unsafe_requirements, parse_requirements
 
 DARK_STYLE = """
 QWidget {
@@ -98,10 +104,16 @@ class MainWindow(QMainWindow):
         self.setStyleSheet(DARK_STYLE)
 
         self._current_plan: BrainResponse | None = None
+        self._current_developer_result: DeveloperResult | None = None
 
         self.developer_service = DeveloperService(parent=self)
         self.developer_service.result_ready.connect(self._on_developer_result)
         self.developer_service.error_occurred.connect(self._on_developer_error)
+
+        self.execution_service = ExecutionService(parent=self)
+        self.execution_service.result_ready.connect(self._on_execution_result)
+        self.execution_service.error_occurred.connect(self._on_execution_error)
+        self.execution_service.stage_changed.connect(self._on_execution_stage_changed)
 
         central_widget = QWidget()
         root_layout = QVBoxLayout(central_widget)
@@ -198,8 +210,12 @@ class MainWindow(QMainWindow):
         self.develop_button = QPushButton("개발 실행")
         self.develop_button.setEnabled(False)
         self.develop_button.clicked.connect(self._on_develop_button_clicked)
+        self.execute_button = QPushButton("프로그램 실행")
+        self.execute_button.setEnabled(False)
+        self.execute_button.clicked.connect(self._on_execute_button_clicked)
         layout.addWidget(self.plan_button)
         layout.addWidget(self.develop_button)
+        layout.addWidget(self.execute_button)
 
         return panel
 
@@ -209,10 +225,12 @@ class MainWindow(QMainWindow):
 
     def _on_plan_ready(self, plan: BrainResponse):
         self._current_plan = plan
+        self._current_developer_result = None
         self.current_task_value_label.setText(plan.project_name or "")
         self.work_step_value_label.setText("계획 완료")
         self.plan_button.setEnabled(True)
         self.develop_button.setEnabled(True)
+        self.execute_button.setEnabled(False)
 
     def _on_plan_button_clicked(self):
         if self._current_plan is None:
@@ -254,10 +272,14 @@ class MainWindow(QMainWindow):
         if result.status == "success":
             self.developer_status_label.setText("완료")
             self.work_step_value_label.setText("개발 완료")
+            self._current_developer_result = result
+            self.execute_button.setEnabled(True)
             self._show_developer_result_popup(result)
         else:
             self.developer_status_label.setText("오류")
             self.work_step_value_label.setText("개발 오류")
+            self._current_developer_result = None
+            self.execute_button.setEnabled(False)
             error_text = "\n".join(result.errors) if result.errors else result.summary
             QMessageBox.warning(self, "개발 실패", error_text)
 
@@ -277,3 +299,90 @@ class MainWindow(QMainWindow):
             f"생성된 파일:\n{files_text}"
         )
         QMessageBox.information(self, "개발 완료", message)
+
+    def _on_execute_button_clicked(self):
+        if self._current_developer_result is None:
+            return
+
+        project_path = Path(self._current_developer_result.project_path)
+
+        entry_point = find_entry_point(project_path)
+        if entry_point is None:
+            QMessageBox.warning(
+                self,
+                "실행 불가",
+                "프로젝트 폴더에 main.py 파일이 없습니다.\nv0.1에서는 main.py만 실행할 수 있습니다.",
+            )
+            return
+
+        requirements_path = project_path / "requirements.txt"
+        install_requirements_flag = False
+
+        if requirements_path.exists():
+            requirement_lines = parse_requirements(requirements_path.read_text(encoding="utf-8"))
+
+            if requirement_lines:
+                unsafe_lines = find_unsafe_requirements(requirement_lines)
+                if unsafe_lines:
+                    unsafe_text = "\n".join(f"- {line}" for line in unsafe_lines)
+                    QMessageBox.warning(
+                        self,
+                        "실행 불가",
+                        "requirements.txt에 안전하지 않은 항목이 있어 설치할 수 없습니다:\n\n"
+                        f"{unsafe_text}",
+                    )
+                    return
+
+                package_text = "\n".join(f"- {line}" for line in requirement_lines)
+                answer = QMessageBox.question(
+                    self,
+                    "패키지 설치 확인",
+                    "다음 패키지를 프로젝트 전용 가상환경에 설치한 뒤 실행합니다:\n\n"
+                    f"{package_text}\n\n계속하시겠습니까?",
+                )
+                if answer != QMessageBox.StandardButton.Yes:
+                    return
+
+                install_requirements_flag = True
+
+        self.execute_button.setEnabled(False)
+        self.developer_status_label.setText("작업 중")
+        self.work_step_value_label.setText("실행 준비 중")
+
+        self.execution_service.run_project(project_path, entry_point, install_requirements_flag)
+
+    def _on_execution_stage_changed(self, stage: str):
+        self.work_step_value_label.setText(stage)
+
+    def _on_execution_result(self, result: ExecutionResult):
+        self.execute_button.setEnabled(True)
+
+        if result.status == "success":
+            self.developer_status_label.setText("완료")
+            self.work_step_value_label.setText("실행 완료")
+            self._show_execution_result_popup(result, title="실행 완료")
+        else:
+            self.developer_status_label.setText("오류")
+            self.work_step_value_label.setText("실행 오류")
+            self._show_execution_result_popup(result, title="실행 실패")
+
+    def _on_execution_error(self, message: str):
+        self.execute_button.setEnabled(True)
+        self.developer_status_label.setText("오류")
+        self.work_step_value_label.setText("실행 오류")
+        QMessageBox.warning(self, "실행 실패", message)
+
+    def _show_execution_result_popup(self, result: ExecutionResult, title: str):
+        parts = [result.summary]
+        if result.return_code is not None:
+            parts.append(f"종료 코드: {result.return_code}")
+        if result.stdout:
+            parts.append(f"표준 출력:\n{result.stdout}")
+        if result.stderr:
+            parts.append(f"표준 오류:\n{result.stderr}")
+
+        message = "\n\n".join(parts)
+        if result.status == "success":
+            QMessageBox.information(self, title, message)
+        else:
+            QMessageBox.warning(self, title, message)
