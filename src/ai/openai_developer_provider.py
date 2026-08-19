@@ -94,29 +94,35 @@ class OpenAIDeveloperProvider(DeveloperProvider):
             f"작업 단계: {', '.join(request.task_steps)}\n\n"
             "위 계획대로 프로젝트 파일을 작성해주세요."
         )
+        # 첫 요청의 input. 이후 요청부터는 이전 응답 전체를 다시 보내지 않고,
+        # previous_response_id로 대화를 이어가면서 새로 생긴 function_call_output만 보낸다.
         input_items: list = [{"role": "user", "content": task_prompt}]
+        previous_response_id: str | None = None
 
         tool_call_count = 0
         response = None
 
         try:
             while True:
-                response = client.responses.parse(
-                    model=self._model,
-                    instructions=DEVELOPER_INSTRUCTIONS,
-                    input=input_items,
-                    tools=_TOOLS,
-                    max_tool_calls=MAX_TOOL_CALLS,
-                    parallel_tool_calls=False,
-                    text_format=DeveloperResult,
-                )
+                call_kwargs = {
+                    "model": self._model,
+                    "instructions": DEVELOPER_INSTRUCTIONS,
+                    "input": input_items,
+                    "tools": _TOOLS,
+                    "max_tool_calls": MAX_TOOL_CALLS,
+                    "parallel_tool_calls": False,
+                    "text_format": DeveloperResult,
+                }
+                if previous_response_id is not None:
+                    call_kwargs["previous_response_id"] = previous_response_id
+
+                response = client.responses.parse(**call_kwargs)
 
                 function_calls = [item for item in response.output if item.type == "function_call"]
                 if not function_calls:
                     break
 
-                input_items.extend(item.model_dump() for item in response.output)
-
+                function_call_outputs = []
                 for call in function_calls:
                     tool_call_count += 1
                     if tool_call_count > MAX_TOOL_CALLS:
@@ -125,13 +131,16 @@ class OpenAIDeveloperProvider(DeveloperProvider):
                         )
 
                     output_text = self._execute_tool(guard, call, created_files, modified_files)
-                    input_items.append(
+                    function_call_outputs.append(
                         {
                             "type": "function_call_output",
                             "call_id": call.call_id,
                             "output": output_text,
                         }
                     )
+
+                previous_response_id = response.id
+                input_items = function_call_outputs
         except AuthenticationError as exc:
             raise RuntimeError(
                 "OpenAI API Key가 올바르지 않습니다. .env 파일의 값을 확인해주세요."
