@@ -11,6 +11,9 @@ from PySide6.QtWidgets import (
 )
 
 from ai.brain_response import BrainResponse
+from ai.developer_request import DeveloperRequest
+from ai.developer_result import DeveloperResult
+from ai.developer_service import DeveloperService
 from chat_panel import ChatPanel
 
 DARK_STYLE = """
@@ -96,6 +99,10 @@ class MainWindow(QMainWindow):
 
         self._current_plan: BrainResponse | None = None
 
+        self.developer_service = DeveloperService(parent=self)
+        self.developer_service.result_ready.connect(self._on_developer_result)
+        self.developer_service.error_occurred.connect(self._on_developer_error)
+
         central_widget = QWidget()
         root_layout = QVBoxLayout(central_widget)
         root_layout.setContentsMargins(0, 0, 0, 0)
@@ -157,6 +164,8 @@ class MainWindow(QMainWindow):
         status_label.setAlignment(Qt.AlignmentFlag.AlignRight)
         row.addWidget(name_label)
         row.addWidget(status_label)
+        if name.startswith("Developer"):
+            self.developer_status_label = status_label
         return row
 
     def _build_center_panel(self) -> QWidget:
@@ -186,10 +195,11 @@ class MainWindow(QMainWindow):
         self.plan_button = QPushButton("작업 계획")
         self.plan_button.setEnabled(False)
         self.plan_button.clicked.connect(self._on_plan_button_clicked)
-        develop_button = QPushButton("개발 실행")
-        develop_button.setEnabled(False)
+        self.develop_button = QPushButton("개발 실행")
+        self.develop_button.setEnabled(False)
+        self.develop_button.clicked.connect(self._on_develop_button_clicked)
         layout.addWidget(self.plan_button)
-        layout.addWidget(develop_button)
+        layout.addWidget(self.develop_button)
 
         return panel
 
@@ -202,6 +212,7 @@ class MainWindow(QMainWindow):
         self.current_task_value_label.setText(plan.project_name or "")
         self.work_step_value_label.setText("계획 완료")
         self.plan_button.setEnabled(True)
+        self.develop_button.setEnabled(True)
 
     def _on_plan_button_clicked(self):
         if self._current_plan is None:
@@ -219,3 +230,50 @@ class MainWindow(QMainWindow):
         )
 
         QMessageBox.information(self, "작업 계획", message)
+
+    def _on_develop_button_clicked(self):
+        if self._current_plan is None:
+            return
+
+        self.develop_button.setEnabled(False)
+        self.developer_status_label.setText("작업 중")
+        self.work_step_value_label.setText("개발 중")
+
+        plan = self._current_plan
+        request = DeveloperRequest(
+            project_name=plan.project_name or "새 프로젝트",
+            requirements_summary=plan.requirements_summary or "",
+            feature_list=plan.feature_list or [],
+            task_steps=plan.task_steps or [],
+        )
+        self.developer_service.build_project(request)
+
+    def _on_developer_result(self, result: DeveloperResult):
+        self.develop_button.setEnabled(True)
+
+        if result.status == "success":
+            self.developer_status_label.setText("완료")
+            self.work_step_value_label.setText("개발 완료")
+            self._show_developer_result_popup(result)
+        else:
+            self.developer_status_label.setText("오류")
+            self.work_step_value_label.setText("개발 오류")
+            error_text = "\n".join(result.errors) if result.errors else result.summary
+            QMessageBox.warning(self, "개발 실패", error_text)
+
+    def _on_developer_error(self, message: str):
+        self.develop_button.setEnabled(True)
+        self.developer_status_label.setText("오류")
+        self.work_step_value_label.setText("개발 오류")
+        QMessageBox.warning(self, "개발 실패", message)
+
+    def _show_developer_result_popup(self, result: DeveloperResult):
+        project_name = self._current_plan.project_name if self._current_plan else ""
+        files_text = "\n".join(f"- {name}" for name in result.created_files) or "(없음)"
+
+        message = (
+            f"프로젝트:\n{project_name}\n\n"
+            f"저장 위치:\n{result.project_path}\n\n"
+            f"생성된 파일:\n{files_text}"
+        )
+        QMessageBox.information(self, "개발 완료", message)
