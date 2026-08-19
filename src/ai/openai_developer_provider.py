@@ -4,6 +4,7 @@ import os
 from openai import (
     APIConnectionError,
     AuthenticationError,
+    BadRequestError,
     OpenAI,
     OpenAIError,
     RateLimitError,
@@ -106,6 +107,7 @@ class OpenAIDeveloperProvider(DeveloperProvider):
                     input=input_items,
                     tools=_TOOLS,
                     max_tool_calls=MAX_TOOL_CALLS,
+                    parallel_tool_calls=False,
                     text_format=DeveloperResult,
                 )
 
@@ -141,6 +143,16 @@ class OpenAIDeveloperProvider(DeveloperProvider):
         except APIConnectionError as exc:
             raise RuntimeError(
                 "인터넷 연결을 확인해주세요. OpenAI 서버에 연결할 수 없습니다."
+            ) from exc
+        except BadRequestError as exc:
+            # 진단 목적의 임시 처리: 원인 파악을 위해 예외 클래스명/상태 코드/안전한
+            # 오류 메시지만 보여준다. API Key, 요청 본문, 응답 원문은 절대 포함하지 않는다.
+            safe_message = getattr(exc, "message", None) or str(exc)
+            raise RuntimeError(
+                "Developer API 오류\n"
+                f"{exc.__class__.__name__}\n"
+                f"HTTP {exc.status_code}\n"
+                f"{safe_message}"
             ) from exc
         except OpenAIError as exc:
             raise RuntimeError(
