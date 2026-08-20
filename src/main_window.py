@@ -102,8 +102,16 @@ QMainWindow {
     border: 1px solid #3a3a3a;
     border-radius: 4px;
 }
+#PendingFileItem {
+    background-color: #252526;
+    border: 1px solid #3a3a3a;
+    border-radius: 4px;
+}
 #PasteStatusLabel {
     padding: 2px 0;
+}
+#AttachButton {
+    font-weight: bold;
 }
 QListWidget, QTextEdit, QLineEdit {
     background-color: #1e1e1e;

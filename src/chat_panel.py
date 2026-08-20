@@ -1,7 +1,11 @@
+import mimetypes
+import os
+
 from PySide6.QtCore import QBuffer, QByteArray, QIODevice, QTimer, Qt, Signal
 from PySide6.QtGui import QImage, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
+    QFileDialog,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -11,7 +15,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from ai import image_content
+from ai import file_content, image_content
 from ai.brain_response import BrainResponse
 from ai.chief_brain_compat import ChiefBrainCompatError, adapt_chief_brain_plan_to_brain_response
 from ai.chief_brain_plan import ChiefBrainPlan
@@ -64,6 +68,24 @@ class ChatInput(QTextEdit):
                 self.image_pasted.emit(clipboard_image)
             return
         super().insertFromMimeData(source)
+
+
+def _build_attachment_display_text(text: str, image_count: int, file_count: int) -> str:
+    """전송 시 사용자 말풍선에 보여줄 텍스트를 만든다.
+
+    텍스트가 있으면 그대로 쓴다. 텍스트가 없으면(이미지/파일만 전송)
+    무엇이 몇 개 첨부됐는지 요약한다 - 26단계의 "[이미지 N장 첨부]"
+    표기를 그대로 포함하면서(이미지만 있는 경우 문구가 완전히 동일),
+    파일이 있으면 이어붙인다.
+    """
+    if text:
+        return text
+    parts = []
+    if image_count:
+        parts.append(f"이미지 {image_count}장")
+    if file_count:
+        parts.append(f"파일 {file_count}개")
+    return f"[{' + '.join(parts)} 첨부]" if parts else ""
 
 
 def _build_message_row(text: str, is_user: bool, thumbnails: list[QPixmap] | None = None) -> QWidget:
@@ -194,8 +216,20 @@ class ChatPanel(QWidget):
         self.image_preview_strip.setVisible(False)
         layout.addWidget(self.image_preview_strip)
 
-        # 이미지 붙여넣기 실패/개수 제한/크기 초과 등을 짧게 알려주는 상태
-        # 표시줄. 평소에는 숨겨져 있다.
+        # "+" 버튼으로 첨부한 일반 파일(이미지 제외)의 미리보기 스트립.
+        # 27단계 - 이미지와 별도 목록/위젯으로 둔다(5단계 "가장 안전한
+        # 최소 변경" 선택 - 이미 검증된 이미지 미리보기 코드를 전혀
+        # 건드리지 않는다).
+        self.file_preview_strip = QWidget()
+        self.file_preview_strip.setObjectName("FilePreviewStrip")
+        self.file_preview_layout = QHBoxLayout(self.file_preview_strip)
+        self.file_preview_layout.setContentsMargins(0, 0, 0, 4)
+        self.file_preview_layout.addStretch(1)
+        self.file_preview_strip.setVisible(False)
+        layout.addWidget(self.file_preview_strip)
+
+        # 이미지 붙여넣기/파일 첨부 실패/개수 제한/크기 초과 등을 짧게
+        # 알려주는 상태 표시줄. 평소에는 숨겨져 있다.
         self.paste_status_label = QLabel("")
         self.paste_status_label.setObjectName("PasteStatusLabel")
         self.paste_status_label.setStyleSheet("color: #e06c75;")
@@ -203,23 +237,36 @@ class ChatPanel(QWidget):
         layout.addWidget(self.paste_status_label)
 
         input_row = QHBoxLayout()
+        self.attach_button = QPushButton("+")
+        self.attach_button.setObjectName("AttachButton")
+        self.attach_button.setFixedWidth(32)
+        self.attach_button.setToolTip("파일 첨부")
+        self.attach_button.clicked.connect(self._on_attach_button_clicked)
         self.chat_input = ChatInput()
         self.chat_input.send_requested.connect(self._on_send_clicked)
         self.chat_input.image_pasted.connect(self._on_image_pasted)
         self.chat_input.image_paste_failed.connect(self._on_paste_error)
         self.send_button = QPushButton("보내기")
         self.send_button.clicked.connect(self._on_send_clicked)
+        input_row.addWidget(self.attach_button)
         input_row.addWidget(self.chat_input)
         input_row.addWidget(self.send_button)
         layout.addLayout(input_row)
 
         self._history: list[dict] = []
         self._waiting_for_response = False
-        # 보내기 전까지만 들고 있는 붙여넣은 이미지들. 각 항목은
+        # 보내기 전까지만 들고 있는 첨부 이미지들(Ctrl+V로 붙여넣은 것과
+        # "+" 버튼으로 선택한 이미지 파일 모두 이 목록 하나를 공유한다 -
+        # 2단계 "동일한 첨부 구조" 요구사항). 각 항목은
         # {"data_url": str, "thumbnail": QPixmap} 형태다 - data_url은
         # 그대로 전송 대상(OpenAI 요청)에 쓰이고, thumbnail은 화면
         # 표시(미리보기/말풍선)에만 쓰인다.
         self._pending_images: list[dict] = []
+        # 보내기 전까지만 들고 있는 첨부 일반 파일(이미지 제외)들. 각
+        # 항목은 {"kind": "text_file" | "binary_file", "name": str,
+        # "mime_type": str, "size": int, "text_content": str | None}
+        # 형태다 - text_content는 텍스트 파일일 때만 채워진다.
+        self._pending_files: list[dict] = []
 
         # 사용자 입력의 1차 판단자는 Chief Brain이다(23단계) - 기존
         # BrainService/OpenAIProvider는 삭제하지 않고 남겨두지만, 이 화면은
@@ -241,29 +288,111 @@ class ChatPanel(QWidget):
         scrollbar.setValue(scrollbar.maximum())
 
     def _on_image_pasted(self, image: QImage):
+        self._attach_image(image)
+
+    def _attach_image(self, image: QImage) -> bool:
+        """QImage 하나를 검증/인코딩해 self._pending_images에 추가한다.
+
+        Ctrl+V 붙여넣기(_on_image_pasted)와 "+" 버튼으로 선택한 이미지
+        파일(_add_file_attachment) 양쪽이 이 메서드 하나를 공유한다 -
+        2단계 "동일한 첨부 구조 사용, 중복 구현 최소화" 요구사항.
+        """
         if len(self._pending_images) >= image_content.MAX_PENDING_IMAGES:
             self._show_paste_status(
                 f"이미지는 한 번에 최대 {image_content.MAX_PENDING_IMAGES}장까지 첨부할 수 있습니다."
             )
-            return
+            return False
+        if self._total_attachment_count() >= file_content.MAX_TOTAL_ATTACHMENTS:
+            self._show_paste_status(
+                f"첨부는 한 번에 최대 {file_content.MAX_TOTAL_ATTACHMENTS}개까지 가능합니다."
+            )
+            return False
 
         try:
             png_bytes = _encode_image_to_png_bytes(image)
             image_content.validate_encoded_image_size(png_bytes)
         except image_content.ImageAttachmentError as exc:
             self._show_paste_status(str(exc))
-            return
+            return False
         except Exception:
             # 알 수 없는 인코딩 실패도 앱 전체를 죽이지 않고 안전하게
             # 알린다. KeyboardInterrupt/SystemExit는 Exception이 아니므로
             # 여기서 잡히지 않고 그대로 전파된다.
             self._show_paste_status("이미지를 처리하는 중 오류가 발생했습니다.")
-            return
+            return False
 
         data_url = image_content.encode_png_bytes_to_data_url(png_bytes)
         thumbnail = _make_thumbnail_pixmap(image)
         self._pending_images.append({"data_url": data_url, "thumbnail": thumbnail})
         self._refresh_image_preview()
+        self._clear_paste_status()
+        return True
+
+    def _total_attachment_count(self) -> int:
+        return len(self._pending_images) + len(self._pending_files)
+
+    def _on_attach_button_clicked(self):
+        paths, _ = QFileDialog.getOpenFileNames(self, "파일 첨부", "", "모든 파일 (*)")
+        for path in paths:
+            self._add_file_attachment(path)
+
+    def _add_file_attachment(self, path: str):
+        name = os.path.basename(path)
+
+        if file_content.is_sensitive_filename(path):
+            self._show_paste_status(f"'{name}' 파일은 민감한 정보를 담고 있을 수 있어 첨부할 수 없습니다.")
+            return
+
+        kind = file_content.guess_attachment_kind(path)
+
+        if kind == "image":
+            # "+"로 선택한 이미지 파일도 Ctrl+V와 완전히 동일한
+            # _pending_images/_attach_image 경로를 그대로 탄다.
+            image = QImage(path)
+            if image.isNull():
+                self._show_paste_status(f"'{name}' 이미지를 읽을 수 없습니다.")
+                return
+            self._attach_image(image)
+            return
+
+        if self._total_attachment_count() >= file_content.MAX_TOTAL_ATTACHMENTS:
+            self._show_paste_status(
+                f"첨부는 한 번에 최대 {file_content.MAX_TOTAL_ATTACHMENTS}개까지 가능합니다."
+            )
+            return
+
+        try:
+            size = os.path.getsize(path)
+        except OSError:
+            self._show_paste_status(f"'{name}' 파일 정보를 읽을 수 없습니다.")
+            return
+
+        mime_type, _ = mimetypes.guess_type(name)
+        mime_type = mime_type or "application/octet-stream"
+
+        if kind == "text":
+            if size > file_content.MAX_TEXT_FILE_BYTES:
+                self._show_paste_status(
+                    f"'{name}' 파일이 너무 커서 첨부할 수 없습니다"
+                    f"({file_content.format_file_size(size)}, 최대 "
+                    f"{file_content.format_file_size(file_content.MAX_TEXT_FILE_BYTES)})."
+                )
+                return
+            try:
+                with open(path, "r", encoding="utf-8") as fh:
+                    text_content = fh.read()
+            except (OSError, UnicodeDecodeError):
+                self._show_paste_status(f"'{name}' 파일을 텍스트로 읽을 수 없습니다.")
+                return
+            self._pending_files.append(
+                {"kind": "text_file", "name": name, "mime_type": mime_type, "size": size, "text_content": text_content}
+            )
+        else:
+            self._pending_files.append(
+                {"kind": "binary_file", "name": name, "mime_type": mime_type, "size": size, "text_content": None}
+            )
+
+        self._refresh_file_preview()
         self._clear_paste_status()
 
     def _on_paste_error(self, message: str):
@@ -317,24 +446,71 @@ class ChatPanel(QWidget):
             del self._pending_images[index]
             self._refresh_image_preview()
 
+    def _refresh_file_preview(self):
+        while self.file_preview_layout.count() > 1:
+            item = self.file_preview_layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+
+        for index, pending in enumerate(self._pending_files):
+            item_widget = self._build_pending_file_widget(index, pending)
+            self.file_preview_layout.insertWidget(self.file_preview_layout.count() - 1, item_widget)
+
+        self.file_preview_strip.setVisible(bool(self._pending_files))
+
+    def _build_pending_file_widget(self, index: int, pending: dict) -> QWidget:
+        item = QWidget()
+        item.setObjectName("PendingFileItem")
+        item.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        item_layout = QVBoxLayout(item)
+        item_layout.setContentsMargins(6, 4, 6, 4)
+
+        info_label = QLabel(f"[파일] {pending['name']}\n{file_content.format_file_size(pending['size'])}")
+        info_label.setWordWrap(True)
+        info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        info_label.setMaximumWidth(110)
+        item_layout.addWidget(info_label)
+
+        remove_button = QPushButton("삭제")
+        remove_button.setFixedHeight(20)
+        remove_button.clicked.connect(lambda _checked=False, i=index: self._remove_pending_file(i))
+        item_layout.addWidget(remove_button)
+
+        return item
+
+    def _remove_pending_file(self, index: int):
+        if 0 <= index < len(self._pending_files):
+            del self._pending_files[index]
+            self._refresh_file_preview()
+
     def _on_send_clicked(self):
         if self._waiting_for_response:
             return
         text = self.chat_input.toPlainText().strip()
         data_urls = [pending["data_url"] for pending in self._pending_images]
-        if not text and not data_urls:
+        file_blocks = [
+            file_content.build_attachment_text_block(
+                pending["name"], pending["mime_type"], pending["size"], pending["text_content"]
+            )
+            for pending in self._pending_files
+        ]
+        if not text and not data_urls and not file_blocks:
             return
 
-        display_text = text if text else f"[이미지 {len(data_urls)}장 첨부]"
+        display_text = _build_attachment_display_text(text, len(data_urls), len(self._pending_files))
         thumbnails = [pending["thumbnail"] for pending in self._pending_images] or None
         self._add_message(display_text, is_user=True, thumbnails=thumbnails)
         self.chat_input.clear()
 
-        content = image_content.build_user_message_content(text, data_urls)
+        combined_text = file_content.build_combined_text(text, file_blocks)
+        content = image_content.build_user_message_content(combined_text, data_urls)
         self._history.append({"role": "user", "content": content})
 
         self._pending_images = []
+        self._pending_files = []
         self._refresh_image_preview()
+        self._refresh_file_preview()
         self._clear_paste_status()
 
         self._set_waiting(True)
