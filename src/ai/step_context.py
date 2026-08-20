@@ -8,14 +8,18 @@ BrainTaskStep.goal은 Chief Brain이 만든 원본 계획 텍스트다 - 이 파
 직렬화 함수다 - API Key/.env/os.environ/파일 시스템은 전혀 다루지
 않는다.
 
-특정 task_type(research/development 등)을 모델 자체에 하드코딩하지
-않는다 - 어떤 task_type의 결과든 같은 구조(StepContext)로 담을 수
-있어야 향후 research->analysis, development->review, review->publish,
+특정 task_type(research/development/analysis 등)을 모델 자체에
+하드코딩하지 않는다 - 어떤 task_type의 결과든 같은 구조(StepContext)로
+담을 수 있어야 향후 development->review, review->publish,
 document->email 같은 새 조합에도 이 파일을 고치지 않고 재사용할 수
-있다. 직렬화 함수만 "ResearchWorker가 반환하는 모양(dict에
-search_results 키가 있는 경우)"을 사람이 읽기 좋게 포맷하는 예외적인
-경로를 하나 갖고, 그 모양이 아닌 결과는 task_type과 무관하게 동일한
-일반 경로(그대로 문자열화)로 처리한다.
+있다. 직렬화 함수는 "결과의 모양"만 보고 사람이 읽기 좋게 포맷하는
+예외적인 경로를 몇 개 갖는다 - ResearchWorker가 반환하는 모양(dict에
+search_results 키), ResearchReviewer(analysis)가 반환하는 모양
+(recommended_idea/market_observations 속성을 가진 객체). 특정 task_type
+문자열이나 구체 클래스(ResearchReviewResult 등)를 import하지 않고,
+duck typing(속성/키 존재 여부)만으로 판단한다 - 그래야 이 파일이 다른
+도메인 모듈에 의존하지 않는다. 그 모양이 아닌 결과는 동일한 일반
+경로(그대로 문자열화)로 처리한다.
 """
 
 from pydantic import BaseModel
@@ -57,6 +61,30 @@ def _format_search_results(search_results: list) -> str:
     return "\n".join(lines) if lines else "(검색 결과 없음)"
 
 
+def _is_research_review_shaped(result: object) -> bool:
+    """ResearchReviewer(analysis)가 반환하는 ResearchReviewResult 모양인지
+    구체 클래스를 import하지 않고 속성 존재만으로 판단한다."""
+    return all(
+        hasattr(result, attr)
+        for attr in ("recommended_idea", "recommendation_reason", "market_observations", "candidate_ideas", "risks", "next_action")
+    )
+
+
+def _format_research_review_result(result: object) -> str:
+    observations = "\n".join(f"- {item}" for item in result.market_observations) or "(없음)"
+    candidates = "\n".join(f"- {item}" for item in result.candidate_ideas) or "(없음)"
+    risks = "\n".join(f"- {item}" for item in result.risks) or "(없음)"
+    return (
+        f"요약: {result.summary}\n"
+        f"시장 관찰:\n{observations}\n"
+        f"후보 아이디어:\n{candidates}\n"
+        f"최종 추천: {result.recommended_idea}\n"
+        f"추천 이유: {result.recommendation_reason}\n"
+        f"리스크:\n{risks}\n"
+        f"다음 행동: {result.next_action}"
+    )
+
+
 def _format_step_result(step: StepContext) -> str:
     result = step.result
     if isinstance(result, dict) and "search_results" in result:
@@ -65,6 +93,13 @@ def _format_step_result(step: StepContext) -> str:
         # 않는다 - 결과의 "모양"만 본다.
         query = result.get("query", "")
         body = f"검색어: {query}\n검색 결과:\n{_format_search_results(result.get('search_results') or [])}"
+    elif _is_research_review_shaped(result):
+        # ResearchReviewer(ResearchReviewResult) 모양도 사람이 읽기 좋게
+        # 풀어낸다 - summary/market_observations/candidate_ideas/
+        # recommended_idea/recommendation_reason/risks/next_action이
+        # 전부 포함되어야 다음 step(예: development)이 "무엇을 만들지"
+        # 실제로 볼 수 있다.
+        body = _format_research_review_result(result)
     else:
         # 알려진 모양이 아니면(development 결과 등) 일반적인 방식으로
         # 그대로 문자열화한다 - 특정 task_type을 더 추가하지 않아도

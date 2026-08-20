@@ -12,23 +12,24 @@ v1 범위(중요, 의도적인 제약):
   등록되지 않은 task_type을 억지로 아무 Worker에게나 보내지 않는다 -
   WorkerRegistry.has_worker()로 먼저 확인하고, 없으면
   "waiting_for_executor"로 멈춘다.
-- development는 TaskSystem/WorkerRegistry를 거치지 않는다(TaskSystem은
-  여전히 development를 Worker로 등록하지 않는다 - task_system.py
-  무변경). 대신 development_executor가 주입되어 있으면 그것을 통해서만
-  실행한다. development_executor가 없으면 development도 이전과 동일하게
-  "waiting_for_executor"로 멈춘다 - 이 파일이 development를 실행할
-  "코드"를 직접 만들지도, DeveloperService를 직접 알지도 않는다.
+- development/analysis는 TaskSystem/WorkerRegistry를 거치지 않는다
+  (TaskSystem은 여전히 이 둘을 Worker로 등록하지 않는다 - task_system.py
+  무변경). 대신 development_executor/analysis_executor가 각각 주입되어
+  있으면 그것을 통해서만 실행한다. 주입되어 있지 않으면 이전과 동일하게
+  "waiting_for_executor"로 멈춘다 - 이 파일이 development/analysis를
+  실행할 "코드"를 직접 만들지도, DeveloperService/ResearchReviewService를
+  직접 알지도 않는다.
 - requires_approval=True인 step은 자동 실행하지 않는다. 이 안에서
   "승인됐다"는 값을 스스로 만들어내지 않는다(approved=True 같은 것을
-  하드코딩하지 않는다) - development도 예외 없이 이 규칙을 먼저
-  통과해야 한다(DevelopmentExecutor는 승인 여부를 전혀 판단하지 않는다).
-- development step의 depends_on에 적힌, "완료된" 선행 step 결과만
-  ExecutionContext(step_context.py)로 모아 DevelopmentExecutor에
+  하드코딩하지 않는다) - development/analysis 모두 예외 없이 이 규칙을
+  먼저 통과해야 한다(DevelopmentExecutor/AnalysisExecutor는 승인 여부를
+  전혀 판단하지 않는다).
+- development/analysis step의 depends_on에 적힌, "완료된" 선행 step
+  결과만 ExecutionContext(step_context.py)로 모아 각 Executor에
   전달한다 - step.goal 원본 문자열 자체는 절대 수정하지 않는다(원본을
   바꾸는 대신 별도 참고자료로 넘긴다). depends_on에 없는 step이나
   completed가 아닌 상태의 결과는 절대 섞이지 않는다. research 등 다른
-  task_type(TaskSystem 경로)에는 아직 context를 전달하지 않는다 -
-  이번 단계는 development 연결만 다룬다.
+  task_type(TaskSystem 경로)에는 아직 context를 전달하지 않는다.
 - Developer가 코드를 생성했다고 해서 자동으로 프로그램을 실행하지
   않는다(entry_point 확인/venv/requirements 설치/실제 실행은 여전히
   별도 계층의 일이다 - 이 파일은 ExecutionService를 전혀 모른다).
@@ -38,6 +39,7 @@ v1 범위(중요, 의도적인 제약):
   즉시 전체 실행을 중단한다 - 이후 step은 아예 처리를 시도하지 않는다.
 """
 
+from .analysis_executor import AnalysisExecutionError, AnalysisExecutor
 from .chief_brain_plan import ChiefBrainPlan
 from .development_executor import DevelopmentExecutionError, DevelopmentExecutor
 from .orchestration_result import OrchestrationResult
@@ -45,18 +47,25 @@ from .orchestration_step_result import OrchestrationStepResult, StepStatus
 from .step_context import ExecutionContext, StepContext
 from .task_system import TaskSystem
 
-# development는 TaskSystem/WorkerRegistry가 아니라 별도의 DevelopmentExecutor
-# 경로로 실행한다 - 이 값 하나만 이 파일이 알고 있어도 된다(다른 어떤
-# task_type도 여기서 특별 취급하지 않는다).
+# development/analysis는 TaskSystem/WorkerRegistry가 아니라 별도의
+# Executor 경로로 실행한다 - 이 값들만 이 파일이 알고 있어도 된다(다른
+# 어떤 task_type도 여기서 특별 취급하지 않는다).
 _DEVELOPMENT_TASK_TYPE = "development"
+_ANALYSIS_TASK_TYPE = "analysis"
 
 
 class ChiefBrainOrchestrator:
-    """ChiefBrainPlan.steps를 order 순서대로 처리해 TaskSystem/Developer로 실행한다."""
+    """ChiefBrainPlan.steps를 order 순서대로 처리해 TaskSystem/Developer/Reviewer로 실행한다."""
 
-    def __init__(self, task_system: TaskSystem, development_executor: DevelopmentExecutor | None = None):
+    def __init__(
+        self,
+        task_system: TaskSystem,
+        development_executor: DevelopmentExecutor | None = None,
+        analysis_executor: AnalysisExecutor | None = None,
+    ):
         self._task_system = task_system
         self._development_executor = development_executor
+        self._analysis_executor = analysis_executor
 
     def run(self, plan: ChiefBrainPlan) -> OrchestrationResult:
         if not plan.steps:
@@ -96,6 +105,28 @@ class ChiefBrainOrchestrator:
                 step_results[step.step_id] = result
                 completed_steps.append(result)
                 break
+
+            if step.task_type == _ANALYSIS_TASK_TYPE:
+                if self._analysis_executor is None:
+                    result = self._make_step_result(step, status="waiting_for_executor")
+                    step_results[step.step_id] = result
+                    completed_steps.append(result)
+                    break
+
+                context = self._build_execution_context(step, step_results)
+
+                try:
+                    review_result = self._analysis_executor.execute(step, context=context)
+                except AnalysisExecutionError as exc:
+                    result = self._make_step_result(step, status="failed", error=str(exc))
+                    step_results[step.step_id] = result
+                    completed_steps.append(result)
+                    break
+
+                result = self._make_step_result(step, status="completed", result=review_result)
+                step_results[step.step_id] = result
+                completed_steps.append(result)
+                continue
 
             if step.task_type == _DEVELOPMENT_TASK_TYPE:
                 if self._development_executor is None:
