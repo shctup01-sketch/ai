@@ -1,23 +1,32 @@
-"""ChiefBrainPlan을 실제 TaskSystem 실행으로 연결하는 첫 Orchestrator(v1).
+"""ChiefBrainPlan을 실제 TaskSystem/Developer 실행으로 연결하는 Orchestrator.
 
-이 파일은 TaskSystem을 생성자에서 외부 주입받을 뿐, 내부에서 새로
-만들지 않는다. OpenAI client/Provider를 전혀 알지 못하고(이 파일에는
-OpenAI 관련 import가 없다), MainWindow/ChatPanel/BrainService/
-DeveloperService/ExecutionService/PackageFixService 무엇과도 연결되어
-있지 않다 - 이번 단계는 "계획을 실제로 실행할 수 있는 엔진"까지만
-만들고, UI 연결은 다음 단계로 미룬다.
+이 파일은 TaskSystem과 (선택적으로) DevelopmentExecutor를 생성자에서
+외부 주입받을 뿐, 내부에서 새로 만들지 않는다. OpenAI client/Provider를
+전혀 알지 못하고(이 파일에는 OpenAI 관련 import가 없다),
+MainWindow/ChatPanel/BrainService/DeveloperService/ExecutionService/
+PackageFixService 무엇과도 연결되어 있지 않다 - 이번 단계도 "계획을
+실제로 실행할 수 있는 엔진"까지만 만들고, UI 연결은 다음 단계로 미룬다.
 
 v1 범위(중요, 의도적인 제약):
 - 현재 TaskSystem에 실제로 등록된 Worker는 research 하나뿐이다.
-  등록되지 않은 task_type(development 포함)을 억지로 아무 Worker에게나
-  보내지 않는다 - WorkerRegistry.has_worker()로 먼저 확인하고, 없으면
-  "waiting_for_executor"로 멈춘다. development를 기존 DeveloperService에
-  연결하는 것은 다음 단계의 일이다.
+  등록되지 않은 task_type을 억지로 아무 Worker에게나 보내지 않는다 -
+  WorkerRegistry.has_worker()로 먼저 확인하고, 없으면
+  "waiting_for_executor"로 멈춘다.
+- development는 TaskSystem/WorkerRegistry를 거치지 않는다(TaskSystem은
+  여전히 development를 Worker로 등록하지 않는다 - task_system.py
+  무변경). 대신 development_executor가 주입되어 있으면 그것을 통해서만
+  실행한다. development_executor가 없으면 development도 이전과 동일하게
+  "waiting_for_executor"로 멈춘다 - 이 파일이 development를 실행할
+  "코드"를 직접 만들지도, DeveloperService를 직접 알지도 않는다.
 - requires_approval=True인 step은 자동 실행하지 않는다. 이 안에서
   "승인됐다"는 값을 스스로 만들어내지 않는다(approved=True 같은 것을
-  하드코딩하지 않는다) - 그 UI/재개(resume) 흐름은 다음 단계의 일이다.
+  하드코딩하지 않는다) - development도 예외 없이 이 규칙을 먼저
+  통과해야 한다(DevelopmentExecutor는 승인 여부를 전혀 판단하지 않는다).
 - research 성공 결과를 development 등 다음 step의 goal에 자동으로
   집어넣는 일도 하지 않는다(Result Context 설계는 다음 단계).
+- Developer가 코드를 생성했다고 해서 자동으로 프로그램을 실행하지
+  않는다(entry_point 확인/venv/requirements 설치/실제 실행은 여전히
+  별도 계층의 일이다 - 이 파일은 ExecutionService를 전혀 모른다).
 - 어떤 step이든 order 순서상 이후 step은, 그 앞의 step이 정확히
   "completed"로 끝난 경우에만 진행한다. 승인 대기/실행기 없음/실패/
   (방어적으로 확인하는) 선행 작업 미완료 중 어떤 상태로든 멈추면 그
@@ -25,16 +34,23 @@ v1 범위(중요, 의도적인 제약):
 """
 
 from .chief_brain_plan import ChiefBrainPlan
+from .development_executor import DevelopmentExecutionError, DevelopmentExecutor
 from .orchestration_result import OrchestrationResult
 from .orchestration_step_result import OrchestrationStepResult, StepStatus
 from .task_system import TaskSystem
 
+# development는 TaskSystem/WorkerRegistry가 아니라 별도의 DevelopmentExecutor
+# 경로로 실행한다 - 이 값 하나만 이 파일이 알고 있어도 된다(다른 어떤
+# task_type도 여기서 특별 취급하지 않는다).
+_DEVELOPMENT_TASK_TYPE = "development"
+
 
 class ChiefBrainOrchestrator:
-    """ChiefBrainPlan.steps를 order 순서대로 처리해 TaskSystem으로 실행한다."""
+    """ChiefBrainPlan.steps를 order 순서대로 처리해 TaskSystem/Developer로 실행한다."""
 
-    def __init__(self, task_system: TaskSystem):
+    def __init__(self, task_system: TaskSystem, development_executor: DevelopmentExecutor | None = None):
         self._task_system = task_system
+        self._development_executor = development_executor
 
     def run(self, plan: ChiefBrainPlan) -> OrchestrationResult:
         if not plan.steps:
@@ -71,6 +87,33 @@ class ChiefBrainOrchestrator:
 
             if step.requires_approval:
                 result = self._make_step_result(step, status="waiting_for_approval")
+                step_results[step.step_id] = result
+                completed_steps.append(result)
+                break
+
+            if step.task_type == _DEVELOPMENT_TASK_TYPE:
+                if self._development_executor is None:
+                    result = self._make_step_result(step, status="waiting_for_executor")
+                    step_results[step.step_id] = result
+                    completed_steps.append(result)
+                    break
+
+                try:
+                    dev_result = self._development_executor.execute(step)
+                except DevelopmentExecutionError as exc:
+                    result = self._make_step_result(step, status="failed", error=str(exc))
+                    step_results[step.step_id] = result
+                    completed_steps.append(result)
+                    break
+
+                if dev_result.status == "success":
+                    result = self._make_step_result(step, status="completed", result=dev_result)
+                    step_results[step.step_id] = result
+                    completed_steps.append(result)
+                    continue
+
+                dev_error_text = "; ".join(dev_result.errors) if dev_result.errors else dev_result.summary
+                result = self._make_step_result(step, status="failed", error=dev_error_text)
                 step_results[step.step_id] = result
                 completed_steps.append(result)
                 break
