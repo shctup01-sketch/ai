@@ -33,6 +33,17 @@ from pydantic import BaseModel
 from .brain_task_step import BrainTaskStep
 
 
+# 35단계 - project 모드 계획 생성 안정성 안전장치(validate_chief_brain_plan)에서만
+# 쓰는 "현재 실제 연결된 task_type 목록"이다. task_type 자체는 여전히
+# BrainTaskStep에서 str로 열려 있다(Literal로 닫지 않는다 - 향후 plugin/
+# worker 확장을 막지 않기 위해). ChiefBrainOrchestrator/TaskSystem에는
+# 이 목록을 하드코딩하지 않는다 - 범용 Orchestrator는 여전히 어떤
+# task_type이 "실행 가능한지" 스스로 판단하지 않고, 그때그때 실행기가
+# 주입되어 있는지만 본다. 여기서는 오직 Chief Brain의 project 모드 계획
+# 생성 결과가 실행기 없는 임의 task_type을 남발하지 않는지만 검사한다.
+_PROJECT_EXECUTABLE_TASK_TYPES = {"research", "analysis", "development", "screen_observation"}
+
+
 class ChiefBrainPlan(BaseModel):
     needs_more_info: bool
     ready: bool
@@ -98,5 +109,21 @@ def validate_chief_brain_plan(plan: ChiefBrainPlan) -> list[str]:
             "project 모드 계획이 development 1개 step으로만 구성되어 있습니다 - "
             "대형 프로젝트는 설계/검증 등을 거치지 않고 development 하나로 끝낼 수 없습니다."
         )
+
+    # 35단계 - project 모드는 원칙적으로 지금 실제로 실행 가능한
+    # task_type(research/analysis/development/screen_observation)만
+    # 조합해야 한다(§3/§5) - task 모드는 이 검사에서 완전히 제외된다
+    # (§6, 아직 Worker가 없는 task_type도 정직하게 계획에 포함하는
+    # 기존 자유를 그대로 유지한다).
+    if plan.execution_mode == "project":
+        unexecutable_task_types = sorted(
+            {step.task_type for step in plan.steps if step.task_type not in _PROJECT_EXECUTABLE_TASK_TYPES}
+        )
+        if unexecutable_task_types:
+            errors.append(
+                f"project 모드 계획에 현재 실행 불가능한 task_type이 있습니다: {unexecutable_task_types} - "
+                "research/analysis/development/screen_observation만 사용하고, "
+                "단계의 의미는 task_type이 아니라 title/goal로 표현하세요."
+            )
 
     return errors

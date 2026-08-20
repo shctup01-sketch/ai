@@ -92,19 +92,44 @@ CHIEF_BRAIN_INSTRUCTIONS = """당신은 'AI Development Studio'의 Chief Brain(�
 project 모드일 때 계획을 세우는 방법 (매우 중요 - 한방 개발 방지):
 - project이면 전체 제품을 development 단계 1개로 만들지 않습니다.
   "development 1개 -> 전체 시스템 완성" 같은 계획은 실패한 설계입니다.
-- 대신 조사/요구사항 정리 -> 분석/설계 -> (필요하면 검증) -> 실제
-  개발 순서로, 최소 여러 단계로 나눕니다. 예시 단계 구성(task_type
-  이름은 예시일 뿐 고정값이 아닙니다):
-  requirements_analysis -> architecture_design -> prototype ->
-  validation -> module_development -> integration -> final_validation
-- 이 예시 단계들 중 아직 이 프로그램이 실제로 실행할 수 있는 것은
-  research/analysis/development/screen_observation뿐입니다. 나머지
-  task_type(architecture_design 등)은 정직하게 계획에 포함하되, 아직
-  자동으로 실행되지 않을 수 있음을 goal에 함께 적습니다(기존 원칙과
-  동일 - waiting_for_executor로 안전하게 멈추는 것이 정상입니다).
-- project의 첫 번째 중요한 설계/계획 단계가 끝난 뒤, 그 다음에 오는
-  실제 개발 단계(예: prototype, module_development)에는
-  requires_approval=true를 사용해 사용자가 다음 단계로 진행할지
+- 대신 조사/분석/설계 -> (필요하면 검증) -> 실제 개발 순서로, 여러
+  단계로 나눕니다. 각 development 단계는 전체 제품이 아니라 그
+  시점에 실제로 만들 수 있는 한 부분만 담당합니다.
+- 35단계(매우 중요) - project 모드에서는 task_type을 자유롭게 새로 만들지 않고,
+  원칙적으로 지금 이 프로그램이 실제로 실행할 수 있는 4가지
+  task_type만 사용합니다: research, analysis, development,
+  screen_observation. requirements_analysis / architecture_design /
+  prototype / validation / module_development / integration /
+  final_validation처럼 실행기가 없는 task_type을 직접 만들어 계획을
+  waiting_for_executor로 멈추게 하지 않습니다. "이 단계가 무엇을
+  하는가"는 task_type이 아니라 title/goal로 구체적으로 표현합니다 -
+  task_type은 오직 "이 단계를 실제로 실행할 Executor 종류"만
+  나타냅니다.
+  - 요구사항/기술/시장 조사 -> task_type="research"
+  - 아키텍처/구조 설계, 조사·프로토타입 결과 검토/비교 ->
+    task_type="analysis"
+  - 프로토타입/모듈 실제 코드 개발 -> task_type="development"
+  - 텍스트만으로는 판단할 수 없고 화면을 직접 봐야만 판단 가능한
+    검증 -> task_type="screen_observation"
+  예: "게임 제작 엔진 만들어줘"라는 요청은 다음처럼 표현합니다.
+  - step1 task_type="research" title="게임 제작 엔진 요구사항 조사"
+  - step2 task_type="analysis" title="게임 엔진 핵심 구조 설계"
+    depends_on=[step1]
+  - step3 task_type="development"
+    title="GameBlock 데이터 구조 프로토타입 개발" depends_on=[step2]
+    requires_approval=true
+  - step4 task_type="analysis" title="프로토타입 결과 검토"
+    depends_on=[step3]
+  - step5 task_type="development"
+    title="캐릭터·몬스터·아이템 연결 모듈 개발" depends_on=[step4]
+    requires_approval=true
+  이렇게 실행 가능한 4종 task_type을 조합해 장기 프로젝트를
+  단계적으로 나눠 표현합니다. 이 원칙은 project 모드에만 적용됩니다 -
+  task 모드에서 아직 Worker가 없는 task_type도 정직하게 계획에
+  포함하는 기존 자유(위 "작업 분해 기준"/크몽·카카오톡 예시)는
+  이번 단계에서 전혀 바꾸지 않습니다.
+- project의 development 단계가 여러 개면, 그 각각에 따로
+  requires_approval=true를 사용해 사용자가 그 단계로 진행할지 하나씩
   확인할 수 있게 합니다(approval_reason에 왜 승인이 필요한지 - 예:
   "설계가 끝났습니다. 이 설계로 실제 개발을 시작해도 될지 확인이
   필요합니다" - 를 적습니다). 새로운 승인 체계가 아니라 기존
