@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from ai import file_content, image_content
+from ai import file_content, image_content, screen_capture
 from ai.brain_response import BrainResponse
 from ai.chief_brain_compat import ChiefBrainCompatError, adapt_chief_brain_plan_to_brain_response
 from ai.chief_brain_plan import ChiefBrainPlan
@@ -242,6 +242,16 @@ class ChatPanel(QWidget):
         self.attach_button.setFixedWidth(32)
         self.attach_button.setToolTip("파일 첨부")
         self.attach_button.clicked.connect(self._on_attach_button_clicked)
+        # 28단계 - "+" 버튼을 메뉴로 바꾸지 않고 별도의 작은 버튼을 둔다
+        # (7단계가 명시적으로 허용한 대안). "+" 버튼을 QMenu로 바꾸면
+        # 27단계에서 이미 검증된 "+ 클릭 -> 바로 QFileDialog" 흐름과 그
+        # 흐름을 검증하는 기존 회귀 테스트들을 건드릴 위험이 커서, 회귀
+        # 위험이 가장 작은 방식을 선택했다(이유는 완료 보고서 참고).
+        self.screen_capture_button = QPushButton("화면")
+        self.screen_capture_button.setObjectName("ScreenCaptureButton")
+        self.screen_capture_button.setFixedWidth(40)
+        self.screen_capture_button.setToolTip("현재 화면 첨부")
+        self.screen_capture_button.clicked.connect(self._on_screen_capture_button_clicked)
         self.chat_input = ChatInput()
         self.chat_input.send_requested.connect(self._on_send_clicked)
         self.chat_input.image_pasted.connect(self._on_image_pasted)
@@ -249,6 +259,7 @@ class ChatPanel(QWidget):
         self.send_button = QPushButton("보내기")
         self.send_button.clicked.connect(self._on_send_clicked)
         input_row.addWidget(self.attach_button)
+        input_row.addWidget(self.screen_capture_button)
         input_row.addWidget(self.chat_input)
         input_row.addWidget(self.send_button)
         layout.addLayout(input_row)
@@ -335,6 +346,25 @@ class ChatPanel(QWidget):
         paths, _ = QFileDialog.getOpenFileNames(self, "파일 첨부", "", "모든 파일 (*)")
         for path in paths:
             self._add_file_attachment(path)
+
+    def _on_screen_capture_button_clicked(self):
+        # 사용자가 이 버튼을 직접 눌렀을 때만 호출된다 - 자동/주기적
+        # 캡처는 없다. 캡처된 이미지는 곧바로 전송되지 않고 Ctrl+V/"+"
+        # 이미지와 완전히 동일하게 _attach_image()를 거쳐 pending 상태로만
+        # 추가된다(6단계 "캡처 즉시 자동 전송하지 않는다").
+        try:
+            image = screen_capture.capture_primary_screen()
+        except screen_capture.ScreenCaptureError as exc:
+            self._show_paste_status(str(exc))
+            return
+        except Exception:
+            # 알 수 없는 캡처 실패도 앱 전체를 죽이지 않고 안전하게
+            # 알린다. KeyboardInterrupt/SystemExit는 Exception이 아니므로
+            # 여기서 잡히지 않고 그대로 전파된다.
+            self._show_paste_status("현재 화면을 캡처하지 못했습니다.")
+            return
+
+        self._attach_image(image)
 
     def _add_file_attachment(self, path: str):
         name = os.path.basename(path)

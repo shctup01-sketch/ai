@@ -113,6 +113,9 @@ QMainWindow {
 #AttachButton {
     font-weight: bold;
 }
+#ScreenCaptureButton {
+    font-size: 11px;
+}
 QListWidget, QTextEdit, QLineEdit {
     background-color: #1e1e1e;
     border: 1px solid #3a3a3a;
