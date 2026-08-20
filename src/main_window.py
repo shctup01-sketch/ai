@@ -4,11 +4,14 @@ from pathlib import Path
 from openai import OpenAI
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
+    QApplication,
+    QDialog,
     QHBoxLayout,
     QLabel,
     QListWidget,
     QMainWindow,
     QMessageBox,
+    QPlainTextEdit,
     QPushButton,
     QVBoxLayout,
     QWidget,
@@ -603,6 +606,51 @@ class MainWindow(QMainWindow):
         self.work_step_value_label.setText("조사 오류")
         QMessageBox.warning(self, "조사 실패", message)
 
+    def _show_scrollable_result_dialog(self, title: str, content: str):
+        """긴 텍스트 결과(조사 결과/분석 결과 등)를 스크롤 가능한 창으로 보여준다.
+
+        QMessageBox는 내용이 화면 높이를 넘어가면 아래쪽을 볼 방법이 없어서
+        (Windows 실기에서 확인된 문제) 대신 크기 조절 가능한 QDialog +
+        읽기 전용 텍스트 영역을 쓴다. 조사 결과 전용이 아니라, 앞으로 다른
+        긴 텍스트 결과(사업 분석/보고서 등)에도 그대로 재사용할 수 있게
+        일반적인 (title, content) 형태로 만든다.
+        """
+        dialog = QDialog(self)
+        dialog.setWindowTitle(title)
+
+        screen = QApplication.primaryScreen()
+        if screen is not None:
+            available = screen.availableGeometry()
+            max_width = max(1, int(available.width() * 0.8))
+            max_height = max(1, int(available.height() * 0.85))
+        else:
+            max_width, max_height = 850, 750
+
+        default_width = min(800, max_width)
+        default_height = min(650, max_height)
+
+        # setFixedSize를 쓰지 않는다 - 사용자가 모서리를 드래그해 창 크기를
+        # 조절할 수 있어야 한다(고정 크기 Dialog 금지). resize()는 초기
+        # 크기만 정할 뿐 크기 조절 가능 여부와는 무관하다.
+        dialog.resize(default_width, default_height)
+        dialog.setMaximumSize(max_width, max_height)
+
+        layout = QVBoxLayout(dialog)
+
+        title_label = QLabel(title, dialog)
+        layout.addWidget(title_label)
+
+        text_edit = QPlainTextEdit(dialog)
+        text_edit.setReadOnly(True)
+        text_edit.setPlainText(content)
+        layout.addWidget(text_edit, stretch=1)
+
+        close_button = QPushButton("닫기", dialog)
+        close_button.clicked.connect(dialog.accept)
+        layout.addWidget(close_button)
+
+        dialog.exec()
+
     def _show_research_result_popup(self, task: Task):
         result = task.result or {}
         query = result.get("query", "")
@@ -621,7 +669,7 @@ class MainWindow(QMainWindow):
             f"검색어:\n{query}\n\n"
             f"검색 결과:\n{results_text}"
         )
-        QMessageBox.information(self, "조사 완료", message)
+        self._show_scrollable_result_dialog("조사 완료", message)
 
     def _ensure_research_review_service(self) -> ResearchReviewService | None:
         """Reviewer(조사 결과 분석)도 research와 동일하게 실제로 쓸 때만 지연 생성한다.
@@ -704,4 +752,4 @@ class MainWindow(QMainWindow):
             f"리스크:\n{risks}\n\n"
             f"다음 행동:\n{result.next_action}"
         )
-        QMessageBox.information(self, "조사 분석 완료", message)
+        self._show_scrollable_result_dialog("조사 분석 완료", message)
