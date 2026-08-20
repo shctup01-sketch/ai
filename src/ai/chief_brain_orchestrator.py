@@ -49,7 +49,20 @@ resume()이 공유하는 _run_from()이 이미 step_results에 있는 step_id를
 만나면 건너뛴다. 범용 Workflow Engine을 만들지 않는다 - "이미 아는
 결과를 다시 실행하지 않고 다음 step으로 이어간다"는 한 가지 동작만
 한다.
+
+31단계 - on_stage_changed: run()/resume()에 선택적으로 넘길 수 있는 평범한
+콜백(Callable[[str], None])이다. Qt Signal이 아니다 - 이 파일은 여전히
+PySide6를 전혀 모른다(OrchestrationService가 QThread 안에서 자신의
+stage_changed.emit을 그대로 이 콜백으로 넘겨줄 뿐이다). step을 실제로
+실행하기 직전/성공 직후에만 호출한다("N/전체 task_type 시작"/"완료" 형태) -
+승인 대기/실행기 없음/실패처럼 이미 다른 방식(waiting_for_approval 등
+OrchestrationResult.status, 화면 승인 Dialog)으로 사용자에게 전달되는
+상태까지 이 콜백이 중복해서 새 문구를 만들지는 않는다(승인 대기만
+예외적으로 함께 알린다 - 사용자가 "지금 이 승인이 몇 번째 단계인지"
+바로 알 수 있어야 하기 때문).
 """
+
+from typing import Callable
 
 from .analysis_executor import AnalysisExecutionError, AnalysisExecutor
 from .chief_brain_plan import ChiefBrainPlan
@@ -79,7 +92,9 @@ class ChiefBrainOrchestrator:
         self._development_executor = development_executor
         self._analysis_executor = analysis_executor
 
-    def run(self, plan: ChiefBrainPlan) -> OrchestrationResult:
+    def run(
+        self, plan: ChiefBrainPlan, on_stage_changed: Callable[[str], None] | None = None
+    ) -> OrchestrationResult:
         if not plan.steps:
             return OrchestrationResult(
                 status="completed",
@@ -88,13 +103,14 @@ class ChiefBrainOrchestrator:
                 summary="실행할 작업이 없는 계획입니다.",
             )
 
-        return self._run_from(plan, {}, [])
+        return self._run_from(plan, {}, [], on_stage_changed)
 
     def resume(
         self,
         plan: ChiefBrainPlan,
         completed_steps: list[OrchestrationStepResult],
         approved_step_result: OrchestrationStepResult,
+        on_stage_changed: Callable[[str], None] | None = None,
     ) -> OrchestrationResult:
         """requires_approval=True였던 step이 이미 승인/실행되어 완료된 뒤,
         나머지 계획을 이어서 실행한다.
@@ -118,19 +134,26 @@ class ChiefBrainOrchestrator:
         step_results[approved_step_result.step_id] = approved_step_result
         seeded_completed.append(approved_step_result)
 
-        return self._run_from(plan, step_results, seeded_completed)
+        return self._run_from(plan, step_results, seeded_completed, on_stage_changed)
+
+    @staticmethod
+    def _emit_stage(on_stage_changed: Callable[[str], None] | None, text: str) -> None:
+        if on_stage_changed is not None:
+            on_stage_changed(text)
 
     def _run_from(
         self,
         plan: ChiefBrainPlan,
         step_results: dict[str, OrchestrationStepResult],
         completed_steps: list[OrchestrationStepResult],
+        on_stage_changed: Callable[[str], None] | None = None,
     ) -> OrchestrationResult:
         # plan.steps를 정렬만 할 뿐 원본 리스트/step 객체는 어디서도
         # 수정하지 않는다(sorted()는 새 리스트를 반환한다).
         ordered_steps = sorted(plan.steps, key=lambda step: step.order)
+        total_steps = len(ordered_steps)
 
-        for step in ordered_steps:
+        for step_number, step in enumerate(ordered_steps, start=1):
             if step.step_id in step_results:
                 # 이미 처리된 step이다(run()의 최초 호출에서는 절대 참이 될
                 # 수 없다 - step_results가 빈 dict로 시작하므로. resume()이
@@ -156,6 +179,7 @@ class ChiefBrainOrchestrator:
                 break
 
             if step.requires_approval:
+                self._emit_stage(on_stage_changed, f"{step_number}/{total_steps} {step.task_type} 승인 대기")
                 result = self._make_step_result(step, status="waiting_for_approval")
                 step_results[step.step_id] = result
                 completed_steps.append(result)
@@ -170,6 +194,7 @@ class ChiefBrainOrchestrator:
 
                 context = self._build_execution_context(step, step_results)
 
+                self._emit_stage(on_stage_changed, f"{step_number}/{total_steps} analysis 시작")
                 try:
                     review_result = self._analysis_executor.execute(step, context=context)
                 except AnalysisExecutionError as exc:
@@ -178,6 +203,7 @@ class ChiefBrainOrchestrator:
                     completed_steps.append(result)
                     break
 
+                self._emit_stage(on_stage_changed, f"{step_number}/{total_steps} analysis 완료")
                 result = self._make_step_result(step, status="completed", result=review_result)
                 step_results[step.step_id] = result
                 completed_steps.append(result)
@@ -192,6 +218,7 @@ class ChiefBrainOrchestrator:
 
                 context = self._build_execution_context(step, step_results)
 
+                self._emit_stage(on_stage_changed, f"{step_number}/{total_steps} development 시작")
                 try:
                     dev_result = self._development_executor.execute(step, context=context)
                 except DevelopmentExecutionError as exc:
@@ -201,6 +228,7 @@ class ChiefBrainOrchestrator:
                     break
 
                 if dev_result.status == "success":
+                    self._emit_stage(on_stage_changed, f"{step_number}/{total_steps} development 완료")
                     result = self._make_step_result(step, status="completed", result=dev_result)
                     step_results[step.step_id] = result
                     completed_steps.append(result)
@@ -218,10 +246,12 @@ class ChiefBrainOrchestrator:
                 completed_steps.append(result)
                 break
 
+            self._emit_stage(on_stage_changed, f"{step_number}/{total_steps} {step.task_type} 시작")
             task = self._task_system.create_task(task_type=step.task_type, title=step.title, goal=step.goal)
             executed_task = self._task_system.execute_task(task.task_id)
 
             if executed_task.status == "success":
+                self._emit_stage(on_stage_changed, f"{step_number}/{total_steps} {step.task_type} 완료")
                 result = self._make_step_result(
                     step, status="completed", task_id=executed_task.task_id, result=executed_task.result
                 )

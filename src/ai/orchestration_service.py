@@ -6,11 +6,14 @@ development 실행은 시간이 걸릴 수 있는 네트워크/파일 작업이�
 ChiefBrainOrchestrator.run()/resume()을 직접 호출하지 않고 이 서비스를
 통해서만 호출한다.
 
-stage_changed는 Orchestrator 내부 진행 단계를 세밀하게 보고하지 않는다
-(ChiefBrainOrchestrator.run()/resume()은 단계별 콜백 없이 한 번에
-실행되는 동기 메서드이고, 이 라운드에서 그 구조를 바꾸지 않는다) - 실행이
-막 시작될 때 한 번만 "업무 실행 중"을 알려 WORK STATUS를 갱신할 수 있게
-한다.
+31단계 - stage_changed는 이제 실행이 막 시작될 때("업무 실행 중") 뿐
+아니라, ChiefBrainOrchestrator.run()/resume()이 각 step을 실제로
+시작/완료할 때마다("N/전체 task_type 시작"/"완료")도 갱신된다.
+ChiefBrainOrchestrator는 여전히 PySide6를 전혀 모른다 - run()/resume()에
+평범한 Callable[[str], None]을 넘기면, Worker가 자신의 stage_changed
+Signal의 emit 메서드를 그 콜백으로 그대로 건네준다(Signal 자체를
+Orchestrator에 넘기지 않는다). result_ready/error_occurred와 마찬가지로
+QThread.run() 안에서 emit되므로 기존 스레드 안전성 패턴과 동일하다.
 
 29단계 - resume(): screen_observation처럼 승인이 필요했던 step이 UI에서
 이미 승인/실행되어 완료된 뒤, 나머지 계획을 이어서 실행할 때 쓴다.
@@ -43,7 +46,7 @@ class _OrchestrationWorker(QThread):
     def run(self):
         self.stage_changed.emit(_RUNNING_STAGE_TEXT)
         try:
-            result = self._orchestrator.run(self._plan)
+            result = self._orchestrator.run(self._plan, on_stage_changed=self.stage_changed.emit)
         except Exception as exc:
             self.error_occurred.emit(str(exc))
         else:
@@ -72,7 +75,9 @@ class _OrchestrationResumeWorker(QThread):
     def run(self):
         self.stage_changed.emit(_RUNNING_STAGE_TEXT)
         try:
-            result = self._orchestrator.resume(self._plan, self._completed_steps, self._approved_step_result)
+            result = self._orchestrator.resume(
+                self._plan, self._completed_steps, self._approved_step_result, on_stage_changed=self.stage_changed.emit
+            )
         except Exception as exc:
             self.error_occurred.emit(str(exc))
         else:
