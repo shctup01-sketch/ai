@@ -18,13 +18,19 @@ from PySide6.QtWidgets import (
 )
 
 from ai.brain_response import BrainResponse
+from ai.chief_brain_orchestrator import ChiefBrainOrchestrator
+from ai.chief_brain_plan import ChiefBrainPlan
 from ai.developer_fix_request import DeveloperFixRequest
 from ai.developer_request import DeveloperRequest
 from ai.developer_result import DeveloperResult
 from ai.developer_service import DeveloperService
+from ai.development_executor import DevelopmentExecutor
 from ai.execution_result import ExecutionResult
 from ai.execution_service import ExecutionService
+from ai.openai_developer_provider import OpenAIDeveloperProvider
 from ai.openai_research_reviewer_provider import OpenAIResearchReviewerProvider
+from ai.orchestration_result import OrchestrationResult
+from ai.orchestration_service import OrchestrationService
 from ai.package_fix_service import PackageFixService
 from ai.research_review_request import ResearchReviewRequest
 from ai.research_review_result import ResearchReviewResult
@@ -138,6 +144,13 @@ class MainWindow(QMainWindow):
         self.research_review_service: ResearchReviewService | None = None
         self._current_research_review_result: ResearchReviewResult | None = None
 
+        # 복합 업무(step 2개 이상, 또는 development/research가 아닌 단일
+        # task_type)는 기존 BrainResponse로 표현할 수 없으므로 별도 상태로
+        # 보관한다. Orchestrator도 실제로 쓸 때만 지연 생성한다
+        # (_ensure_orchestration_service).
+        self._current_chief_plan: ChiefBrainPlan | None = None
+        self.orchestration_service: OrchestrationService | None = None
+
         self.developer_service = DeveloperService(parent=self)
         self.developer_service.result_ready.connect(self._on_developer_result)
         self.developer_service.error_occurred.connect(self._on_developer_error)
@@ -219,6 +232,7 @@ class MainWindow(QMainWindow):
     def _build_center_panel(self) -> QWidget:
         self.chat_panel = ChatPanel()
         self.chat_panel.plan_ready.connect(self._on_plan_ready)
+        self.chat_panel.chief_plan_ready.connect(self._on_chief_plan_ready)
         return self.chat_panel
 
     def _build_right_panel(self) -> QWidget:
@@ -254,10 +268,16 @@ class MainWindow(QMainWindow):
         self.task_execute_button = QPushButton("작업 실행")
         self.task_execute_button.setEnabled(False)
         self.task_execute_button.clicked.connect(self._on_task_execute_button_clicked)
+        # "업무 실행"은 복합 ChiefBrainPlan(step 2개 이상 등) 전용이다 -
+        # 단일 development/research는 기존 버튼들을 그대로 쓴다.
+        self.chief_plan_execute_button = QPushButton("업무 실행")
+        self.chief_plan_execute_button.setEnabled(False)
+        self.chief_plan_execute_button.clicked.connect(self._on_chief_plan_execute_button_clicked)
         layout.addWidget(self.plan_button)
         layout.addWidget(self.develop_button)
         layout.addWidget(self.execute_button)
         layout.addWidget(self.task_execute_button)
+        layout.addWidget(self.chief_plan_execute_button)
 
         return panel
 
@@ -271,11 +291,13 @@ class MainWindow(QMainWindow):
         self._package_fix_attempts = 0
         self._current_task = None
         self._current_research_review_result = None
+        self._current_chief_plan = None
 
         self.plan_button.setEnabled(True)
         self.develop_button.setEnabled(False)
         self.execute_button.setEnabled(False)
         self.task_execute_button.setEnabled(False)
+        self.chief_plan_execute_button.setEnabled(False)
 
         if plan.task_type == "development":
             self.current_task_value_label.setText(plan.project_name or "")
@@ -296,6 +318,28 @@ class MainWindow(QMainWindow):
             )
             self._current_task = task
             self.task_execute_button.setEnabled(True)
+
+    def _on_chief_plan_ready(self, plan: ChiefBrainPlan):
+        """복합 업무(step 2개 이상, 또는 기존 BrainResponse로 표현할 수 없는
+        단일 task_type)가 준비되면 호출된다. 단일 development/research는
+        ChatPanel이 이미 기존 plan_ready(BrainResponse) 경로로 처리하므로
+        여기까지 오지 않는다.
+        """
+        self._current_chief_plan = plan
+        self._current_plan = None
+        self._current_developer_result = None
+        self._package_fix_attempts = 0
+        self._current_task = None
+        self._current_research_review_result = None
+
+        self.plan_button.setEnabled(False)
+        self.develop_button.setEnabled(False)
+        self.execute_button.setEnabled(False)
+        self.task_execute_button.setEnabled(False)
+        self.chief_plan_execute_button.setEnabled(True)
+
+        self.current_task_value_label.setText(plan.objective or "")
+        self.work_step_value_label.setText("업무 계획 완료")
 
     def _on_plan_button_clicked(self):
         if self._current_plan is None:
@@ -753,3 +797,97 @@ class MainWindow(QMainWindow):
             f"다음 행동:\n{result.next_action}"
         )
         self._show_scrollable_result_dialog("조사 분석 완료", message)
+
+    def _ensure_orchestration_service(self) -> OrchestrationService | None:
+        """복합 업무를 실제로 실행할 때만 OrchestrationService를 지연 생성한다.
+
+        research는 TaskSystem(_ensure_task_system, research와 동일한 인스턴스를
+        재사용 - API Key를 여러 곳에서 새로 읽지 않는다)으로, development는
+        DevelopmentExecutor(OpenAIDeveloperProvider, 개발 실행 버튼과 동일한
+        Provider 계약)로 실행한다.
+        """
+        if self.orchestration_service is not None:
+            return self.orchestration_service
+
+        task_system = self._ensure_task_system()
+        if task_system is None:
+            return None
+
+        development_executor = DevelopmentExecutor(OpenAIDeveloperProvider())
+        orchestrator = ChiefBrainOrchestrator(task_system, development_executor=development_executor)
+
+        self.orchestration_service = OrchestrationService(orchestrator, parent=self)
+        self.orchestration_service.result_ready.connect(self._on_orchestration_result)
+        self.orchestration_service.error_occurred.connect(self._on_orchestration_error)
+        self.orchestration_service.stage_changed.connect(self._on_orchestration_stage_changed)
+        return self.orchestration_service
+
+    def _on_chief_plan_execute_button_clicked(self):
+        if self._current_chief_plan is None:
+            return
+
+        orchestration_service = self._ensure_orchestration_service()
+        if orchestration_service is None:
+            return
+
+        self.chief_plan_execute_button.setEnabled(False)
+        self.work_step_value_label.setText("업무 실행 중")
+
+        orchestration_service.run(self._current_chief_plan)
+
+    def _on_orchestration_stage_changed(self, stage: str):
+        self.work_step_value_label.setText(stage)
+
+    _ORCHESTRATION_STATUS_LABELS = {
+        "completed": "업무 완료",
+        "waiting_for_approval": "승인 대기",
+        "waiting_for_executor": "실행 대기",
+        "failed": "업무 오류",
+        "blocked": "업무 중단",
+    }
+
+    def _on_orchestration_result(self, result: OrchestrationResult):
+        self.chief_plan_execute_button.setEnabled(True)
+        self.work_step_value_label.setText(self._ORCHESTRATION_STATUS_LABELS.get(result.status, result.status))
+        self._show_orchestration_result_dialog(result)
+
+    def _on_orchestration_error(self, message: str):
+        self.chief_plan_execute_button.setEnabled(True)
+        self.work_step_value_label.setText("업무 오류")
+        QMessageBox.warning(self, "업무 실행 실패", message)
+
+    def _show_orchestration_result_dialog(self, result: OrchestrationResult):
+        plan = self._current_chief_plan
+        objective = plan.objective if plan else ""
+
+        step_blocks = []
+        for order, step_result in enumerate(result.completed_steps, start=1):
+            status_text = self._ORCHESTRATION_STATUS_LABELS.get(step_result.status, step_result.status)
+            lines = [f"{order}. [{step_result.task_type}] {step_result.step_id} - {status_text}"]
+
+            if step_result.status == "completed" and step_result.task_type == "research":
+                lines.append("   검색 완료")
+            elif step_result.status == "completed" and step_result.task_type == "development":
+                dev_result = step_result.result
+                created_files = "\n".join(f"   - {name}" for name in getattr(dev_result, "created_files", []) or [])
+                lines.append(f"   생성 프로젝트: {getattr(dev_result, 'project_path', '')}")
+                lines.append(f"   entry_point: {getattr(dev_result, 'entry_point', '')}")
+                lines.append(f"   생성 파일:\n{created_files or '   (없음)'}")
+            elif step_result.status == "waiting_for_executor":
+                lines.append("   현재 이 단계의 실행 기능이 아직 연결되지 않았습니다.")
+            elif step_result.status == "waiting_for_approval":
+                lines.append(f"   승인이 필요합니다: {step_result.approval_reason or ''}")
+            elif step_result.status == "failed":
+                lines.append(f"   오류: {step_result.error or ''}")
+            elif step_result.status == "blocked":
+                lines.append(f"   {step_result.error or ''}")
+
+            step_blocks.append("\n".join(lines))
+
+        message = (
+            f"전체 목표:\n{objective}\n\n"
+            f"단계별 결과:\n" + "\n\n".join(step_blocks) + "\n\n"
+            f"최종 상태: {self._ORCHESTRATION_STATUS_LABELS.get(result.status, result.status)}\n"
+            f"{result.summary}"
+        )
+        self._show_scrollable_result_dialog("업무 실행 결과", message)

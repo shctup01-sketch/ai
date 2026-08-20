@@ -10,7 +10,9 @@ from PySide6.QtWidgets import (
 )
 
 from ai.brain_response import BrainResponse
-from ai.brain_service import BrainService
+from ai.chief_brain_compat import ChiefBrainCompatError, adapt_chief_brain_plan_to_brain_response
+from ai.chief_brain_plan import ChiefBrainPlan
+from ai.chief_brain_service import ChiefBrainService
 
 BRAIN_GREETING = (
     "안녕하세요. AI Development Studio의 Brain입니다.\n"
@@ -56,7 +58,14 @@ def _build_message_row(text: str, is_user: bool) -> QWidget:
 
 
 class ChatPanel(QWidget):
+    # 기존 signal - 단일 development/research 요청(BrainResponse, chief_brain_compat.py로
+    # 변환된 것)이 준비되면 발생한다. MainWindow의 기존 처리(_on_plan_ready)를
+    # 그대로 재사용하기 위해 이름/타입을 바꾸지 않는다.
     plan_ready = Signal(object)
+    # 신규 signal - 여러 단계로 이루어졌거나(2개 이상) 기존 BrainResponse로
+    # 표현할 수 없는 단일 task_type(예: kmong_publish)의 ChiefBrainPlan이
+    # 준비되면 발생한다.
+    chief_plan_ready = Signal(object)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -95,9 +104,13 @@ class ChatPanel(QWidget):
         self._history: list[dict] = []
         self._waiting_for_response = False
 
-        self.brain_service = BrainService(parent=self)
-        self.brain_service.response_ready.connect(self._on_brain_response)
-        self.brain_service.error_occurred.connect(self._on_brain_error)
+        # 사용자 입력의 1차 판단자는 Chief Brain이다(23단계) - 기존
+        # BrainService/OpenAIProvider는 삭제하지 않고 남겨두지만, 이 화면은
+        # 더 이상 그것을 직접 호출하지 않는다. 단일 development/research
+        # 요청은 chief_brain_compat.py를 거쳐 기존 UI 흐름 그대로 재사용한다.
+        self.chief_brain_service = ChiefBrainService(parent=self)
+        self.chief_brain_service.plan_ready.connect(self._on_chief_brain_plan_ready)
+        self.chief_brain_service.error_occurred.connect(self._on_brain_error)
 
         self._add_message(BRAIN_GREETING, is_user=False)
 
@@ -122,15 +135,26 @@ class ChatPanel(QWidget):
         self._history.append({"role": "user", "content": text})
 
         self._set_waiting(True)
-        self.brain_service.send_message(list(self._history))
+        self.chief_brain_service.plan_work(list(self._history))
 
-    def _on_brain_response(self, response: BrainResponse):
-        self._history.append({"role": "assistant", "content": response.reply_to_user})
-        self._add_message(response.reply_to_user, is_user=False)
+    def _on_chief_brain_plan_ready(self, plan: ChiefBrainPlan):
+        self._history.append({"role": "assistant", "content": plan.user_reply})
+        self._add_message(plan.user_reply, is_user=False)
         self._set_waiting(False)
 
-        if response.plan_ready:
-            self.plan_ready.emit(response)
+        # 단일 development/research(그리고 추가 질문/일반 대화)는 기존
+        # BrainResponse 호환 어댑터로 변환해 기존 UI 흐름을 그대로 쓴다.
+        # 2개 이상의 step이거나 development/research가 아닌 단일 step
+        # (예: kmong_publish)이면 어댑터가 명시적으로 거부하므로, 그때만
+        # 새 chief_plan_ready 신호로 넘긴다 - 일부만 조용히 반영하지 않는다.
+        try:
+            brain_response = adapt_chief_brain_plan_to_brain_response(plan)
+        except ChiefBrainCompatError:
+            self.chief_plan_ready.emit(plan)
+            return
+
+        if brain_response.plan_ready:
+            self.plan_ready.emit(brain_response)
 
     def _on_brain_error(self, message: str):
         self._add_message(f"Brain 응답 중 오류가 발생했습니다: {message}", is_user=False)
