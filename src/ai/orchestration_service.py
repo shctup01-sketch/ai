@@ -22,6 +22,13 @@ step이 네트워크 호출을 할 수 있으므로 GUI를 막으면 안 된다)
 서로 다른 Orchestrator 메서드(run/resume)를 호출할 뿐, 결과를 알리는
 방식(result_ready/error_occurred/stage_changed)은 동일해 MainWindow는
 어느 쪽에서 온 결과든 같은 핸들러로 처리할 수 있다.
+
+34단계 - resume_project_checkpoint(): project 체크포인트(발판 승인)
+이후 그 step을 "처음" 실행하기 위한 별도 창구다. resume()과 구분되는
+이유는 ChiefBrainOrchestrator.resume_project_checkpoint()를 그대로
+설명한다 - 승인된 step_id만 넘기면 되고, 이미 완성된 결과를 만들어
+넘길 필요가 없다. resume()의 시그니처/동작은 전혀 바꾸지 않았다
+(screen_observation 경로 무위험).
 """
 
 from PySide6.QtCore import QObject, QThread, Signal
@@ -84,6 +91,37 @@ class _OrchestrationResumeWorker(QThread):
             self.result_ready.emit(result)
 
 
+class _OrchestrationProjectCheckpointResumeWorker(QThread):
+    result_ready = Signal(object)
+    error_occurred = Signal(str)
+    stage_changed = Signal(str)
+
+    def __init__(
+        self,
+        orchestrator: ChiefBrainOrchestrator,
+        plan: ChiefBrainPlan,
+        completed_steps: list[OrchestrationStepResult],
+        approved_step_id: str,
+        parent=None,
+    ):
+        super().__init__(parent)
+        self._orchestrator = orchestrator
+        self._plan = plan
+        self._completed_steps = completed_steps
+        self._approved_step_id = approved_step_id
+
+    def run(self):
+        self.stage_changed.emit(_RUNNING_STAGE_TEXT)
+        try:
+            result = self._orchestrator.resume_project_checkpoint(
+                self._plan, self._completed_steps, self._approved_step_id, on_stage_changed=self.stage_changed.emit
+            )
+        except Exception as exc:
+            self.error_occurred.emit(str(exc))
+        else:
+            self.result_ready.emit(result)
+
+
 class OrchestrationService(QObject):
     result_ready = Signal(object)
     error_occurred = Signal(str)
@@ -110,6 +148,21 @@ class OrchestrationService(QObject):
     ):
         self._worker = _OrchestrationResumeWorker(
             self._orchestrator, plan, completed_steps, approved_step_result, parent=self
+        )
+        self._worker.result_ready.connect(self.result_ready)
+        self._worker.error_occurred.connect(self.error_occurred)
+        self._worker.stage_changed.connect(self.stage_changed)
+        self._worker.finished.connect(self._cleanup_worker)
+        self._worker.start()
+
+    def resume_project_checkpoint(
+        self,
+        plan: ChiefBrainPlan,
+        completed_steps: list[OrchestrationStepResult],
+        approved_step_id: str,
+    ):
+        self._worker = _OrchestrationProjectCheckpointResumeWorker(
+            self._orchestrator, plan, completed_steps, approved_step_id, parent=self
         )
         self._worker.result_ready.connect(self.result_ready)
         self._worker.error_occurred.connect(self.error_occurred)

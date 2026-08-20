@@ -982,6 +982,19 @@ class MainWindow(QMainWindow):
             self._handle_screen_observation_approval(pending_step_result)
             return
 
+        if (
+            result.status == "waiting_for_approval"
+            and pending_step_result is not None
+            and self._current_chief_plan is not None
+            and self._current_chief_plan.execution_mode == "project"
+        ):
+            # 34단계 - project 체크포인트. screen_observation은 바로 위
+            # 분기에서 이미 return했으므로, 여기 도달하는
+            # waiting_for_approval은 project 체크포인트(Chief Brain이
+            # 직접 설정했거나 §3 안전장치가 강제로 만든 승인 대기)뿐이다.
+            self._handle_project_checkpoint_approval(pending_step_result)
+            return
+
         self._show_orchestration_result_dialog(result)
 
     def _on_orchestration_error(self, message: str):
@@ -1117,6 +1130,75 @@ class MainWindow(QMainWindow):
     def _on_screen_observation_error(self, message: str):
         self.work_step_value_label.setText("화면 확인 오류")
         QMessageBox.warning(self, "화면 확인 실패", message)
+
+    def _handle_project_checkpoint_approval(self, pending_step_result: OrchestrationStepResult):
+        """34단계 - project 체크포인트에서 waiting_for_approval로 멈췄을 때 호출된다.
+
+        screen_observation과 달리 승인은 "이 step을 지금부터 실제로
+        실행해도 된다"는 뜻일 뿐이다(캡처처럼 UI에서 미리 해둘 일이
+        없다) - 승인하면 바로 resume_project_checkpoint()를 호출해 그
+        step을 처음 실행시킨다. 승인 이유는 pending_step_result의
+        approval_reason을 쓴다(원본 BrainTaskStep.approval_reason이
+        아니다) - §3 안전장치가 강제로 만든 승인 대기는 원본 step에
+        approval_reason이 비어 있을 수 있고, 실제로 보여줘야 할 이유는
+        OrchestrationStepResult 쪽에 담겨 있다(chief_brain_orchestrator.py
+        참고).
+        """
+        plan = self._current_chief_plan
+        step = self._find_plan_step(plan, pending_step_result.step_id) if plan is not None else None
+        if plan is None or step is None:
+            self.work_step_value_label.setText("업무 확인 오류")
+            self._show_orchestration_result_dialog(self._last_orchestration_result)
+            return
+
+        self.work_step_value_label.setText("프로젝트 체크포인트 승인 대기")
+        approved = self._show_project_checkpoint_approval_dialog(step, pending_step_result.approval_reason)
+        if not approved:
+            self.work_step_value_label.setText("프로젝트 체크포인트 대기 중")
+            return
+
+        orchestration_service = self._ensure_orchestration_service()
+        if orchestration_service is None or self._last_orchestration_result is None:
+            return
+
+        self.work_step_value_label.setText("업무 실행 중")
+        orchestration_service.resume_project_checkpoint(
+            plan, self._last_orchestration_result.completed_steps, step.step_id
+        )
+
+    def _show_project_checkpoint_approval_dialog(self, step: BrainTaskStep, approval_reason: str | None) -> bool:
+        """"진행 승인"/"취소" 두 버튼만 있는 최소 승인 Dialog(4단계).
+
+        _show_screen_observation_approval_dialog와 동일한 패턴을 그대로
+        따른다(새 Dialog 시스템을 만들지 않는다) - 기본값은 승인이
+        아니다("취소"가 기본/포커스 버튼이다).
+        """
+        dialog = QDialog(self)
+        dialog.setWindowTitle("프로젝트 체크포인트 승인")
+
+        layout = QVBoxLayout(dialog)
+        message = QLabel(
+            "다음 개발 단계로 진행하기 전 확인이 필요합니다.\n\n"
+            f"다음 단계:\n{step.title}\n\n"
+            f"목표:\n{step.goal}\n\n"
+            f"승인 이유:\n{approval_reason or ''}"
+        )
+        message.setWordWrap(True)
+        layout.addWidget(message)
+
+        button_row = QHBoxLayout()
+        approve_button = QPushButton("진행 승인")
+        cancel_button = QPushButton("취소")
+        button_row.addWidget(approve_button)
+        button_row.addWidget(cancel_button)
+        layout.addLayout(button_row)
+
+        approve_button.clicked.connect(dialog.accept)
+        cancel_button.clicked.connect(dialog.reject)
+        cancel_button.setDefault(True)
+        cancel_button.setFocus()
+
+        return dialog.exec() == QDialog.DialogCode.Accepted
 
     def _show_orchestration_result_dialog(self, result: OrchestrationResult):
         plan = self._current_chief_plan

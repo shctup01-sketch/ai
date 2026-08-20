@@ -60,6 +60,19 @@ OrchestrationResult.status, 화면 승인 Dialog)으로 사용자에게 전달�
 상태까지 이 콜백이 중복해서 새 문구를 만들지는 않는다(승인 대기만
 예외적으로 함께 알린다 - 사용자가 "지금 이 승인이 몇 번째 단계인지"
 바로 알 수 있어야 하기 때문).
+
+34단계 - project 체크포인트: execution_mode가 "project"인 계획은
+development step에 도달하기 전까지 최소 한 번은 requires_approval로
+멈춰야 한다(한방 개발 방지). Chief Brain이 이미 적절한 곳에
+requires_approval=True를 뒀다면(_needs_project_checkpoint가
+step_results 안에서 이미 한 번이라도 승인 대기를 거쳤는지로 판단)
+중복 승인 지점을 추가하지 않는다. 이 안전장치가 만든 승인 대기는
+원본 BrainTaskStep 객체를 수정하지 않고 OrchestrationStepResult
+하나에만 requires_approval=True를 얹는다. 승인 후 재실행은 기존
+resume()을 그대로 쓰지 않는다(resume()은 승인된 step이 이미
+"completed"라고 가정하는 screen_observation 전용 계약이다) - 대신
+새 resume_project_checkpoint()를 추가해 그 step을 "처음" 실행되게
+한다. resume()의 기존 시그니처/동작은 전혀 바꾸지 않는다.
 """
 
 from typing import Callable
@@ -77,6 +90,10 @@ from .task_system import TaskSystem
 # 어떤 task_type도 여기서 특별 취급하지 않는다).
 _DEVELOPMENT_TASK_TYPE = "development"
 _ANALYSIS_TASK_TYPE = "analysis"
+
+# 34단계 - project 모드 안전장치가 강제로 만든 승인 대기에 붙는 기본 이유.
+# Chief Brain이 이 step에 approval_reason을 직접 써두지 않았을 때만 쓰인다.
+_PROJECT_CHECKPOINT_REASON = "대형 프로젝트의 첫 실제 개발 단계입니다. 진행 전 확인이 필요합니다."
 
 
 class ChiefBrainOrchestrator:
@@ -136,6 +153,40 @@ class ChiefBrainOrchestrator:
 
         return self._run_from(plan, step_results, seeded_completed, on_stage_changed)
 
+    def resume_project_checkpoint(
+        self,
+        plan: ChiefBrainPlan,
+        completed_steps: list[OrchestrationStepResult],
+        approved_step_id: str,
+        on_stage_changed: Callable[[str], None] | None = None,
+    ) -> OrchestrationResult:
+        """34단계 - project 체크포인트(안전장치 또는 step 자신의
+        requires_approval=True) 승인 후, 그 step을 "처음" 실제로 실행한다.
+
+        resume()과 다르다: resume()은 approved_step_result가 이미 UI
+        쪽에서 실행까지 끝난 "completed" 결과라고 가정한다(예: 화면을
+        캡처해 분석하는 승인 - 캡처/분석이 승인 직후 UI에서 이미
+        일어난다). project 체크포인트의 development step은 승인이 곧
+        "지금부터 이 step을 실행해도 된다"는 뜻일 뿐, 실행 자체는 아직
+        전혀 일어나지 않았다 - 그래서 완성된 결과 대신 승인된
+        step_id만 받고, completed_steps에서 그 step의
+        waiting_for_approval 자리를 제거한 뒤 _run_from에
+        bypass_approval_for로 넘겨 실제로 실행되게 한다. resume()의
+        기존 시그니처/동작은 전혀 건드리지 않는다(화면 확인 승인
+        경로는 무위험).
+        """
+        step_results: dict[str, OrchestrationStepResult] = {}
+        seeded_completed: list[OrchestrationStepResult] = []
+        for prior in completed_steps:
+            if prior.step_id == approved_step_id:
+                continue
+            step_results[prior.step_id] = prior
+            seeded_completed.append(prior)
+
+        return self._run_from(
+            plan, step_results, seeded_completed, on_stage_changed, bypass_approval_for=approved_step_id
+        )
+
     @staticmethod
     def _emit_stage(on_stage_changed: Callable[[str], None] | None, text: str) -> None:
         if on_stage_changed is not None:
@@ -147,6 +198,7 @@ class ChiefBrainOrchestrator:
         step_results: dict[str, OrchestrationStepResult],
         completed_steps: list[OrchestrationStepResult],
         on_stage_changed: Callable[[str], None] | None = None,
+        bypass_approval_for: str | None = None,
     ) -> OrchestrationResult:
         # plan.steps를 정렬만 할 뿐 원본 리스트/step 객체는 어디서도
         # 수정하지 않는다(sorted()는 새 리스트를 반환한다).
@@ -178,9 +230,28 @@ class ChiefBrainOrchestrator:
                 completed_steps.append(result)
                 break
 
-            if step.requires_approval:
+            needs_approval = step.step_id != bypass_approval_for and (
+                step.requires_approval or self._needs_project_checkpoint(plan, step, step_results)
+            )
+            if needs_approval:
                 self._emit_stage(on_stage_changed, f"{step_number}/{total_steps} {step.task_type} 승인 대기")
-                result = self._make_step_result(step, status="waiting_for_approval")
+                if step.requires_approval:
+                    result = self._make_step_result(step, status="waiting_for_approval")
+                else:
+                    # 34단계 - 원본 BrainTaskStep은 절대 수정하지 않는다(계속
+                    # requires_approval=False로 남겨둔다). 이번
+                    # OrchestrationStepResult 하나에만 requires_approval=True/
+                    # approval_reason을 얹어 UI(승인 이유 표시)에 전달한다.
+                    result = OrchestrationStepResult(
+                        step_id=step.step_id,
+                        task_type=step.task_type,
+                        status="waiting_for_approval",
+                        task_id=None,
+                        result=None,
+                        error=None,
+                        requires_approval=True,
+                        approval_reason=step.approval_reason or _PROJECT_CHECKPOINT_REASON,
+                    )
                 step_results[step.step_id] = result
                 completed_steps.append(result)
                 break
@@ -276,6 +347,28 @@ class ChiefBrainOrchestrator:
             pending_step_id=pending_step_id,
             summary=self._build_summary(final_status, completed_steps),
         )
+
+    @staticmethod
+    def _needs_project_checkpoint(
+        plan: ChiefBrainPlan, step, step_results: dict[str, OrchestrationStepResult]
+    ) -> bool:
+        """34단계 - project 모드의 "한방 개발 방지" 안전장치(§3).
+
+        project 모드에서 development step에 도달했는데, 지금까지 실행된
+        step 중 requires_approval=True로 멈춘 적이 단 한 번도 없다면(=
+        Chief Brain이 스스로 적절한 승인 지점을 두지 않았다면) 이 step
+        직전에 강제로 승인 지점을 만든다. task 모드는 항상 False다(task
+        모드 기존 동작은 전혀 바꾸지 않는다). 이미 어딘가에서 한 번이라도
+        승인을 거쳤다면(Chief Brain이 설계/분석 단계 등에 이미
+        requires_approval=True를 뒀거나, 이 development step 자신에
+        requires_approval=True가 있어 위쪽 조건에서 이미 걸렸다면) 중복
+        승인 지점을 추가하지 않는다.
+        """
+        if plan.execution_mode != "project":
+            return False
+        if step.task_type != _DEVELOPMENT_TASK_TYPE:
+            return False
+        return not any(result.requires_approval for result in step_results.values())
 
     @staticmethod
     def _build_execution_context(step, step_results: dict[str, OrchestrationStepResult]) -> ExecutionContext:
