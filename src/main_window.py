@@ -389,7 +389,14 @@ class MainWindow(QMainWindow):
         self.chief_plan_execute_button.setEnabled(True)
 
         self.current_task_value_label.setText(plan.objective or "")
-        self.work_step_value_label.setText("업무 계획 완료")
+        # 33단계 - 기존 WORK STATUS 영역을 그대로 재사용해 실행 모드만
+        # 덧붙인다(새 UI 요소를 추가하지 않는다). execution_mode가 없는
+        # 기존 Fake/구버전 응답도 ChiefBrainPlan 기본값("task")으로
+        # 안전하게 처리된다.
+        if plan.execution_mode == "project":
+            self.work_step_value_label.setText("업무 계획 완료 (대형 프로젝트)")
+        else:
+            self.work_step_value_label.setText("업무 계획 완료")
 
         # 32단계 - 복합 업무 실행 때만 필요한 AI TEAM 상태 초기화(5단계).
         # 단일 development/research/Reviewer 흐름은 이 핸들러를 거치지

@@ -11,7 +11,22 @@ objective/steps)를 자연어 답변(user_reply)보다 앞에 둔다. user_reply
 steps는 BrainTaskStep 목록이다 - 아직 이 계획을 실제로 연속 실행하는
 Orchestrator는 이번 단계에 없다(다음 단계에서 만든다). 이 모델은
 "계획을 세우는 능력"까지만 담당한다.
+
+33단계 - execution_mode: "task"(소형 업무, 기존처럼 자동 연속 실행)
+또는 "project"(대형 프로젝트, 한 번에 전체 개발 금지)를 나타낸다.
+기본값을 "task"로 둬서, 이 필드를 모르는 기존 테스트/Fake 코드가
+ChiefBrainPlan(...)을 execution_mode 없이 그대로 생성해도 깨지지
+않는다(하위 호환) - Python 쪽에서 키워드 인자로만 생성하므로 필드
+위치 자체는 순서 문제가 없지만, OpenAI Structured Outputs는 필드
+"선언 순서"대로 토큰을 생성하므로(위 문단이 설명하는 것과 동일한
+원리) execution_mode는 반드시 steps보다 앞에 둔다 - project/task
+판단이 먼저 서야 그 판단에 맞게 steps를 분해할 수 있고, 그 반대로
+steps부터 만든 뒤 뒤늦게 execution_mode를 끼워 맞추면 7단계가 금지한
+"project인데 development 1개로 끝내는" 실패 패턴이 그대로 재현될
+위험이 있다.
 """
+
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -22,6 +37,7 @@ class ChiefBrainPlan(BaseModel):
     needs_more_info: bool
     ready: bool
     objective: str
+    execution_mode: Literal["task", "project"] = "task"
     steps: list[BrainTaskStep]
     clarification_question: str | None
     user_reply: str
@@ -70,5 +86,17 @@ def validate_chief_brain_plan(plan: ChiefBrainPlan) -> list[str]:
             errors.append(f"step_id={step.step_id}의 title이 비어 있습니다.")
         if not step.goal.strip():
             errors.append(f"step_id={step.step_id}의 goal이 비어 있습니다.")
+
+    # 33단계 - 7단계 "한방 개발 방지"의 최소 코드 안전장치. project
+    # 모드인데 development 단 1개로만 계획이 끝나면(설계/검증 등 없이
+    # "게임 엔진 만들어줘" -> development 1개로 전체를 개발하려는 실패
+    # 패턴) 구조적으로 거부한다. task 모드는 원래도 development 1개짜리
+    # 계획을 허용해야 하므로(예: "뱀게임 만들어줘") 이 검사에서 완전히
+    # 제외한다.
+    if plan.execution_mode == "project" and len(plan.steps) == 1 and plan.steps[0].task_type == "development":
+        errors.append(
+            "project 모드 계획이 development 1개 step으로만 구성되어 있습니다 - "
+            "대형 프로젝트는 설계/검증 등을 거치지 않고 development 하나로 끝낼 수 없습니다."
+        )
 
     return errors
