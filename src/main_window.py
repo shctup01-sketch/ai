@@ -253,13 +253,22 @@ class MainWindow(QMainWindow):
         ai_team_label.setObjectName("SectionLabel")
         layout.addWidget(ai_team_label)
 
-        for ai_name in ("Brain (총괄 두뇌)", "Reviewer (검토 AI)", "Developer (개발 AI)"):
-            layout.addLayout(self._build_ai_status_row(ai_name))
+        # 32단계 - 4개 행 모두 상태 label을 self 속성으로 저장한다(기존
+        # Developer만 저장하던 방식을 일반화 - developer_status_label을
+        # 쓰는 기존 단일 development/실행/PackageFix 코드는 속성 이름이
+        # 그대로라 전혀 바뀌지 않는다).
+        for name, attr_name in (
+            ("Chief Brain (총괄 두뇌)", "chief_brain_status_label"),
+            ("Research (조사 AI)", "research_status_label"),
+            ("Analysis (분석 AI)", "analysis_status_label"),
+            ("Developer (개발 AI)", "developer_status_label"),
+        ):
+            layout.addLayout(self._build_ai_status_row(name, attr_name))
 
         layout.addStretch(1)
         return panel
 
-    def _build_ai_status_row(self, name: str) -> QHBoxLayout:
+    def _build_ai_status_row(self, name: str, attr_name: str) -> QHBoxLayout:
         row = QHBoxLayout()
         name_label = QLabel(name)
         status_label = QLabel("대기")
@@ -267,8 +276,7 @@ class MainWindow(QMainWindow):
         status_label.setAlignment(Qt.AlignmentFlag.AlignRight)
         row.addWidget(name_label)
         row.addWidget(status_label)
-        if name.startswith("Developer"):
-            self.developer_status_label = status_label
+        setattr(self, attr_name, status_label)
         return row
 
     def _build_center_panel(self) -> QWidget:
@@ -382,6 +390,14 @@ class MainWindow(QMainWindow):
 
         self.current_task_value_label.setText(plan.objective or "")
         self.work_step_value_label.setText("업무 계획 완료")
+
+        # 32단계 - 복합 업무 실행 때만 필요한 AI TEAM 상태 초기화(5단계).
+        # 단일 development/research/Reviewer 흐름은 이 핸들러를 거치지
+        # 않으므로 여기서 초기화해도 그쪽에는 영향이 없다.
+        self.chief_brain_status_label.setText("계획 완료")
+        self.research_status_label.setText("대기")
+        self.analysis_status_label.setText("대기")
+        self.developer_status_label.setText("대기")
 
     def _on_plan_button_clicked(self):
         if self._current_plan is None:
@@ -889,6 +905,41 @@ class MainWindow(QMainWindow):
 
     def _on_orchestration_stage_changed(self, stage: str):
         self.work_step_value_label.setText(stage)
+        self._apply_stage_to_ai_team(stage)
+
+    def _apply_stage_to_ai_team(self, stage: str):
+        """31단계 stage_changed 문자열("N/전체 task_type 시작"/"완료"/"승인
+        대기")을 그대로 재사용해 AI TEAM 상태를 갱신한다. Orchestrator에
+        새 이벤트 시스템을 만들지 않는다(3단계) - 여기서는 이미 오는
+        문자열을 읽기만 한다.
+        """
+        if "research" in stage:
+            if "시작" in stage:
+                self.research_status_label.setText("조사 중")
+            elif "완료" in stage:
+                self.research_status_label.setText("완료")
+        elif "analysis" in stage:
+            if "시작" in stage:
+                self.analysis_status_label.setText("분석 중")
+            elif "완료" in stage:
+                self.analysis_status_label.setText("완료")
+        elif "development" in stage:
+            if "시작" in stage:
+                self.developer_status_label.setText("개발 중")
+            elif "완료" in stage:
+                self.developer_status_label.setText("완료")
+        elif "screen_observation" in stage and "승인 대기" in stage:
+            self.chief_brain_status_label.setText("승인 대기")
+
+    def _mark_ai_team_error(self, task_type: str):
+        if task_type == "research":
+            self.research_status_label.setText("오류")
+        elif task_type == "analysis":
+            self.analysis_status_label.setText("오류")
+        elif task_type == "development":
+            self.developer_status_label.setText("오류")
+        elif task_type == _SCREEN_OBSERVATION_TASK_TYPE:
+            self.chief_brain_status_label.setText("오류")
 
     _ORCHESTRATION_STATUS_LABELS = {
         "completed": "업무 완료",
@@ -904,6 +955,14 @@ class MainWindow(QMainWindow):
         self._last_orchestration_result = result
 
         pending_step_result = result.completed_steps[-1] if result.completed_steps else None
+
+        if result.status == "failed" and pending_step_result is not None:
+            # 6단계 - 어느 단계에서 실패했는지 AI TEAM에 표시한다. 실패한
+            # step의 내부 Exception 내용/Chain of Thought는 여기서 다루지
+            # 않는다(work_step_value_label/결과 Dialog가 이미 요약된
+            # 오류 메시지만 보여준다).
+            self._mark_ai_team_error(pending_step_result.task_type)
+
         if (
             result.status == "waiting_for_approval"
             and pending_step_result is not None
