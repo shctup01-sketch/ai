@@ -21,7 +21,11 @@ from ai.developer_result import DeveloperResult
 from ai.developer_service import DeveloperService
 from ai.execution_result import ExecutionResult
 from ai.execution_service import ExecutionService
+from ai.openai_research_reviewer_provider import OpenAIResearchReviewerProvider
 from ai.package_fix_service import PackageFixService
+from ai.research_review_request import ResearchReviewRequest
+from ai.research_review_result import ResearchReviewResult
+from ai.research_review_service import ResearchReviewService
 from ai.task import Task
 from ai.task_execution_service import TaskExecutionService
 from ai.task_system import TaskSystem
@@ -125,6 +129,11 @@ class MainWindow(QMainWindow):
         # 않도록 하기 위함이다.
         self.task_system: TaskSystem | None = None
         self.task_execution_service: TaskExecutionService | None = None
+
+        # Reviewer(조사 결과 분석)도 research와 동일하게 실제로 쓸 때만
+        # 지연 생성한다(_ensure_research_review_service).
+        self.research_review_service: ResearchReviewService | None = None
+        self._current_research_review_result: ResearchReviewResult | None = None
 
         self.developer_service = DeveloperService(parent=self)
         self.developer_service.result_ready.connect(self._on_developer_result)
@@ -258,6 +267,7 @@ class MainWindow(QMainWindow):
         self._current_developer_result = None
         self._package_fix_attempts = 0
         self._current_task = None
+        self._current_research_review_result = None
 
         self.plan_button.setEnabled(True)
         self.develop_button.setEnabled(False)
@@ -582,8 +592,7 @@ class MainWindow(QMainWindow):
         self._current_task = task
 
         if task.status == "success":
-            self.work_step_value_label.setText("조사 완료")
-            self._show_research_result_popup(task)
+            self._start_research_review(task)
         else:
             self.work_step_value_label.setText("조사 오류")
             error_text = "\n".join(task.errors) if task.errors else "조사 중 오류가 발생했습니다."
@@ -613,3 +622,86 @@ class MainWindow(QMainWindow):
             f"검색 결과:\n{results_text}"
         )
         QMessageBox.information(self, "조사 완료", message)
+
+    def _ensure_research_review_service(self) -> ResearchReviewService | None:
+        """Reviewer(조사 결과 분석)도 research와 동일하게 실제로 쓸 때만 지연 생성한다.
+
+        Brain/TaskSystem과 동일한 방식으로 OPENAI_API_KEY를 읽어 OpenAI
+        client를 만들고, 그 client를 OpenAIResearchReviewerProvider에 그대로
+        주입한다. Provider 내부에서는 API Key를 다시 읽지 않는다.
+        """
+        if self.research_review_service is not None:
+            return self.research_review_service
+
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if not api_key:
+            QMessageBox.warning(
+                self,
+                "분석 실행 불가",
+                "OpenAI API Key가 설정되지 않았습니다. "
+                "프로젝트 루트의 .env 파일에 OPENAI_API_KEY 값을 입력한 뒤 다시 시도해주세요.",
+            )
+            return None
+
+        client = OpenAI(api_key=api_key)
+        provider = OpenAIResearchReviewerProvider(client)
+        self.research_review_service = ResearchReviewService(provider, parent=self)
+        self.research_review_service.result_ready.connect(self._on_research_review_result)
+        self.research_review_service.error_occurred.connect(self._on_research_review_error)
+        return self.research_review_service
+
+    def _start_research_review(self, task: Task):
+        """Research 검색이 성공한 뒤, 검색 결과를 Reviewer에게 넘겨 분석을 시작한다.
+
+        Reviewer를 실행할 수 없는 상황(API Key 미설정 등)에서는 검색 결과
+        자체는 이미 확보되어 있으므로, 기존처럼 검색 결과 팝업이라도
+        보여준다 - 검색 결과를 잃지 않는다.
+        """
+        review_service = self._ensure_research_review_service()
+        if review_service is None:
+            self.work_step_value_label.setText("조사 완료")
+            self._show_research_result_popup(task)
+            return
+
+        result = task.result or {}
+        request = ResearchReviewRequest(
+            task_title=task.title,
+            task_goal=task.goal,
+            query=result.get("query", ""),
+            search_results=result.get("search_results", []),
+        )
+
+        self.work_step_value_label.setText("분석 중")
+        review_service.review(request)
+
+    def _on_research_review_result(self, result: ResearchReviewResult):
+        self._current_research_review_result = result
+        self.work_step_value_label.setText("분석 완료")
+        self._show_research_review_popup(result)
+
+    def _on_research_review_error(self, message: str):
+        self.work_step_value_label.setText("분석 오류")
+        QMessageBox.warning(self, "분석 실패", message)
+
+    def _show_research_review_popup(self, result: ResearchReviewResult):
+        task = self._current_task
+        task_result = (task.result or {}) if task else {}
+        query = task_result.get("query", "")
+        search_result_count = len(task_result.get("search_results", []))
+
+        observations = "\n".join(f"- {item}" for item in result.market_observations) or "(없음)"
+        candidates = "\n".join(f"- {item}" for item in result.candidate_ideas) or "(없음)"
+        risks = "\n".join(f"- {item}" for item in result.risks) or "(없음)"
+
+        message = (
+            f"조사 제목:\n{task.title if task else ''}\n\n"
+            f"검색어:\n{query}\n\n"
+            f"검색 결과 {search_result_count}건 분석\n\n"
+            f"시장 관찰:\n{observations}\n\n"
+            f"후보 아이디어:\n{candidates}\n\n"
+            f"최종 추천:\n{result.recommended_idea}\n\n"
+            f"추천 이유:\n{result.recommendation_reason}\n\n"
+            f"리스크:\n{risks}\n\n"
+            f"다음 행동:\n{result.next_action}"
+        )
+        QMessageBox.information(self, "조사 분석 완료", message)
