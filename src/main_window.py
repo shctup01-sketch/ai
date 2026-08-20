@@ -97,6 +97,14 @@ QMainWindow {
     border-radius: 8px;
     padding: 8px 10px;
 }
+#PendingImageItem {
+    background-color: #252526;
+    border: 1px solid #3a3a3a;
+    border-radius: 4px;
+}
+#PasteStatusLabel {
+    padding: 2px 0;
+}
 QListWidget, QTextEdit, QLineEdit {
     background-color: #1e1e1e;
     border: 1px solid #3a3a3a;
