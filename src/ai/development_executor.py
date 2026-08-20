@@ -6,12 +6,15 @@ AI를 만들지 않고, 기존에 이미 검증된 DeveloperProvider 계약(추�
 인터페이스, developer_provider.py)을 그대로 재사용해
 OpenAIDeveloperProvider.build_project()를 그대로 호출한다.
 
-이번 v1은 step.title/step.goal만으로 DeveloperRequest를 만든다 -
-research 등 이전 step의 결과를 여기 자동으로 섞어 넣지 않는다(그건
-다음 단계의 Result Context가 할 일이다). feature_list/task_steps는
+step.title/step.goal을 기본으로 DeveloperRequest를 만든다. 선행 step의
+결과(ExecutionContext, step_context.py)가 주어지면 requirements_summary
+"뒤에 참고자료로만" 덧붙인다 - step.goal 원본 문자열 자체는 절대
+수정하지 않는다. context가 없거나 dependencies가 비어 있으면 이전과
+완전히 동일하게 동작한다(하위 호환). feature_list/task_steps는
 BrainTaskStep에 대응하는 정보가 없으므로 빈 리스트로 둔다 -
 chief_brain_compat.py의 기존 BrainResponse 변환에서도 동일하게
-처리한 전례를 그대로 따른다.
+처리한 전례를 그대로 따른다. DeveloperRequest에는 새 필드를 추가하지
+않았다 - 기존 requirements_summary 필드 하나만 재사용한다.
 
 프로그램 실행(entry_point 확인/venv/requirements 설치/실제 실행)은 이
 파일의 책임이 아니다 - "프로젝트 코드 생성 완료"까지만 담당한다.
@@ -21,6 +24,7 @@ from .brain_task_step import BrainTaskStep
 from .developer_provider import DeveloperProvider
 from .developer_request import DeveloperRequest
 from .developer_result import DeveloperResult
+from .step_context import ExecutionContext, serialize_execution_context
 
 
 class DevelopmentExecutionError(Exception):
@@ -40,18 +44,25 @@ class DevelopmentExecutor:
     def __init__(self, developer_provider: DeveloperProvider):
         self._developer_provider = developer_provider
 
-    def execute(self, step: BrainTaskStep) -> DeveloperResult:
-        request = self._build_request(step)
+    def execute(self, step: BrainTaskStep, context: ExecutionContext | None = None) -> DeveloperResult:
+        request = self._build_request(step, context)
         try:
             return self._developer_provider.build_project(request)
         except Exception as exc:
             raise DevelopmentExecutionError(str(exc)) from exc
 
     @staticmethod
-    def _build_request(step: BrainTaskStep) -> DeveloperRequest:
+    def _build_request(step: BrainTaskStep, context: ExecutionContext | None) -> DeveloperRequest:
+        requirements_summary = step.goal
+
+        if context is not None and context.dependencies:
+            context_text = serialize_execution_context(context)
+            if context_text:
+                requirements_summary = f"{step.goal}\n\n{context_text}"
+
         return DeveloperRequest(
             project_name=step.title,
-            requirements_summary=step.goal,
+            requirements_summary=requirements_summary,
             feature_list=[],
             task_steps=[],
         )

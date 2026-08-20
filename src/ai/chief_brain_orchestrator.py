@@ -22,8 +22,13 @@ v1 범위(중요, 의도적인 제약):
   "승인됐다"는 값을 스스로 만들어내지 않는다(approved=True 같은 것을
   하드코딩하지 않는다) - development도 예외 없이 이 규칙을 먼저
   통과해야 한다(DevelopmentExecutor는 승인 여부를 전혀 판단하지 않는다).
-- research 성공 결과를 development 등 다음 step의 goal에 자동으로
-  집어넣는 일도 하지 않는다(Result Context 설계는 다음 단계).
+- development step의 depends_on에 적힌, "완료된" 선행 step 결과만
+  ExecutionContext(step_context.py)로 모아 DevelopmentExecutor에
+  전달한다 - step.goal 원본 문자열 자체는 절대 수정하지 않는다(원본을
+  바꾸는 대신 별도 참고자료로 넘긴다). depends_on에 없는 step이나
+  completed가 아닌 상태의 결과는 절대 섞이지 않는다. research 등 다른
+  task_type(TaskSystem 경로)에는 아직 context를 전달하지 않는다 -
+  이번 단계는 development 연결만 다룬다.
 - Developer가 코드를 생성했다고 해서 자동으로 프로그램을 실행하지
   않는다(entry_point 확인/venv/requirements 설치/실제 실행은 여전히
   별도 계층의 일이다 - 이 파일은 ExecutionService를 전혀 모른다).
@@ -37,6 +42,7 @@ from .chief_brain_plan import ChiefBrainPlan
 from .development_executor import DevelopmentExecutionError, DevelopmentExecutor
 from .orchestration_result import OrchestrationResult
 from .orchestration_step_result import OrchestrationStepResult, StepStatus
+from .step_context import ExecutionContext, StepContext
 from .task_system import TaskSystem
 
 # development는 TaskSystem/WorkerRegistry가 아니라 별도의 DevelopmentExecutor
@@ -98,8 +104,10 @@ class ChiefBrainOrchestrator:
                     completed_steps.append(result)
                     break
 
+                context = self._build_execution_context(step, step_results)
+
                 try:
-                    dev_result = self._development_executor.execute(step)
+                    dev_result = self._development_executor.execute(step, context=context)
                 except DevelopmentExecutionError as exc:
                     result = self._make_step_result(step, status="failed", error=str(exc))
                     step_results[step.step_id] = result
@@ -152,6 +160,26 @@ class ChiefBrainOrchestrator:
             pending_step_id=pending_step_id,
             summary=self._build_summary(final_status, completed_steps),
         )
+
+    @staticmethod
+    def _build_execution_context(step, step_results: dict[str, OrchestrationStepResult]) -> ExecutionContext:
+        """step.depends_on 순서 그대로, "completed"로 끝난 선행 step 결과만 모은다.
+
+        depends_on에 없는 step은 여기 들어올 방법이 없다(step.depends_on만
+        순회한다). completed가 아닌 결과는(failed/waiting_for_approval/
+        waiting_for_executor/blocked) 방어적으로 한 번 더 걸러낸다 - 정상
+        흐름에서는 이미 run()의 unmet_deps 검사에서 걸러지지만, 이 함수만
+        따로 재사용될 가능성을 대비한다.
+        """
+        dependencies: list[StepContext] = []
+        for dep_id in step.depends_on:
+            dep_result = step_results.get(dep_id)
+            if dep_result is None or dep_result.status != "completed":
+                continue
+            dependencies.append(
+                StepContext(step_id=dep_result.step_id, task_type=dep_result.task_type, result=dep_result.result)
+            )
+        return ExecutionContext(dependencies=dependencies)
 
     @staticmethod
     def _make_step_result(
