@@ -8,15 +8,17 @@ BrainTaskStep.goal은 Chief Brain이 만든 원본 계획 텍스트다 - 이 파
 직렬화 함수다 - API Key/.env/os.environ/파일 시스템은 전혀 다루지
 않는다.
 
-특정 task_type(research/development/analysis 등)을 모델 자체에
-하드코딩하지 않는다 - 어떤 task_type의 결과든 같은 구조(StepContext)로
-담을 수 있어야 향후 development->review, review->publish,
+특정 task_type(research/development/analysis/screen_observation 등)을
+모델 자체에 하드코딩하지 않는다 - 어떤 task_type의 결과든 같은 구조
+(StepContext)로 담을 수 있어야 향후 development->review, review->publish,
 document->email 같은 새 조합에도 이 파일을 고치지 않고 재사용할 수
 있다. 직렬화 함수는 "결과의 모양"만 보고 사람이 읽기 좋게 포맷하는
 예외적인 경로를 몇 개 갖는다 - ResearchWorker가 반환하는 모양(dict에
 search_results 키), ResearchReviewer(analysis)가 반환하는 모양
-(recommended_idea/market_observations 속성을 가진 객체). 특정 task_type
-문자열이나 구체 클래스(ResearchReviewResult 등)를 import하지 않고,
+(recommended_idea/market_observations 속성을 가진 객체), Screen
+Observation(29단계)이 반환하는 모양(summary/observations/issues/
+next_action 속성을 가진 객체). 특정 task_type 문자열이나 구체 클래스
+(ResearchReviewResult/ScreenObservationResult 등)를 import하지 않고,
 duck typing(속성/키 존재 여부)만으로 판단한다 - 그래야 이 파일이 다른
 도메인 모듈에 의존하지 않는다. 그 모양이 아닌 결과는 동일한 일반
 경로(그대로 문자열화)로 처리한다.
@@ -85,6 +87,23 @@ def _format_research_review_result(result: object) -> str:
     )
 
 
+def _is_screen_observation_shaped(result: object) -> bool:
+    """Screen Observation(29단계)이 반환하는 ScreenObservationResult 모양인지
+    구체 클래스를 import하지 않고 속성 존재만으로 판단한다."""
+    return all(hasattr(result, attr) for attr in ("summary", "observations", "issues", "next_action"))
+
+
+def _format_screen_observation_result(result: object) -> str:
+    observations = "\n".join(f"- {item}" for item in result.observations) or "(없음)"
+    issues = "\n".join(f"- {item}" for item in result.issues) or "(없음)"
+    return (
+        f"요약: {result.summary}\n"
+        f"관찰:\n{observations}\n"
+        f"문제:\n{issues}\n"
+        f"다음 행동: {result.next_action}"
+    )
+
+
 def _format_step_result(step: StepContext) -> str:
     result = step.result
     if isinstance(result, dict) and "search_results" in result:
@@ -100,6 +119,12 @@ def _format_step_result(step: StepContext) -> str:
         # 전부 포함되어야 다음 step(예: development)이 "무엇을 만들지"
         # 실제로 볼 수 있다.
         body = _format_research_review_result(result)
+    elif _is_screen_observation_shaped(result):
+        # Screen Observation(ScreenObservationResult) 모양도 사람이 읽기
+        # 좋게 풀어낸다 - summary/observations/issues/next_action이 전부
+        # 포함되어야 다음 step(예: analysis/development)이 "화면에서
+        # 무엇을 봤는지" 실제로 볼 수 있다.
+        body = _format_screen_observation_result(result)
     else:
         # 알려진 모양이 아니면(development 결과 등) 일반적인 방식으로
         # 그대로 문자열화한다 - 특정 task_type을 더 추가하지 않아도

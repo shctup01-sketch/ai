@@ -37,6 +37,18 @@ v1 범위(중요, 의도적인 제약):
   "completed"로 끝난 경우에만 진행한다. 승인 대기/실행기 없음/실패/
   (방어적으로 확인하는) 선행 작업 미완료 중 어떤 상태로든 멈추면 그
   즉시 전체 실행을 중단한다 - 이후 step은 아예 처리를 시도하지 않는다.
+
+29단계 - resume(): requires_approval=True로 waiting_for_approval에서
+멈춘 step(예: screen_observation)이 이 파일 밖에서(UI가 사용자 승인을
+받고 실제로 실행해) 이미 "completed"가 된 뒤, 나머지 계획을 이어서
+실행하기 위한 최소 재개 경로다. 이 파일은 이번에도 승인 여부를 스스로
+판단하지 않는다 - 호출자가 이미 승인/실행을 마친 결과(완성된
+OrchestrationStepResult)를 건네줄 때만 그 뒤를 잇는다. 이미 완료된
+이전 step(예: 앞선 research)은 다시 실행하지 않는다 - run()과
+resume()이 공유하는 _run_from()이 이미 step_results에 있는 step_id를
+만나면 건너뛴다. 범용 Workflow Engine을 만들지 않는다 - "이미 아는
+결과를 다시 실행하지 않고 다음 step으로 이어간다"는 한 가지 동작만
+한다.
 """
 
 from .analysis_executor import AnalysisExecutionError, AnalysisExecutor
@@ -76,14 +88,57 @@ class ChiefBrainOrchestrator:
                 summary="실행할 작업이 없는 계획입니다.",
             )
 
+        return self._run_from(plan, {}, [])
+
+    def resume(
+        self,
+        plan: ChiefBrainPlan,
+        completed_steps: list[OrchestrationStepResult],
+        approved_step_result: OrchestrationStepResult,
+    ) -> OrchestrationResult:
+        """requires_approval=True였던 step이 이미 승인/실행되어 완료된 뒤,
+        나머지 계획을 이어서 실행한다.
+
+        completed_steps: 직전 run()/resume() 호출이 돌려준
+        OrchestrationResult.completed_steps다(마지막 항목이 이번에 승인된
+        step의 "waiting_for_approval" 결과이며, approved_step_result로
+        교체된다). approved_step_result: 승인 후 실제로 실행되어 만들어진
+        "completed" 결과(예: 화면을 캡처해 분석한 ScreenObservationResult를
+        감싼 것) - 이 메서드는 승인이 실제로 이루어졌는지 스스로 판단하지
+        않는다. 호출자가 이미 승인/실행을 마친 뒤에만 불러야 한다.
+        """
+        step_results: dict[str, OrchestrationStepResult] = {}
+        seeded_completed: list[OrchestrationStepResult] = []
+        for prior in completed_steps:
+            if prior.step_id == approved_step_result.step_id:
+                continue
+            step_results[prior.step_id] = prior
+            seeded_completed.append(prior)
+
+        step_results[approved_step_result.step_id] = approved_step_result
+        seeded_completed.append(approved_step_result)
+
+        return self._run_from(plan, step_results, seeded_completed)
+
+    def _run_from(
+        self,
+        plan: ChiefBrainPlan,
+        step_results: dict[str, OrchestrationStepResult],
+        completed_steps: list[OrchestrationStepResult],
+    ) -> OrchestrationResult:
         # plan.steps를 정렬만 할 뿐 원본 리스트/step 객체는 어디서도
         # 수정하지 않는다(sorted()는 새 리스트를 반환한다).
         ordered_steps = sorted(plan.steps, key=lambda step: step.order)
 
-        step_results: dict[str, OrchestrationStepResult] = {}
-        completed_steps: list[OrchestrationStepResult] = []
-
         for step in ordered_steps:
+            if step.step_id in step_results:
+                # 이미 처리된 step이다(run()의 최초 호출에서는 절대 참이 될
+                # 수 없다 - step_results가 빈 dict로 시작하므로. resume()이
+                # 미리 채워 넣은 step만 여기서 걸린다) - 다시 실행하지도,
+                # completed_steps에 다시 추가하지도 않는다(이미 seed 단계에서
+                # 들어가 있다). 11단계 "중복 실행 방지".
+                continue
+
             unmet_deps = [
                 dep for dep in step.depends_on if step_results.get(dep) is None or step_results[dep].status != "completed"
             ]

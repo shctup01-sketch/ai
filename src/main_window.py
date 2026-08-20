@@ -17,7 +17,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ai import image_content, screen_capture
 from ai.brain_response import BrainResponse
+from ai.brain_task_step import BrainTaskStep
 from ai.chief_brain_orchestrator import ChiefBrainOrchestrator
 from ai.chief_brain_plan import ChiefBrainPlan
 from ai.developer_fix_request import DeveloperFixRequest
@@ -29,16 +31,21 @@ from ai.execution_result import ExecutionResult
 from ai.execution_service import ExecutionService
 from ai.openai_developer_provider import OpenAIDeveloperProvider
 from ai.openai_research_reviewer_provider import OpenAIResearchReviewerProvider
+from ai.openai_screen_observation_provider import OpenAIScreenObservationProvider
 from ai.orchestration_result import OrchestrationResult
 from ai.orchestration_service import OrchestrationService
+from ai.orchestration_step_result import OrchestrationStepResult
 from ai.package_fix_service import PackageFixService
 from ai.research_review_request import ResearchReviewRequest
 from ai.research_review_result import ResearchReviewResult
 from ai.research_review_service import ResearchReviewService
+from ai.screen_observation_executor import ScreenObservationExecutor
+from ai.screen_observation_result import ScreenObservationResult
+from ai.screen_observation_service import ScreenObservationService
 from ai.task import Task
 from ai.task_execution_service import TaskExecutionService
 from ai.task_system import TaskSystem
-from chat_panel import ChatPanel
+from chat_panel import ChatPanel, _encode_image_to_png_bytes
 from project_runner import EntryPointError, resolve_entry_point
 from project_venv import find_unsafe_requirements, parse_requirements
 
@@ -46,6 +53,10 @@ from project_venv import find_unsafe_requirements, parse_requirements
 # 있는 최대 횟수. 자동으로 반복 실행되지 않고, 매번 사용자가 다시 눌러야
 # 다음 시도가 시작된다.
 MAX_PACKAGE_FIX_ATTEMPTS = 2
+
+# Chief Brain이 승인을 요청하는 화면 확인 step의 task_type(29단계).
+# chief_brain_instructions.py가 LLM에게 가르치는 값과 정확히 같아야 한다.
+_SCREEN_OBSERVATION_TASK_TYPE = "screen_observation"
 
 DARK_STYLE = """
 QWidget {
@@ -169,6 +180,17 @@ class MainWindow(QMainWindow):
         # (_ensure_orchestration_service).
         self._current_chief_plan: ChiefBrainPlan | None = None
         self.orchestration_service: OrchestrationService | None = None
+        # 직전 run()/resume() 결과를 보관한다 - screen_observation 승인 후
+        # resume()을 호출할 때 "이미 완료된 step들"을 다시 실행하지 않고
+        # 그대로 이어붙이기 위해 필요하다(29단계).
+        self._last_orchestration_result: OrchestrationResult | None = None
+
+        # Screen Observation(29단계) - 사용자가 승인 Dialog에서 "화면 공유
+        # 승인"을 눌렀을 때만 지연 생성한다. 승인 대기 중인 BrainTaskStep을
+        # 잠시 들고 있다가, Fake가 아닌 실제 화면 분석 결과가 오면 그
+        # step과 짝지어 resume()에 넘긴다.
+        self.screen_observation_service: ScreenObservationService | None = None
+        self._pending_screen_observation_step: BrainTaskStep | None = None
 
         self.developer_service = DeveloperService(parent=self)
         self.developer_service.result_ready.connect(self._on_developer_result)
@@ -868,12 +890,156 @@ class MainWindow(QMainWindow):
     def _on_orchestration_result(self, result: OrchestrationResult):
         self.chief_plan_execute_button.setEnabled(True)
         self.work_step_value_label.setText(self._ORCHESTRATION_STATUS_LABELS.get(result.status, result.status))
+        self._last_orchestration_result = result
+
+        pending_step_result = result.completed_steps[-1] if result.completed_steps else None
+        if (
+            result.status == "waiting_for_approval"
+            and pending_step_result is not None
+            and pending_step_result.task_type == _SCREEN_OBSERVATION_TASK_TYPE
+        ):
+            # 일반 waiting_for_approval(예: 게시/발송처럼 다른 이유로
+            # 승인이 필요한 단계)은 기존 결과 Dialog(승인 필요 안내만
+            # 표시)를 그대로 쓴다 - screen_observation만 전용 승인 Dialog로
+            # 처리한다(5단계).
+            self._handle_screen_observation_approval(pending_step_result)
+            return
+
         self._show_orchestration_result_dialog(result)
 
     def _on_orchestration_error(self, message: str):
         self.chief_plan_execute_button.setEnabled(True)
         self.work_step_value_label.setText("업무 오류")
         QMessageBox.warning(self, "업무 실행 실패", message)
+
+    @staticmethod
+    def _find_plan_step(plan: ChiefBrainPlan, step_id: str) -> BrainTaskStep | None:
+        for step in plan.steps:
+            if step.step_id == step_id:
+                return step
+        return None
+
+    def _handle_screen_observation_approval(self, pending_step_result: OrchestrationStepResult):
+        """screen_observation step이 waiting_for_approval로 멈췄을 때 호출된다.
+
+        승인 Dialog를 보여주고, 사용자가 승인하면(15단계 개인정보 원칙:
+        캡처 전 승인 필수, 승인 후 한 번만 캡처) 그 자리에서 화면을 캡처해
+        분석을 요청한다. 취소하면 아무것도 캡처하지 않고 상태만 안내한다
+        (14단계 - 완료된 앞 단계 결과는 그대로 보관되어 있다,
+        self._last_orchestration_result 참고).
+        """
+        plan = self._current_chief_plan
+        step = self._find_plan_step(plan, pending_step_result.step_id) if plan is not None else None
+        if plan is None or step is None:
+            # 방어적 처리 - 계획에 없는 step_id일 수 없지만, 혹시라도
+            # 어긋나면 조용히 무시하지 않고 기존 결과 Dialog로 대체한다.
+            self.work_step_value_label.setText("화면 확인 오류")
+            self._show_orchestration_result_dialog(self._last_orchestration_result)
+            return
+
+        self.work_step_value_label.setText("화면 확인 승인 대기")
+        approved = self._show_screen_observation_approval_dialog(step)
+        if not approved:
+            self.work_step_value_label.setText("화면 확인 취소됨")
+            return
+
+        self.work_step_value_label.setText("화면 확인 중")
+        try:
+            image = screen_capture.capture_primary_screen()
+            png_bytes = _encode_image_to_png_bytes(image)
+            image_content.validate_encoded_image_size(png_bytes)
+        except (screen_capture.ScreenCaptureError, image_content.ImageAttachmentError) as exc:
+            self.work_step_value_label.setText("화면 확인 실패")
+            QMessageBox.warning(self, "화면 확인 실패", str(exc))
+            return
+        except Exception:
+            # 알 수 없는 캡처/인코딩 실패도 앱 전체를 죽이지 않고 안전하게
+            # 알린다. KeyboardInterrupt/SystemExit는 Exception이 아니므로
+            # 여기서 잡히지 않고 그대로 전파된다.
+            self.work_step_value_label.setText("화면 확인 실패")
+            QMessageBox.warning(self, "화면 확인 실패", "현재 화면을 캡처하지 못했습니다.")
+            return
+
+        data_url = image_content.encode_png_bytes_to_data_url(png_bytes)
+
+        screen_observation_service = self._ensure_screen_observation_service()
+        self._pending_screen_observation_step = step
+        screen_observation_service.observe(step, plan.objective, data_url)
+
+    def _show_screen_observation_approval_dialog(self, step: BrainTaskStep) -> bool:
+        """"화면 공유 승인"/"취소" 두 버튼만 있는 최소 승인 Dialog.
+
+        기본값은 승인이 아니다(15단계) - "취소" 버튼을 기본/포커스 버튼으로
+        둬서 Enter 키를 눌러도 승인되지 않는다.
+        """
+        dialog = QDialog(self)
+        dialog.setWindowTitle("화면 확인 승인")
+
+        layout = QVBoxLayout(dialog)
+        message = QLabel(
+            "Chief Brain이 현재 화면을 확인하려고 합니다.\n\n"
+            f"목적:\n{step.goal}\n\n"
+            f"이유:\n{step.approval_reason or ''}\n\n"
+            "승인하면 현재 화면 이미지가 AI 분석을 위해 전송됩니다."
+        )
+        message.setWordWrap(True)
+        layout.addWidget(message)
+
+        button_row = QHBoxLayout()
+        approve_button = QPushButton("화면 공유 승인")
+        cancel_button = QPushButton("취소")
+        button_row.addWidget(approve_button)
+        button_row.addWidget(cancel_button)
+        layout.addLayout(button_row)
+
+        approve_button.clicked.connect(dialog.accept)
+        cancel_button.clicked.connect(dialog.reject)
+        cancel_button.setDefault(True)
+        cancel_button.setFocus()
+
+        return dialog.exec() == QDialog.DialogCode.Accepted
+
+    def _ensure_screen_observation_service(self) -> ScreenObservationService:
+        if self.screen_observation_service is not None:
+            return self.screen_observation_service
+
+        executor = ScreenObservationExecutor(OpenAIScreenObservationProvider())
+        self.screen_observation_service = ScreenObservationService(executor, parent=self)
+        self.screen_observation_service.result_ready.connect(self._on_screen_observation_result)
+        self.screen_observation_service.error_occurred.connect(self._on_screen_observation_error)
+        return self.screen_observation_service
+
+    def _on_screen_observation_result(self, observation_result: ScreenObservationResult):
+        self.work_step_value_label.setText("화면 확인 완료")
+
+        step = self._pending_screen_observation_step
+        self._pending_screen_observation_step = None
+        if step is None or self._last_orchestration_result is None or self._current_chief_plan is None:
+            return
+
+        approved_step_result = OrchestrationStepResult(
+            step_id=step.step_id,
+            task_type=step.task_type,
+            status="completed",
+            task_id=None,
+            result=observation_result,
+            error=None,
+            requires_approval=step.requires_approval,
+            approval_reason=step.approval_reason,
+        )
+
+        orchestration_service = self._ensure_orchestration_service()
+        if orchestration_service is None:
+            return
+
+        self.work_step_value_label.setText("업무 실행 중")
+        orchestration_service.resume(
+            self._current_chief_plan, self._last_orchestration_result.completed_steps, approved_step_result
+        )
+
+    def _on_screen_observation_error(self, message: str):
+        self.work_step_value_label.setText("화면 확인 오류")
+        QMessageBox.warning(self, "화면 확인 실패", message)
 
     def _show_orchestration_result_dialog(self, result: OrchestrationResult):
         plan = self._current_chief_plan
@@ -892,6 +1058,14 @@ class MainWindow(QMainWindow):
                 lines.append(f"   생성 프로젝트: {getattr(dev_result, 'project_path', '')}")
                 lines.append(f"   entry_point: {getattr(dev_result, 'entry_point', '')}")
                 lines.append(f"   생성 파일:\n{created_files or '   (없음)'}")
+            elif step_result.status == "completed" and step_result.task_type == _SCREEN_OBSERVATION_TASK_TYPE:
+                obs_result = step_result.result
+                observations = "\n".join(f"   - {item}" for item in getattr(obs_result, "observations", []) or [])
+                issues = "\n".join(f"   - {item}" for item in getattr(obs_result, "issues", []) or [])
+                lines.append(f"   요약: {getattr(obs_result, 'summary', '')}")
+                lines.append(f"   관찰:\n{observations or '   (없음)'}")
+                lines.append(f"   문제:\n{issues or '   (없음)'}")
+                lines.append(f"   다음 행동: {getattr(obs_result, 'next_action', '')}")
             elif step_result.status == "waiting_for_executor":
                 lines.append("   현재 이 단계의 실행 기능이 아직 연결되지 않았습니다.")
             elif step_result.status == "waiting_for_approval":
