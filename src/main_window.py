@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
 )
 
 from ai import image_content, screen_capture
+from ai.analysis_executor import AnalysisExecutor
 from ai.brain_response import BrainResponse
 from ai.brain_task_step import BrainTaskStep
 from ai.chief_brain_orchestrator import ChiefBrainOrchestrator
@@ -845,7 +846,13 @@ class MainWindow(QMainWindow):
         research는 TaskSystem(_ensure_task_system, research와 동일한 인스턴스를
         재사용 - API Key를 여러 곳에서 새로 읽지 않는다)으로, development는
         DevelopmentExecutor(OpenAIDeveloperProvider, 개발 실행 버튼과 동일한
-        Provider 계약)로 실행한다.
+        Provider 계약)로, analysis는 AnalysisExecutor(OpenAIResearchReviewerProvider,
+        30단계 - 단일 Research Reviewer(_ensure_research_review_service)와
+        완전히 동일한 client 생성 패턴을 재사용한다. 새 Analysis 전용 AI
+        Provider는 만들지 않는다)로 실행한다. 이 시점에는 이미
+        _ensure_task_system()이 API Key 존재를 확인/경고했으므로(위에서
+        None이면 이미 return했다), 여기서 os.environ을 다시 읽을 때 별도
+        경고 분기가 필요 없다.
         """
         if self.orchestration_service is not None:
             return self.orchestration_service
@@ -855,7 +862,11 @@ class MainWindow(QMainWindow):
             return None
 
         development_executor = DevelopmentExecutor(OpenAIDeveloperProvider())
-        orchestrator = ChiefBrainOrchestrator(task_system, development_executor=development_executor)
+        reviewer_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+        analysis_executor = AnalysisExecutor(OpenAIResearchReviewerProvider(reviewer_client))
+        orchestrator = ChiefBrainOrchestrator(
+            task_system, development_executor=development_executor, analysis_executor=analysis_executor
+        )
 
         self.orchestration_service = OrchestrationService(orchestrator, parent=self)
         self.orchestration_service.result_ready.connect(self._on_orchestration_result)
