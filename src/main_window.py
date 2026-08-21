@@ -26,6 +26,11 @@ from ai.analysis_executor import AnalysisExecutor
 from ai.brain_response import BrainResponse
 from ai.brain_task_step import BrainTaskStep
 from ai.checkpoint_context import describe_step_result, find_latest_step_result
+from ai.project_stage_rerun import (
+    build_rerun_candidate_completed_steps,
+    compute_affected_step_ids,
+    find_rerun_root_step_ids,
+)
 from ai.chief_brain_orchestrator import ChiefBrainOrchestrator
 from ai.chief_brain_plan import ChiefBrainPlan
 from ai.developer_fix_request import DeveloperFixRequest
@@ -269,6 +274,14 @@ class MainWindow(QMainWindow):
         self._active_project_name: str | None = None
         self._active_project_created_at: str | None = None
 
+        # 45단계 - 저장된 장기 project의 완료된 research(와 그에 의존하는
+        # analysis/development)를 최신 코드로 다시 실행하기 위한 전용
+        # OrchestrationService. 37/38단계와 동일한 이유로 원래 project
+        # plan 실행에 쓰는 orchestration_service와 완전히 분리된 인스턴스로만
+        # 지연 생성한다 - 성공하기 전까지는 self._last_orchestration_result/
+        # 영구 저장을 전혀 건드리지 않는다(§5/§15, 아래 핸들러 참고).
+        self.rerun_orchestration_service: OrchestrationService | None = None
+
         self.developer_service = DeveloperService(parent=self)
         self.developer_service.result_ready.connect(self._on_developer_result)
         self.developer_service.error_occurred.connect(self._on_developer_error)
@@ -414,6 +427,12 @@ class MainWindow(QMainWindow):
         self.load_project_button.clicked.connect(self._on_load_project_button_clicked)
         layout.addWidget(self.save_project_button)
         layout.addWidget(self.load_project_button)
+
+        # 45단계 §18 - 대형 Project Manager/편집기가 아니라 최소 버튼
+        # 하나만 기존 저장/불러오기 버튼 옆에 추가한다.
+        self.rerun_research_analysis_button = QPushButton("조사/분석 다시 실행")
+        self.rerun_research_analysis_button.clicked.connect(self._on_rerun_research_analysis_button_clicked)
+        layout.addWidget(self.rerun_research_analysis_button)
 
         return panel
 
@@ -2376,6 +2395,149 @@ class MainWindow(QMainWindow):
             "프로젝트 불러오기",
             "이 상태(실행기 없음/실패/중단/시작 전)는 이번 버전에서 자동으로 이어서 "
             "진행할 수 없습니다. 상태 정보만 복구되었습니다.",
+        )
+
+    def _on_rerun_research_analysis_button_clicked(self):
+        """45단계 §11/§18 - project mode + 저장된 project에서만 동작한다.
+
+        task mode거나 아직 대형 project가 없으면(§1/§11) 명확히 안내만
+        하고 아무것도 하지 않는다. 다시 실행할 완료된 research 결과가
+        없어도(예: 아직 research 전이거나 실패만 있는 경우) 마찬가지로
+        안내만 한다 - 없는 대상을 지어내 재실행하지 않는다.
+        """
+        if (
+            self._active_project_id is None
+            or self._current_chief_plan is None
+            or self._current_chief_plan.execution_mode != "project"
+            or self._last_orchestration_result is None
+        ):
+            QMessageBox.information(self, "조사/분석 다시 실행", "현재 다시 실행할 수 있는 대형 프로젝트가 없습니다.")
+            return
+
+        root_step_ids = find_rerun_root_step_ids(self._last_orchestration_result.completed_steps)
+        if not root_step_ids:
+            QMessageBox.information(self, "조사/분석 다시 실행", "다시 실행할 조사 결과가 없습니다.")
+            return
+
+        if not self._show_project_stage_rerun_confirm_dialog():
+            return
+
+        affected_step_ids = compute_affected_step_ids(self._current_chief_plan, root_step_ids)
+        candidate_completed_steps = build_rerun_candidate_completed_steps(
+            self._last_orchestration_result.completed_steps, affected_step_ids
+        )
+
+        rerun_orchestration_service = self._ensure_rerun_orchestration_service()
+        if rerun_orchestration_service is None:
+            return
+
+        self.rerun_research_analysis_button.setEnabled(False)
+        self.work_step_value_label.setText("조사/분석 다시 실행 중")
+        rerun_orchestration_service.resume_after_review(self._current_chief_plan, candidate_completed_steps)
+
+    def _show_project_stage_rerun_confirm_dialog(self) -> bool:
+        """45단계 §10 - 버튼 클릭 즉시 실행하지 않는다. 취소하면 아무것도
+        바꾸지 않는다(호출자가 dialog.exec() 결과만 보고 판단한다).
+        """
+        dialog = QDialog(self)
+        dialog.setWindowTitle("조사/분석 다시 실행")
+
+        layout = QVBoxLayout(dialog)
+        message = QLabel(
+            "기존 조사/분석 결과를 최신 Studio 기능으로 다시 실행합니다.\n\n"
+            "기존 프로젝트 계획은 유지됩니다.\n"
+            "재실행에 성공하면 기존 조사/분석 결과가 새 결과로 교체됩니다.\n"
+            "실패하면 기존 저장 상태를 유지합니다."
+        )
+        message.setWordWrap(True)
+        layout.addWidget(message)
+
+        button_row = QHBoxLayout()
+        rerun_button = QPushButton("다시 실행")
+        cancel_button = QPushButton("취소")
+        button_row.addWidget(rerun_button)
+        button_row.addWidget(cancel_button)
+        layout.addLayout(button_row)
+
+        rerun_button.clicked.connect(dialog.accept)
+        cancel_button.clicked.connect(dialog.reject)
+        cancel_button.setDefault(True)
+        cancel_button.setFocus()
+
+        return dialog.exec() == QDialog.DialogCode.Accepted
+
+    def _ensure_rerun_orchestration_service(self) -> OrchestrationService | None:
+        """45단계 §12 - 기존 orchestration_service/revision_orchestration_service와
+        동일한 Provider 조합을 그대로 재사용한다(새 Research/Analysis/
+        Development Provider를 만들지 않는다). 원래 project plan 실행에
+        쓰는 orchestration_service와 완전히 분리된 인스턴스다(37/38단계와
+        동일한 이유 - Qt Signal 교차 오염 방지).
+        """
+        task_system = self._ensure_task_system()
+        if task_system is None:
+            return None
+
+        development_executor = DevelopmentExecutor(OpenAIDeveloperProvider())
+        reviewer_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+        analysis_executor = AnalysisExecutor(OpenAIResearchReviewerProvider(reviewer_client))
+        orchestrator = ChiefBrainOrchestrator(
+            task_system, development_executor=development_executor, analysis_executor=analysis_executor
+        )
+
+        self.rerun_orchestration_service = OrchestrationService(orchestrator, parent=self)
+        self.rerun_orchestration_service.result_ready.connect(self._on_project_stage_rerun_result)
+        self.rerun_orchestration_service.error_occurred.connect(self._on_project_stage_rerun_error)
+        self.rerun_orchestration_service.stage_changed.connect(self._on_orchestration_stage_changed)
+        return self.rerun_orchestration_service
+
+    def _on_project_stage_rerun_result(self, result: OrchestrationResult):
+        """45단계 §5~§7/§15/§20 - 성공했을 때만 self._last_orchestration_result/
+        영구 저장을 새 결과로 갱신한다. 실패(failed/blocked/
+        waiting_for_executor)면 기존 메모리 상태/저장 JSON을 그대로 두고
+        안내만 한다(§7 - traceback 노출 없이 명확한 문장 하나만).
+        """
+        self.rerun_research_analysis_button.setEnabled(True)
+
+        if result.status in ("failed", "blocked", "waiting_for_executor"):
+            self.work_step_value_label.setText("조사/분석 재실행 실패 - 기존 상태 유지")
+            QMessageBox.warning(
+                self, "조사/분석 다시 실행 실패", "단계 재실행에 실패하여 기존 프로젝트 상태를 유지했습니다."
+            )
+            return
+
+        # §20 - memory(self._last_orchestration_result)와 persistent
+        # state(project_state_store)가 서로 다른 결과를 갖지 않도록 항상
+        # 함께, 성공한 최신 결과로만 갱신한다.
+        self._last_orchestration_result = result
+        self._save_active_project_state()
+
+        pending_step_result = result.completed_steps[-1] if result.completed_steps else None
+
+        if result.status == "waiting_for_approval" and pending_step_result is not None:
+            # §8/§13/§19 - 새 승인 시스템을 만들지 않는다. 34/42단계
+            # 기존 project 체크포인트 흐름을 그대로 재사용한다 - 이
+            # Dialog가 self._last_orchestration_result.completed_steps
+            # (이미 위에서 최신 결과로 교체됨)를 그대로 읽으므로 새
+            # Research/Analysis 결과가 자동으로 표시된다.
+            self.work_step_value_label.setText("최신 조사/분석 반영 완료 - 개발 승인 대기")
+            self._handle_project_checkpoint_approval(pending_step_result)
+            return
+
+        if result.status == "waiting_for_review" and pending_step_result is not None:
+            self.work_step_value_label.setText("최신 조사/분석 반영 완료 - 개발 결과 검토 대기")
+            self._handle_development_review(pending_step_result)
+            return
+
+        self.work_step_value_label.setText("최신 조사/분석 반영 완료")
+        self._show_orchestration_result_dialog(result)
+
+    def _on_project_stage_rerun_error(self, message: str):
+        """45단계 §7 - 예상치 못한 예외도 rollback과 동일하게 처리한다
+        (내부 traceback을 그대로 노출하지 않는다)."""
+        self.rerun_research_analysis_button.setEnabled(True)
+        self.work_step_value_label.setText("조사/분석 재실행 실패 - 기존 상태 유지")
+        QMessageBox.warning(
+            self, "조사/분석 다시 실행 실패", "단계 재실행에 실패하여 기존 프로젝트 상태를 유지했습니다."
         )
 
     def _show_orchestration_result_dialog(self, result: OrchestrationResult):
