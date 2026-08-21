@@ -25,6 +25,7 @@ from ai import image_content, screen_capture
 from ai.analysis_executor import AnalysisExecutor
 from ai.brain_response import BrainResponse
 from ai.brain_task_step import BrainTaskStep
+from ai.checkpoint_context import describe_step_result, find_latest_step_result
 from ai.chief_brain_orchestrator import ChiefBrainOrchestrator
 from ai.chief_brain_plan import ChiefBrainPlan
 from ai.developer_fix_request import DeveloperFixRequest
@@ -1266,7 +1267,17 @@ class MainWindow(QMainWindow):
             return
 
         self.work_step_value_label.setText("프로젝트 체크포인트 승인 대기")
-        approved = self._show_project_checkpoint_approval_dialog(step, pending_step_result.approval_reason)
+        # 42단계 §4/§11 - 지금까지 완료된 research/analysis 결과를 함께
+        # 보여준다. self._last_orchestration_result.completed_steps는
+        # 원래 project 흐름이든(round34) 저장된 프로젝트를 불러온
+        # 뒤든(round41 _resume_loaded_project) 이 시점에 항상 채워져
+        # 있다 - 새 resume 시스템을 만들 필요가 없다.
+        completed_steps = (
+            self._last_orchestration_result.completed_steps if self._last_orchestration_result is not None else None
+        )
+        approved = self._show_project_checkpoint_approval_dialog(
+            step, pending_step_result.approval_reason, completed_steps
+        )
         if not approved:
             self.work_step_value_label.setText("프로젝트 체크포인트 대기 중")
             return
@@ -1280,17 +1291,52 @@ class MainWindow(QMainWindow):
             plan, self._last_orchestration_result.completed_steps, step.step_id
         )
 
-    def _show_project_checkpoint_approval_dialog(self, step: BrainTaskStep, approval_reason: str | None) -> bool:
-        """"진행 승인"/"취소" 두 버튼만 있는 최소 승인 Dialog(4단계).
+    def _show_project_checkpoint_approval_dialog(
+        self,
+        step: BrainTaskStep,
+        approval_reason: str | None,
+        completed_steps: list[OrchestrationStepResult] | None = None,
+    ) -> bool:
+        """"진행 승인"/"프로젝트 저장"/"취소" 세 버튼이 있는 승인
+        Dialog(4단계, 42단계에서 저장 버튼 + 이전 작업 결과 표시 추가).
 
         _show_screen_observation_approval_dialog와 동일한 패턴을 그대로
         따른다(새 Dialog 시스템을 만들지 않는다) - 기본값은 승인이
         아니다("취소"가 기본/포커스 버튼이다).
+
+        42단계 §4/§5/§6 - completed_steps가 주어지면(원래 project
+        checkpoint 흐름) 가장 최근 research/analysis 결과만 규칙 기반으로
+        요약해 함께 보여준다(전체 기록 아님, 새 AI 요약 호출 없음).
+        주어지지 않으면(기본값 None - 38단계 revision development
+        checkpoint가 이 Dialog를 호출할 때는 여전히 넘기지 않는다) 이전
+        기존 화면 그대로다 - revision loop 호출부는 전혀 바뀌지 않는다.
+
+        §7/§8 - "프로젝트 저장" 버튼은 dialog.accept()/reject()를 호출하지
+        않는다 - Qt에서는 그 둘을 부르기 전까지 모달 Dialog가 닫히지
+        않으므로, 저장 핸들러가 그냥 반환하면 이 Dialog는 그대로 열려
+        있는 채로 유지된다(별도의 "닫았다가 다시 연다" 구조가 필요
+        없다). development는 오직 approve_button(dialog.accept)을 거쳐야만
+        시작될 수 있다.
         """
         dialog = QDialog(self)
         dialog.setWindowTitle("프로젝트 체크포인트 승인")
 
         layout = QVBoxLayout(dialog)
+
+        if completed_steps is not None:
+            research_entry = find_latest_step_result(completed_steps, "research")
+            analysis_entry = find_latest_step_result(completed_steps, "analysis")
+            research_text = describe_step_result(research_entry) if research_entry is not None else "조사 결과 없음"
+            analysis_text = describe_step_result(analysis_entry) if analysis_entry is not None else "분석 결과 없음"
+
+            layout.addWidget(QLabel("--- 지금까지 완료된 작업 ---"))
+            context_view = QPlainTextEdit()
+            context_view.setReadOnly(True)
+            context_view.setPlainText(f"[조사 결과]\n{research_text}\n\n[분석 결과]\n{analysis_text}")
+            context_view.setMaximumHeight(220)
+            layout.addWidget(context_view)
+            layout.addWidget(QLabel("--- 다음 개발 단계 ---"))
+
         message = QLabel(
             "다음 개발 단계로 진행하기 전 확인이 필요합니다.\n\n"
             f"다음 단계:\n{step.title}\n\n"
@@ -1302,17 +1348,40 @@ class MainWindow(QMainWindow):
 
         button_row = QHBoxLayout()
         approve_button = QPushButton("진행 승인")
+        save_button = QPushButton("프로젝트 저장")
         cancel_button = QPushButton("취소")
         button_row.addWidget(approve_button)
+        button_row.addWidget(save_button)
         button_row.addWidget(cancel_button)
         layout.addLayout(button_row)
 
         approve_button.clicked.connect(dialog.accept)
+        save_button.clicked.connect(self._on_checkpoint_save_button_clicked)
         cancel_button.clicked.connect(dialog.reject)
         cancel_button.setDefault(True)
         cancel_button.setFocus()
 
         return dialog.exec() == QDialog.DialogCode.Accepted
+
+    def _on_checkpoint_save_button_clicked(self):
+        """42단계 §7/§8/§9 - 승인 Dialog 안에서 누르는 저장 버튼.
+
+        승인/취소로 처리하지 않는다(dialog.accept()/reject()를 호출하지
+        않는다) - development를 시작하지 않고(resume_project_checkpoint를
+        부르지 않는다), Orchestrator를 다시 실행하지 않으며, 현재
+        waiting_for_approval 상태를 그대로 유지한다. 41단계의
+        _save_active_project_state()를 그대로 재사용한다(새 저장
+        시스템을 만들지 않는다) - 실패해도 project를 실패 처리하지
+        않고 내부 예외 traceback 없이 안내만 한다(§9).
+        """
+        if self._save_active_project_state():
+            QMessageBox.information(
+                self,
+                "프로젝트 저장",
+                "현재 프로젝트 상태를 저장했습니다.\n승인 대기 상태는 그대로 유지됩니다.",
+            )
+        else:
+            QMessageBox.warning(self, "프로젝트 저장 실패", "프로젝트 상태를 저장하지 못했습니다.")
 
     def _handle_development_review(self, pending_step_result: OrchestrationStepResult):
         """36단계 - project development step이 성공적으로 끝나면 다음
