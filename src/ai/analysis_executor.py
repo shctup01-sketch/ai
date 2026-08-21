@@ -33,6 +33,12 @@ class AnalysisExecutionError(Exception):
     호출자(Orchestrator)가 명확히 구분해 처리할 수 있는 단일 예외
     타입으로 감싼다. KeyboardInterrupt/SystemExit는 Exception이 아니라
     여기서 잡히지 않고 그대로 전파된다.
+
+    43단계 - depends_on이 있는데도 병합된 search_results가 0건이면
+    (선행 research 결과가 이 step에 제대로 연결되지 않았을 가능성이 큼)
+    이 예외를 그대로 재사용해 "완료"가 아니라 "실패"로 처리한다 - 새
+    상태를 만들지 않고, Orchestrator가 이미 하던 처리(실패 시 그 자리에서
+    중단하고 development로 넘어가지 않음)를 그대로 재사용한다.
     """
 
 
@@ -44,6 +50,18 @@ class AnalysisExecutor:
 
     def execute(self, step: BrainTaskStep, context: ExecutionContext | None = None) -> ResearchReviewResult:
         request = self._build_request(step, context)
+
+        # 43단계 §9 - depends_on을 선언했다는 것은 "선행 결과를 참고해야
+        # 한다"는 뜻인데, 병합 결과가 0건이면 그 연결이 실제로는 끊어져
+        # 있었다는 뜻이다. depends_on이 애초에 없는 step(기존 25단계
+        # AE 케이스 - 선행 research 없이도 동작하는 독립 analysis)까지
+        # 막으면 기존 기능을 깨뜨리므로, depends_on이 있을 때만 검사한다.
+        if step.depends_on and not request.search_results:
+            raise AnalysisExecutionError(
+                "분석에 참고할 조사(research) 결과를 찾지 못했습니다(검색 결과 0건). "
+                "선행 research 단계 결과가 이 analysis 단계에 제대로 연결되지 않았을 수 있습니다."
+            )
+
         try:
             return self._reviewer_provider.review(request)
         except Exception as exc:
