@@ -241,6 +241,18 @@ class MainWindow(QMainWindow):
         self._revision_user_request_text: str | None = None
         self._revision_last_summary: DevelopmentRevisionSummary | None = None
 
+        # 40단계 - revision 전/후 실제 실행 화면 비교. before는 이번
+        # revision을 "시작하는 시점"에 마지막으로 보고 있던 화면/분석을
+        # 그대로 승격한 것이고(§4/§11 - 다음 revision에서는 지금의
+        # after가 다음 before가 된다), after는 그 revision이 끝난 뒤
+        # 사용자가 다시 "실행해서 확인"을 눌러 얻은 최신 화면/분석이다.
+        # v1은 현재 revision 하나에 대한 before/after 2개만 유지한다
+        # (§13 - 무한 누적 금지, 디스크 저장 없이 세션 메모리에만 둔다).
+        self._revision_before_image: QPixmap | None = None
+        self._revision_before_observation: ScreenObservationResult | None = None
+        self._revision_after_image: QPixmap | None = None
+        self._revision_after_observation: ScreenObservationResult | None = None
+
         self.developer_service = DeveloperService(parent=self)
         self.developer_service.result_ready.connect(self._on_developer_result)
         self.developer_service.error_occurred.connect(self._on_developer_error)
@@ -1277,10 +1289,14 @@ class MainWindow(QMainWindow):
         self.work_step_value_label.setText("프로젝트 결과 검토 대기")
         self.developer_status_label.setText("결과 검토 대기")
 
-        # 39단계 §10 - 이 step은 revision이 아니라 원래 계획의 development
-        # 단계가 방금 끝난 것이므로, 이전에 다른 step에서 만들어진 수정
-        # 요약이 섞여 보이지 않도록 비운다.
+        # 39/40단계 §10/§4 - 이 step은 revision이 아니라 원래 계획의
+        # development 단계가 방금 끝난 것이므로, 이전에 다른 step에서
+        # 만들어진 수정 요약/전후 화면이 섞여 보이지 않도록 비운다.
         self._revision_last_summary = None
+        self._revision_before_image = None
+        self._revision_before_observation = None
+        self._revision_after_image = None
+        self._revision_after_observation = None
 
         self._present_development_review(step, dev_result, plan)
 
@@ -1299,10 +1315,31 @@ class MainWindow(QMainWindow):
         36단계와 동일한 텍스트 요약만 보여주고, 있으면 함께 보여준다 -
         "실행해서 확인" 이후에는 이 메서드가 그 결과를 들고 다시
         불린다.
+
+        40단계 - revision 결과를 검토 중일 때(self._revision_last_summary가
+        있을 때) 새로 받은 image_pixmap/observation_result는 "이번
+        revision의 after 화면"으로 승격한다. 여기서만 승격하므로
+        "실행해서 확인"을 다시 눌러 새 화면을 받을 때마다 after가
+        최신으로 갱신된다 - revision이 아닌 일반 검토(revision_last_
+        summary가 None)에서는 손대지 않는다(§4 - revision 단위 격리).
         """
+        if self._revision_last_summary is not None and (image_pixmap is not None or observation_result is not None):
+            self._revision_after_image = image_pixmap
+            self._revision_after_observation = observation_result
+
         next_step = min((s for s in plan.steps if s.order > step.order), key=lambda s: s.order, default=None)
         decision = self._show_development_review_dialog(
-            step, dev_result, next_step, execution_result, image_pixmap, observation_result, self._revision_last_summary
+            step,
+            dev_result,
+            next_step,
+            execution_result,
+            image_pixmap,
+            observation_result,
+            self._revision_last_summary,
+            self._revision_before_image,
+            self._revision_before_observation,
+            self._revision_after_image,
+            self._revision_after_observation,
         )
 
         if decision == "run":
@@ -1312,8 +1349,9 @@ class MainWindow(QMainWindow):
         if decision == "revise":
             # 38단계 - 36단계의 "안내만 하고 멈춘다"를 실제 수정 루프로
             # 대체한다(개발 -> 결과 확인 -> 수정 요청 -> 재개발 -> 다시
-            # 결과 확인).
-            self._start_development_revision(step, dev_result, plan, observation_result)
+            # 결과 확인). 40단계 - 지금 보고 있는 image_pixmap도 함께
+            # 넘긴다(다음 revision의 before로 승격시키기 위해, §11).
+            self._start_development_revision(step, dev_result, plan, observation_result, image_pixmap)
             return
 
         orchestration_service = self._ensure_orchestration_service()
@@ -1332,6 +1370,10 @@ class MainWindow(QMainWindow):
         image_pixmap: QPixmap | None = None,
         observation_result: ScreenObservationResult | None = None,
         revision_summary: DevelopmentRevisionSummary | None = None,
+        before_image: QPixmap | None = None,
+        before_observation: ScreenObservationResult | None = None,
+        after_image: QPixmap | None = None,
+        after_observation: ScreenObservationResult | None = None,
     ) -> str:
         """"계속 진행"/"실행해서 확인"/"수정 요청" 세 버튼이 있는 결과
         검토 Dialog(§2/§5/§11). 반환값은 "continue"/"run"/"revise" 중
@@ -1344,6 +1386,11 @@ class MainWindow(QMainWindow):
         둘 다 있을 때만 활성화한다(§4). 기본값은 자동 진행이 아니다 -
         "수정 요청"이 기본/포커스 버튼이라 Enter로는 다음 단계로
         넘어가지 않는다.
+
+        40단계 - before_image/after_image는 revision 전/후 실행 화면
+        비교 전용이다(revision_summary가 있을 때만 의미가 있다). AI
+        비교 판단을 새로 만들지 않는다(§7) - 기존 ScreenObservationResult
+        각각을 그대로 나란히 보여줄 뿐이다(§8).
         """
         dialog = QDialog(self)
         dialog.setWindowTitle("개발 단계 결과 확인")
@@ -1381,6 +1428,27 @@ class MainWindow(QMainWindow):
                 f"주의사항:\n{warnings_text}"
             )
 
+            # 40단계 §5/§6/§8/§9 - revision 전/후 화면 비교. before가
+            # 아예 없으면(사용자가 revision 전에 "실행해서 확인"을 한
+            # 적이 없으면) 비교 자체를 제공하지 않고 그 사실만 안내한다
+            # - revision을 막지는 않는다(39단계 텍스트 요약은 위에서
+            # 이미 정상 표시됐다).
+            if before_image is None:
+                message_text += "\n\n수정 전 실행 화면이 없어 화면 비교는 제공할 수 없습니다."
+            else:
+                before_obs_text = before_observation.summary if before_observation is not None else "화면 분석 결과 없음"
+                if after_image is None:
+                    after_obs_text = "아직 확인하지 않음"
+                elif after_observation is not None:
+                    after_obs_text = after_observation.summary
+                else:
+                    after_obs_text = "화면 분석 결과 없음"
+                message_text += (
+                    f"\n\n--- 화면 비교(수정 전/후) ---\n"
+                    f"수정 전 화면 분석:\n{before_obs_text}\n\n"
+                    f"수정 후 화면 분석:\n{after_obs_text}"
+                )
+
         if execution_result is not None:
             exec_status_text = "성공" if execution_result.status == "success" else "실패"
             message_text += f"\n\n--- 실행 결과 ---\n실행 성공 여부: {exec_status_text}\n{execution_result.summary}"
@@ -1409,6 +1477,31 @@ class MainWindow(QMainWindow):
             image_label = QLabel()
             image_label.setPixmap(image_pixmap)
             layout.addWidget(image_label)
+
+        if revision_summary is not None and before_image is not None:
+            # 40단계 §6 - 대규모 이미지 뷰어가 아니라 QLabel + 이미
+            # scaled된 QPixmap(37단계에서 이미 480x360으로 scale됨)을
+            # 나란히 두는 최소 UI다.
+            image_row = QHBoxLayout()
+
+            before_column = QVBoxLayout()
+            before_column.addWidget(QLabel("수정 전"))
+            before_image_label = QLabel()
+            before_image_label.setPixmap(before_image)
+            before_column.addWidget(before_image_label)
+            image_row.addLayout(before_column)
+
+            after_column = QVBoxLayout()
+            after_column.addWidget(QLabel("수정 후"))
+            if after_image is not None:
+                after_image_label = QLabel()
+                after_image_label.setPixmap(after_image)
+                after_column.addWidget(after_image_label)
+            else:
+                after_column.addWidget(QLabel("아직 확인하지 않음"))
+            image_row.addLayout(after_column)
+
+            layout.addLayout(image_row)
 
         button_row = QHBoxLayout()
         continue_button = QPushButton("계속 진행")
@@ -1624,6 +1717,7 @@ class MainWindow(QMainWindow):
         dev_result: DeveloperResult,
         plan: ChiefBrainPlan,
         observation_result: ScreenObservationResult | None,
+        image_pixmap: QPixmap | None = None,
     ):
         """38단계 §4 - "수정 요청"을 실제로 입력받는다.
 
@@ -1631,6 +1725,12 @@ class MainWindow(QMainWindow):
         유지, 아무 것도 호출하지 않는다). 37단계 screen 검토를 거쳤다면
         observation_result가 있고, 없으면 None을 그대로 Request에
         넘긴다(§14 - 없는 화면 분석을 지어내지 않는다).
+
+        40단계 §4/§11 - 지금 사용자가 보고 있던 image_pixmap/
+        observation_result를 이번 revision의 "before" 화면으로
+        승격한다(반복 수정 시 직전 after가 다음 before가 되는 것과
+        동일한 원리). after는 아직 없으므로 비운다 - 다음
+        "실행해서 확인"에서 새로 채워진다(_present_development_review).
         """
         text, ok = QInputDialog.getMultiLineText(self, "수정 요청", "수정 요청 내용을 입력하세요:", "")
         if not ok or not text.strip():
@@ -1640,6 +1740,10 @@ class MainWindow(QMainWindow):
         self._revision_original_dev_result = dev_result
         self._revision_original_plan = plan
         self._revision_user_request_text = text.strip()
+        self._revision_before_image = image_pixmap
+        self._revision_before_observation = observation_result
+        self._revision_after_image = None
+        self._revision_after_observation = None
         # 39단계 §4 - revision 시작 "전" 파일 목록을 메모리에만 보관한다
         # (파일 내용 복사/디스크 snapshot 없음, 파일명만). 실패해도
         # None으로 안전하게 넘어간다(§12) - build_revision_summary가
