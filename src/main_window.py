@@ -1,4 +1,5 @@
 import os
+import uuid
 from pathlib import Path
 
 from openai import OpenAI
@@ -11,6 +12,7 @@ from PySide6.QtWidgets import (
     QInputDialog,
     QLabel,
     QListWidget,
+    QListWidgetItem,
     QMainWindow,
     QMessageBox,
     QPlainTextEdit,
@@ -45,6 +47,8 @@ from ai.orchestration_result import OrchestrationResult
 from ai.orchestration_service import OrchestrationService
 from ai.orchestration_step_result import OrchestrationStepResult
 from ai.package_fix_service import PackageFixService
+from ai.project_state import PersistentProjectState, create_project_state
+from ai.project_state_store import ProjectStateError, ProjectStateStore
 from ai.research_review_request import ResearchReviewRequest
 from ai.research_review_result import ResearchReviewResult
 from ai.research_review_service import ResearchReviewService
@@ -253,6 +257,17 @@ class MainWindow(QMainWindow):
         self._revision_after_image: QPixmap | None = None
         self._revision_after_observation: ScreenObservationResult | None = None
 
+        # 41단계 - 장기 project 진행 상태 저장/불러오기. project_state_store는
+        # 순수 Python(JSON 파일)만 다루고 API Key/OpenAI client가 전혀
+        # 필요 없으므로 다른 서비스들과 달리 지연 생성 없이 바로 만든다.
+        # _active_project_*는 execution_mode == "project"인 계획이 준비된
+        # 이후에만 채워진다(§12 - task 모드는 장기 프로젝트 저장 대상이
+        # 아니다).
+        self.project_state_store = ProjectStateStore()
+        self._active_project_id: str | None = None
+        self._active_project_name: str | None = None
+        self._active_project_created_at: str | None = None
+
         self.developer_service = DeveloperService(parent=self)
         self.developer_service.result_ready.connect(self._on_developer_result)
         self.developer_service.error_occurred.connect(self._on_developer_error)
@@ -389,6 +404,16 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.task_execute_button)
         layout.addWidget(self.chief_plan_execute_button)
 
+        # 41단계 §13 - 대형 Project Manager가 아니라 최소 저장/불러오기
+        # 버튼 2개만 기존 WORK STATUS 패널에 추가한다(새 UI 영역을 만들지
+        # 않는다).
+        self.save_project_button = QPushButton("프로젝트 저장")
+        self.save_project_button.clicked.connect(self._on_save_project_button_clicked)
+        self.load_project_button = QPushButton("프로젝트 불러오기")
+        self.load_project_button.clicked.connect(self._on_load_project_button_clicked)
+        layout.addWidget(self.save_project_button)
+        layout.addWidget(self.load_project_button)
+
         return panel
 
     def _on_new_project_clicked(self):
@@ -465,6 +490,21 @@ class MainWindow(QMainWindow):
         self.research_status_label.setText("대기")
         self.analysis_status_label.setText("대기")
         self.developer_status_label.setText("대기")
+
+        # 41단계 §11/§12 - project 모드 계획이 막 확정된 시점("project
+        # plan 생성 완료")도 저장 지점 중 하나다. task 모드는 장기 프로젝트
+        # 저장 대상이 아니므로 여기서 완전히 제외한다(_active_project_id를
+        # 만들지 않는다 - 이후 _on_orchestration_result의 저장 훅도
+        # _active_project_id가 None이면 아무 것도 하지 않는다).
+        if plan.execution_mode == "project":
+            self._active_project_id = str(uuid.uuid4())
+            self._active_project_name = plan.objective
+            self._active_project_created_at = None
+            self._save_active_project_state()
+        else:
+            self._active_project_id = None
+            self._active_project_name = None
+            self._active_project_created_at = None
 
     def _on_plan_button_clicked(self):
         if self._current_plan is None:
@@ -1021,6 +1061,12 @@ class MainWindow(QMainWindow):
         self.chief_plan_execute_button.setEnabled(True)
         self.work_step_value_label.setText(self._ORCHESTRATION_STATUS_LABELS.get(result.status, result.status))
         self._last_orchestration_result = result
+
+        # 41단계 §11 - step 완료/승인 대기 진입/결과 검토 대기 진입/최종
+        # 완료/resume 이후 상태 변화가 전부 이 한 곳으로 모인다(원래
+        # project plan의 실행 결과는 항상 이 슬롯을 거친다) - 새 저장
+        # 훅을 여러 곳에 흩어 놓지 않고 여기 하나만 연결한다.
+        self._save_active_project_state()
 
         pending_step_result = result.completed_steps[-1] if result.completed_steps else None
 
@@ -1981,6 +2027,10 @@ class MainWindow(QMainWindow):
                 after_files=after_files,
             )
 
+            # 41단계 §11 - revision으로 completed_steps 내용이 바뀌었으니
+            # (원래 step_id의 result가 교체됨) 저장 상태도 갱신한다.
+            self._save_active_project_state()
+
             self.developer_status_label.setText("결과 검토 대기")
             self.work_step_value_label.setText("프로젝트 결과 검토 대기")
             QMessageBox.information(self, "수정 완료", "수정 작업이 완료되었습니다.")
@@ -2057,6 +2107,206 @@ class MainWindow(QMainWindow):
             completed_steps=updated_steps,
             pending_step_id=self._last_orchestration_result.pending_step_id,
             summary=self._last_orchestration_result.summary,
+        )
+
+    def _find_project_path_from_completed_steps(self) -> str | None:
+        """41단계 - 지금까지 완료된 step 중 실제 project_path를 가진
+        결과(DeveloperResult)를 뒤에서부터 찾는다(duck typing, 기존
+        step_context.py/화면 표시 코드와 동일한 방식) - project_path를
+        새 필드로 어딘가에 별도 보관하지 않는다.
+        """
+        if self._last_orchestration_result is None:
+            return None
+        for entry in reversed(self._last_orchestration_result.completed_steps):
+            project_path = getattr(entry.result, "project_path", None)
+            if project_path:
+                return project_path
+        return None
+
+    def _save_active_project_state(self) -> bool:
+        """41단계 §11/§12 - project 모드 대형 프로젝트의 상태 변화 지점에서만
+        호출되는 공통 저장 로직. task 모드거나(execution_mode != "project")
+        아직 project plan이 없으면(_active_project_id is None) 아무 것도
+        하지 않는다. 저장 실패는 §18에 따라 앱을 죽이지 않고 상태
+        표시줄에만 짧게 알린다(팝업으로 자동 저장 흐름을 막지 않는다).
+        """
+        if self._active_project_id is None or self._current_chief_plan is None:
+            return False
+        if self._current_chief_plan.execution_mode != "project":
+            return False
+
+        try:
+            state = create_project_state(
+                plan=self._current_chief_plan,
+                orchestration_result=self._last_orchestration_result,
+                project_path=self._find_project_path_from_completed_steps(),
+                last_user_request=self._revision_user_request_text,
+                project_id=self._active_project_id,
+                project_name=self._active_project_name,
+                created_at=self._active_project_created_at,
+            )
+            self.project_state_store.save(state)
+        except ProjectStateError:
+            self.work_step_value_label.setText("프로젝트 상태 저장 실패")
+            return False
+
+        self._active_project_created_at = state.created_at
+        return True
+
+    def _on_save_project_button_clicked(self):
+        """41단계 §13 - 자동 저장 훅과 별개로, 사용자가 명시적으로 지금
+        상태를 저장하고 싶을 때 누르는 최소 버튼이다.
+        """
+        if self._active_project_id is None:
+            QMessageBox.information(self, "프로젝트 저장", "현재 저장할 수 있는 대형 프로젝트가 없습니다.")
+            return
+
+        if self._save_active_project_state():
+            QMessageBox.information(self, "프로젝트 저장", "현재 프로젝트 상태를 저장했습니다.")
+        else:
+            QMessageBox.warning(self, "프로젝트 저장 실패", "프로젝트 상태를 저장하지 못했습니다.")
+
+    def _on_load_project_button_clicked(self):
+        try:
+            states = self.project_state_store.list_projects()
+        except ProjectStateError as exc:
+            QMessageBox.warning(self, "불러오기 실패", str(exc))
+            return
+
+        if not states:
+            QMessageBox.information(self, "프로젝트 불러오기", "저장된 프로젝트가 없습니다.")
+            return
+
+        selected = self._show_project_load_list_dialog(states)
+        if selected is None:
+            return
+
+        self._show_loaded_project_info_dialog(selected)
+
+    def _show_project_load_list_dialog(self, states: list[PersistentProjectState]) -> PersistentProjectState | None:
+        """41단계 §13 - 대형 Project Manager가 아니라, 이름/마지막 수정
+        시간/현재 상태만 구분할 수 있는 최소 목록이다.
+        """
+        dialog = QDialog(self)
+        dialog.setWindowTitle("프로젝트 불러오기")
+
+        layout = QVBoxLayout(dialog)
+        layout.addWidget(QLabel("불러올 프로젝트를 선택하세요:"))
+
+        list_widget = QListWidget()
+        for state in states:
+            status_text = self._ORCHESTRATION_STATUS_LABELS.get(state.orchestration_status, state.orchestration_status)
+            item = QListWidgetItem(f"{state.project_name}  [{status_text}]  ({state.updated_at})")
+            item.setData(Qt.ItemDataRole.UserRole, state.project_id)
+            list_widget.addItem(item)
+        layout.addWidget(list_widget)
+
+        button_row = QHBoxLayout()
+        select_button = QPushButton("선택")
+        cancel_button = QPushButton("취소")
+        button_row.addWidget(select_button)
+        button_row.addWidget(cancel_button)
+        layout.addLayout(button_row)
+
+        select_button.clicked.connect(lambda: dialog.done(1))
+        cancel_button.clicked.connect(lambda: dialog.done(0))
+        cancel_button.setDefault(True)
+        cancel_button.setFocus()
+
+        if dialog.exec() != 1 or list_widget.currentItem() is None:
+            return None
+
+        selected_project_id = list_widget.currentItem().data(Qt.ItemDataRole.UserRole)
+        try:
+            return self.project_state_store.load(selected_project_id)
+        except ProjectStateError as exc:
+            QMessageBox.warning(self, "불러오기 실패", str(exc))
+            return None
+
+    def _show_loaded_project_info_dialog(self, state: PersistentProjectState):
+        """41단계 §14/§19 - 불러오기 자체는 실행 명령이 아니다(중요).
+        상태만 보여주고, 사용자가 명시적으로 "이어서 진행"을 눌러야만
+        기존 승인/검토 흐름(_resume_loaded_project)으로 넘어간다.
+        """
+        total_steps = len(state.plan.steps)
+        completed_count = sum(1 for s in state.completed_steps if s.status == "completed")
+        current_step = self._find_plan_step(state.plan, state.current_step_id) if state.current_step_id else None
+        current_step_text = current_step.title if current_step is not None else "없음"
+        status_text = self._ORCHESTRATION_STATUS_LABELS.get(state.orchestration_status, state.orchestration_status)
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle("프로젝트 상태")
+
+        layout = QVBoxLayout(dialog)
+        message = QLabel(
+            f"프로젝트 이름:\n{state.project_name}\n\n"
+            f"현재 상태:\n{status_text}\n\n"
+            f"완료 단계:\n{completed_count} / {total_steps}\n\n"
+            f"현재/다음 단계:\n{current_step_text}\n\n"
+            f"마지막 사용자 요청:\n{state.last_user_request or '없음'}\n\n"
+            "이전 화면 이미지는 세션 종료로 복구되지 않았습니다."
+        )
+        message.setWordWrap(True)
+        layout.addWidget(message)
+
+        button_row = QHBoxLayout()
+        resume_button = QPushButton("이어서 진행")
+        close_button = QPushButton("닫기")
+        button_row.addWidget(resume_button)
+        button_row.addWidget(close_button)
+        layout.addLayout(button_row)
+
+        resume_button.clicked.connect(lambda: dialog.done(1))
+        close_button.clicked.connect(lambda: dialog.done(0))
+        close_button.setDefault(True)
+        close_button.setFocus()
+
+        if dialog.exec() == 1:
+            self._resume_loaded_project(state)
+
+    def _resume_loaded_project(self, state: PersistentProjectState):
+        """41단계 §15 - 새 Orchestrator를 만들지 않는다. 내부 상태만
+        복구한 뒤 기존 handler(_handle_project_checkpoint_approval/
+        _handle_development_review)로 그대로 넘긴다 - 그 handler들이
+        부르는 resume_project_checkpoint()/resume_after_review()가 이미
+        "step_id가 completed_steps에 있으면 재실행하지 않는다"는 규칙을
+        갖고 있으므로(round34/36에서 이미 검증됨) 여기서 새로 만들
+        필요가 없다.
+        """
+        self._current_chief_plan = state.plan
+        self._active_project_id = state.project_id
+        self._active_project_name = state.project_name
+        self._active_project_created_at = state.created_at
+        # OrchestrationResult.status는 StepStatus라 "not_started"를 표현할
+        # 수 없다 - 아직 아무 step도 실행된 적이 없다는 뜻이므로
+        # "completed"(할 일 없음)와 동일하게 다룬다.
+        restored_status = state.orchestration_status if state.orchestration_status != "not_started" else "completed"
+        self._last_orchestration_result = OrchestrationResult(
+            status=restored_status,
+            completed_steps=state.completed_steps,
+            pending_step_id=state.current_step_id,
+            summary=state.waiting_reason or "",
+        )
+
+        pending_step_result = state.completed_steps[-1] if state.completed_steps else None
+
+        if state.orchestration_status == "waiting_for_approval" and pending_step_result is not None:
+            self._handle_project_checkpoint_approval(pending_step_result)
+            return
+
+        if state.orchestration_status == "waiting_for_review" and pending_step_result is not None:
+            self._handle_development_review(pending_step_result)
+            return
+
+        if state.orchestration_status == "completed":
+            QMessageBox.information(self, "프로젝트 불러오기", "이미 완료된 프로젝트입니다.")
+            return
+
+        QMessageBox.information(
+            self,
+            "프로젝트 불러오기",
+            "이 상태(실행기 없음/실패/중단/시작 전)는 이번 버전에서 자동으로 이어서 "
+            "진행할 수 없습니다. 상태 정보만 복구되었습니다.",
         )
 
     def _show_orchestration_result_dialog(self, result: OrchestrationResult):
