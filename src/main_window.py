@@ -951,6 +951,7 @@ class MainWindow(QMainWindow):
     _ORCHESTRATION_STATUS_LABELS = {
         "completed": "업무 완료",
         "waiting_for_approval": "승인 대기",
+        "waiting_for_review": "결과 검토 대기",
         "waiting_for_executor": "실행 대기",
         "failed": "업무 오류",
         "blocked": "업무 중단",
@@ -993,6 +994,13 @@ class MainWindow(QMainWindow):
             # waiting_for_approval은 project 체크포인트(Chief Brain이
             # 직접 설정했거나 §3 안전장치가 강제로 만든 승인 대기)뿐이다.
             self._handle_project_checkpoint_approval(pending_step_result)
+            return
+
+        if result.status == "waiting_for_review" and pending_step_result is not None:
+            # 36단계 - project development 결과 검토. "승인 대기"와는
+            # 별개의 상태이므로 위의 waiting_for_approval 분기들과
+            # 겹치지 않는다(개발은 이미 끝났다).
+            self._handle_development_review(pending_step_result)
             return
 
         self._show_orchestration_result_dialog(result)
@@ -1197,6 +1205,92 @@ class MainWindow(QMainWindow):
         cancel_button.clicked.connect(dialog.reject)
         cancel_button.setDefault(True)
         cancel_button.setFocus()
+
+        return dialog.exec() == QDialog.DialogCode.Accepted
+
+    def _handle_development_review(self, pending_step_result: OrchestrationStepResult):
+        """36단계 - project development step이 성공적으로 끝나면 다음
+        step으로 자동 진행하지 않고 먼저 결과를 보여준다.
+
+        "승인 대기"(project 체크포인트, 개발 시작 전)와는 다른 상태다 -
+        여기서는 개발이 이미 끝났고(pending_step_result.status는
+        "completed"), 그 결과를 사람이 보고 다음으로 갈지 결정한다.
+        "계속 진행"을 누르면 이미 끝난 이 step을 다시 실행하지 않고
+        resume_after_review()로 이어간다. "수정 요청"을 누르면 이번
+        v1에서는 안전하게 멈추기만 한다(자동으로 새 계획을 만들지
+        않는다 - 채팅창에 수정 내용을 입력하도록 안내만 한다).
+        """
+        plan = self._current_chief_plan
+        step = self._find_plan_step(plan, pending_step_result.step_id) if plan is not None else None
+        dev_result = pending_step_result.result
+        if plan is None or step is None or dev_result is None:
+            self.work_step_value_label.setText("결과 확인 오류")
+            self._show_orchestration_result_dialog(self._last_orchestration_result)
+            return
+
+        self.work_step_value_label.setText("프로젝트 결과 검토 대기")
+        self.developer_status_label.setText("결과 검토 대기")
+
+        next_step = min((s for s in plan.steps if s.order > step.order), key=lambda s: s.order, default=None)
+        continue_requested = self._show_development_review_dialog(step, dev_result, next_step)
+
+        if not continue_requested:
+            self.work_step_value_label.setText("프로젝트 결과 검토 대기 (수정 요청)")
+            QMessageBox.information(
+                self,
+                "수정 요청",
+                "채팅창에 수정하고 싶은 내용을 입력해 주세요.\n"
+                "(이번 버전에서는 수정 요청 내용을 자동으로 새 계획에 반영하지 않습니다.)",
+            )
+            return
+
+        orchestration_service = self._ensure_orchestration_service()
+        if orchestration_service is None or self._last_orchestration_result is None:
+            return
+
+        self.work_step_value_label.setText("업무 실행 중")
+        orchestration_service.resume_after_review(plan, self._last_orchestration_result.completed_steps)
+
+    def _show_development_review_dialog(self, step: BrainTaskStep, dev_result, next_step: BrainTaskStep | None) -> bool:
+        """"계속 진행"/"수정 요청" 두 버튼만 있는 최소 결과 검토 Dialog(§5).
+
+        기존 승인 Dialog들과 동일한 패턴을 그대로 따른다(새 Dialog
+        시스템이 아니다). 표시 정보는 DeveloperResult의 실제 필드에서만
+        가져온다(없는 정보를 지어내지 않는다). 기본값은 자동 진행이
+        아니다 - "수정 요청"이 기본/포커스 버튼이라 Enter로는 다음
+        단계로 넘어가지 않는다.
+        """
+        dialog = QDialog(self)
+        dialog.setWindowTitle("개발 단계 결과 확인")
+
+        created_text = "\n".join(f"   - {name}" for name in dev_result.created_files) or "   없음"
+        modified_text = "\n".join(f"   - {name}" for name in dev_result.modified_files) or "   없음"
+        error_text = "; ".join(dev_result.errors) if dev_result.errors else "없음"
+        next_text = next_step.title if next_step is not None else "없음(마지막 단계)"
+
+        layout = QVBoxLayout(dialog)
+        message = QLabel(
+            f"이번 단계:\n{step.title}\n\n"
+            f"완료 내용:\n{dev_result.summary}\n\n"
+            f"생성된 파일:\n{created_text}\n\n"
+            f"수정된 파일:\n{modified_text}\n\n"
+            f"오류 여부:\n{error_text}\n\n"
+            f"다음 단계:\n{next_text}"
+        )
+        message.setWordWrap(True)
+        layout.addWidget(message)
+
+        button_row = QHBoxLayout()
+        continue_button = QPushButton("계속 진행")
+        revise_button = QPushButton("수정 요청")
+        button_row.addWidget(continue_button)
+        button_row.addWidget(revise_button)
+        layout.addLayout(button_row)
+
+        continue_button.clicked.connect(dialog.accept)
+        revise_button.clicked.connect(dialog.reject)
+        revise_button.setDefault(True)
+        revise_button.setFocus()
 
         return dialog.exec() == QDialog.DialogCode.Accepted
 

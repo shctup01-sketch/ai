@@ -73,6 +73,20 @@ resume()을 그대로 쓰지 않는다(resume()은 승인된 step이 이미
 "completed"라고 가정하는 screen_observation 전용 계약이다) - 대신
 새 resume_project_checkpoint()를 추가해 그 step을 "처음" 실행되게
 한다. resume()의 기존 시그니처/동작은 전혀 바꾸지 않는다.
+
+36단계 - 개발 결과 검토 checkpoint: project 모드에서 development
+step이 성공(dev_result.status=="success")해도, 그 자리에서 바로 다음
+step으로 넘어가지(continue) 않고 멈춘다(break). 그 step 자신의
+OrchestrationStepResult.status는 "completed"로 그대로 둔다(개발은
+실제로 끝났다 - 이후 step의 depends_on이 이 결과를 정상 참조해야
+한다) - 대신 전체 OrchestrationResult.status만 "waiting_for_review"로
+보고한다("승인 대기"=아직 시작 전과 다른, "이미 끝난 결과를
+검토하는" 상태). task 모드는 이 일시정지를 전혀 타지 않는다(기존
+그대로 continue). 사용자가 검토 후 계속 진행하면
+resume_after_review()를 부른다 - completed_steps를 그대로 다시
+seed하기만 하면 되므로(이미 끝난 development step도 포함해) 별도
+step_id 인자가 필요 없다. _run_from의 "이미 처리된 step 건너뛰기"
+규칙이 그 development step의 재실행을 그대로 막아준다.
 """
 
 from typing import Callable
@@ -187,6 +201,25 @@ class ChiefBrainOrchestrator:
             plan, step_results, seeded_completed, on_stage_changed, bypass_approval_for=approved_step_id
         )
 
+    def resume_after_review(
+        self,
+        plan: ChiefBrainPlan,
+        completed_steps: list[OrchestrationStepResult],
+        on_stage_changed: Callable[[str], None] | None = None,
+    ) -> OrchestrationResult:
+        """36단계 - project development 결과 검토("계속 진행") 후 나머지
+        계획을 이어서 실행한다.
+
+        resume_project_checkpoint()와 다르다: 여기서는 completed_steps의
+        마지막 항목(방금 검토를 마친 development step)이 이미
+        "completed"이고 실제 dev_result도 담고 있다 - 다시 실행할 필요가
+        없으므로 제외/치환 없이 completed_steps를 그대로 seed한다.
+        _run_from의 "이미 처리된 step은 건너뛴다" 규칙이 이 step의
+        재실행을 막고, 그다음 아직 처리되지 않은 step부터 이어간다.
+        """
+        step_results: dict[str, OrchestrationStepResult] = {result.step_id: result for result in completed_steps}
+        return self._run_from(plan, step_results, list(completed_steps), on_stage_changed)
+
     @staticmethod
     def _emit_stage(on_stage_changed: Callable[[str], None] | None, text: str) -> None:
         if on_stage_changed is not None:
@@ -204,6 +237,12 @@ class ChiefBrainOrchestrator:
         # 수정하지 않는다(sorted()는 새 리스트를 반환한다).
         ordered_steps = sorted(plan.steps, key=lambda step: step.order)
         total_steps = len(ordered_steps)
+        # 36단계 - project 모드 development 결과 검토를 위해 멈췄는지
+        # 표시한다(None이 아니면 그 step_id에서 멈췄다는 뜻). "승인
+        # 대기"(waiting_for_approval)와 구분되는 별도 상태이므로,
+        # completed_steps[-1].status(항상 "completed")만으로는 이 정지를
+        # 표현할 수 없어 별도 변수로 추적한다.
+        review_pending_step_id: str | None = None
 
         for step_number, step in enumerate(ordered_steps, start=1):
             if step.step_id in step_results:
@@ -303,6 +342,13 @@ class ChiefBrainOrchestrator:
                     result = self._make_step_result(step, status="completed", result=dev_result)
                     step_results[step.step_id] = result
                     completed_steps.append(result)
+                    if plan.execution_mode == "project":
+                        # 36단계 - project 모드는 development가 끝나도 바로
+                        # 다음 step으로 넘어가지 않는다(§2). 이 step 자체는
+                        # 정말 "completed"다 - 전체 실행만 review 대기로
+                        # 멈춘다.
+                        review_pending_step_id = step.step_id
+                        break
                     continue
 
                 dev_error_text = "; ".join(dev_result.errors) if dev_result.errors else dev_result.summary
@@ -336,10 +382,16 @@ class ChiefBrainOrchestrator:
             completed_steps.append(result)
             break
 
-        final_status: StepStatus = completed_steps[-1].status if completed_steps else "completed"
-        pending_step_id = (
-            completed_steps[-1].step_id if final_status in ("waiting_for_approval", "waiting_for_executor") else None
-        )
+        if review_pending_step_id is not None:
+            final_status: StepStatus = "waiting_for_review"
+            pending_step_id = review_pending_step_id
+        else:
+            final_status = completed_steps[-1].status if completed_steps else "completed"
+            pending_step_id = (
+                completed_steps[-1].step_id
+                if final_status in ("waiting_for_approval", "waiting_for_executor")
+                else None
+            )
 
         return OrchestrationResult(
             status=final_status,
@@ -417,6 +469,8 @@ class ChiefBrainOrchestrator:
             return f"{len(completed_steps)}개 작업을 모두 완료했습니다."
 
         last = completed_steps[-1]
+        if status == "waiting_for_review":
+            return f"'{last.step_id}' 단계 개발이 완료되어 결과 검토가 필요합니다."
         if status == "waiting_for_approval":
             return f"'{last.step_id}' 단계는 승인이 필요해 대기 중입니다."
         if status == "waiting_for_executor":

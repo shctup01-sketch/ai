@@ -29,6 +29,12 @@ step이 네트워크 호출을 할 수 있으므로 GUI를 막으면 안 된다)
 설명한다 - 승인된 step_id만 넘기면 되고, 이미 완성된 결과를 만들어
 넘길 필요가 없다. resume()의 시그니처/동작은 전혀 바꾸지 않았다
 (screen_observation 경로 무위험).
+
+36단계 - resume_after_review(): project development 결과 검토("계속
+진행") 후 나머지 계획을 이어서 실행하기 위한 창구다. 승인 전(아직
+실행 안 됨)과 다르게, 검토 대상 development step은 이미
+completed_steps 안에 "completed" 상태로 들어있으므로 별도 step_id
+인자가 필요 없다 - completed_steps를 그대로 넘기기만 하면 된다.
 """
 
 from PySide6.QtCore import QObject, QThread, Signal
@@ -122,6 +128,35 @@ class _OrchestrationProjectCheckpointResumeWorker(QThread):
             self.result_ready.emit(result)
 
 
+class _OrchestrationReviewResumeWorker(QThread):
+    result_ready = Signal(object)
+    error_occurred = Signal(str)
+    stage_changed = Signal(str)
+
+    def __init__(
+        self,
+        orchestrator: ChiefBrainOrchestrator,
+        plan: ChiefBrainPlan,
+        completed_steps: list[OrchestrationStepResult],
+        parent=None,
+    ):
+        super().__init__(parent)
+        self._orchestrator = orchestrator
+        self._plan = plan
+        self._completed_steps = completed_steps
+
+    def run(self):
+        self.stage_changed.emit(_RUNNING_STAGE_TEXT)
+        try:
+            result = self._orchestrator.resume_after_review(
+                self._plan, self._completed_steps, on_stage_changed=self.stage_changed.emit
+            )
+        except Exception as exc:
+            self.error_occurred.emit(str(exc))
+        else:
+            self.result_ready.emit(result)
+
+
 class OrchestrationService(QObject):
     result_ready = Signal(object)
     error_occurred = Signal(str)
@@ -164,6 +199,18 @@ class OrchestrationService(QObject):
         self._worker = _OrchestrationProjectCheckpointResumeWorker(
             self._orchestrator, plan, completed_steps, approved_step_id, parent=self
         )
+        self._worker.result_ready.connect(self.result_ready)
+        self._worker.error_occurred.connect(self.error_occurred)
+        self._worker.stage_changed.connect(self.stage_changed)
+        self._worker.finished.connect(self._cleanup_worker)
+        self._worker.start()
+
+    def resume_after_review(
+        self,
+        plan: ChiefBrainPlan,
+        completed_steps: list[OrchestrationStepResult],
+    ):
+        self._worker = _OrchestrationReviewResumeWorker(self._orchestrator, plan, completed_steps, parent=self)
         self._worker.result_ready.connect(self.result_ready)
         self._worker.error_occurred.connect(self.error_occurred)
         self._worker.stage_changed.connect(self.stage_changed)
