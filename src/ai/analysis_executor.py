@@ -39,6 +39,13 @@ class AnalysisExecutionError(Exception):
     이 예외를 그대로 재사용해 "완료"가 아니라 "실패"로 처리한다 - 새
     상태를 만들지 않고, Orchestrator가 이미 하던 처리(실패 시 그 자리에서
     중단하고 development로 넘어가지 않음)를 그대로 재사용한다.
+
+    47단계 - 이 메시지를 depends_on/실제 확인된 dependency별 결과
+    건수까지 담도록 확장했다(§3). "0건"이라는 사실만으로는 원인이
+    (CASE2) depends_on 대상이 애초에 completed_steps에 없었는지,
+    (CASE3) 있었지만 그 research 자체가 0건이었는지, (CASE4) 있었지만
+    research 모양이 아니었는지 구분할 수 없었다 - 새 Error 모델을
+    만들지 않고 이 예외의 메시지 문자열만 더 자세하게 채운다.
     """
 
 
@@ -57,15 +64,46 @@ class AnalysisExecutor:
         # AE 케이스 - 선행 research 없이도 동작하는 독립 analysis)까지
         # 막으면 기존 기능을 깨뜨리므로, depends_on이 있을 때만 검사한다.
         if step.depends_on and not request.search_results:
-            raise AnalysisExecutionError(
-                "분석에 참고할 조사(research) 결과를 찾지 못했습니다(검색 결과 0건). "
-                "선행 research 단계 결과가 이 analysis 단계에 제대로 연결되지 않았을 수 있습니다."
-            )
+            raise AnalysisExecutionError(self._build_empty_dependency_message(step, context))
 
         try:
             return self._reviewer_provider.review(request)
         except Exception as exc:
             raise AnalysisExecutionError(str(exc)) from exc
+
+    @staticmethod
+    def _build_empty_dependency_message(step: BrainTaskStep, context: ExecutionContext | None) -> str:
+        """47단계 §3 - depends_on 각 항목이 실제로 어떤 상태였는지
+        진단 가능한 문장으로 풀어낸다. dependencies는 이미
+        chief_brain_orchestrator.py._build_execution_context()가
+        "completed 상태의 depends_on 대상만" 골라 넣어둔 것이므로,
+        여기 없는 step_id는 곧 "completed_steps에서 찾지 못했다"는
+        뜻이다(CASE2) - 있는데 research 모양이 아니면 CASE4, 있고
+        research 모양인데 0건이면 CASE3이다. 추측 없이 실제로 받은
+        depends_on/dependencies만 본다.
+        """
+        dependencies = context.dependencies if context is not None else []
+        present_by_id = {dep.step_id: dep for dep in dependencies}
+
+        lines = [
+            "분석에 참고할 조사(research) 결과를 찾지 못했습니다(검색 결과 0건).",
+            f"analysis_step={step.step_id}",
+            f"depends_on={step.depends_on}",
+            "확인된 dependency:",
+        ]
+        for dep_id in step.depends_on:
+            dep = present_by_id.get(dep_id)
+            if dep is None:
+                lines.append(f"  {dep_id}: 결과를 찾을 수 없음(완료되지 않았거나 이 단계에 연결되지 않음)")
+                continue
+            result = dep.result
+            if isinstance(result, dict) and "search_results" in result:
+                count = len(result.get("search_results") or [])
+                lines.append(f"  {dep_id}: {count}건")
+            else:
+                lines.append(f"  {dep_id}: research 결과 형태가 아님")
+
+        return "\n".join(lines)
 
     @staticmethod
     def _build_request(step: BrainTaskStep, context: ExecutionContext | None) -> ResearchReviewRequest:

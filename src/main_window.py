@@ -32,6 +32,7 @@ from ai.project_stage_rerun import (
     compute_affected_step_ids,
     find_rerun_root_step_ids,
     format_elapsed_seconds,
+    summarize_research_step_results,
 )
 from ai.chief_brain_orchestrator import ChiefBrainOrchestrator
 from ai.chief_brain_plan import ChiefBrainPlan
@@ -2514,19 +2515,28 @@ class MainWindow(QMainWindow):
         self,
         plan: ChiefBrainPlan | None,
         pending_step_result: OrchestrationStepResult | None,
-        last_progress_text: str,
         elapsed_text: str,
+        completed_steps: list[OrchestrationStepResult] | None = None,
     ):
         """46단계 §9~§11 - "단계 재실행에 실패하여 기존 프로젝트 상태를
-        유지했습니다"라는 뭉뚱그린 문구를 실제 실패 단계/원인/마지막
-        진행 상황으로 구체화한다. 실제로 값이 있는 항목만 넣는다(§11 -
-        없는 값을 지어내지 않는다). pending_step_result.error는
+        유지했습니다"라는 뭉뚱그린 문구를 실제 실패 단계/원인으로
+        구체화한다. 실제로 값이 있는 항목만 넣는다(§11 - 없는 값을
+        지어내지 않는다). pending_step_result.error는
         chief_brain_orchestrator.py가 AnalysisExecutionError/
         DevelopmentExecutionError/Task 실패 메시지를 이미 그대로 담아둔
         기존 필드다(새 필드를 추가하지 않는다, §9).
+
+        47단계 §9 - "조사 결과:"(research step별 유효 결과 건수)와
+        "Analysis 의존 단계:"(depends_on 목록)를 추가한다.
+        summarize_research_step_results()가 completed_steps(이번
+        재실행이 실제로 돌려준 결과, old/new 구분 없이 실패 시점에
+        진짜로 있던 값)에서 계산한 건수라 지어낸 값이 아니다. 46단계의
+        "마지막 진행 상황"(텍스트 한 줄)은 이 구조화된 절로 대체한다 -
+        같은 정보를 더 정확하게 보여준다.
         """
         lines = ["조사/분석 다시 실행 실패"]
 
+        step = None
         if pending_step_result is not None:
             step = self._find_plan_step(plan, pending_step_result.step_id) if plan is not None else None
             step_label = pending_step_result.task_type
@@ -2541,10 +2551,18 @@ class MainWindow(QMainWindow):
                 lines.append("원인:")
                 lines.append(pending_step_result.error)
 
-        if last_progress_text:
+        research_summary = summarize_research_step_results(completed_steps) if completed_steps else {}
+        if research_summary:
             lines.append("")
-            lines.append("마지막 진행 상황:")
-            lines.append(last_progress_text)
+            lines.append("조사 결과:")
+            for research_step_id, count in research_summary.items():
+                lines.append(f"{research_step_id}: {count}건")
+
+        if step is not None and step.depends_on:
+            lines.append("")
+            lines.append(f"{pending_step_result.task_type.capitalize()} 의존 단계:")
+            for dep_id in step.depends_on:
+                lines.append(dep_id)
 
         lines.append("")
         lines.append(f"소요시간: {elapsed_text}")
@@ -2561,9 +2579,6 @@ class MainWindow(QMainWindow):
         구체화한다(예외의 전체 호출 스택은 여전히 노출하지 않는다, §10).
         """
         self.rerun_research_analysis_button.setEnabled(True)
-        # 46단계 - 이번 재실행 중 마지막으로 실제로 표시됐던 진행 문구를
-        # 덮어쓰기 전에 먼저 읽어둔다(연구 진행 상황이 여기 쌓여 있다).
-        last_progress_text = self.work_step_value_label.text()
         elapsed_text = self._consume_rerun_elapsed_text()
 
         pending_step_result = result.completed_steps[-1] if result.completed_steps else None
@@ -2571,7 +2586,7 @@ class MainWindow(QMainWindow):
         if result.status in ("failed", "blocked", "waiting_for_executor"):
             self.work_step_value_label.setText("조사/분석 재실행 실패 - 기존 상태 유지")
             self._show_project_stage_rerun_failure_dialog(
-                self._current_chief_plan, pending_step_result, last_progress_text, elapsed_text
+                self._current_chief_plan, pending_step_result, elapsed_text, result.completed_steps
             )
             return
 

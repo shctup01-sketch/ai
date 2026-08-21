@@ -79,6 +79,24 @@ def build_rerun_candidate_completed_steps(
     return [entry for entry in completed_steps if entry.step_id not in affected_step_ids]
 
 
+def summarize_research_step_results(completed_steps: list[OrchestrationStepResult]) -> dict[str, int]:
+    """47단계 §4 - completed_steps 안의 research step들을 step_id ->
+    유효 검색 결과 건수로 요약한다(실패 Dialog의 "조사 결과:" 절에서
+    쓴다). 새 세션 상태/DB를 따로 만들지 않는다 - 이미 결과 안에 있는
+    값을 매 호출 시점에 다시 계산할 뿐이다. status와 무관하게(완료가
+    아니어도) research 모양(dict + search_results 키)이면 포함한다 -
+    실패 진단에서는 "무엇을 실제로 봤는지"가 중요하다.
+    """
+    summary: dict[str, int] = {}
+    for entry in completed_steps:
+        if entry.task_type != RESEARCH_TASK_TYPE:
+            continue
+        result = entry.result
+        if isinstance(result, dict) and "search_results" in result:
+            summary[entry.step_id] = len(result.get("search_results") or [])
+    return summary
+
+
 def format_elapsed_seconds(elapsed_seconds: float) -> str:
     """46단계 §13 - 재실행 소요시간을 사람이 읽는 짧은 문장으로 만든다.
 
