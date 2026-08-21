@@ -34,6 +34,7 @@ from ai.development_revision_executor import DevelopmentRevisionExecutor
 from ai.development_revision_plan import DevelopmentRevisionPlan
 from ai.development_revision_request import DevelopmentRevisionRequest
 from ai.development_revision_service import DevelopmentRevisionService
+from ai.development_revision_summary import DevelopmentRevisionSummary, build_revision_summary
 from ai.execution_result import ExecutionResult
 from ai.execution_service import ExecutionService
 from ai.openai_developer_provider import OpenAIDeveloperProvider
@@ -56,6 +57,7 @@ from ai.task_system import TaskSystem
 from chat_panel import ChatPanel, _encode_image_to_png_bytes
 from project_runner import EntryPointError, resolve_entry_point
 from project_venv import find_unsafe_requirements, parse_requirements
+from workspace_guard import WorkspaceGuard
 
 # 한 번의 "프로그램 실행" 시도 동안 사용자가 "AI에게 수정 요청"을 누를 수
 # 있는 최대 횟수. 자동으로 반복 실행되지 않고, 매번 사용자가 다시 눌러야
@@ -228,6 +230,16 @@ class MainWindow(QMainWindow):
         self._revision_original_dev_result: DeveloperResult | None = None
         self._revision_original_plan: ChiefBrainPlan | None = None
         self._revision_plan: ChiefBrainPlan | None = None
+
+        # 39단계 - 수정 전/후 변경 요약. before_files/user_request_text는
+        # 이번 revision 시작 시점에 채워지고, last_summary는 그 revision이
+        # 성공했을 때만 채워진다 - 다음 revision이 시작되면 그때 다시
+        # 덮어써질 뿐, 새 project development step(수정이 아닌 원래
+        # 단계)의 첫 검토 화면(_handle_development_review)에서는 이전
+        # revision의 요약이 섞이지 않도록 명시적으로 비운다(§10).
+        self._revision_before_files: list[str] | None = None
+        self._revision_user_request_text: str | None = None
+        self._revision_last_summary: DevelopmentRevisionSummary | None = None
 
         self.developer_service = DeveloperService(parent=self)
         self.developer_service.result_ready.connect(self._on_developer_result)
@@ -1265,6 +1277,11 @@ class MainWindow(QMainWindow):
         self.work_step_value_label.setText("프로젝트 결과 검토 대기")
         self.developer_status_label.setText("결과 검토 대기")
 
+        # 39단계 §10 - 이 step은 revision이 아니라 원래 계획의 development
+        # 단계가 방금 끝난 것이므로, 이전에 다른 step에서 만들어진 수정
+        # 요약이 섞여 보이지 않도록 비운다.
+        self._revision_last_summary = None
+
         self._present_development_review(step, dev_result, plan)
 
     def _present_development_review(
@@ -1285,7 +1302,7 @@ class MainWindow(QMainWindow):
         """
         next_step = min((s for s in plan.steps if s.order > step.order), key=lambda s: s.order, default=None)
         decision = self._show_development_review_dialog(
-            step, dev_result, next_step, execution_result, image_pixmap, observation_result
+            step, dev_result, next_step, execution_result, image_pixmap, observation_result, self._revision_last_summary
         )
 
         if decision == "run":
@@ -1314,6 +1331,7 @@ class MainWindow(QMainWindow):
         execution_result: ExecutionResult | None = None,
         image_pixmap: QPixmap | None = None,
         observation_result: ScreenObservationResult | None = None,
+        revision_summary: DevelopmentRevisionSummary | None = None,
     ) -> str:
         """"계속 진행"/"실행해서 확인"/"수정 요청" 세 버튼이 있는 결과
         검토 Dialog(§2/§5/§11). 반환값은 "continue"/"run"/"revise" 중
@@ -1343,6 +1361,25 @@ class MainWindow(QMainWindow):
             f"오류 여부:\n{error_text}\n\n"
             f"다음 단계:\n{next_text}"
         )
+
+        if revision_summary is not None:
+            # 39단계 §6 - 사용자가 코드를 몰라도 이해할 수 있도록 "무엇이
+            # 바뀌었는지"를 먼저 보여준다. 화면 검증 전이므로 "요청이
+            # 반영됐다"는 확정 표현은 쓰지 않는다(§8, revision_summary.
+            # summary 문구 자체가 이미 그 원칙을 따른다).
+            changed_text = "\n".join(f"   - {name}" for name in revision_summary.changed_files) or "   없음"
+            added_text = "\n".join(f"   - {name}" for name in revision_summary.added_files) or "   없음"
+            removed_text = "\n".join(f"   - {name}" for name in revision_summary.removed_files) or "   없음"
+            warnings_text = "\n".join(f"   - {item}" for item in revision_summary.warnings) or "   없음"
+            message_text += (
+                f"\n\n--- 수정 내역 ---\n"
+                f"수정 요청:\n{revision_summary.requested_change}\n\n"
+                f"수정된 파일:\n{changed_text}\n\n"
+                f"추가된 파일:\n{added_text}\n\n"
+                f"삭제된 파일:\n{removed_text}\n\n"
+                f"변경 요약:\n{revision_summary.summary}\n\n"
+                f"주의사항:\n{warnings_text}"
+            )
 
         if execution_result is not None:
             exec_status_text = "성공" if execution_result.status == "success" else "실패"
@@ -1602,6 +1639,12 @@ class MainWindow(QMainWindow):
         self._revision_original_step = step
         self._revision_original_dev_result = dev_result
         self._revision_original_plan = plan
+        self._revision_user_request_text = text.strip()
+        # 39단계 §4 - revision 시작 "전" 파일 목록을 메모리에만 보관한다
+        # (파일 내용 복사/디스크 snapshot 없음, 파일명만). 실패해도
+        # None으로 안전하게 넘어간다(§12) - build_revision_summary가
+        # None을 보고 "비교 실패"로 정직하게 표시한다.
+        self._revision_before_files = self._safe_list_project_files(dev_result.project_path)
 
         request = DevelopmentRevisionRequest(
             project_objective=plan.objective,
@@ -1610,7 +1653,7 @@ class MainWindow(QMainWindow):
             developer_summary=dev_result.summary,
             created_files=list(dev_result.created_files),
             modified_files=list(dev_result.modified_files),
-            user_revision_request=text.strip(),
+            user_revision_request=self._revision_user_request_text,
             screen_observation_summary=observation_result.summary if observation_result is not None else None,
         )
 
@@ -1620,6 +1663,18 @@ class MainWindow(QMainWindow):
 
         revision_service = self._ensure_development_revision_service()
         revision_service.plan_revision(request)
+
+    @staticmethod
+    def _safe_list_project_files(project_path: str) -> list[str] | None:
+        """39단계 §3/§4/§12 - WorkspaceGuard.list_files()를 그대로
+        재사용해 파일명 기준으로만 비교한다(git 의존성 없음, 전체 내용
+        복사/디스크 snapshot 없음). 실패해도 예외를 전파하지 않고 None을
+        돌려줘 호출자가 "비교 실패"로 안전하게 처리할 수 있게 한다.
+        """
+        try:
+            return WorkspaceGuard(Path(project_path)).list_files()
+        except Exception:
+            return None
 
     def _ensure_development_revision_service(self) -> DevelopmentRevisionService:
         if self.development_revision_service is not None:
@@ -1809,6 +1864,19 @@ class MainWindow(QMainWindow):
             # 가능).
             new_dev_result = pending_step_result.result
             self._apply_revision_result_to_original_plan(step.step_id, new_dev_result)
+
+            # 39단계 §5/§7 - revision "후" 파일 목록을 다시 읽어 "전"과
+            # 비교한다. 새 AI 호출 없이 규칙 기반으로만 요약을 만든다.
+            # 이번 revision 하나에 대한 요약만 저장한다(§10 - 다음
+            # revision이 시작되면 그때 다시 덮어써진다).
+            after_files = self._safe_list_project_files(new_dev_result.project_path)
+            self._revision_last_summary = build_revision_summary(
+                requested_change=self._revision_user_request_text or "",
+                new_dev_result_modified_files=list(new_dev_result.modified_files),
+                before_files=self._revision_before_files,
+                after_files=after_files,
+            )
+
             self.developer_status_label.setText("결과 검토 대기")
             self.work_step_value_label.setText("프로젝트 결과 검토 대기")
             QMessageBox.information(self, "수정 완료", "수정 작업이 완료되었습니다.")
