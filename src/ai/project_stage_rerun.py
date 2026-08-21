@@ -77,3 +77,16 @@ def build_rerun_candidate_completed_steps(
     그대로 seed로 쓴다).
     """
     return [entry for entry in completed_steps if entry.step_id not in affected_step_ids]
+
+
+def format_elapsed_seconds(elapsed_seconds: float) -> str:
+    """46단계 §13 - 재실행 소요시간을 사람이 읽는 짧은 문장으로 만든다.
+
+    각 API 호출별 정밀 telemetry는 만들지 않는다 - time.monotonic()으로
+    잰 전체(또는 실패 시점까지의) 경과 시간 하나만 다룬다.
+    """
+    total_seconds = max(0, int(elapsed_seconds))
+    minutes, seconds = divmod(total_seconds, 60)
+    if minutes:
+        return f"{minutes}분 {seconds}초"
+    return f"{seconds}초"

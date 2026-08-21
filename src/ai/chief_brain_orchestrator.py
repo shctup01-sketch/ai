@@ -365,7 +365,11 @@ class ChiefBrainOrchestrator:
 
             self._emit_stage(on_stage_changed, f"{step_number}/{total_steps} {step.task_type} 시작")
             task = self._task_system.create_task(task_type=step.task_type, title=step.title, goal=step.goal)
-            executed_task = self._task_system.execute_task(task.task_id)
+            # 46단계 - on_stage_changed를 그대로 on_progress로 재사용한다(§3/§6,
+            # 새 이벤트 시스템을 만들지 않는다). Worker(예: ResearchWorker)가
+            # 검색 진행 문구를 이 콜백으로 알리면, 기존 stage_changed 전달
+            # 경로(orchestration_service.py)를 그대로 타고 MainWindow까지 전달된다.
+            executed_task = self._task_system.execute_task(task.task_id, on_progress=on_stage_changed)
 
             if executed_task.status == "success":
                 self._emit_stage(on_stage_changed, f"{step_number}/{total_steps} {step.task_type} 완료")

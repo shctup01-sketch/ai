@@ -13,7 +13,7 @@ OpenAI()를 생성하거나 API Key/환경변수/.env를 직접 다루지 않는
 MainWindow/GUI/QThread/Scheduler/DB 어디와도 아직 연결하지 않는다.
 """
 
-from typing import Any
+from typing import Any, Callable
 
 from .openai_web_search_provider import OpenAIWebSearchProvider
 from .permission import PermissionLevel, ToolPermission
@@ -71,5 +71,7 @@ class TaskSystem:
     def create_task(self, task_type: str, title: str, goal: str) -> Task:
         return self.task_manager.create_task(task_type=task_type, title=title, goal=goal)
 
-    def execute_task(self, task_id: str) -> Task:
-        return self.task_executor.execute_task(task_id)
+    def execute_task(self, task_id: str, on_progress: Callable[[str], None] | None = None) -> Task:
+        # 46단계 - task_executor.execute_task()로 그대로 전달한다(§6, 새
+        # 이벤트 시스템을 만들지 않는다).
+        return self.task_executor.execute_task(task_id, on_progress=on_progress)

@@ -1,4 +1,5 @@
 import os
+import time
 import uuid
 from pathlib import Path
 
@@ -30,6 +31,7 @@ from ai.project_stage_rerun import (
     build_rerun_candidate_completed_steps,
     compute_affected_step_ids,
     find_rerun_root_step_ids,
+    format_elapsed_seconds,
 )
 from ai.chief_brain_orchestrator import ChiefBrainOrchestrator
 from ai.chief_brain_plan import ChiefBrainPlan
@@ -281,6 +283,10 @@ class MainWindow(QMainWindow):
         # 지연 생성한다 - 성공하기 전까지는 self._last_orchestration_result/
         # 영구 저장을 전혀 건드리지 않는다(§5/§15, 아래 핸들러 참고).
         self.rerun_orchestration_service: OrchestrationService | None = None
+        # 46단계 §13 - 재실행 소요시간 계산용(정밀 telemetry 아님, 전체
+        # 소요/실패까지의 경과 시간 하나만). 실제 시각이 아니라
+        # time.monotonic()만 쓴다(시계 보정 영향을 받지 않는다).
+        self._rerun_start_time: float | None = None
 
         self.developer_service = DeveloperService(parent=self)
         self.developer_service.result_ready.connect(self._on_developer_result)
@@ -2433,6 +2439,9 @@ class MainWindow(QMainWindow):
 
         self.rerun_research_analysis_button.setEnabled(False)
         self.work_step_value_label.setText("조사/분석 다시 실행 중")
+        # 46단계 §13 - 재실행 전체(또는 실패 시점까지)의 소요시간을 재기
+        # 위한 시작 시각. time.monotonic()만 쓴다(실시각 보정 영향 없음).
+        self._rerun_start_time = time.monotonic()
         rerun_orchestration_service.resume_after_review(self._current_chief_plan, candidate_completed_steps)
 
     def _show_project_stage_rerun_confirm_dialog(self) -> bool:
@@ -2490,18 +2499,79 @@ class MainWindow(QMainWindow):
         self.rerun_orchestration_service.stage_changed.connect(self._on_orchestration_stage_changed)
         return self.rerun_orchestration_service
 
+    def _consume_rerun_elapsed_text(self) -> str:
+        """46단계 §13 - 재실행 시작 시각과의 경과 시간을 문장으로 만들고,
+        다음 재실행을 위해 시작 시각을 초기화한다(§14 - 정밀 telemetry가
+        아니라 이번 재실행 1회 전체/실패 시점까지의 경과 시간 하나뿐).
+        """
+        if self._rerun_start_time is None:
+            return "알 수 없음"
+        elapsed_text = format_elapsed_seconds(time.monotonic() - self._rerun_start_time)
+        self._rerun_start_time = None
+        return elapsed_text
+
+    def _show_project_stage_rerun_failure_dialog(
+        self,
+        plan: ChiefBrainPlan | None,
+        pending_step_result: OrchestrationStepResult | None,
+        last_progress_text: str,
+        elapsed_text: str,
+    ):
+        """46단계 §9~§11 - "단계 재실행에 실패하여 기존 프로젝트 상태를
+        유지했습니다"라는 뭉뚱그린 문구를 실제 실패 단계/원인/마지막
+        진행 상황으로 구체화한다. 실제로 값이 있는 항목만 넣는다(§11 -
+        없는 값을 지어내지 않는다). pending_step_result.error는
+        chief_brain_orchestrator.py가 AnalysisExecutionError/
+        DevelopmentExecutionError/Task 실패 메시지를 이미 그대로 담아둔
+        기존 필드다(새 필드를 추가하지 않는다, §9).
+        """
+        lines = ["조사/분석 다시 실행 실패"]
+
+        if pending_step_result is not None:
+            step = self._find_plan_step(plan, pending_step_result.step_id) if plan is not None else None
+            step_label = pending_step_result.task_type
+            if step is not None and step.title:
+                step_label = f"{step_label} - {step.title}"
+            lines.append("")
+            lines.append("실패 단계:")
+            lines.append(step_label)
+
+            if pending_step_result.error:
+                lines.append("")
+                lines.append("원인:")
+                lines.append(pending_step_result.error)
+
+        if last_progress_text:
+            lines.append("")
+            lines.append("마지막 진행 상황:")
+            lines.append(last_progress_text)
+
+        lines.append("")
+        lines.append(f"소요시간: {elapsed_text}")
+        lines.append("")
+        lines.append("기존 프로젝트 상태는 안전하게 유지되었습니다.")
+
+        QMessageBox.warning(self, "조사/분석 다시 실행 실패", "\n".join(lines))
+
     def _on_project_stage_rerun_result(self, result: OrchestrationResult):
         """45단계 §5~§7/§15/§20 - 성공했을 때만 self._last_orchestration_result/
         영구 저장을 새 결과로 갱신한다. 실패(failed/blocked/
         waiting_for_executor)면 기존 메모리 상태/저장 JSON을 그대로 두고
-        안내만 한다(§7 - traceback 노출 없이 명확한 문장 하나만).
+        안내만 한다. 46단계 - 그 안내를 실제 실패 원인이 보이는 Dialog로
+        구체화한다(예외의 전체 호출 스택은 여전히 노출하지 않는다, §10).
         """
         self.rerun_research_analysis_button.setEnabled(True)
+        # 46단계 - 이번 재실행 중 마지막으로 실제로 표시됐던 진행 문구를
+        # 덮어쓰기 전에 먼저 읽어둔다(연구 진행 상황이 여기 쌓여 있다).
+        last_progress_text = self.work_step_value_label.text()
+        elapsed_text = self._consume_rerun_elapsed_text()
+
+        pending_step_result = result.completed_steps[-1] if result.completed_steps else None
 
         if result.status in ("failed", "blocked", "waiting_for_executor"):
             self.work_step_value_label.setText("조사/분석 재실행 실패 - 기존 상태 유지")
-            QMessageBox.warning(
-                self, "조사/분석 다시 실행 실패", "단계 재실행에 실패하여 기존 프로젝트 상태를 유지했습니다."
+            self._show_project_stage_rerun_failure_dialog(
+                self._current_chief_plan, pending_step_result, last_progress_text, elapsed_text
             )
             return
 
@@ -2511,33 +2581,40 @@ class MainWindow(QMainWindow):
         self._last_orchestration_result = result
         self._save_active_project_state()
 
-        pending_step_result = result.completed_steps[-1] if result.completed_steps else None
-
         if result.status == "waiting_for_approval" and pending_step_result is not None:
             # §8/§13/§19 - 새 승인 시스템을 만들지 않는다. 34/42단계
             # 기존 project 체크포인트 흐름을 그대로 재사용한다 - 이
             # Dialog가 self._last_orchestration_result.completed_steps
             # (이미 위에서 최신 결과로 교체됨)를 그대로 읽으므로 새
             # Research/Analysis 결과가 자동으로 표시된다.
-            self.work_step_value_label.setText("최신 조사/분석 반영 완료 - 개발 승인 대기")
+            self.work_step_value_label.setText(f"최신 조사/분석 반영 완료 - 개발 승인 대기 (소요시간: {elapsed_text})")
             self._handle_project_checkpoint_approval(pending_step_result)
             return
 
         if result.status == "waiting_for_review" and pending_step_result is not None:
-            self.work_step_value_label.setText("최신 조사/분석 반영 완료 - 개발 결과 검토 대기")
+            self.work_step_value_label.setText(f"최신 조사/분석 반영 완료 - 개발 결과 검토 대기 (소요시간: {elapsed_text})")
             self._handle_development_review(pending_step_result)
             return
 
-        self.work_step_value_label.setText("최신 조사/분석 반영 완료")
+        self.work_step_value_label.setText(f"최신 조사/분석 반영 완료 (소요시간: {elapsed_text})")
         self._show_orchestration_result_dialog(result)
 
     def _on_project_stage_rerun_error(self, message: str):
         """45단계 §7 - 예상치 못한 예외도 rollback과 동일하게 처리한다
-        (내부 traceback을 그대로 노출하지 않는다)."""
+        (내부 예외의 전체 호출 스택을 그대로 노출하지 않는다). 46단계 -
+        message 자체(이미 str(exc) 수준으로 정리된 기존 오류 처리 방식,
+        다른 error_occurred 핸들러들과 동일)를 원인으로 보여준다.
+        """
         self.rerun_research_analysis_button.setEnabled(True)
+        elapsed_text = self._consume_rerun_elapsed_text()
         self.work_step_value_label.setText("조사/분석 재실행 실패 - 기존 상태 유지")
         QMessageBox.warning(
-            self, "조사/분석 다시 실행 실패", "단계 재실행에 실패하여 기존 프로젝트 상태를 유지했습니다."
+            self,
+            "조사/분석 다시 실행 실패",
+            "조사/분석 다시 실행 실패\n\n"
+            f"원인:\n{message}\n\n"
+            f"소요시간: {elapsed_text}\n\n"
+            "기존 프로젝트 상태는 안전하게 유지되었습니다.",
         )
 
     def _show_orchestration_result_dialog(self, result: OrchestrationResult):

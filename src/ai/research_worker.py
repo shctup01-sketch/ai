@@ -16,7 +16,15 @@ URL 기준으로 합친다 - 새 Search AI/Provider를 만들지 않고 기존 T
 그대로 재사용한다. 단어 수가 적은(단순한) 조사는 이전과 완전히 동일하게
 단일 호출만 하며, 이 경로는 예외 처리 방식까지 포함해 44단계 이전
 코드와 100% 동일하게 남긴다(기존 계약/기존 테스트 보호).
+
+46단계 - on_progress(선택적 콜백)로 "검색 N/M 시작/완료 - 결과 X건"
+같은 짧은 진행 문구를 알린다. API 응답 원문/snippet 전체/URL 전체
+목록은 절대 넣지 않는다(§5 - 결과 "건수"만 담는다). on_progress가
+None이면(기존 호출부) 아무 것도 하지 않는다 - 기존 계약을 전혀
+바꾸지 않는다(§4).
 """
+
+from typing import Callable
 
 from .task import Task
 from .worker import Worker
@@ -70,6 +78,11 @@ def _plan_queries(base_query: str) -> list[str]:
     return queries[:_MAX_QUERY_COUNT]
 
 
+def _emit_progress(on_progress: Callable[[str], None] | None, message: str) -> None:
+    if on_progress is not None:
+        on_progress(message)
+
+
 def _merge_search_results(result_lists: list[list]) -> list:
     """여러 query의 검색 결과를 순서를 보존하며 하나로 합치고, 같은 URL은
     한 번만 남긴다(§7). url 필드가 없는 항목(malformed source, §13)은
@@ -101,7 +114,9 @@ class ResearchWorker(Worker):
 
     task_type = RESEARCH_TASK_TYPE
 
-    def execute(self, task: Task, context: WorkerContext) -> object:
+    def execute(
+        self, task: Task, context: WorkerContext, on_progress: Callable[[str], None] | None = None
+    ) -> object:
         if task.task_type != self.task_type:
             raise ResearchWorkerError(
                 f"ResearchWorker는 task_type='{self.task_type}'만 처리할 수 있습니다: "
@@ -110,20 +125,27 @@ class ResearchWorker(Worker):
 
         base_query = f"{task.title} {task.goal}".strip()
         planned_queries = _plan_queries(base_query)
+        total = len(planned_queries)
 
-        if len(planned_queries) == 1:
+        if total == 1:
             # 44단계 이전과 완전히 동일한 단일 호출 경로 - try/except로
             # 감싸지 않는다(예외를 그대로 전파한다). approved를 전달하지
             # 않는다(기본값 False) - 승인이 필요한 Tool이라면
             # ToolApprovalRequiredError가 그대로 이 아래에서 발생해
             # 전파된다. ToolApprovalRequiredError/PermissionNotFoundError/
             # ToolNotFoundError/WebSearchToolError/Provider의 일반 예외를
-            # 여기서 잡아 가짜 성공 결과로 바꾸지 않는다.
+            # 여기서 잡아 가짜 성공 결과로 바꾸지 않는다. 46단계 -
+            # _emit_progress 호출은 순수 관찰용(사이드이펙트 없음)이라
+            # 이 경로의 예외 전파/결과 identity를 전혀 바꾸지 않는다.
+            _emit_progress(on_progress, "검색 1/1 시작")
             search_results = context.execute_tool(
                 WEB_SEARCH_TOOL_NAME,
                 query=base_query,
                 max_results=DEFAULT_MAX_RESULTS,
             )
+            valid_count = len(search_results) if isinstance(search_results, list) else 0
+            _emit_progress(on_progress, f"검색 1/1 완료 - 결과 {valid_count}건")
+            _emit_progress(on_progress, f"Research 완료 - 유효 결과 {valid_count}건")
         else:
             # 44단계 §13 - 여러 query 중 일부가 실패해도(네트워크/API
             # 오류, malformed 응답 등) 전체 조사를 실패시키지 않는다 -
@@ -135,7 +157,8 @@ class ResearchWorker(Worker):
             # failure 상태를 만들지 않는다). KeyboardInterrupt/SystemExit는
             # Exception이 아니므로 여기서 잡히지 않고 그대로 전파된다.
             result_lists: list[list] = []
-            for query in planned_queries:
+            for index, query in enumerate(planned_queries, start=1):
+                _emit_progress(on_progress, f"검색 {index}/{total} 시작")
                 try:
                     query_results = context.execute_tool(
                         WEB_SEARCH_TOOL_NAME,
@@ -143,10 +166,17 @@ class ResearchWorker(Worker):
                         max_results=DEFAULT_MAX_RESULTS,
                     )
                 except Exception:
+                    _emit_progress(on_progress, f"검색 {index}/{total} 실패 - 건너뜀")
                     continue
                 if isinstance(query_results, list):
                     result_lists.append(query_results)
+                    _emit_progress(on_progress, f"검색 {index}/{total} 완료 - 결과 {len(query_results)}건")
+                else:
+                    _emit_progress(on_progress, f"검색 {index}/{total} 완료 - 결과 0건")
+            _emit_progress(on_progress, "검색 결과 정리 중")
             search_results = _merge_search_results(result_lists)
+            _emit_progress(on_progress, f"중복 제거 후 총 {len(search_results)}건")
+            _emit_progress(on_progress, f"Research 완료 - 유효 결과 {len(search_results)}건")
 
         return {
             "task_type": task.task_type,

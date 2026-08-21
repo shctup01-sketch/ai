@@ -7,7 +7,14 @@ TaskExecutor는 "어느 Worker에게 보낼지"만 담당한다. Tool 실행 계
 생성하지 않고 외부에서 주입받아 그대로 Worker에게 넘길 뿐이며, 그 안에서
 무슨 일이 일어나는지는 TaskExecutor의 관심사가 아니다. task_type도 특정
 값을 하드코딩하지 않고, 항상 WorkerRegistry를 통해 동적으로 조회한다.
+
+46단계 - execute_task(on_progress=None)는 그대로 worker.execute()에
+넘겨줄 뿐이다(Worker.execute()가 이미 이 선택적 매개변수를 받는다) -
+TaskExecutor 자신은 그 콜백이 무엇을 하는지, 어떤 task_type이 실제로
+쓰는지 전혀 알지 못한다(여전히 특정 task_type을 하드코딩하지 않는다).
 """
+
+from typing import Callable
 
 from .task import Task
 from .task_manager import TaskManager
@@ -44,7 +51,7 @@ class TaskExecutor:
         self._worker_registry = worker_registry
         self._worker_context = worker_context
 
-    def execute_task(self, task_id: str) -> Task:
+    def execute_task(self, task_id: str, on_progress: Callable[[str], None] | None = None) -> Task:
         # 존재하지 않는 task_id면 TaskManager.get_task()의 TaskNotFoundError가
         # 그대로 전파된다 - 여기서 새 Task를 만들거나 삼키지 않는다.
         task = self._task_manager.get_task(task_id)
@@ -65,7 +72,7 @@ class TaskExecutor:
         self._task_manager.update_status(task_id, "in_progress", current_step=_IN_PROGRESS_STEP)
 
         try:
-            result = worker.execute(task, self._worker_context)
+            result = worker.execute(task, self._worker_context, on_progress=on_progress)
         except Exception as exc:
             # Worker의 일반적인 작업 실패로 Studio 전체가 죽으면 안 된다.
             # context.execute_tool()에서 나온 ToolApprovalRequiredError 같은
