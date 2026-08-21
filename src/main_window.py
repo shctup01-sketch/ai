@@ -2,7 +2,8 @@ import os
 from pathlib import Path
 
 from openai import OpenAI
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QDialog,
@@ -192,6 +193,21 @@ class MainWindow(QMainWindow):
         # step과 짝지어 resume()에 넘긴다.
         self.screen_observation_service: ScreenObservationService | None = None
         self._pending_screen_observation_step: BrainTaskStep | None = None
+
+        # 37단계 - 개발 결과 실행 검토("실행해서 확인") 전용
+        # ExecutionService/ScreenObservationService. 기존 execute_button
+        # 흐름(execution_service)/screen_observation 승인 흐름
+        # (screen_observation_service)과 완전히 분리된 별도 인스턴스로만
+        # 지연 생성한다 - 같은 인스턴스를 재사용하면 거기 이미 연결된
+        # 기존 슬롯도 함께 호출되어 서로 다른 흐름이 뒤섞인다(같은
+        # 클래스/계약은 재사용하되 인스턴스는 분리, §3/§8/§16).
+        self.review_execution_service: ExecutionService | None = None
+        self.review_screen_observation_service: ScreenObservationService | None = None
+        self._runtime_review_step: BrainTaskStep | None = None
+        self._runtime_review_dev_result: DeveloperResult | None = None
+        self._runtime_review_plan: ChiefBrainPlan | None = None
+        self._runtime_review_execution_result: ExecutionResult | None = None
+        self._runtime_review_image_pixmap: QPixmap | None = None
 
         self.developer_service = DeveloperService(parent=self)
         self.developer_service.result_ready.connect(self._on_developer_result)
@@ -1215,10 +1231,8 @@ class MainWindow(QMainWindow):
         "승인 대기"(project 체크포인트, 개발 시작 전)와는 다른 상태다 -
         여기서는 개발이 이미 끝났고(pending_step_result.status는
         "completed"), 그 결과를 사람이 보고 다음으로 갈지 결정한다.
-        "계속 진행"을 누르면 이미 끝난 이 step을 다시 실행하지 않고
-        resume_after_review()로 이어간다. "수정 요청"을 누르면 이번
-        v1에서는 안전하게 멈추기만 한다(자동으로 새 계획을 만들지
-        않는다 - 채팅창에 수정 내용을 입력하도록 안내만 한다).
+        37단계 - "실행해서 확인"을 고르면 실제로 실행/캡처/분석한 뒤
+        같은 결정 화면을 다시 보여준다(_present_development_review).
         """
         plan = self._current_chief_plan
         step = self._find_plan_step(plan, pending_step_result.step_id) if plan is not None else None
@@ -1231,10 +1245,34 @@ class MainWindow(QMainWindow):
         self.work_step_value_label.setText("프로젝트 결과 검토 대기")
         self.developer_status_label.setText("결과 검토 대기")
 
-        next_step = min((s for s in plan.steps if s.order > step.order), key=lambda s: s.order, default=None)
-        continue_requested = self._show_development_review_dialog(step, dev_result, next_step)
+        self._present_development_review(step, dev_result, plan)
 
-        if not continue_requested:
+    def _present_development_review(
+        self,
+        step: BrainTaskStep,
+        dev_result: DeveloperResult,
+        plan: ChiefBrainPlan,
+        execution_result: ExecutionResult | None = None,
+        image_pixmap: QPixmap | None = None,
+        observation_result: ScreenObservationResult | None = None,
+    ):
+        """37단계 - 결정 Dialog를 보여주고 "계속 진행"/"수정 요청"/
+        "실행해서 확인" 중 선택에 따라 분기한다. 실행 검토 정보
+        (execution_result/image_pixmap/observation_result)가 아직 없으면
+        36단계와 동일한 텍스트 요약만 보여주고, 있으면 함께 보여준다 -
+        "실행해서 확인" 이후에는 이 메서드가 그 결과를 들고 다시
+        불린다.
+        """
+        next_step = min((s for s in plan.steps if s.order > step.order), key=lambda s: s.order, default=None)
+        decision = self._show_development_review_dialog(
+            step, dev_result, next_step, execution_result, image_pixmap, observation_result
+        )
+
+        if decision == "run":
+            self._start_runtime_review(step, dev_result, plan)
+            return
+
+        if decision == "revise":
             self.work_step_value_label.setText("프로젝트 결과 검토 대기 (수정 요청)")
             QMessageBox.information(
                 self,
@@ -1251,14 +1289,26 @@ class MainWindow(QMainWindow):
         self.work_step_value_label.setText("업무 실행 중")
         orchestration_service.resume_after_review(plan, self._last_orchestration_result.completed_steps)
 
-    def _show_development_review_dialog(self, step: BrainTaskStep, dev_result, next_step: BrainTaskStep | None) -> bool:
-        """"계속 진행"/"수정 요청" 두 버튼만 있는 최소 결과 검토 Dialog(§5).
+    def _show_development_review_dialog(
+        self,
+        step: BrainTaskStep,
+        dev_result: DeveloperResult,
+        next_step: BrainTaskStep | None,
+        execution_result: ExecutionResult | None = None,
+        image_pixmap: QPixmap | None = None,
+        observation_result: ScreenObservationResult | None = None,
+    ) -> str:
+        """"계속 진행"/"실행해서 확인"/"수정 요청" 세 버튼이 있는 결과
+        검토 Dialog(§2/§5/§11). 반환값은 "continue"/"run"/"revise" 중
+        하나다.
 
         기존 승인 Dialog들과 동일한 패턴을 그대로 따른다(새 Dialog
-        시스템이 아니다). 표시 정보는 DeveloperResult의 실제 필드에서만
-        가져온다(없는 정보를 지어내지 않는다). 기본값은 자동 진행이
-        아니다 - "수정 요청"이 기본/포커스 버튼이라 Enter로는 다음
-        단계로 넘어가지 않는다.
+        시스템이 아니다). 표시 정보는 DeveloperResult/ExecutionResult/
+        ScreenObservationResult의 실제 필드에서만 가져온다(없는 정보를
+        지어내지 않는다). "실행해서 확인"은 project_path/entry_point가
+        둘 다 있을 때만 활성화한다(§4). 기본값은 자동 진행이 아니다 -
+        "수정 요청"이 기본/포커스 버튼이라 Enter로는 다음 단계로
+        넘어가지 않는다.
         """
         dialog = QDialog(self)
         dialog.setWindowTitle("개발 단계 결과 확인")
@@ -1268,8 +1318,7 @@ class MainWindow(QMainWindow):
         error_text = "; ".join(dev_result.errors) if dev_result.errors else "없음"
         next_text = next_step.title if next_step is not None else "없음(마지막 단계)"
 
-        layout = QVBoxLayout(dialog)
-        message = QLabel(
+        message_text = (
             f"이번 단계:\n{step.title}\n\n"
             f"완료 내용:\n{dev_result.summary}\n\n"
             f"생성된 파일:\n{created_text}\n\n"
@@ -1277,22 +1326,243 @@ class MainWindow(QMainWindow):
             f"오류 여부:\n{error_text}\n\n"
             f"다음 단계:\n{next_text}"
         )
+
+        if execution_result is not None:
+            exec_status_text = "성공" if execution_result.status == "success" else "실패"
+            message_text += f"\n\n--- 실행 결과 ---\n실행 성공 여부: {exec_status_text}\n{execution_result.summary}"
+            if image_pixmap is None and observation_result is None:
+                message_text += "\n(화면 확인 불가 - 실행 결과만 표시합니다.)"
+
+        if observation_result is not None:
+            observations_text = "\n".join(f"   - {item}" for item in observation_result.observations) or "   없음"
+            issues_text = "\n".join(f"   - {item}" for item in observation_result.issues) or "   없음"
+            message_text += (
+                f"\n\n--- 화면 분석 ---\n"
+                f"Brain 화면 분석 요약:\n{observation_result.summary}\n\n"
+                f"관찰된 기능:\n{observations_text}\n\n"
+                f"문제점:\n{issues_text}\n\n"
+                f"다음 행동:\n{observation_result.next_action}"
+            )
+
+        layout = QVBoxLayout(dialog)
+        message = QLabel(message_text)
         message.setWordWrap(True)
         layout.addWidget(message)
 
+        if image_pixmap is not None:
+            # §11 - 사용자가 실제 실행 화면을 직접 볼 수 있어야 한다
+            # (Brain 텍스트 분석만으로 끝내지 않는다).
+            image_label = QLabel()
+            image_label.setPixmap(image_pixmap)
+            layout.addWidget(image_label)
+
         button_row = QHBoxLayout()
         continue_button = QPushButton("계속 진행")
+        run_button = QPushButton("실행해서 확인")
         revise_button = QPushButton("수정 요청")
         button_row.addWidget(continue_button)
+        button_row.addWidget(run_button)
         button_row.addWidget(revise_button)
         layout.addLayout(button_row)
 
-        continue_button.clicked.connect(dialog.accept)
-        revise_button.clicked.connect(dialog.reject)
+        can_run = bool(dev_result.project_path) and bool(dev_result.entry_point)
+        run_button.setEnabled(can_run)
+        if not can_run:
+            run_button.setToolTip("실행 파일 정보(project_path/entry_point)가 없어 실행할 수 없습니다.")
+
+        continue_button.clicked.connect(lambda: dialog.done(1))
+        run_button.clicked.connect(lambda: dialog.done(2))
+        revise_button.clicked.connect(lambda: dialog.done(0))
         revise_button.setDefault(True)
         revise_button.setFocus()
 
-        return dialog.exec() == QDialog.DialogCode.Accepted
+        exec_result_code = dialog.exec()
+        return {1: "continue", 2: "run", 0: "revise"}.get(exec_result_code, "revise")
+
+    # 37단계 §7 - 프로그램이 실행된 뒤 화면이 그려질 시간을 벌기 위한
+    # 짧은 추가 지연이다. run_entry_point(project_runner.py)가 이미
+    # LIVENESS_CHECK_SECONDS(3초)만큼 프로세스 생존을 기다린 뒤에야
+    # result_ready가 오므로(그동안 이미 창이 뜰 시간을 번다), 여기서는
+    # 화면 렌더링 마무리를 위한 짧은 여유만 QTimer.singleShot으로
+    # UI thread를 막지 않고 둔다. 대규모 프로세스 모니터링을 새로 만들지
+    # 않는다.
+    _RUNTIME_REVIEW_CAPTURE_DELAY_MS = 700
+
+    def _start_runtime_review(self, step: BrainTaskStep, dev_result: DeveloperResult, plan: ChiefBrainPlan):
+        """37단계 §2/§3/§5 - 사용자가 "실행해서 확인"을 명시적으로
+        눌렀을 때만 호출된다(자동/반복/백그라운드 실행 없음). 기존
+        ExecutionService 계약(project_path/entry_point 검증 ->
+        run_project)을 그대로 재사용하되, 단일 development "프로그램
+        실행" 버튼(execute_button/execution_service)과는 완전히 분리된
+        인스턴스로 실행한다.
+        """
+        try:
+            entry_point = resolve_entry_point(Path(dev_result.project_path), dev_result.entry_point)
+        except EntryPointError:
+            QMessageBox.warning(self, "실행 불가", "프로그램 실행 파일을 확인할 수 없습니다.")
+            self._present_development_review(step, dev_result, plan)
+            return
+
+        self._runtime_review_step = step
+        self._runtime_review_dev_result = dev_result
+        self._runtime_review_plan = plan
+        self._runtime_review_execution_result = None
+        self._runtime_review_image_pixmap = None
+
+        self.work_step_value_label.setText("개발 결과 실행 중")
+        self.developer_status_label.setText("프로그램 실행 중")
+
+        review_execution_service = self._ensure_review_execution_service()
+        # v1은 requirements 설치 확인 UI까지는 만들지 않는다(§18 최소
+        # 변경) - 기존 venv가 있으면 그대로 재사용되고, 표준 라이브러리만
+        # 쓰는 프로그램은 정상 실행된다. 패키지가 더 필요한데 설치돼
+        # 있지 않으면 실행 실패로 안전하게 처리된다(§14).
+        review_execution_service.run_project(Path(dev_result.project_path), entry_point, False)
+
+    def _ensure_review_execution_service(self) -> ExecutionService:
+        if self.review_execution_service is not None:
+            return self.review_execution_service
+
+        self.review_execution_service = ExecutionService(parent=self)
+        self.review_execution_service.result_ready.connect(self._on_review_execution_result)
+        self.review_execution_service.error_occurred.connect(self._on_review_execution_error)
+        self.review_execution_service.stage_changed.connect(self._on_review_execution_stage_changed)
+        return self.review_execution_service
+
+    def _on_review_execution_stage_changed(self, stage: str):
+        self.work_step_value_label.setText(stage)
+
+    def _on_review_execution_result(self, result: ExecutionResult):
+        step = self._runtime_review_step
+        dev_result = self._runtime_review_dev_result
+        plan = self._runtime_review_plan
+        if step is None or dev_result is None or plan is None:
+            return
+
+        if result.status != "success":
+            # §14 - 실행 실패해도 project 전체를 failed 처리하지 않는다.
+            # waiting_for_review를 유지한 채 실행 결과만 보여준다.
+            self.work_step_value_label.setText("프로젝트 결과 검토 대기")
+            self.developer_status_label.setText("결과 검토 대기")
+            self._present_development_review(step, dev_result, plan, execution_result=result)
+            return
+
+        self._runtime_review_execution_result = result
+        self.work_step_value_label.setText("화면 확인 중")
+        self.developer_status_label.setText("화면 확인 중")
+        QTimer.singleShot(self._RUNTIME_REVIEW_CAPTURE_DELAY_MS, self._capture_runtime_review_screen)
+
+    def _on_review_execution_error(self, message: str):
+        step = self._runtime_review_step
+        dev_result = self._runtime_review_dev_result
+        plan = self._runtime_review_plan
+        self.work_step_value_label.setText("프로젝트 결과 검토 대기")
+        self.developer_status_label.setText("결과 검토 대기")
+        QMessageBox.warning(self, "실행 확인 실패", message)
+        if step is not None and dev_result is not None and plan is not None:
+            self._present_development_review(step, dev_result, plan)
+
+    def _capture_runtime_review_screen(self):
+        """37단계 §6 - 기존 screen_capture.py + image_content 파이프라인을
+        그대로 재사용한다(round 29 _handle_screen_observation_approval과
+        동일한 캡처/인코딩 경로) - 디스크에 임시 파일을 저장하지 않는다.
+        """
+        step = self._runtime_review_step
+        dev_result = self._runtime_review_dev_result
+        plan = self._runtime_review_plan
+        execution_result = self._runtime_review_execution_result
+        if step is None or dev_result is None or plan is None:
+            return
+
+        try:
+            image = screen_capture.capture_primary_screen()
+            png_bytes = _encode_image_to_png_bytes(image)
+            image_content.validate_encoded_image_size(png_bytes)
+        except (screen_capture.ScreenCaptureError, image_content.ImageAttachmentError) as exc:
+            self.work_step_value_label.setText("프로젝트 결과 검토 대기")
+            self.developer_status_label.setText("결과 검토 대기")
+            QMessageBox.warning(self, "화면 확인 실패", str(exc))
+            self._present_development_review(step, dev_result, plan, execution_result=execution_result)
+            return
+        except Exception:
+            # 알 수 없는 캡처/인코딩 실패도 §14에 따라 project를 죽이지
+            # 않고 안전하게 알린다. KeyboardInterrupt/SystemExit는
+            # Exception이 아니므로 여기서 잡히지 않고 그대로 전파된다.
+            self.work_step_value_label.setText("프로젝트 결과 검토 대기")
+            self.developer_status_label.setText("결과 검토 대기")
+            QMessageBox.warning(self, "화면 확인 실패", "현재 화면을 캡처하지 못했습니다.")
+            self._present_development_review(step, dev_result, plan, execution_result=execution_result)
+            return
+
+        self._runtime_review_image_pixmap = QPixmap.fromImage(image).scaled(
+            480, 360, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation
+        )
+        data_url = image_content.encode_png_bytes_to_data_url(png_bytes)
+
+        self.work_step_value_label.setText("결과 화면 분석 중")
+        self.developer_status_label.setText("화면 확인 중")
+
+        # 37단계 §8/§9 - 새 Vision AI Provider/Request/Result 모델을
+        # 만들지 않는다. 기존 ScreenObservationExecutor.execute()가 받는
+        # BrainTaskStep 하나만 이 검토 전용으로 즉석에서 구성한다(plan에
+        # 추가되지 않는 임시 객체) - development_executor.py가 선행 step
+        # 결과를 "goal 뒤에 참고자료로만" 덧붙이는 것과 동일한 방식으로,
+        # step.title/goal/dev_result.summary를 goal 하나에 모은다.
+        review_step = BrainTaskStep(
+            step_id=step.step_id,
+            order=step.order,
+            task_type=_SCREEN_OBSERVATION_TASK_TYPE,
+            title=step.title,
+            goal=f"{step.title}\n\n{step.goal}\n\n개발 결과 요약:\n{dev_result.summary}",
+            depends_on=[],
+            requires_approval=True,
+            approval_reason="development 결과가 실제로 실행된 화면을 검토하기 위한 캡처입니다.",
+        )
+        review_screen_observation_service = self._ensure_review_screen_observation_service()
+        review_screen_observation_service.observe(review_step, plan.objective, data_url)
+
+    def _ensure_review_screen_observation_service(self) -> ScreenObservationService:
+        if self.review_screen_observation_service is not None:
+            return self.review_screen_observation_service
+
+        executor = ScreenObservationExecutor(OpenAIScreenObservationProvider())
+        self.review_screen_observation_service = ScreenObservationService(executor, parent=self)
+        self.review_screen_observation_service.result_ready.connect(self._on_review_screen_observation_result)
+        self.review_screen_observation_service.error_occurred.connect(self._on_review_screen_observation_error)
+        return self.review_screen_observation_service
+
+    def _on_review_screen_observation_result(self, observation_result: ScreenObservationResult):
+        step = self._runtime_review_step
+        dev_result = self._runtime_review_dev_result
+        plan = self._runtime_review_plan
+        execution_result = self._runtime_review_execution_result
+        image_pixmap = self._runtime_review_image_pixmap
+        self.work_step_value_label.setText("프로젝트 결과 검토 대기")
+        self.developer_status_label.setText("결과 검토 대기")
+        if step is None or dev_result is None or plan is None:
+            return
+        self._present_development_review(
+            step,
+            dev_result,
+            plan,
+            execution_result=execution_result,
+            image_pixmap=image_pixmap,
+            observation_result=observation_result,
+        )
+
+    def _on_review_screen_observation_error(self, message: str):
+        step = self._runtime_review_step
+        dev_result = self._runtime_review_dev_result
+        plan = self._runtime_review_plan
+        execution_result = self._runtime_review_execution_result
+        image_pixmap = self._runtime_review_image_pixmap
+        self.work_step_value_label.setText("프로젝트 결과 검토 대기")
+        self.developer_status_label.setText("결과 검토 대기")
+        QMessageBox.warning(self, "화면 분석 실패", message)
+        if step is not None and dev_result is not None and plan is not None:
+            self._present_development_review(
+                step, dev_result, plan, execution_result=execution_result, image_pixmap=image_pixmap
+            )
 
     def _show_orchestration_result_dialog(self, result: OrchestrationResult):
         plan = self._current_chief_plan
