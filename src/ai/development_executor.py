@@ -18,6 +18,16 @@ chief_brain_compat.py의 기존 BrainResponse 변환에서도 동일하게
 
 프로그램 실행(entry_point 확인/venv/requirements 설치/실제 실행)은 이
 파일의 책임이 아니다 - "프로젝트 코드 생성 완료"까지만 담당한다.
+
+38단계 - existing_project_path(생성자 옵션, 기본값 None): 지정하면
+이 Executor로 실행하는 모든 development는 새 프로젝트가 아니라 이미
+존재하는 그 경로의 프로젝트를 "수정"하는 것으로 취급된다
+(DeveloperRequest.existing_project_path로 그대로 전달되어
+OpenAIDeveloperProvider가 새 폴더를 만들지 않는다). 기본 ChiefBrainPlan
+실행 경로(_ensure_orchestration_service)는 이 옵션 없이
+DevelopmentExecutor를 만들므로 기존 동작은 전혀 바뀌지 않는다 - 수정
+요청(project development 결과 검토 -> 재작업) 전용으로 별도 인스턴스를
+만들 때만 사용한다.
 """
 
 from .brain_task_step import BrainTaskStep
@@ -41,18 +51,21 @@ class DevelopmentExecutionError(Exception):
 class DevelopmentExecutor:
     """BrainTaskStep -> DeveloperRequest 변환 후 DeveloperProvider.build_project()를 호출한다."""
 
-    def __init__(self, developer_provider: DeveloperProvider):
+    def __init__(self, developer_provider: DeveloperProvider, existing_project_path: str | None = None):
         self._developer_provider = developer_provider
+        self._existing_project_path = existing_project_path
 
     def execute(self, step: BrainTaskStep, context: ExecutionContext | None = None) -> DeveloperResult:
-        request = self._build_request(step, context)
+        request = self._build_request(step, context, self._existing_project_path)
         try:
             return self._developer_provider.build_project(request)
         except Exception as exc:
             raise DevelopmentExecutionError(str(exc)) from exc
 
     @staticmethod
-    def _build_request(step: BrainTaskStep, context: ExecutionContext | None) -> DeveloperRequest:
+    def _build_request(
+        step: BrainTaskStep, context: ExecutionContext | None, existing_project_path: str | None
+    ) -> DeveloperRequest:
         requirements_summary = step.goal
 
         if context is not None and context.dependencies:
@@ -65,4 +78,5 @@ class DevelopmentExecutor:
             requirements_summary=requirements_summary,
             feature_list=[],
             task_steps=[],
+            existing_project_path=existing_project_path,
         )

@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (
     QApplication,
     QDialog,
     QHBoxLayout,
+    QInputDialog,
     QLabel,
     QListWidget,
     QMainWindow,
@@ -29,9 +30,14 @@ from ai.developer_request import DeveloperRequest
 from ai.developer_result import DeveloperResult
 from ai.developer_service import DeveloperService
 from ai.development_executor import DevelopmentExecutor
+from ai.development_revision_executor import DevelopmentRevisionExecutor
+from ai.development_revision_plan import DevelopmentRevisionPlan
+from ai.development_revision_request import DevelopmentRevisionRequest
+from ai.development_revision_service import DevelopmentRevisionService
 from ai.execution_result import ExecutionResult
 from ai.execution_service import ExecutionService
 from ai.openai_developer_provider import OpenAIDeveloperProvider
+from ai.openai_development_revision_provider import OpenAIDevelopmentRevisionProvider
 from ai.openai_research_reviewer_provider import OpenAIResearchReviewerProvider
 from ai.openai_screen_observation_provider import OpenAIScreenObservationProvider
 from ai.orchestration_result import OrchestrationResult
@@ -208,6 +214,20 @@ class MainWindow(QMainWindow):
         self._runtime_review_plan: ChiefBrainPlan | None = None
         self._runtime_review_execution_result: ExecutionResult | None = None
         self._runtime_review_image_pixmap: QPixmap | None = None
+
+        # 38단계 - "수정 요청" 실제 처리("수정 요청 -> Brain 재계획 ->
+        # Developer 재작업 -> 다시 waiting_for_review"). 여기서도 37단계와
+        # 동일한 이유로 기존 orchestration_service/screen_observation_service
+        # 등과 완전히 분리된 전용 인스턴스만 지연 생성한다. revision_plan은
+        # 승인 이후 실제로 실행하는 임시 ChiefBrainPlan(execution_mode=
+        # "project")이다 - 원래 project plan(self._current_chief_plan)의
+        # steps는 절대 건드리지 않는다(§8).
+        self.development_revision_service: DevelopmentRevisionService | None = None
+        self.revision_orchestration_service: OrchestrationService | None = None
+        self._revision_original_step: BrainTaskStep | None = None
+        self._revision_original_dev_result: DeveloperResult | None = None
+        self._revision_original_plan: ChiefBrainPlan | None = None
+        self._revision_plan: ChiefBrainPlan | None = None
 
         self.developer_service = DeveloperService(parent=self)
         self.developer_service.result_ready.connect(self._on_developer_result)
@@ -1273,13 +1293,10 @@ class MainWindow(QMainWindow):
             return
 
         if decision == "revise":
-            self.work_step_value_label.setText("프로젝트 결과 검토 대기 (수정 요청)")
-            QMessageBox.information(
-                self,
-                "수정 요청",
-                "채팅창에 수정하고 싶은 내용을 입력해 주세요.\n"
-                "(이번 버전에서는 수정 요청 내용을 자동으로 새 계획에 반영하지 않습니다.)",
-            )
+            # 38단계 - 36단계의 "안내만 하고 멈춘다"를 실제 수정 루프로
+            # 대체한다(개발 -> 결과 확인 -> 수정 요청 -> 재개발 -> 다시
+            # 결과 확인).
+            self._start_development_revision(step, dev_result, plan, observation_result)
             return
 
         orchestration_service = self._ensure_orchestration_service()
@@ -1563,6 +1580,312 @@ class MainWindow(QMainWindow):
             self._present_development_review(
                 step, dev_result, plan, execution_result=execution_result, image_pixmap=image_pixmap
             )
+
+    def _start_development_revision(
+        self,
+        step: BrainTaskStep,
+        dev_result: DeveloperResult,
+        plan: ChiefBrainPlan,
+        observation_result: ScreenObservationResult | None,
+    ):
+        """38단계 §4 - "수정 요청"을 실제로 입력받는다.
+
+        빈 문자열/취소는 전송하지 않는다(waiting_for_review 그대로
+        유지, 아무 것도 호출하지 않는다). 37단계 screen 검토를 거쳤다면
+        observation_result가 있고, 없으면 None을 그대로 Request에
+        넘긴다(§14 - 없는 화면 분석을 지어내지 않는다).
+        """
+        text, ok = QInputDialog.getMultiLineText(self, "수정 요청", "수정 요청 내용을 입력하세요:", "")
+        if not ok or not text.strip():
+            return
+
+        self._revision_original_step = step
+        self._revision_original_dev_result = dev_result
+        self._revision_original_plan = plan
+
+        request = DevelopmentRevisionRequest(
+            project_objective=plan.objective,
+            current_step_title=step.title,
+            current_step_goal=step.goal,
+            developer_summary=dev_result.summary,
+            created_files=list(dev_result.created_files),
+            modified_files=list(dev_result.modified_files),
+            user_revision_request=text.strip(),
+            screen_observation_summary=observation_result.summary if observation_result is not None else None,
+        )
+
+        self.work_step_value_label.setText("수정 요청 분석 중")
+        self.chief_brain_status_label.setText("수정 계획 중")
+        self.developer_status_label.setText("수정 대기")
+
+        revision_service = self._ensure_development_revision_service()
+        revision_service.plan_revision(request)
+
+    def _ensure_development_revision_service(self) -> DevelopmentRevisionService:
+        if self.development_revision_service is not None:
+            return self.development_revision_service
+
+        executor = DevelopmentRevisionExecutor(OpenAIDevelopmentRevisionProvider())
+        self.development_revision_service = DevelopmentRevisionService(executor, parent=self)
+        self.development_revision_service.result_ready.connect(self._on_development_revision_plan_ready)
+        self.development_revision_service.error_occurred.connect(self._on_development_revision_plan_error)
+        return self.development_revision_service
+
+    def _on_development_revision_plan_ready(self, revision_plan: DevelopmentRevisionPlan):
+        """38단계 §6/§15 - Brain이 수정 판단을 마쳤다고 곧바로 Developer를
+        실행하지 않는다. steps가 비어 있으면(코드 수정이 필요 없다는
+        판단) 그 사실만 알리고 원래 review 상태로 돌아간다(§17). steps가
+        있으면 승인 Dialog를 먼저 보여준다.
+        """
+        step = self._revision_original_step
+        dev_result = self._revision_original_dev_result
+        plan = self._revision_original_plan
+        if step is None or dev_result is None or plan is None:
+            return
+
+        self.chief_brain_status_label.setText("대기")
+
+        if not revision_plan.steps:
+            self.developer_status_label.setText("결과 검토 대기")
+            self.work_step_value_label.setText("프로젝트 결과 검토 대기")
+            QMessageBox.information(self, "수정 계획", revision_plan.judgment)
+            self._present_development_review(step, dev_result, plan)
+            return
+
+        self.work_step_value_label.setText("수정 계획 승인 대기")
+        approved = self._show_development_revision_plan_dialog(revision_plan)
+        if not approved:
+            self.developer_status_label.setText("결과 검토 대기")
+            self.work_step_value_label.setText("프로젝트 결과 검토 대기")
+            self._present_development_review(step, dev_result, plan)
+            return
+
+        # 38단계 §7 - 이 임시 계획은 원래 project plan(plan.steps)을 전혀
+        # 건드리지 않는다. chief_brain_plan.py의 계획 검증 함수도 거치지
+        # 않는다(그 함수는 LLM이 만드는 project 전체 계획을 검증하기
+        # 위한 것이지, 여기서 코드로 신중하게 구성한 부분 수정 계획에는
+        # 적용되지 않는다) - execution_mode="project"로 두는 이유는 기존
+        # round34 checkpoint 안전장치/round36 waiting_for_review를
+        # 그대로 재사용하기 위해서일 뿐이다.
+        self._revision_plan = ChiefBrainPlan(
+            needs_more_info=False,
+            ready=True,
+            objective=plan.objective,
+            execution_mode="project",
+            steps=revision_plan.steps,
+            clarification_question=None,
+            user_reply=revision_plan.judgment,
+        )
+
+        self.work_step_value_label.setText("수정 작업 중")
+        self.developer_status_label.setText("수정 중")
+
+        revision_orchestration_service = self._ensure_revision_orchestration_service(dev_result.project_path)
+        if revision_orchestration_service is None:
+            return
+        revision_orchestration_service.run(self._revision_plan)
+
+    def _on_development_revision_plan_error(self, message: str):
+        step = self._revision_original_step
+        dev_result = self._revision_original_dev_result
+        plan = self._revision_original_plan
+        self.chief_brain_status_label.setText("오류")
+        QMessageBox.warning(self, "수정 계획 실패", message)
+        self.developer_status_label.setText("결과 검토 대기")
+        self.work_step_value_label.setText("프로젝트 결과 검토 대기")
+        if step is not None and dev_result is not None and plan is not None:
+            self._present_development_review(step, dev_result, plan)
+
+    def _show_development_revision_plan_dialog(self, revision_plan: DevelopmentRevisionPlan) -> bool:
+        """"수정 시작 승인"/"취소" 두 버튼만 있는 최소 승인 Dialog(§15).
+
+        기존 승인 Dialog들과 동일한 패턴을 그대로 따른다(새 승인
+        시스템이 아니다) - 기본값은 승인이 아니다.
+        """
+        dialog = QDialog(self)
+        dialog.setWindowTitle("수정 계획 확인")
+
+        steps_text = (
+            "\n".join(f"   {i}. [{s.task_type}] {s.title}" for i, s in enumerate(revision_plan.steps, start=1))
+            or "   없음"
+        )
+
+        layout = QVBoxLayout(dialog)
+        message = QLabel(
+            f"Brain 판단:\n{revision_plan.judgment}\n\n"
+            f"수정 작업:\n{steps_text}\n\n"
+            f"영향 범위:\n{revision_plan.impact_summary}"
+        )
+        message.setWordWrap(True)
+        layout.addWidget(message)
+
+        button_row = QHBoxLayout()
+        approve_button = QPushButton("수정 시작 승인")
+        cancel_button = QPushButton("취소")
+        button_row.addWidget(approve_button)
+        button_row.addWidget(cancel_button)
+        layout.addLayout(button_row)
+
+        approve_button.clicked.connect(dialog.accept)
+        cancel_button.clicked.connect(dialog.reject)
+        cancel_button.setDefault(True)
+        cancel_button.setFocus()
+
+        return dialog.exec() == QDialog.DialogCode.Accepted
+
+    def _ensure_revision_orchestration_service(self, existing_project_path: str) -> OrchestrationService | None:
+        """38단계 - 기존 _ensure_orchestration_service()와 동일한 구성
+        패턴을 그대로 따르되(§10 - 기존 DevelopmentExecutor/DeveloperRequest
+        계약 재사용), DevelopmentExecutor에 existing_project_path를 줘서
+        "새 프로젝트 생성"이 아니라 "기존 프로젝트 수정"이 되도록 한다.
+        원래 project plan 실행에 쓰는 orchestration_service와는 완전히
+        분리된 인스턴스다(§16 - 원래 흐름 무영향).
+        """
+        task_system = self._ensure_task_system()
+        if task_system is None:
+            return None
+
+        development_executor = DevelopmentExecutor(
+            OpenAIDeveloperProvider(), existing_project_path=existing_project_path
+        )
+        reviewer_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+        analysis_executor = AnalysisExecutor(OpenAIResearchReviewerProvider(reviewer_client))
+        orchestrator = ChiefBrainOrchestrator(
+            task_system, development_executor=development_executor, analysis_executor=analysis_executor
+        )
+
+        self.revision_orchestration_service = OrchestrationService(orchestrator, parent=self)
+        self.revision_orchestration_service.result_ready.connect(self._on_revision_orchestration_result)
+        self.revision_orchestration_service.error_occurred.connect(self._on_revision_orchestration_error)
+        # stage_changed는 순수하게 stage 문자열만으로 동작하는 기존
+        # 슬롯을 그대로 재사용한다(self._current_chief_plan/
+        # self._last_orchestration_result를 참조하지 않는다) - WORK
+        # STATUS/AI TEAM 새 상태 시스템을 만들지 않는다(§16).
+        self.revision_orchestration_service.stage_changed.connect(self._on_orchestration_stage_changed)
+        return self.revision_orchestration_service
+
+    def _on_revision_orchestration_result(self, result: OrchestrationResult):
+        step = self._revision_original_step
+        dev_result = self._revision_original_dev_result
+        plan = self._revision_original_plan
+        revision_plan = self._revision_plan
+        if step is None or dev_result is None or plan is None or revision_plan is None:
+            return
+
+        pending_step_result = result.completed_steps[-1] if result.completed_steps else None
+
+        if result.status == "waiting_for_approval" and pending_step_result is not None:
+            # 38단계 §9 - 수정 development 실행 전 승인도 기존 project
+            # checkpoint Dialog를 그대로 재사용한다(새 승인 시스템 아님).
+            revision_step = self._find_plan_step(revision_plan, pending_step_result.step_id)
+            if revision_step is None:
+                self._fail_revision_and_restore(step, dev_result, plan, "수정 계획을 확인할 수 없습니다.")
+                return
+
+            approved = self._show_project_checkpoint_approval_dialog(
+                revision_step, pending_step_result.approval_reason
+            )
+            if not approved:
+                self.developer_status_label.setText("결과 검토 대기")
+                self.work_step_value_label.setText("프로젝트 결과 검토 대기")
+                self._present_development_review(step, dev_result, plan)
+                return
+
+            self.developer_status_label.setText("수정 중")
+            self.work_step_value_label.setText("수정 작업 중")
+            revision_orchestration_service = self._ensure_revision_orchestration_service(dev_result.project_path)
+            if revision_orchestration_service is None:
+                return
+            revision_orchestration_service.resume_project_checkpoint(
+                revision_plan, result.completed_steps, revision_step.step_id
+            )
+            return
+
+        if result.status == "waiting_for_review" and pending_step_result is not None:
+            # 38단계 §12 - 수정 development 성공. 원래 project plan의
+            # 해당 step_id 결과를 새 DeveloperResult로 교체하고(§8 - 원본
+            # plan.steps는 건드리지 않는다), 37단계 검토 화면을 그대로
+            # 다시 보여준다(실행해서 확인/계속 진행/수정 요청 모두 다시
+            # 가능).
+            new_dev_result = pending_step_result.result
+            self._apply_revision_result_to_original_plan(step.step_id, new_dev_result)
+            self.developer_status_label.setText("결과 검토 대기")
+            self.work_step_value_label.setText("프로젝트 결과 검토 대기")
+            QMessageBox.information(self, "수정 완료", "수정 작업이 완료되었습니다.")
+            self._present_development_review(step, new_dev_result, plan)
+            return
+
+        if result.status == "completed":
+            # development 없이 analysis만으로 끝난 경우(코드 수정이
+            # 필요 없다고 판단했거나, 이미 waiting_for_review로 처리된
+            # development를 제외한 나머지가 정상 종료된 경우) - 원래
+            # review 상태로 그대로 복귀한다.
+            self.developer_status_label.setText("결과 검토 대기")
+            self.work_step_value_label.setText("프로젝트 결과 검토 대기")
+            QMessageBox.information(self, "수정 완료", result.summary)
+            self._present_development_review(step, dev_result, plan)
+            return
+
+        # failed/blocked - §17: project 전체를 죽이지 않고 원래
+        # review 상태로 복귀한다.
+        self._fail_revision_and_restore(step, dev_result, plan, result.summary)
+
+    def _on_revision_orchestration_error(self, message: str):
+        step = self._revision_original_step
+        dev_result = self._revision_original_dev_result
+        plan = self._revision_original_plan
+        if step is not None and dev_result is not None and plan is not None:
+            self._fail_revision_and_restore(step, dev_result, plan, message)
+
+    def _fail_revision_and_restore(
+        self, step: BrainTaskStep, dev_result: DeveloperResult, plan: ChiefBrainPlan, message: str
+    ):
+        self.developer_status_label.setText("결과 검토 대기")
+        self.work_step_value_label.setText("프로젝트 결과 검토 대기")
+        QMessageBox.warning(self, "수정 실패", message)
+        self._present_development_review(step, dev_result, plan)
+
+    @staticmethod
+    def _apply_revision_result(
+        completed_steps: list[OrchestrationStepResult], original_step_id: str, new_dev_result: DeveloperResult
+    ) -> list[OrchestrationStepResult]:
+        """38단계 §8 - 원래 project plan의 completed_steps 안에서
+        original_step_id 항목 하나만 새 DeveloperResult로 교체한다.
+        원본 step_id/task_type/requires_approval/approval_reason은
+        그대로 유지한다 - 이후 resume_after_review()가 같은 step_id로
+        "이미 처리됨"을 인식해 재실행하지 않도록 하기 위해서다. 이 계획의
+        steps 자체(BrainTaskStep 목록)는 이 함수가 아예 알지도 못한다 -
+        여기서 다루는 건 실행 "결과" 데이터뿐이다.
+        """
+        updated: list[OrchestrationStepResult] = []
+        for entry in completed_steps:
+            if entry.step_id == original_step_id:
+                entry = OrchestrationStepResult(
+                    step_id=entry.step_id,
+                    task_type=entry.task_type,
+                    status="completed",
+                    task_id=entry.task_id,
+                    result=new_dev_result,
+                    error=None,
+                    requires_approval=entry.requires_approval,
+                    approval_reason=entry.approval_reason,
+                )
+            updated.append(entry)
+        return updated
+
+    def _apply_revision_result_to_original_plan(self, original_step_id: str, new_dev_result: DeveloperResult):
+        if self._last_orchestration_result is None:
+            return
+
+        updated_steps = self._apply_revision_result(
+            self._last_orchestration_result.completed_steps, original_step_id, new_dev_result
+        )
+        self._last_orchestration_result = OrchestrationResult(
+            status=self._last_orchestration_result.status,
+            completed_steps=updated_steps,
+            pending_step_id=self._last_orchestration_result.pending_step_id,
+            summary=self._last_orchestration_result.summary,
+        )
 
     def _show_orchestration_result_dialog(self, result: OrchestrationResult):
         plan = self._current_chief_plan

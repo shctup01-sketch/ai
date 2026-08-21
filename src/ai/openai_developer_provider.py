@@ -15,7 +15,11 @@ from project_runner import EntryPointError, resolve_entry_point
 from workspace_guard import WorkspaceGuard, WorkspaceSecurityError, create_project_folder
 
 from .developer_fix_request import DeveloperFixRequest
-from .developer_instructions import DEVELOPER_FIX_INSTRUCTIONS, DEVELOPER_INSTRUCTIONS
+from .developer_instructions import (
+    DEVELOPER_FIX_INSTRUCTIONS,
+    DEVELOPER_INSTRUCTIONS,
+    DEVELOPER_REVISION_INSTRUCTIONS,
+)
 from .developer_provider import DeveloperProvider
 from .developer_request import DeveloperRequest
 from .developer_result import DeveloperResult
@@ -80,8 +84,24 @@ class OpenAIDeveloperProvider(DeveloperProvider):
         self._model = model
 
     def build_project(self, request: DeveloperRequest) -> DeveloperResult:
+        """38단계 - request.existing_project_path가 있으면 새 프로젝트
+        폴더를 만들지 않고 그 경로에 WorkspaceGuard를 그대로 바인딩한다
+        (fix_packages()가 이미 쓰는 "기존 프로젝트 수정" 패턴과 동일) -
+        수정 요청(project development 결과 검토 -> 재작업) 흐름에서만
+        채워지며, 그 외 모든 호출(기존 하위 호환, existing_project_path
+        기본값 None)은 이전과 완전히 동일하게 새 폴더를 만든다.
+        """
         api_key = self._require_api_key()
-        project_path = create_project_folder(request.project_name)
+
+        if request.existing_project_path:
+            project_path = Path(request.existing_project_path)
+            instructions = DEVELOPER_REVISION_INSTRUCTIONS
+            task_intro = "위 요청대로 기존 프로젝트 파일을 수정해주세요."
+        else:
+            project_path = create_project_folder(request.project_name)
+            instructions = DEVELOPER_INSTRUCTIONS
+            task_intro = "위 계획대로 프로젝트 파일을 작성해주세요."
+
         guard = WorkspaceGuard(project_path)
 
         env_info = collect_environment_info()
@@ -91,14 +111,14 @@ class OpenAIDeveloperProvider(DeveloperProvider):
             f"요구사항 요약: {request.requirements_summary}\n"
             f"기능 목록: {', '.join(request.feature_list)}\n"
             f"작업 단계: {', '.join(request.task_steps)}\n\n"
-            "위 계획대로 프로젝트 파일을 작성해주세요."
+            f"{task_intro}"
         )
 
         result = self._run_developer_session(
             api_key=api_key,
             project_path=project_path,
             guard=guard,
-            instructions=DEVELOPER_INSTRUCTIONS,
+            instructions=instructions,
             task_prompt=task_prompt,
             max_tool_calls=MAX_TOOL_CALLS,
         )
