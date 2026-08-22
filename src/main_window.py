@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPlainTextEdit,
     QPushButton,
+    QScrollArea,
     QVBoxLayout,
     QWidget,
 )
@@ -1503,6 +1504,15 @@ class MainWindow(QMainWindow):
             self._revision_after_observation,
         )
 
+        if decision == "closed":
+            # 51단계 §9/§10 - X 닫기/Escape는 "검토 보류"일 뿐이다.
+            # 승인도 실패도 아니므로 아무 것도 호출하지 않는다 -
+            # waiting_for_review 상태는 이미 _on_orchestration_result에서
+            # 저장되어 있으므로(§15) 그대로 유지된다. 다음에 프로젝트를
+            # 열면 같은 결과 검토 Dialog가 다시 뜬다(§10 - 새 복구
+            # 시스템을 만들지 않는다, 기존 불러오기 경로 재사용).
+            return
+
         if decision == "run":
             self._start_runtime_review(step, dev_result, plan)
             return
@@ -1537,8 +1547,8 @@ class MainWindow(QMainWindow):
         after_observation: ScreenObservationResult | None = None,
     ) -> str:
         """"계속 진행"/"실행해서 확인"/"수정 요청" 세 버튼이 있는 결과
-        검토 Dialog(§2/§5/§11). 반환값은 "continue"/"run"/"revise" 중
-        하나다.
+        검토 Dialog(§2/§5/§11). 반환값은 "continue"/"run"/"revise"/
+        "closed"(51단계 추가) 중 하나다.
 
         기존 승인 Dialog들과 동일한 패턴을 그대로 따른다(새 Dialog
         시스템이 아니다). 표시 정보는 DeveloperResult/ExecutionResult/
@@ -1552,6 +1562,17 @@ class MainWindow(QMainWindow):
         비교 전용이다(revision_summary가 있을 때만 의미가 있다). AI
         비교 판단을 새로 만들지 않는다(§7) - 기존 ScreenObservationResult
         각각을 그대로 나란히 보여줄 뿐이다(§8).
+
+        51단계 §3/§4/§9 - 내용(텍스트/이미지)은 QScrollArea 안에,
+        검수 버튼 3개는 그 밖에 고정한다(round18 _show_scrollable_
+        result_dialog와 동일한 screen.availableGeometry() 기반 크기
+        제한 패턴을 재사용한다) - 내용이 아무리 길어져도 버튼은 항상
+        보인다. 또한 QDialog.exec()의 기본 Rejected 코드(0)를 "수정
+        요청" 버튼의 done(0)이 그대로 재사용하고 있었던 것이 X/Escape가
+        "수정 요청"으로 오인되던 실제 원인이었다 - 세 버튼을 서로 다른
+        양수 코드(1/2/3)에 연결하고, 그 외 모든 반환값(X/Escape/reject
+        전부 포함해 Qt가 주는 기본 Rejected=0)은 "closed"로 안전하게
+        분류한다.
         """
         dialog = QDialog(self)
         dialog.setWindowTitle("개발 단계 결과 확인")
@@ -1628,16 +1649,39 @@ class MainWindow(QMainWindow):
             )
 
         layout = QVBoxLayout(dialog)
+
+        # 51단계 §3 - 내용은 scroll, 버튼은 scroll 밖 고정. round18
+        # _show_scrollable_result_dialog와 동일한 화면 크기 기준 제한을
+        # 재사용한다(§4 - 숫자를 무리하게 새로 하드코딩하지 않는다).
+        screen = self.screen() or QApplication.primaryScreen()
+        if screen is not None:
+            available = screen.availableGeometry()
+            max_width = max(1, int(available.width() * 0.8))
+            max_height = max(1, int(available.height() * 0.85))
+        else:
+            max_width, max_height = 850, 750
+        default_width = min(800, max_width)
+        default_height = min(650, max_height)
+
+        dialog.resize(default_width, default_height)
+        dialog.setMaximumSize(max_width, max_height)
+        # §5 - 리사이즈는 허용하되(setFixedSize 금지), 버튼/핵심 정보가
+        # 완전히 사라지지 않을 최소 크기만 둔다.
+        dialog.setMinimumSize(min(480, max_width), min(360, max_height))
+
+        content_widget = QWidget()
+        content_layout = QVBoxLayout(content_widget)
+
         message = QLabel(message_text)
         message.setWordWrap(True)
-        layout.addWidget(message)
+        content_layout.addWidget(message)
 
         if image_pixmap is not None:
             # §11 - 사용자가 실제 실행 화면을 직접 볼 수 있어야 한다
             # (Brain 텍스트 분석만으로 끝내지 않는다).
             image_label = QLabel()
             image_label.setPixmap(image_pixmap)
-            layout.addWidget(image_label)
+            content_layout.addWidget(image_label)
 
         if revision_summary is not None and before_image is not None:
             # 40단계 §6 - 대규모 이미지 뷰어가 아니라 QLabel + 이미
@@ -1662,11 +1706,16 @@ class MainWindow(QMainWindow):
                 after_column.addWidget(QLabel("아직 확인하지 않음"))
             image_row.addLayout(after_column)
 
-            layout.addLayout(image_row)
+            content_layout.addLayout(image_row)
+
+        scroll_area = QScrollArea(dialog)
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setWidget(content_widget)
+        layout.addWidget(scroll_area, stretch=1)
 
         button_row = QHBoxLayout()
         continue_button = QPushButton("계속 진행")
-        run_button = QPushButton("실행해서 확인")
+        run_button = QPushButton("다시 실행해서 확인" if execution_result is not None else "실행해서 확인")
         revise_button = QPushButton("수정 요청")
         button_row.addWidget(continue_button)
         button_row.addWidget(run_button)
@@ -1678,14 +1727,18 @@ class MainWindow(QMainWindow):
         if not can_run:
             run_button.setToolTip("실행 파일 정보(project_path/entry_point)가 없어 실행할 수 없습니다.")
 
+        # 51단계 §9/§12 - "수정 요청"만 done(3)이라는 고유 코드를 쓴다.
+        # X 닫기/Escape/reject()는 모두 Qt 기본값인 Rejected(0)로 남고,
+        # 그 값은 아래 매핑 표의 default("closed")로만 떨어진다 - 더는
+        # revise 코드(과거엔 0)와 겹치지 않는다.
         continue_button.clicked.connect(lambda: dialog.done(1))
         run_button.clicked.connect(lambda: dialog.done(2))
-        revise_button.clicked.connect(lambda: dialog.done(0))
+        revise_button.clicked.connect(lambda: dialog.done(3))
         revise_button.setDefault(True)
         revise_button.setFocus()
 
         exec_result_code = dialog.exec()
-        return {1: "continue", 2: "run", 0: "revise"}.get(exec_result_code, "revise")
+        return {1: "continue", 2: "run", 3: "revise"}.get(exec_result_code, "closed")
 
     # 37단계 §7 - 프로그램이 실행된 뒤 화면이 그려질 시간을 벌기 위한
     # 짧은 추가 지연이다. run_entry_point(project_runner.py)가 이미
