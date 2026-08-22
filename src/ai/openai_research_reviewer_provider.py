@@ -79,6 +79,11 @@ def _build_review_prompt(request: ResearchReviewRequest) -> str:
     """검색 결과 "건수"는 하나도 빠짐없이 프롬프트에 포함하되, 건별 발췌문
     길이만 제한한다(API Key 등 민감정보가 여기 섞일 경로 자체가 없다 -
     ResearchReviewRequest에는 그런 필드가 없다).
+
+    48단계 - dependency_context(이전 analysis 결과 요약, 기본값 "")가
+    있으면 마지막에 그대로 덧붙인다. 기본값이 빈 문자열이라 이 필드를
+    쓰지 않는 기존 호출(Research -> Analysis만 있는 경우)은 프롬프트가
+    한 글자도 바뀌지 않는다.
     """
     lines = [
         f"조사 제목: {request.task_title}",
@@ -98,5 +103,10 @@ def _build_review_prompt(request: ResearchReviewRequest) -> str:
             if len(snippet) > _MAX_SNIPPET_LEN:
                 snippet = snippet[:_MAX_SNIPPET_LEN] + "..."
             lines.append(f"{idx}. {title}\n   URL: {url}\n   내용: {snippet}")
+
+    if request.dependency_context:
+        lines.append("")
+        lines.append("이전 분석 결과:")
+        lines.append(request.dependency_context)
 
     return "\n".join(lines)
