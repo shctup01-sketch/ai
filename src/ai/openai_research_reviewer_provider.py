@@ -80,22 +80,32 @@ def _build_review_prompt(request: ResearchReviewRequest) -> str:
     길이만 제한한다(API Key 등 민감정보가 여기 섞일 경로 자체가 없다 -
     ResearchReviewRequest에는 그런 필드가 없다).
 
-    48단계 - dependency_context(이전 analysis 결과 요약, 기본값 "")가
-    있으면 마지막에 그대로 덧붙인다. 기본값이 빈 문자열이라 이 필드를
-    쓰지 않는 기존 호출(Research -> Analysis만 있는 경우)은 프롬프트가
-    한 글자도 바뀌지 않는다.
+    48단계 - dependency_context(이전 analysis 결과, 기본값 "")가 있으면
+    마지막에 그대로 덧붙인다.
+
+    49단계 §4 - dependency_context가 있을 때만(Analysis -> Analysis
+    체인) "직접 조사 자료"/"이전 분석 결과"를 명확히 구분하는 요약
+    줄과, search_results가 0건이면 그 사실이 "근거가 없다"는 뜻이
+    아니라는 안내 문장을 추가한다. dependency_context가 없는 기존
+    Research -> Analysis 경로(§12 A)는 이 분기를 전혀 타지 않으므로
+    프롬프트가 48단계 이전과 완전히 동일하다(하위 호환).
     """
     lines = [
         f"조사 제목: {request.task_title}",
         f"조사 목표: {request.task_goal}",
         f"검색어: {request.query}",
         "",
-        f"검색 결과 ({len(request.search_results)}건):",
     ]
 
-    if not request.search_results:
-        lines.append("(검색 결과 없음)")
-    else:
+    has_dependency_context = bool(request.dependency_context)
+
+    if has_dependency_context:
+        lines.append(f"직접 조사 자료: {len(request.search_results)}건" if request.search_results else "직접 조사 자료: 없음")
+        lines.append("이전 분석 결과: 있음")
+        lines.append("")
+
+    if request.search_results:
+        lines.append(f"검색 결과 ({len(request.search_results)}건):")
         for idx, item in enumerate(request.search_results, start=1):
             title = item.get("title", "")
             url = item.get("url", "")
@@ -103,8 +113,21 @@ def _build_review_prompt(request: ResearchReviewRequest) -> str:
             if len(snippet) > _MAX_SNIPPET_LEN:
                 snippet = snippet[:_MAX_SNIPPET_LEN] + "..."
             lines.append(f"{idx}. {title}\n   URL: {url}\n   내용: {snippet}")
+    elif has_dependency_context:
+        # 49단계 §4 - "검색 결과가 0건입니다"라고만 보이면 AI가 "근거
+        # 전체가 없다"고 오해할 위험이 있었다(실제 재현된 문제). 원시
+        # 검색 결과가 없을 뿐 이전 분석 결과라는 유효한 근거가 있다는
+        # 사실을 명확한 문장으로 알린다.
+        lines.append(
+            "이 단계에 직접 연결된 원시 검색 결과는 없습니다. "
+            "대신 이전 분석 단계의 검토 결과가 아래에 제공됩니다. "
+            "이전 분석 결과를 유효한 입력 근거로 사용하세요."
+        )
+    else:
+        lines.append("검색 결과 (0건):")
+        lines.append("(검색 결과 없음)")
 
-    if request.dependency_context:
+    if has_dependency_context:
         lines.append("")
         lines.append("이전 분석 결과:")
         lines.append(request.dependency_context)

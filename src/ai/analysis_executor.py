@@ -195,18 +195,48 @@ def _merge_research_dependencies(dependencies: list[StepContext]) -> tuple[str, 
     return " / ".join(queries), merged_results
 
 
-def _merge_analysis_dependencies(dependencies: list[StepContext]) -> str:
-    """analysis 모양(ResearchReviewResult 구조)인 dependency들의 summary를
-    순서를 유지하며 하나로 합친다(48단계, Analysis -> Analysis).
+def _format_analysis_dependency(dep: StepContext) -> str:
+    """49단계 §3 - analysis 모양(ResearchReviewResult 구조) dependency
+    하나를 규칙 기반으로 구조화된 텍스트로 만든다(새 AI 요약 호출 없음).
+    ResearchReviewResult가 실제로 갖고 있는 7개 필드(summary/
+    market_observations/candidate_ideas/recommended_idea/
+    recommendation_reason/risks/next_action)만 쓴다 - 없는 필드를
+    지어내지 않는다. 값이 비어 있는 필드는 그 섹션 자체를 생략한다(§3 -
+    "실제 값이 비어 있는 항목은 생략 가능").
+    """
+    result = dep.result
+    sections = [f"[이전 분석: {dep.step_id}]"]
 
-    summary는 ResearchReviewResult가 실제로 갖고 있는 필드다(지어낸
-    필드가 아니다) - market_observations/candidate_ideas 등 나머지
-    필드까지 전부 옮기지는 않는다(§4 - 최소 지원, 새 거대한 Context
-    시스템을 만들지 않는다). research가 아닌 다른 모양(예: development
+    if result.summary:
+        sections.append(f"요약:\n{result.summary}")
+    if result.market_observations:
+        sections.append("관찰:\n" + "\n".join(f"- {item}" for item in result.market_observations))
+    if result.candidate_ideas:
+        sections.append("후보:\n" + "\n".join(f"- {item}" for item in result.candidate_ideas))
+    if result.recommended_idea:
+        sections.append(f"추천:\n{result.recommended_idea}")
+    if result.recommendation_reason:
+        sections.append(f"추천 이유:\n{result.recommendation_reason}")
+    if result.risks:
+        sections.append("위험:\n" + "\n".join(f"- {item}" for item in result.risks))
+    if result.next_action:
+        sections.append(f"다음 행동:\n{result.next_action}")
+
+    return "\n\n".join(sections)
+
+
+def _merge_analysis_dependencies(dependencies: list[StepContext]) -> str:
+    """analysis 모양(ResearchReviewResult 구조)인 dependency들을 순서를
+    유지하며 하나로 합친다(48단계에서 summary만 옮기던 것을 49단계에서
+    구조화된 전체 필드로 확장했다, §3).
+
+    dependency 여러 개가 있어도 각자 자기 step_id 헤더 아래에만 담기므로
+    서로 섞이지 않는다(§7). research가 아닌 다른 모양(예: development
     결과)의 dependency는 여기서도 건너뛴다 - 가짜 내용을 지어내지 않는다.
+    원본 ResearchReviewResult 객체는 읽기만 할 뿐 수정하지 않는다(§6).
     """
     parts: list[str] = []
     for dep in dependencies:
         if _is_analysis_result_shaped(dep.result):
-            parts.append(f"[{dep.step_id}] {dep.result.summary}")
+            parts.append(_format_analysis_dependency(dep))
     return "\n\n".join(parts)
