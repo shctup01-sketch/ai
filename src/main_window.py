@@ -26,7 +26,11 @@ from ai import image_content, screen_capture
 from ai.analysis_executor import AnalysisExecutor
 from ai.brain_response import BrainResponse
 from ai.brain_task_step import BrainTaskStep
-from ai.checkpoint_context import describe_step_result, find_latest_step_result
+from ai.checkpoint_context import (
+    build_development_execution_spec,
+    describe_step_result,
+    find_latest_step_result,
+)
 from ai.project_stage_rerun import (
     build_rerun_candidate_completed_steps,
     compute_affected_step_ids,
@@ -1361,6 +1365,22 @@ class MainWindow(QMainWindow):
             context_view.setPlainText(f"[조사 결과]\n{research_text}\n\n[분석 결과]\n{analysis_text}")
             context_view.setMaximumHeight(220)
             layout.addWidget(context_view)
+
+            # 50단계 - Development checkpoint 승인 직전에 실제로 무엇이
+            # 만들어지는지 보여주는 실행 명세(§3/§12). 새 AI 호출 없이
+            # 이미 계산된 analysis_entry.result와 step만 사용한다.
+            analysis_result = (
+                analysis_entry.result
+                if analysis_entry is not None and isinstance(analysis_entry.result, ResearchReviewResult)
+                else None
+            )
+            spec_text = build_development_execution_spec(step, analysis_result)
+            spec_view = QPlainTextEdit()
+            spec_view.setReadOnly(True)
+            spec_view.setPlainText(spec_text)
+            spec_view.setMaximumHeight(260)
+            layout.addWidget(spec_view)
+
             layout.addWidget(QLabel("--- 다음 개발 단계 ---"))
 
         message = QLabel(

@@ -8,11 +8,27 @@
 필드: task_type/title/goal/query/search_results)는 title/goal/query/
 search_results만 규칙 기반으로 뽑는다(기존 _show_research_result_popup의
 표시 방식과 같은 형식을 재사용한다). 없는 필드를 지어내지 않는다.
+
+50단계 - build_development_execution_spec()은 Development checkpoint
+승인 직전에 "이번 개발에서 무엇이 만들어지는지"를 보여주는 실행
+명세를 만든다. 여기서도 새 AI 호출/새 Provider가 없다(§2/§18) -
+BrainTaskStep.goal(항상 존재하는 필드)과 최근 ResearchReviewResult의
+실제 필드(recommended_idea/recommendation_reason/next_action/summary/
+risks - research_review_result.py 정의 그대로, candidate_ideas/
+market_observations는 §10의 활용 우선순위에 없어 쓰지 않는다)만 텍스트
+분할/키워드 매칭으로 재배열한다. 없는 정보(예: 제외 범위를 알려주는
+문장이 실제로 없음)는 각 절마다 명확한 "정보 없음"류 문장으로
+표시한다(§5/§9) - 있지도 않은 제외 항목/관계/완료 기준을 새로
+지어내지 않는다.
 """
+
+import re
 
 from pydantic import BaseModel
 
+from .brain_task_step import BrainTaskStep
 from .orchestration_step_result import OrchestrationStepResult
+from .research_review_result import ResearchReviewResult
 
 
 def find_latest_step_result(
@@ -69,3 +85,115 @@ def describe_step_result(entry: OrchestrationStepResult) -> str:
         return "\n".join(parts) if parts else "결과 없음"
 
     return "결과 없음"
+
+
+# 50단계 - Development 실행 명세(build_development_execution_spec) 전용
+# 설정. GameBlock 등 특정 프로젝트 전용 keyword는 전혀 두지 않는다(§7 -
+# 범용적으로 "핵심 관계/연결" 절만 만들고, 실제 project 데이터에서
+# 추출한다). 각 절의 항목 수를 제한해 장기 프로젝트에서 UI가 지나치게
+# 길어지지 않게 한다(§13).
+_MAX_ITEMS_PER_SECTION = 6
+_EXCLUSION_KEYWORDS = ("제외", "포함하지 않", "만들지 않는다", "하지 않는다", "범위 밖", "구현하지 않는다", "다루지 않는다")
+_COMPLETION_KEYWORDS = ("완료", "가능", "생성", "통과", "실행")
+_RELATIONSHIP_MARKERS = ("→", "->")
+
+_NO_EXCLUSION_TEXT = "이번 단계에서 제외되는 범위가 명시되어 있지 않습니다."
+_NO_RELATIONSHIP_TEXT = "명시된 핵심 관계/연결 규칙이 없습니다."
+_NO_COMPLETION_TEXT = "명시된 완료 판정 기준이 없습니다."
+_NO_NEXT_STEP_TEXT = "명시된 후속 범위 없음"
+_NO_BUILD_ITEMS_TEXT = "명시된 개발 범위 없음"
+
+
+_ITEM_SPLIT_PATTERN = re.compile(r"[\n,、]+|(?<=[.!?])\s+")
+
+
+def _split_into_items(text: str) -> list[str]:
+    """자유 텍스트를 최소한의 규칙(줄바꿈/쉼표류 구분자, 마침표 뒤
+    공백)으로 항목 목록으로 나눈다. 새 문장을 만들지 않는다 - 이미
+    있는 텍스트를 나누고 앞의 "-"/"•"/"*" 같은 기존 불릿 기호만
+    정리할 뿐이다. 줄바꿈 없이 쉼표로 나열된 목록과, 마침표로 문장이
+    끝나는 서술형 텍스트가 한 goal 안에 섞여 있어도(실제 Chief Brain
+    plan에서 흔함) 둘 다 항목으로 나뉘도록 구분자를 함께 쓴다.
+    """
+    if not text:
+        return []
+    parts = _ITEM_SPLIT_PATTERN.split(text.strip())
+
+    items = []
+    for part in parts:
+        cleaned = part.strip().lstrip("-•* ").rstrip(".").strip()
+        if cleaned:
+            items.append(cleaned)
+    return items
+
+
+def _find_items_with_keywords(items: list[str], keywords: tuple[str, ...]) -> list[str]:
+    return [item for item in items if any(keyword in item for keyword in keywords)]
+
+
+def _append_spec_section(lines: list[str], title: str, items: list[str], fallback: str) -> None:
+    """§13 - 항목이 너무 많으면 상한(_MAX_ITEMS_PER_SECTION)까지만 보여주고
+    나머지는 "외 N건"으로만 표시한다(전체를 다 나열하지 않는다)."""
+    lines.append(title)
+    if not items:
+        lines.append(fallback)
+        lines.append("")
+        return
+    shown = items[:_MAX_ITEMS_PER_SECTION]
+    for item in shown:
+        lines.append(f"- {item}")
+    remaining = len(items) - len(shown)
+    if remaining > 0:
+        lines.append(f"  ...(외 {remaining}건)")
+    lines.append("")
+
+
+def build_development_execution_spec(
+    step: BrainTaskStep, analysis_result: ResearchReviewResult | None
+) -> str:
+    """50단계 - Development checkpoint 승인 직전에 보여줄 실행 명세.
+
+    §10의 활용 우선순위(title/goal -> recommended_idea ->
+    recommendation_reason -> next_action -> summary -> risks)를
+    따른다. Research 원자료는 쓰지 않는다(§11 - 이미 있는 조사 결과
+    표시 절과 겹치지 않게 한다). 새 AI 호출/새 Provider 없음(§2/§18).
+    """
+    goal_items = _split_into_items(step.goal)
+
+    recommended_idea = analysis_result.recommended_idea if analysis_result else ""
+    recommendation_reason = analysis_result.recommendation_reason if analysis_result else ""
+    next_action = analysis_result.next_action if analysis_result else ""
+    summary = analysis_result.summary if analysis_result else ""
+    risks = analysis_result.risks if analysis_result else []
+
+    # "만드는 것"은 goal이 기본이다 - Analysis의 recommended_idea가 goal에
+    # 이미 없는 새 내용을 담고 있을 때만 덧붙인다(§10 "같은 내용을 중복
+    # 표시하지 않는다"). 제외 문장(예: "전투 시스템은 만들지 않는다")이
+    # goal에 섞여 있으면 "만드는 것"에서는 빼서 "제외" 절과 모순되게
+    # 보이지 않게 한다 - 그 문장 자체는 아래 exclusion_items로 그대로
+    # 표시된다.
+    build_items = [item for item in goal_items if not any(keyword in item for keyword in _EXCLUSION_KEYWORDS)]
+    if recommended_idea and recommended_idea not in step.goal:
+        build_items.append(recommended_idea)
+
+    scan_text = "\n".join(part for part in [step.goal, recommended_idea, recommendation_reason, next_action, summary, *risks] if part)
+    scan_items = _split_into_items(scan_text)
+
+    exclusion_items = _find_items_with_keywords(scan_items, _EXCLUSION_KEYWORDS)
+    relationship_items = _find_items_with_keywords(scan_items, _RELATIONSHIP_MARKERS)
+    completion_items = _find_items_with_keywords(scan_items, _COMPLETION_KEYWORDS)
+
+    # §9 - 다음 단계 후보는 Analysis의 next_action을 우선하고, 없으면
+    # risks를 후속 확인 대상으로 본다(risks 자체가 "다음에 확인해야 할
+    # 것"과 자연스럽게 겹친다). 둘 다 없으면 정직하게 "없음"으로 표시.
+    next_step_items = _split_into_items(next_action) or list(risks)
+
+    lines: list[str] = ["--- 이번 개발 실행 명세 ---", ""]
+    _append_spec_section(lines, "이번 단계에서 만드는 것:", build_items, _NO_BUILD_ITEMS_TEXT)
+    _append_spec_section(lines, "이번 단계에서 제외:", exclusion_items, _NO_EXCLUSION_TEXT)
+    _append_spec_section(lines, "개발 완료 후 확인 예정:", build_items, _NO_BUILD_ITEMS_TEXT)
+    _append_spec_section(lines, "핵심 관계/연결:", relationship_items, _NO_RELATIONSHIP_TEXT)
+    _append_spec_section(lines, "완료 판정:", completion_items, _NO_COMPLETION_TEXT)
+    _append_spec_section(lines, "다음 단계:", next_step_items, _NO_NEXT_STEP_TEXT)
+
+    return "\n".join(lines).rstrip()
