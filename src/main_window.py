@@ -2246,22 +2246,56 @@ class MainWindow(QMainWindow):
         "이미 처리됨"을 인식해 재실행하지 않도록 하기 위해서다. 이 계획의
         steps 자체(BrainTaskStep 목록)는 이 함수가 아예 알지도 못한다 -
         여기서 다루는 건 실행 "결과" 데이터뿐이다.
+
+        52단계 §11 - 실기에서 발견된 문제: new_dev_result.created_files/
+        modified_files는 "이번 revision 실행 한 번" 동안 실제로 만들어
+        지거나 수정된 파일만 담고 있다(OpenAIDeveloperProvider가 매
+        execute() 호출마다 새로 추적하기 때문, developer_result.py
+        참고). 이 값으로 원본 결과를 그대로 덮어쓰면, 최초 개발에서
+        만든 파일 목록("생성된 파일")이 매 revision마다 사라져 실제
+        파일은 있는데도 "(없음)"으로 보이는 문제가 확인됐다(52단계
+        Development → Analysis dependency context가 이제 이 필드를
+        그대로 옮기므로, 고치지 않으면 Analysis에도 잘못된 정보가
+        전달된다). 원본(entry.result - 이미 이전 revision들의 누적값을
+        담고 있을 수 있다)과 새 결과의 파일 목록을 합집합으로 유지해
+        누적 기록을 보존한다.
         """
         updated: list[OrchestrationStepResult] = []
         for entry in completed_steps:
             if entry.step_id == original_step_id:
+                old_result = entry.result
+                if isinstance(old_result, DeveloperResult):
+                    merged_created = MainWindow._merge_unique_file_names(old_result.created_files, new_dev_result.created_files)
+                    merged_modified = MainWindow._merge_unique_file_names(old_result.modified_files, new_dev_result.modified_files)
+                    merged_dev_result = new_dev_result.model_copy(
+                        update={"created_files": merged_created, "modified_files": merged_modified}
+                    )
+                else:
+                    merged_dev_result = new_dev_result
                 entry = OrchestrationStepResult(
                     step_id=entry.step_id,
                     task_type=entry.task_type,
                     status="completed",
                     task_id=entry.task_id,
-                    result=new_dev_result,
+                    result=merged_dev_result,
                     error=None,
                     requires_approval=entry.requires_approval,
                     approval_reason=entry.approval_reason,
                 )
             updated.append(entry)
         return updated
+
+    @staticmethod
+    def _merge_unique_file_names(original: list[str], new: list[str]) -> list[str]:
+        """52단계 §11 - 원본 파일 이름 목록을 먼저 두고, 거기 없는
+        새 이름만 순서를 유지하며 뒤에 덧붙인다(중복 없이). 없는 파일을
+        지어내지 않는다 - 두 목록에 실제로 있던 이름만 합친다.
+        """
+        merged = list(original)
+        for name in new:
+            if name not in merged:
+                merged.append(name)
+        return merged
 
     def _apply_revision_result_to_original_plan(self, original_step_id: str, new_dev_result: DeveloperResult):
         if self._last_orchestration_result is None:

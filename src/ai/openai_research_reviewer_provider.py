@@ -89,6 +89,15 @@ def _build_review_prompt(request: ResearchReviewRequest) -> str:
     아니라는 안내 문장을 추가한다. dependency_context가 없는 기존
     Research -> Analysis 경로(§12 A)는 이 분기를 전혀 타지 않으므로
     프롬프트가 48단계 이전과 완전히 동일하다(하위 호환).
+
+    52단계 §9 - dependency_context에 development 모양(DeveloperResult)
+    dependency도 섞일 수 있게 되면서(analysis_executor.py 참고),
+    무조건 "이전 분석 결과: 있음"이라고만 적으면 실제로는 development
+    dependency만 있는 경우 부정확한 문구가 된다. analysis_executor.py가
+    각 dependency 앞에 붙이는 헤더("[이전 분석: ...]" / "[이전 개발
+    결과: ...]")로 실제 어떤 종류가 섞여 있는지만 구분해(§7 - 새 구조화
+    필드를 추가하지 않고 기존 dependency_context 문자열 안의 관례를
+    그대로 재사용) 정확한 문구만 보여준다.
     """
     lines = [
         f"조사 제목: {request.task_title}",
@@ -98,10 +107,15 @@ def _build_review_prompt(request: ResearchReviewRequest) -> str:
     ]
 
     has_dependency_context = bool(request.dependency_context)
+    has_analysis_dependency = "[이전 분석:" in request.dependency_context
+    has_development_dependency = "[이전 개발 결과:" in request.dependency_context
 
     if has_dependency_context:
         lines.append(f"직접 조사 자료: {len(request.search_results)}건" if request.search_results else "직접 조사 자료: 없음")
-        lines.append("이전 분석 결과: 있음")
+        if has_analysis_dependency:
+            lines.append("이전 분석 결과: 있음")
+        if has_development_dependency:
+            lines.append("이전 개발 결과: 있음")
         lines.append("")
 
     if request.search_results:
@@ -116,12 +130,19 @@ def _build_review_prompt(request: ResearchReviewRequest) -> str:
     elif has_dependency_context:
         # 49단계 §4 - "검색 결과가 0건입니다"라고만 보이면 AI가 "근거
         # 전체가 없다"고 오해할 위험이 있었다(실제 재현된 문제). 원시
-        # 검색 결과가 없을 뿐 이전 분석 결과라는 유효한 근거가 있다는
-        # 사실을 명확한 문장으로 알린다.
+        # 검색 결과가 없을 뿐 이전 단계 결과라는 유효한 근거가 있다는
+        # 사실을 명확한 문장으로 알린다. 52단계 - development만 있는
+        # 경우도 "분석"이라고 잘못 부르지 않는다(§9).
+        if has_development_dependency and has_analysis_dependency:
+            prior_label = "이전 분석/개발 단계의 결과"
+        elif has_development_dependency:
+            prior_label = "이전 개발 단계의 결과"
+        else:
+            prior_label = "이전 분석 단계의 검토 결과"
         lines.append(
-            "이 단계에 직접 연결된 원시 검색 결과는 없습니다. "
-            "대신 이전 분석 단계의 검토 결과가 아래에 제공됩니다. "
-            "이전 분석 결과를 유효한 입력 근거로 사용하세요."
+            f"이 단계에 직접 연결된 원시 검색 결과는 없습니다. "
+            f"대신 {prior_label}가 아래에 제공됩니다. "
+            "이전 결과를 유효한 입력 근거로 사용하세요."
         )
     else:
         lines.append("검색 결과 (0건):")
@@ -129,7 +150,12 @@ def _build_review_prompt(request: ResearchReviewRequest) -> str:
 
     if has_dependency_context:
         lines.append("")
-        lines.append("이전 분석 결과:")
+        if has_development_dependency and has_analysis_dependency:
+            lines.append("이전 분석/개발 결과:")
+        elif has_development_dependency:
+            lines.append("이전 개발 결과:")
+        else:
+            lines.append("이전 분석 결과:")
         lines.append(request.dependency_context)
 
     return "\n".join(lines)

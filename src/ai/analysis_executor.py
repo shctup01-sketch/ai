@@ -24,6 +24,18 @@ recommended_idea/recommendation_reason/risks/next_action) 결과는 이제
 dependency_context) 전달한다 - 두 모양이 섞여 있어도(Research + Analysis
 동시 dependency) 각자 자기 자리로만 들어간다. 없는 필드를 지어내지
 않는다 - 실제로 존재하는 summary 필드만 그대로 옮긴다.
+
+52단계 - "development 모양"(DeveloperResult가 실제로 갖고 있는 필드
+구조 - developer_result.py 정의 그대로: status/summary/project_path/
+entry_point/created_files/modified_files/errors) 결과도 같은 방식으로
+지원한다. Research → Analysis → Development → Analysis 같은 실제 장기
+개발 루프에서 "이전 Development 결과"를 검토하는 Analysis가 실제로
+필요했다(실기 GameBlock 프로젝트에서 확인된 실패). 새 필드를 추가하지
+않고 기존 dependency_context를 그대로 확장한다(§8) - analysis 모양과
+development 모양 dependency 모두 depends_on 순서를 유지하며 같은
+dependency_context 문자열에 담기되, 각자 자기 헤더
+("[이전 분석: step_id]" / "[이전 개발 결과: step_id]") 아래로만
+들어가 서로 섞이지 않는다.
 """
 
 from .brain_task_step import BrainTaskStep
@@ -59,6 +71,12 @@ class AnalysisExecutionError(Exception):
     바꿨다. analysis 모양(ResearchReviewResult 구조)인 dependency는 이제
     정상적으로 사용 가능하므로, search_results/dependency_context가 모두
     비어 있을 때만(둘 다 usable 결과가 없을 때만) 이 예외가 발생한다.
+
+    52단계 - development 모양(DeveloperResult 구조)인 dependency도
+    dependency_context에 담기므로(§6 - "이미 존재하는 dependency_context를
+    안전하게 확장") 이 실패 조건 자체는 수정할 필요가 없었다 -
+    usable_research_results/usable_analysis_context/usable_development_
+    context 중 하나라도 있으면 통과해야 한다는 요구사항이 이미 만족된다.
     """
 
 
@@ -102,6 +120,12 @@ class AnalysisExecutor:
         48단계 §9 - analysis 모양(ResearchReviewResult 구조)인
         dependency는 더 이상 "형태가 아님" 오류로 표시하지 않고
         "analysis 결과 사용 가능"으로 정확히 구분한다.
+
+        52단계 §10 - development 모양(DeveloperResult 구조)인
+        dependency도 같은 방식으로 "지원하지 않는 형태"가 아니라
+        "development 결과 사용 가능"으로 정확히 구분한다. 파일 개수
+        (생성/수정) 정도만 덧붙인다 - summary 원문이나 내부 경로를
+        그대로 노출하지 않는다(과도한 내부 정보 출력 금지).
         """
         dependencies = context.dependencies if context is not None else []
         present_by_id = {dep.step_id: dep for dep in dependencies}
@@ -124,6 +148,10 @@ class AnalysisExecutor:
                 lines.append(f"  {dep_id}: research 결과 {count}건")
             elif _is_analysis_result_shaped(result):
                 lines.append(f"  {dep_id}: analysis 결과 사용 가능")
+            elif _is_development_result_shaped(result):
+                created_count = len(result.created_files)
+                modified_count = len(result.modified_files)
+                lines.append(f"  {dep_id}: development 결과 사용 가능(생성 {created_count}건, 수정 {modified_count}건)")
             else:
                 lines.append(f"  {dep_id}: 지원하지 않는 dependency 결과 형태")
 
@@ -133,7 +161,7 @@ class AnalysisExecutor:
     def _build_request(step: BrainTaskStep, context: ExecutionContext | None) -> ResearchReviewRequest:
         dependencies = context.dependencies if context is not None else []
         query, search_results = _merge_research_dependencies(dependencies)
-        dependency_context = _merge_analysis_dependencies(dependencies)
+        dependency_context = _merge_dependency_context(dependencies)
         return ResearchReviewRequest(
             task_title=step.title,
             task_goal=step.goal,
@@ -162,6 +190,18 @@ _ANALYSIS_RESULT_SHAPE_ATTRS = (
 
 def _is_analysis_result_shaped(result: object) -> bool:
     return all(hasattr(result, attr) for attr in _ANALYSIS_RESULT_SHAPE_ATTRS)
+
+
+# 52단계 - DeveloperResult가 실제로 갖고 있는 필드 중, ExecutionResult
+# (execution_result.py, runtime 검토 전용 - project_path/entry_point는
+# 있지만 created_files/modified_files는 없다)와 겹치지 않는 조합만
+# 골라 판별한다. developer_result.py 정의 그대로다 - 없는 필드를
+# 지어내지 않는다.
+_DEVELOPMENT_RESULT_SHAPE_ATTRS = ("project_path", "entry_point", "created_files", "modified_files")
+
+
+def _is_development_result_shaped(result: object) -> bool:
+    return all(hasattr(result, attr) for attr in _DEVELOPMENT_RESULT_SHAPE_ATTRS)
 
 
 def _merge_research_dependencies(dependencies: list[StepContext]) -> tuple[str, list[dict]]:
@@ -225,18 +265,50 @@ def _format_analysis_dependency(dep: StepContext) -> str:
     return "\n\n".join(sections)
 
 
-def _merge_analysis_dependencies(dependencies: list[StepContext]) -> str:
-    """analysis 모양(ResearchReviewResult 구조)인 dependency들을 순서를
-    유지하며 하나로 합친다(48단계에서 summary만 옮기던 것을 49단계에서
-    구조화된 전체 필드로 확장했다, §3).
+def _format_development_dependency(dep: StepContext) -> str:
+    """52단계 §4 - development 모양(DeveloperResult 구조) dependency
+    하나를 규칙 기반으로 구조화된 텍스트로 만든다(새 AI 요약 호출 없음).
+    DeveloperResult가 실제로 갖고 있는 필드(summary/project_path/
+    entry_point/created_files/modified_files/errors)만 쓴다 - 없는
+    필드를 지어내지 않는다. 값이 비어 있는 필드는 그 섹션 자체를
+    생략한다(_format_analysis_dependency와 동일한 관례). 전체 파일
+    내용/소스코드 원문은 절대 옮기지 않는다(§4 - 파일 "이름"만 옮긴다).
+    """
+    result = dep.result
+    sections = [f"[이전 개발 결과: {dep.step_id}]"]
 
-    dependency 여러 개가 있어도 각자 자기 step_id 헤더 아래에만 담기므로
-    서로 섞이지 않는다(§7). research가 아닌 다른 모양(예: development
-    결과)의 dependency는 여기서도 건너뛴다 - 가짜 내용을 지어내지 않는다.
-    원본 ResearchReviewResult 객체는 읽기만 할 뿐 수정하지 않는다(§6).
+    if result.summary:
+        sections.append(f"완료 요약:\n{result.summary}")
+    if result.project_path:
+        sections.append(f"프로젝트 경로:\n{result.project_path}")
+    if result.entry_point:
+        sections.append(f"실행 진입점:\n{result.entry_point}")
+    if result.created_files:
+        sections.append("생성 파일:\n" + "\n".join(f"- {name}" for name in result.created_files))
+    if result.modified_files:
+        sections.append("수정 파일:\n" + "\n".join(f"- {name}" for name in result.modified_files))
+    if result.errors:
+        sections.append("오류:\n" + "\n".join(f"- {item}" for item in result.errors))
+
+    return "\n\n".join(sections)
+
+
+def _merge_dependency_context(dependencies: list[StepContext]) -> str:
+    """analysis 모양(ResearchReviewResult 구조)과 development 모양
+    (DeveloperResult 구조) dependency를 depends_on에 적힌 순서 그대로
+    하나로 합친다(52단계 §7 - 타입이 섞여 있어도 순서만 유지한 채 각자
+    자기 헤더 아래로만 들어간다, 한 타입 때문에 다른 타입을 버리지
+    않는다. 48/49단계에서 summary만 옮기던 것을 구조화된 전체 필드로
+    확장했다, §3).
+
+    research 모양은 여기서 다루지 않는다(_merge_research_dependencies가
+    이미 search_results로 별도 처리한다) - 가짜 내용을 지어내지 않는다.
+    원본 결과 객체는 읽기만 할 뿐 수정하지 않는다(§6).
     """
     parts: list[str] = []
     for dep in dependencies:
         if _is_analysis_result_shaped(dep.result):
             parts.append(_format_analysis_dependency(dep))
+        elif _is_development_result_shaped(dep.result):
+            parts.append(_format_development_dependency(dep))
     return "\n\n".join(parts)
