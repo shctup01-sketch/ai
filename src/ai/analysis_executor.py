@@ -81,13 +81,34 @@ class AnalysisExecutionError(Exception):
 
 
 class AnalysisExecutor:
-    """BrainTaskStep -> ResearchReviewRequest 변환 후 ResearchReviewerProvider.review()를 호출한다."""
+    """BrainTaskStep -> ResearchReviewRequest 변환 후 ResearchReviewerProvider.review()를 호출한다.
 
-    def __init__(self, reviewer_provider: ResearchReviewerProvider):
+    57단계 - product_context_text(프로젝트의 승인된 장기 제품 기준,
+    project_product_context.py)는 depends_on/ExecutionContext를 거치지
+    않는다. depends_on은 "이 step이 직접 참고할 선행 결과"만 담는
+    자리이고, 장기 제품 기준은 project 전체에 걸친 값이라 매 step의
+    depends_on 목록에 넣을 대상이 아니다 - 대신 이 Executor 자신이
+    들고 있다가 매 review() 호출마다 함께 보낸다(생성자 기본값/
+    set_product_context_text()로만 갱신, Orchestrator/OrchestrationService의
+    기존 시그니처는 전혀 바꾸지 않는다).
+    """
+
+    def __init__(self, reviewer_provider: ResearchReviewerProvider, product_context_text: str = ""):
         self._reviewer_provider = reviewer_provider
+        self._product_context_text = product_context_text
+
+    def set_product_context_text(self, product_context_text: str) -> None:
+        """57단계 - 호출자(main_window.py)가 최신 Project Product Context
+        요약 텍스트로 갱신할 때 쓴다. 이 Executor 인스턴스가 재사용되는
+        동안(예: 메인 orchestration_service의 guarded singleton) 사용자가
+        나중에 제품 기준을 설정/수정해도 다음 review() 호출부터 바로
+        반영되도록 한다 - 생성 시점에만 값이 고정되면 이후 변경이 계속
+        무시되는 오래된 값(staleness) 문제가 생긴다.
+        """
+        self._product_context_text = product_context_text
 
     def execute(self, step: BrainTaskStep, context: ExecutionContext | None = None) -> ResearchReviewResult:
-        request = self._build_request(step, context)
+        request = self._build_request(step, context, self._product_context_text)
 
         # 43단계 §9 - depends_on을 선언했다는 것은 "선행 결과를 참고해야
         # 한다"는 뜻인데, 병합 결과가 아무것도 없으면 그 연결이 실제로는
@@ -158,7 +179,18 @@ class AnalysisExecutor:
         return "\n".join(lines)
 
     @staticmethod
-    def _build_request(step: BrainTaskStep, context: ExecutionContext | None) -> ResearchReviewRequest:
+    def _build_request(
+        step: BrainTaskStep, context: ExecutionContext | None, product_context_text: str = ""
+    ) -> ResearchReviewRequest:
+        """57단계 - product_context_text를 세 번째 인자로 추가하되 기본값을
+        빈 문자열로 둔다. 이 메서드를 여전히 @staticmethod로 두고 인자
+        하나만 늘린 이유는, 기존 test_round49_chained_analysis_context.py가
+        이 메서드를 `AnalysisExecutor._build_request(step, context)`처럼
+        인스턴스 없이 2-인자로 직접 호출하기 때문이다(직접 확인) - 이
+        메서드를 인스턴스 메서드로 바꾸면 그 기존 테스트 호출부가 전부
+        깨진다. 기본값 있는 인자 추가만으로 기존 호출부를 전혀 건드리지
+        않고도 새 기능을 더할 수 있다.
+        """
         dependencies = context.dependencies if context is not None else []
         query, search_results = _merge_research_dependencies(dependencies)
         dependency_context = _merge_dependency_context(dependencies)
@@ -168,6 +200,7 @@ class AnalysisExecutor:
             query=query,
             search_results=search_results,
             dependency_context=dependency_context,
+            product_context=product_context_text,
         )
 
 

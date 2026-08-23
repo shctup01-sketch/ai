@@ -83,11 +83,22 @@ class OpenAIDevelopmentRevisionProvider(DevelopmentRevisionProvider):
 
 
 def _build_prompt(request: DevelopmentRevisionRequest) -> str:
+    """57단계 - product_context가 있으면 프로젝트 목표 바로 다음에
+    별도 절로 덧붙인다(§4 - 판단 기준일 뿐 구현 증거가 아님을 함께
+    명시한다, 이 문단이 없는 기존 호출(product_context="")은 이전과
+    동일한 프롬프트를 그대로 만든다).
+    """
     created_text = ", ".join(request.created_files) if request.created_files else "(없음)"
     modified_text = ", ".join(request.modified_files) if request.modified_files else "(없음)"
     screen_text = request.screen_observation_summary or "(화면 확인을 하지 않았습니다)"
+    product_context_block = (
+        f"\n프로젝트 제품 기준(장기 방향 - 판단 기준일 뿐 구현 증거가 아닙니다):\n{request.product_context}\n"
+        if request.product_context
+        else ""
+    )
     return (
-        f"프로젝트 목표: {request.project_objective}\n\n"
+        f"프로젝트 목표: {request.project_objective}\n"
+        f"{product_context_block}\n"
         f"방금 완료된 단계: {request.current_step_title}\n"
         f"그 단계의 목표: {request.current_step_goal}\n"
         f"실제로 만들어진 것: {request.developer_summary}\n"

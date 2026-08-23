@@ -9,9 +9,11 @@ from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QDialog,
+    QFormLayout,
     QHBoxLayout,
     QInputDialog,
     QLabel,
+    QLineEdit,
     QListWidget,
     QListWidgetItem,
     QMainWindow,
@@ -27,7 +29,10 @@ from ai import image_content, screen_capture
 from ai.analysis_executor import AnalysisExecutor
 from ai.brain_response import BrainResponse
 from ai.brain_task_step import BrainTaskStep
+from ai.brain_question_request import BrainQuestionRequest
+from ai.brain_question_service import BrainQuestionService
 from ai.checkpoint_context import (
+    build_brain_question_context,
     build_development_execution_spec,
     describe_step_result,
     find_latest_step_result,
@@ -69,6 +74,7 @@ from ai.orchestration_result import OrchestrationResult
 from ai.orchestration_service import OrchestrationService
 from ai.orchestration_step_result import OrchestrationStepResult
 from ai.package_fix_service import PackageFixService
+from ai.project_product_context import ProjectProductContext, describe_product_context
 from ai.project_state import PersistentProjectState, create_project_state
 from ai.project_state_store import ProjectStateError, ProjectStateStore
 from ai.research_review_request import ResearchReviewRequest
@@ -216,6 +222,13 @@ class MainWindow(QMainWindow):
         # (_ensure_orchestration_service).
         self._current_chief_plan: ChiefBrainPlan | None = None
         self.orchestration_service: OrchestrationService | None = None
+        # 58단계 - checkpoint에서 "Brain에게 질문하기"용 독립 서비스다.
+        # orchestration_service/chief_brain_service 등 기존 서비스와
+        # 완전히 분리된 인스턴스로 둔다(37/38/45단계와 동일한 이유 - Qt
+        # Signal 교차 오염 방지). 이 서비스는 오직 BrainQuestionProvider.
+        # answer()만 호출한다 - Research/Analysis/Development 어느
+        # Executor도 참조하지 않는다.
+        self.brain_question_service: BrainQuestionService | None = None
         # 직전 run()/resume() 결과를 보관한다 - screen_observation 승인 후
         # resume()을 호출할 때 "이미 완료된 step들"을 다시 실행하지 않고
         # 그대로 이어붙이기 위해 필요하다(29단계).
@@ -297,6 +310,18 @@ class MainWindow(QMainWindow):
         self._active_project_id: str | None = None
         self._active_project_name: str | None = None
         self._active_project_created_at: str | None = None
+
+        # 57단계 - 프로젝트의 승인된 장기 제품 기준(Project Product
+        # Context). _active_project_name 등과 동일한 패턴 - project별로만
+        # 의미가 있고, 새 project를 시작하면 초기화된다(§3).
+        # _main_analysis_executor는 self.orchestration_service(guarded
+        # singleton)가 실제로 물고 있는 AnalysisExecutor 참조다 - 사용자가
+        # 나중에 제품 기준을 바꿔도 _ensure_orchestration_service()에서
+        # 매번 최신 값으로 다시 동기화하기 위해 보관한다(§7 - 오래된 값
+        # 문제 방지, Orchestrator/OrchestrationService 시그니처는 바꾸지
+        # 않는다).
+        self._active_product_context: ProjectProductContext | None = None
+        self._main_analysis_executor: AnalysisExecutor | None = None
 
         # 45단계 - 저장된 장기 project의 완료된 research(와 그에 의존하는
         # analysis/development)를 최신 코드로 다시 실행하기 위한 전용
@@ -473,6 +498,15 @@ class MainWindow(QMainWindow):
         self.reevaluate_analysis_button.clicked.connect(self._on_reevaluate_analysis_button_clicked)
         layout.addWidget(self.reevaluate_analysis_button)
 
+        # 57단계 §3 - 대형 Project Manager/편집기가 아니라 최소 버튼
+        # 하나만 기존 버튼들 옆에 추가한다. 54단계 이전 project처럼,
+        # 이 필드가 추가되기 전에 저장된 project는 제품 기준이 비어
+        # 있다 - 새 project든 기존 project든 이 버튼 하나로 같은 Dialog를
+        # 통해 (재)설정할 수 있다.
+        self.set_product_context_button = QPushButton("프로젝트 제품 기준 설정")
+        self.set_product_context_button.clicked.connect(self._on_set_product_context_button_clicked)
+        layout.addWidget(self.set_product_context_button)
+
         return panel
 
     def _on_new_project_clicked(self):
@@ -559,11 +593,15 @@ class MainWindow(QMainWindow):
             self._active_project_id = str(uuid.uuid4())
             self._active_project_name = plan.objective
             self._active_project_created_at = None
+            # 57단계 - 새 project를 시작하면 이전 project의 제품 기준을
+            # 이어받지 않는다(project별로 별개의 값이다, §3).
+            self._active_product_context = None
             self._save_active_project_state()
         else:
             self._active_project_id = None
             self._active_project_name = None
             self._active_project_created_at = None
+            self._active_product_context = None
 
     def _on_plan_button_clicked(self):
         if self._current_plan is None:
@@ -1037,6 +1075,17 @@ class MainWindow(QMainWindow):
         경고 분기가 필요 없다.
         """
         if self.orchestration_service is not None:
+            # 57단계 - 이 orchestration_service는 project 실행 내내
+            # 재사용되는 guarded singleton이라, 사용자가 나중에 제품
+            # 기준을 새로 설정/수정해도 이 함수가 그대로 return하면
+            # 이전 값이 계속 쓰일 위험이 있다(오래된 값). 매번 호출될
+            # 때마다 최신 값으로 다시 동기화한다 - AnalysisExecutor의
+            # 생성자/Orchestrator/OrchestrationService 시그니처는 전혀
+            # 바꾸지 않는다.
+            if self._main_analysis_executor is not None:
+                self._main_analysis_executor.set_product_context_text(
+                    describe_product_context(self._active_product_context)
+                )
             return self.orchestration_service
 
         task_system = self._ensure_task_system()
@@ -1045,7 +1094,11 @@ class MainWindow(QMainWindow):
 
         development_executor = DevelopmentExecutor(OpenAIDeveloperProvider())
         reviewer_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-        analysis_executor = AnalysisExecutor(OpenAIResearchReviewerProvider(reviewer_client))
+        analysis_executor = AnalysisExecutor(
+            OpenAIResearchReviewerProvider(reviewer_client),
+            product_context_text=describe_product_context(self._active_product_context),
+        )
+        self._main_analysis_executor = analysis_executor
         orchestrator = ChiefBrainOrchestrator(
             task_system, development_executor=development_executor, analysis_executor=analysis_executor
         )
@@ -1055,6 +1108,20 @@ class MainWindow(QMainWindow):
         self.orchestration_service.error_occurred.connect(self._on_orchestration_error)
         self.orchestration_service.stage_changed.connect(self._on_orchestration_stage_changed)
         return self.orchestration_service
+
+    def _ensure_brain_question_service(self) -> BrainQuestionService | None:
+        """58단계 - "Brain에게 질문하기"에서만 지연 생성한다.
+
+        API Key 확인은 다른 서비스들처럼 _ensure_task_system()을 거치지
+        않는다 - OpenAIBrainQuestionProvider.answer()가 호출 시점에
+        직접 확인하고, 없으면 error_occurred로 그 사실만 안내한다(다른
+        provider들과 동일한 예외 변환 경로를 그대로 재사용, 새 검사
+        분기를 추가하지 않는다).
+        """
+        if self.brain_question_service is not None:
+            return self.brain_question_service
+        self.brain_question_service = BrainQuestionService(parent=self)
+        return self.brain_question_service
 
     def _on_chief_plan_execute_button_clicked(self):
         if self._current_chief_plan is None:
@@ -1402,7 +1469,10 @@ class MainWindow(QMainWindow):
                 if analysis_entry is not None and isinstance(analysis_entry.result, ResearchReviewResult)
                 else None
             )
-            spec_text = build_development_execution_spec(step, analysis_result)
+            # 57단계 - 이 checkpoint의 project는 항상 self._current_chief_plan과
+            # 같은 project다(이 Dialog는 project 체크포인트 전용) -
+            # self._active_product_context를 그대로 전달한다.
+            spec_text = build_development_execution_spec(step, analysis_result, self._active_product_context)
             spec_view = QPlainTextEdit()
             spec_view.setReadOnly(True)
             spec_view.setPlainText(spec_text)
@@ -1411,11 +1481,17 @@ class MainWindow(QMainWindow):
 
             layout.addWidget(QLabel("--- 다음 개발 단계 ---"))
 
+        # 58단계 §6/§7 - 초보자가 "지금 상황/왜 필요한지/무엇을 하면
+        # 되는지/버튼을 누르면 무슨 일이 일어나는지"를 알 수 있게 짧게
+        # 보강한다. title/goal/approval_reason은 이미 Chief Brain이 쓴
+        # 자연어 문장이라 내부 식별자를 새로 노출하지 않는다.
         message = QLabel(
-            "다음 개발 단계로 진행하기 전 확인이 필요합니다.\n\n"
-            f"다음 단계:\n{step.title}\n\n"
-            f"목표:\n{step.goal}\n\n"
-            f"승인 이유:\n{approval_reason or ''}"
+            "다음 개발을 시작하기 전에 확인이 필요합니다.\n\n"
+            f"다음에 만들 것:\n{step.title}\n\n"
+            f"자세한 목표:\n{step.goal}\n\n"
+            f"왜 확인이 필요한가요:\n{approval_reason or ''}\n\n"
+            "'진행 승인'을 누르면 위 내용으로 개발이 시작됩니다.\n"
+            "지금 판단하기 어렵다면 아래 'Brain에게 질문하기'로 먼저 물어볼 수 있습니다."
         )
         message.setWordWrap(True)
         layout.addWidget(message)
@@ -1428,6 +1504,20 @@ class MainWindow(QMainWindow):
         button_row.addWidget(save_button)
         button_row.addWidget(cancel_button)
         layout.addLayout(button_row)
+
+        # 58단계 §2 - completed_steps가 있을 때만(원래 project checkpoint
+        # 흐름) 보여준다. 이 버튼은 dialog.accept()/reject()/done()을
+        # 전혀 부르지 않는다(_on_checkpoint_save_button_clicked과 동일한
+        # 패턴) - 질문한다고 승인/취소되지 않고, checkpoint가 계속 열려
+        # 있는 상태를 그대로 유지한다.
+        if completed_steps is not None and self._current_chief_plan is not None:
+            question_button = QPushButton("Brain에게 질문하기")
+            question_button.clicked.connect(
+                lambda: self._on_checkpoint_brain_question_button_clicked(
+                    step, approval_reason, completed_steps
+                )
+            )
+            layout.addWidget(question_button)
 
         approve_button.clicked.connect(dialog.accept)
         save_button.clicked.connect(self._on_checkpoint_save_button_clicked)
@@ -1456,6 +1546,127 @@ class MainWindow(QMainWindow):
             )
         else:
             QMessageBox.warning(self, "프로젝트 저장 실패", "프로젝트 상태를 저장하지 못했습니다.")
+
+    def _on_checkpoint_brain_question_button_clicked(
+        self,
+        step: BrainTaskStep,
+        approval_reason: str | None,
+        completed_steps: list[OrchestrationStepResult],
+    ):
+        """58단계 §1/§3 - checkpoint를 열어둔 채로 Brain에게 질문할 문맥을
+        준비한다.
+
+        project state 전체 JSON을 그대로 보내지 않는다 - checkpoint_
+        context.py.build_brain_question_context()가 이미 있는 helper
+        (find_latest_step_result/describe_step_result/describe_product_
+        context)만 재사용해 짧은 요약 문자열 하나만 만든다(새 AI 호출
+        없음). 이 함수 자체는 orchestration_service를 전혀 건드리지
+        않는다 - Research/Analysis/Development 어느 것도 재실행되지
+        않는다.
+        """
+        if self._current_chief_plan is None:
+            return
+        context = build_brain_question_context(
+            self._current_chief_plan,
+            step,
+            approval_reason,
+            completed_steps,
+            product_context=self._active_product_context,
+            project_name=self._active_project_name,
+            last_user_request=self._revision_user_request_text,
+        )
+        self._show_brain_question_dialog(context)
+
+    def _show_brain_question_dialog(self, project_context: str):
+        """58단계 §2 - checkpoint를 취소/승인하지 않고 Brain과 대화하는
+        별도 Dialog.
+
+        이 Dialog는 QDialog(self)로 만들지만 부모 checkpoint Dialog
+        위에 중첩된 모달로 뜬다(Qt에서 이미 exec() 중인 Dialog 위에
+        또 다른 Dialog를 exec()하는 것은 안전한 표준 패턴이다 - 예:
+        모달 Dialog 안에서 QMessageBox를 띄우는 것과 동일한 원리).
+        이 Dialog가 닫혀도(accept만 가능, 승인/취소 버튼 자체가 없음)
+        원래 checkpoint Dialog는 그대로 열려 있는 상태로 돌아간다 -
+        dialog.accept()/reject()/done()을 이 함수 어디서도 checkpoint
+        Dialog에 대해 호출하지 않는다.
+
+        BrainQuestionService(§ "Research/Analysis/Development 자동 실행
+        금지")만 부른다 - 질문 1번당 Brain 호출 1번 외에 다른 AI 호출은
+        전혀 없다.
+        """
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Brain에게 질문하기")
+
+        layout = QVBoxLayout(dialog)
+        layout.addWidget(
+            QLabel(
+                "지금 진행 상황에 대해 편하게 물어보세요.\n"
+                "질문한다고 지금 확인 중인 단계가 승인되거나 취소되지 않습니다."
+            )
+        )
+
+        history_view = QPlainTextEdit()
+        history_view.setReadOnly(True)
+        layout.addWidget(history_view)
+
+        question_input = QPlainTextEdit()
+        question_input.setMaximumHeight(60)
+        question_input.setPlaceholderText("예) 지금 내가 뭘 해야 해? / 이거 내가 원했던 거 맞아?")
+        layout.addWidget(question_input)
+
+        button_row = QHBoxLayout()
+        ask_button = QPushButton("질문하기")
+        close_button = QPushButton("닫기")
+        button_row.addWidget(ask_button)
+        button_row.addWidget(close_button)
+        layout.addLayout(button_row)
+
+        service = self._ensure_brain_question_service()
+
+        def on_ask():
+            question = question_input.toPlainText().strip()
+            if not question or service is None:
+                return
+            ask_button.setEnabled(False)
+            history_view.appendPlainText(f"나: {question}\n")
+            question_input.clear()
+            service.ask(BrainQuestionRequest(project_context=project_context, question=question))
+
+        def on_answer(answer):
+            ask_button.setEnabled(True)
+            # 58단계(사용자 검토) §5 - "is_change_request=true"처럼 내부
+            # 값을 그대로 노출하지 않고, 지금 상황/아직 안 바뀜/다음
+            # 행동을 짧게 안내한다.
+            note = (
+                "\n(정리: 지금 계획을 바꾸고 싶은 요청으로 이해했습니다. "
+                "아직 아무것도 바뀌지 않았습니다. 계획을 바꾸려면 별도로 검토하고 승인하는 절차가 필요합니다.)"
+                if answer.is_change_request
+                else ""
+            )
+            history_view.appendPlainText(f"Brain: {answer.answer}{note}\n")
+
+        def on_error(message: str):
+            ask_button.setEnabled(True)
+            history_view.appendPlainText(f"Brain 응답 중 오류가 발생했습니다: {message}\n")
+
+        if service is not None:
+            service.answer_ready.connect(on_answer)
+            service.error_occurred.connect(on_error)
+
+        ask_button.clicked.connect(on_ask)
+        close_button.clicked.connect(dialog.accept)
+        close_button.setDefault(True)
+
+        dialog.exec()
+
+        # §2 - 이 Dialog에서만 쓰는 임시 연결이다. 매번 새 lambda/local
+        # function을 연결하므로, 닫을 때 반드시 끊어야 다음에 다시 열 때
+        # 같은 답변에 대해 이전 Dialog의 slot까지 함께 불리는 중복 호출을
+        # 막을 수 있다(57단계에서 확인한 "비대칭 lock으로 인한 중복
+        # 표시" 문제와 동일한 유형의 버그를 새로 만들지 않기 위함).
+        if service is not None:
+            service.answer_ready.disconnect(on_answer)
+            service.error_occurred.disconnect(on_error)
 
     def _handle_development_review(self, pending_step_result: OrchestrationStepResult):
         """36단계 - project development step이 성공적으로 끝나면 다음
@@ -2087,6 +2298,7 @@ class MainWindow(QMainWindow):
             modified_files=list(dev_result.modified_files),
             user_revision_request=self._revision_user_request_text,
             screen_observation_summary=observation_result.summary if observation_result is not None else None,
+            product_context=describe_product_context(self._active_product_context),
         )
 
         self.work_step_value_label.setText("수정 요청 분석 중")
@@ -2236,7 +2448,12 @@ class MainWindow(QMainWindow):
             OpenAIDeveloperProvider(), existing_project_path=existing_project_path
         )
         reviewer_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-        analysis_executor = AnalysisExecutor(OpenAIResearchReviewerProvider(reviewer_client))
+        # 57단계 - 이 함수도 매 호출마다 새 인스턴스를 만드므로(38단계
+        # 설계 그대로), 생성 시점에 최신 제품 기준을 바로 넘긴다.
+        analysis_executor = AnalysisExecutor(
+            OpenAIResearchReviewerProvider(reviewer_client),
+            product_context_text=describe_product_context(self._active_product_context),
+        )
         orchestrator = ChiefBrainOrchestrator(
             task_system, development_executor=development_executor, analysis_executor=analysis_executor
         )
@@ -2460,6 +2677,7 @@ class MainWindow(QMainWindow):
                 project_id=self._active_project_id,
                 project_name=self._active_project_name,
                 created_at=self._active_project_created_at,
+                product_context=self._active_product_context,
             )
             self.project_state_store.save(state)
         except ProjectStateError:
@@ -2593,6 +2811,11 @@ class MainWindow(QMainWindow):
         self._active_project_id = state.project_id
         self._active_project_name = state.project_name
         self._active_project_created_at = state.created_at
+        # 57단계 - 54단계 이전 project와 동일한 이유로, 이 필드가
+        # 추가되기 전에 저장된 project는 None으로 복구된다(§3 - 지어낸
+        # 값으로 채우지 않는다. 필요하면 사용자가 새 설정 Dialog로
+        # 한 번 입력해야 한다).
+        self._active_product_context = state.product_context
         # OrchestrationResult.status는 StepStatus라 "not_started"를 표현할
         # 수 없다 - 아직 아무 step도 실행된 적이 없다는 뜻이므로
         # "completed"(할 일 없음)와 동일하게 다룬다.
@@ -2731,7 +2954,21 @@ class MainWindow(QMainWindow):
         if rerun_orchestration_service is None:
             return
 
+        # 57단계 §5/§6 - 이 버튼과 "증거 반영 재검토" 버튼(reevaluate_
+        # analysis_button)은 같은 rerun_orchestration_service를 공유한다
+        # (_ensure_rerun_orchestration_service는 호출마다 새 인스턴스를
+        # 만들 뿐 서로를 막지 않는다). 이 버튼만 잠그고 저 버튼을 열어
+        # 두면, 이 실행이 끝나기 전에 저 버튼을 눌러 두 번째
+        # OrchestrationService가 동시에 같은 _on_project_stage_rerun_result
+        # 로 결과를 보내는 경합이 생긴다 - 실기에서 보고된 조사/분석 결과
+        # 표시 영역이 동일 내용으로 두 번 연속 나타나는 증상은 이 경합
+        # 때문임을 코드로 확인했다(main_window.py 원래 버전은 여기서
+        # rerun_research_analysis_button만 잠그고, reevaluate_analysis_
+        # button은 자기 클릭 핸들러에서만 둘 다 잠갔다 - 한쪽만 잠그는
+        # 비대칭 lock). 그 핸들러가 이미 하던 "둘 다 잠그기"를 여기도
+        # 동일하게 적용한다(§6 - 새 잠금 시스템을 만들지 않는다).
         self.rerun_research_analysis_button.setEnabled(False)
+        self.reevaluate_analysis_button.setEnabled(False)
         self.work_step_value_label.setText("조사/분석 다시 실행 중")
         # 46단계 §13 - 재실행 전체(또는 실패 시점까지)의 소요시간을 재기
         # 위한 시작 시각. time.monotonic()만 쓴다(실시각 보정 영향 없음).
@@ -2854,6 +3091,97 @@ class MainWindow(QMainWindow):
 
         return dialog.exec() == 1
 
+    def _on_set_product_context_button_clicked(self):
+        """57단계 §3 - 프로젝트의 승인된 장기 제품 기준을 (재)설정한다.
+
+        task 모드거나 아직 project가 없으면 명확히 안내만 하고 아무것도
+        하지 않는다(기존 rerun/reevaluate 버튼들과 동일한 guard 패턴).
+        새 AI 호출 없음 - 순수 사용자 입력 Dialog다.
+        """
+        if self._active_project_id is None or self._current_chief_plan is None:
+            QMessageBox.information(self, "프로젝트 제품 기준 설정", "현재 설정할 수 있는 대형 프로젝트가 없습니다.")
+            return
+
+        new_context = self._show_product_context_setup_dialog(self._active_product_context)
+        if new_context is None:
+            return
+
+        self._active_product_context = new_context
+        self._save_active_project_state()
+        QMessageBox.information(self, "프로젝트 제품 기준 설정", "프로젝트 제품 기준을 저장했습니다.")
+
+    def _show_product_context_setup_dialog(
+        self, current: ProjectProductContext | None
+    ) -> ProjectProductContext | None:
+        """57단계 §3 - 8개 항목을 한 화면에서 입력/수정할 수 있는 최소 Dialog다.
+
+        58단계 §4 - 사용자가 "요구사항 명세서 8칸"을 반드시 채워야
+        한다고 느끼지 않도록 안내 문구를 바꿨다(코드 구조는 그대로다 -
+        새 필드/새 AI 호출 추가 없음). 전 항목 필수 입력이 아니었던
+        기존 동작(빈 칸 QLineEdit은 원래도 그대로 저장 가능했고,
+        describe_product_context()도 빈 필드는 건너뛴다)은 바뀌지
+        않는다 - 이번 수정은 오직 화면에 보이는 설명 문구뿐이다.
+
+        새 Dialog 프레임워크를 만들지 않는다(기존 승인 Dialog들과 동일한
+        QDialog+QVBoxLayout 패턴). "비전" 칸만 비어 있으면 이미 있는
+        plan.objective로 미리 채워둔다(§3 - 존재하지 않는 값을 지어내지
+        않는다. objective는 이미 사용자가 승인한 project의 실제 목표
+        텍스트이므로 재사용일 뿐 fabrication이 아니다) - 나머지 7개
+        항목은 채워진 값이 없으면 빈 칸으로 둔다. 취소하면 None을
+        돌려주고 아무것도 바꾸지 않는다.
+        """
+        dialog = QDialog(self)
+        dialog.setWindowTitle("프로젝트 제품 기준 설정")
+
+        layout = QVBoxLayout(dialog)
+        layout.addWidget(
+            QLabel(
+                "이 프로젝트가 장기적으로 어떤 방향인지 Brain이 참고할 내용입니다.\n\n"
+                "지금 다 채우지 않아도 됩니다. 아는 것만 짧게 적고, 모르는 항목은\n"
+                "비워두면 '아직 정해지지 않음'으로 남습니다 - 없는 내용을 지어내\n"
+                "채울 필요가 없습니다. 필요한 내용은 나중에 'Brain에게 질문하기'로\n"
+                "대화하면서 자연스럽게 정하고, 그때 다시 와서 채워도 됩니다."
+            )
+        )
+
+        form = QFormLayout()
+        default_vision = current.vision if current is not None and current.vision else (self._current_chief_plan.objective if self._current_chief_plan is not None else "")
+        fields: dict[str, QLineEdit] = {}
+        for field_name, label in (
+            ("vision", "비전"),
+            ("core_users", "핵심 사용자"),
+            ("core_usage", "핵심 사용 방식"),
+            ("fixed_ux_principles", "고정 UX 원칙"),
+            ("core_systems", "핵심 시스템"),
+            ("platform_goals", "플랫폼 목표"),
+            ("current_scope", "현재 범위"),
+            ("prohibitions_non_goals", "금지/비목표"),
+        ):
+            initial = getattr(current, field_name) if current is not None else ""
+            if field_name == "vision" and not initial:
+                initial = default_vision
+            line_edit = QLineEdit(initial)
+            fields[field_name] = line_edit
+            form.addRow(label, line_edit)
+        layout.addLayout(form)
+
+        button_row = QHBoxLayout()
+        save_button = QPushButton("저장")
+        cancel_button = QPushButton("취소")
+        button_row.addWidget(save_button)
+        button_row.addWidget(cancel_button)
+        layout.addLayout(button_row)
+
+        save_button.clicked.connect(lambda: dialog.done(1))
+        cancel_button.clicked.connect(lambda: dialog.done(0))
+        cancel_button.setDefault(True)
+        cancel_button.setFocus()
+
+        if dialog.exec() != 1:
+            return None
+
+        return ProjectProductContext(**{name: field.text().strip() for name, field in fields.items()})
+
     def _show_development_evidence_backfill_offer_dialog(self) -> bool:
         """56단계 §4 - evidence가 없을 때 안내만 하고 끝내지 않고, 재개발
         없이 다시 실행해서 확인할 수 있다는 안전한 선택지를 제공한다
@@ -2957,7 +3285,13 @@ class MainWindow(QMainWindow):
 
         development_executor = DevelopmentExecutor(OpenAIDeveloperProvider())
         reviewer_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-        analysis_executor = AnalysisExecutor(OpenAIResearchReviewerProvider(reviewer_client))
+        # 57단계 - 이 함수는 (기존 45단계 설계대로) 매 호출마다 새
+        # 인스턴스를 만들므로, 여기서는 별도 동기화 없이 생성 시점에
+        # 최신 제품 기준을 바로 넘기기만 하면 된다(오래된 값 문제 없음).
+        analysis_executor = AnalysisExecutor(
+            OpenAIResearchReviewerProvider(reviewer_client),
+            product_context_text=describe_product_context(self._active_product_context),
+        )
         orchestrator = ChiefBrainOrchestrator(
             task_system, development_executor=development_executor, analysis_executor=analysis_executor
         )

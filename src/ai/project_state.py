@@ -26,6 +26,7 @@ from pydantic import BaseModel
 from .chief_brain_plan import ChiefBrainPlan
 from .orchestration_result import OrchestrationResult
 from .orchestration_step_result import OrchestrationStepResult
+from .project_product_context import ProjectProductContext
 
 SCHEMA_VERSION = 1
 
@@ -59,6 +60,14 @@ class PersistentProjectState(BaseModel):
     project_path: str | None
     last_user_request: str | None
 
+    # 57단계 - 프로젝트의 승인된 장기 제품 방향(§3). 기본값 None이면
+    # "아직 설정되지 않음"이라는 뜻이다 - 54단계 이전 project가 evidence
+    # 없이 저장돼 있던 것과 동일한 이유로, 이 필드가 추가되기 전에 이미
+    # 저장된 project(JSON에 이 키 자체가 없음)를 불러오면 pydantic이
+    # 이 기본값으로 채운다(§3 - 기존 project를 위한 자동 backfill/
+    # migration 코드를 새로 만들지 않는다).
+    product_context: ProjectProductContext | None = None
+
 
 def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -72,6 +81,7 @@ def create_project_state(
     project_id: str | None = None,
     project_name: str | None = None,
     created_at: str | None = None,
+    product_context: ProjectProductContext | None = None,
 ) -> PersistentProjectState:
     """현재 실제로 갖고 있는 값만으로 PersistentProjectState를 만든다.
 
@@ -113,4 +123,5 @@ def create_project_state(
         waiting_reason=waiting_reason,
         project_path=project_path,
         last_user_request=last_user_request,
+        product_context=product_context,
     )

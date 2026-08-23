@@ -7,6 +7,12 @@
 동일). screen_observation_summary는 사용자가 37단계 "실행해서 확인"을
 거쳐 화면 분석까지 마친 경우에만 채워지고, 그렇지 않으면 None이다
 (§14 - 없으면 없는 대로 안전하게 동작해야 한다).
+
+57단계 - product_context(기본값 "")는 프로젝트의 승인된 장기 제품
+기준(project_product_context.py) 요약이다. project_objective(한 줄
+자유 텍스트)만으로는 실제 GameBlock 프로젝트에서 Analysis가 "승인된
+구조의 구체적인 명세가 제공되지 않았다"고 판단한 문제가 그대로
+재현되므로, "수정 요청" 판단(Brain)에도 같은 값을 함께 전달한다.
 """
 
 from pydantic import BaseModel
@@ -21,3 +27,4 @@ class DevelopmentRevisionRequest(BaseModel):
     modified_files: list[str]
     user_revision_request: str
     screen_observation_summary: str | None
+    product_context: str = ""

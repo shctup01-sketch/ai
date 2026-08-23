@@ -10,6 +10,12 @@ Research -> Analysis 흐름(search_results/query)은 전혀 건드리지 않고,
 기존 필드를 오염시키지 않는 별도 필드만 추가했다 - 기본값이 빈
 문자열이라 이 필드를 모르는 기존 호출부(main_window.py의 단일 Research
 UI 흐름 등)는 그대로 동작한다.
+
+57단계 - product_context(기본값 "")는 프로젝트의 승인된 장기 제품
+기준(project_product_context.py)을 짧게 요약한 텍스트다.
+dependency_context(선행 step "결과"/증거)와 일부러 별도 필드로 둔다 -
+"무엇을 만들기로 했는가"(판단 기준)와 "무엇을 실제로 만들었는가"(증거)를
+같은 문자열에 섞으면 둘을 구분하려는 §4의 목적이 흐려진다.
 """
 
 from pydantic import BaseModel
@@ -21,3 +27,4 @@ class ResearchReviewRequest(BaseModel):
     query: str
     search_results: list[dict]
     dependency_context: str = ""
+    product_context: str = ""

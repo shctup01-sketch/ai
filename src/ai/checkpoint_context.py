@@ -27,7 +27,9 @@ import re
 from pydantic import BaseModel
 
 from .brain_task_step import BrainTaskStep
+from .chief_brain_plan import ChiefBrainPlan
 from .orchestration_step_result import OrchestrationStepResult
+from .project_product_context import ProjectProductContext, describe_product_context
 from .research_review_result import ResearchReviewResult
 
 
@@ -149,7 +151,9 @@ def _append_spec_section(lines: list[str], title: str, items: list[str], fallbac
 
 
 def build_development_execution_spec(
-    step: BrainTaskStep, analysis_result: ResearchReviewResult | None
+    step: BrainTaskStep,
+    analysis_result: ResearchReviewResult | None,
+    product_context: ProjectProductContext | None = None,
 ) -> str:
     """50단계 - Development checkpoint 승인 직전에 보여줄 실행 명세.
 
@@ -157,6 +161,12 @@ def build_development_execution_spec(
     recommendation_reason -> next_action -> summary -> risks)를
     따른다. Research 원자료는 쓰지 않는다(§11 - 이미 있는 조사 결과
     표시 절과 겹치지 않게 한다). 새 AI 호출/새 Provider 없음(§2/§18).
+
+    57단계 - product_context(프로젝트의 승인된 장기 제품 기준)가 있으면
+    맨 앞에 짧게 별도 절로 보여준다. "이번 단계에서 만드는 것" 등 나머지
+    절과는 분리한다 - 제품 기준은 판단 기준일 뿐, 이번 단계에서 실제로
+    구현하기로 한 목록(build_items)이 아니다(§4, 목표와 증거를 섞지
+    않는다).
     """
     goal_items = _split_into_items(step.goal)
 
@@ -189,6 +199,11 @@ def build_development_execution_spec(
     next_step_items = _split_into_items(next_action) or list(risks)
 
     lines: list[str] = ["--- 이번 개발 실행 명세 ---", ""]
+    product_context_text = describe_product_context(product_context)
+    if product_context_text:
+        lines.append("[프로젝트 제품 기준(장기 방향)]")
+        lines.append(product_context_text)
+        lines.append("")
     _append_spec_section(lines, "이번 단계에서 만드는 것:", build_items, _NO_BUILD_ITEMS_TEXT)
     _append_spec_section(lines, "이번 단계에서 제외:", exclusion_items, _NO_EXCLUSION_TEXT)
     _append_spec_section(lines, "개발 완료 후 확인 예정:", build_items, _NO_BUILD_ITEMS_TEXT)
@@ -197,3 +212,125 @@ def build_development_execution_spec(
     _append_spec_section(lines, "다음 단계:", next_step_items, _NO_NEXT_STEP_TEXT)
 
     return "\n".join(lines).rstrip()
+
+
+def _describe_research_compact(entry: OrchestrationStepResult) -> str:
+    """58단계 - Brain 질문 문맥 전용. describe_step_result의 research
+    분기는 검색 결과 각각의 title/url을 전부 나열해(체크포인트 화면
+    표시용으로는 적절하지만) Brain 질문 프롬프트에 넣기엔 길다(§3 "전체
+    URL 목록을 보내지 마세요"). 여기서는 제목/목표/검색어와 건수만
+    남긴다 - 없는 정보를 지어내지 않고, 있는 정보를 압축할 뿐이다.
+    """
+    result = entry.result
+    if not isinstance(result, dict):
+        return describe_step_result(entry)
+
+    parts = []
+    title = result.get("title")
+    goal = result.get("goal")
+    query = result.get("query")
+    if title:
+        parts.append(f"제목: {title}")
+    if goal:
+        parts.append(f"목표: {goal}")
+    if query:
+        parts.append(f"검색어: {query}")
+
+    search_results = result.get("search_results")
+    count = len(search_results) if isinstance(search_results, list) else 0
+    parts.append(f"검색 결과: {count}건")
+
+    return "\n".join(parts) if parts else "결과 없음"
+
+
+def _describe_development_evidence_compact(entry: OrchestrationStepResult) -> str:
+    """58단계 - Brain 질문 문맥 전용. DeveloperResult의 summary에 더해,
+    DevelopmentEvidenceSnapshot(54단계)이면 실제로 존재하는 실행 검증/
+    화면 검수/수정 이력만 짧게 덧붙인다. getattr(..., 기본값)으로
+    판별한다 - 순수 DeveloperResult(evidence 없음)는 이 블록에서 아무
+    것도 추가되지 않는다(§7 - 없는 증거를 지어내지 않는다, analysis_
+    executor.py._format_development_dependency와 동일한 판별 원칙을
+    따르되, 여기서는 AI 프롬프트 dependency_context 형식이 아니라 Brain
+    질문용 한두 문장 요약만 만든다).
+    """
+    result = entry.result
+    summary = getattr(result, "summary", None) or "결과 없음"
+    lines = [summary]
+
+    if getattr(result, "runtime_checked", False):
+        runtime_success = getattr(result, "runtime_success", None)
+        runtime_summary = getattr(result, "runtime_summary", None)
+        status_text = "성공" if runtime_success else "실패" if runtime_success is False else "확인됨"
+        detail = f" - {runtime_summary}" if runtime_summary else ""
+        lines.append(f"실행 검증: {status_text}{detail}")
+
+    visual_review_summary = getattr(result, "visual_review_summary", None)
+    if visual_review_summary:
+        lines.append(f"화면 검수: {visual_review_summary}")
+
+    revision_requested = getattr(result, "revision_requested", None)
+    revision_summary = getattr(result, "revision_summary", None)
+    if revision_requested or revision_summary:
+        lines.append(f"수정 이력: 요청 - {revision_requested or '(기록 없음)'} / 결과 - {revision_summary or '(기록 없음)'}")
+
+    return "\n".join(lines)
+
+
+def build_brain_question_context(
+    plan: ChiefBrainPlan,
+    step: BrainTaskStep,
+    approval_reason: str | None,
+    completed_steps: list[OrchestrationStepResult],
+    product_context: ProjectProductContext | None = None,
+    project_name: str | None = None,
+    last_user_request: str | None = None,
+) -> str:
+    """58단계 - checkpoint에서 Brain에게 질문할 때 함께 보낼 압축된
+    프로젝트 상황 요약.
+
+    저장된 project state 전체 JSON을 그대로 보내지 않는다(§3/§4 - 토큰
+    낭비 금지). 이미 있는 규칙 기반 helper(find_latest_step_result/
+    describe_step_result/describe_product_context)만 재사용해 짧은
+    텍스트로 만든다 - 새 AI 요약 호출이 없다. 존재하지 않는 정보는
+    지어내지 않는다 - 없는 항목(product_context/research/analysis/
+    development 중 없는 것)은 그 절 자체를 넣지 않는다.
+    """
+    lines: list[str] = [
+        f"프로젝트 이름: {project_name or plan.objective}",
+        f"사용자의 원래 목표: {plan.objective}",
+    ]
+    if last_user_request:
+        lines.append(f"가장 최근 사용자 요청: {last_user_request}")
+
+    product_context_text = describe_product_context(product_context)
+    if product_context_text:
+        lines.append("")
+        lines.append("[프로젝트 제품 기준(장기 방향) - 판단 기준일 뿐 구현 증거 아님]")
+        lines.append(product_context_text)
+
+    lines.append("")
+    lines.append("[지금 확인이 필요한 단계]")
+    lines.append(f"이름: {step.title}")
+    lines.append(f"목표: {step.goal}")
+    if approval_reason:
+        lines.append(f"확인이 필요한 이유: {approval_reason}")
+
+    research_entry = find_latest_step_result(completed_steps, "research")
+    if research_entry is not None:
+        lines.append("")
+        lines.append("[가장 최근 조사 결과 요약]")
+        lines.append(_describe_research_compact(research_entry))
+
+    analysis_entry = find_latest_step_result(completed_steps, "analysis")
+    if analysis_entry is not None:
+        lines.append("")
+        lines.append("[가장 최근 분석 결과 요약]")
+        lines.append(describe_step_result(analysis_entry))
+
+    development_entry = find_latest_step_result(completed_steps, "development")
+    if development_entry is not None:
+        lines.append("")
+        lines.append("[가장 최근 개발 결과 요약(실제 확인된 증거만)]")
+        lines.append(_describe_development_evidence_compact(development_entry))
+
+    return "\n".join(lines)

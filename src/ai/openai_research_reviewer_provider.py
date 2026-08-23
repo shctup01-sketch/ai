@@ -107,6 +107,11 @@ def _build_review_prompt(request: ResearchReviewRequest) -> str:
     구분하며, 중복 개발을 제안하지 말라고 명시한다. AI에게 사실을
     강제로 긍정하게 하지 않는다(§10 단서) - "확인되지 않은 항목만 검증
     필요로 구분하라"는 문장이 이 균형을 유지한다.
+
+    57단계 - product_context(기본값 "")가 있으면 dependency_context보다
+    먼저, 별도 절로 추가한다. dependency_context(이전 step "결과")와
+    섞이지 않게 분리한 이유는 하나를 판단 기준으로, 다른 하나를 증거로
+    서로 다르게 취급해야 하기 때문이다(§4).
     """
     lines = [
         f"조사 제목: {request.task_title}",
@@ -114,6 +119,20 @@ def _build_review_prompt(request: ResearchReviewRequest) -> str:
         f"검색어: {request.query}",
         "",
     ]
+
+    # 57단계 - product_context(프로젝트의 승인된 장기 제품 기준)는
+    # dependency_context와 다른 자리에 넣는다. "무엇을 만들기로
+    # 했는가"라는 판단 기준일 뿐 "무엇을 실제로 만들었는가"라는 증거가
+    # 아니라는 점을 문구로도 명시한다 - 아래 이전 단계 결과 절과 섞이지
+    # 않게 한다(§4).
+    if request.product_context:
+        lines.append("프로젝트 제품 기준(장기 방향 - 판단 기준일 뿐 구현 증거가 아닙니다):")
+        lines.append(request.product_context)
+        lines.append(
+            "이 기준에 있는 항목이라도 아래 이전 단계 결과/증거로 실제 확인되지 않았다면 "
+            "구현된 것으로 단정하지 말고 검증 필요로 표시하세요."
+        )
+        lines.append("")
 
     has_dependency_context = bool(request.dependency_context)
     has_analysis_dependency = "[이전 분석:" in request.dependency_context
