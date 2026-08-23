@@ -284,6 +284,7 @@ def build_brain_question_context(
     product_context: ProjectProductContext | None = None,
     project_name: str | None = None,
     last_user_request: str | None = None,
+    recent_consultation: list[tuple[str, str]] | None = None,
 ) -> str:
     """58단계 - checkpoint에서 Brain에게 질문할 때 함께 보낼 압축된
     프로젝트 상황 요약.
@@ -294,6 +295,14 @@ def build_brain_question_context(
     텍스트로 만든다 - 새 AI 요약 호출이 없다. 존재하지 않는 정보는
     지어내지 않는다 - 없는 항목(product_context/research/analysis/
     development 중 없는 것)은 그 절 자체를 넣지 않는다.
+
+    59단계(사용자 검토) - recent_consultation(기본값 None)은 같은
+    checkpoint 안에서 방금 오간 (질문, 답변) 튜플의 짧은 목록이다.
+    "메인 채팅에서 계속 대화"가 실제로 연속 대화가 되려면 두 번째
+    질문이 첫 질문/답변을 알아야 한다 - 호출자(main_window.py)가 몇
+    턴까지 유지할지(무한 누적 금지) 결정해 넘긴다. 이 함수는 받은
+    목록을 그대로만 짧게 나열할 뿐, 스스로 개수를 제한하거나 저장하지
+    않는다(그 책임은 호출자에게 있다 - 여기서는 순수 포맷팅만 한다).
     """
     lines: list[str] = [
         f"프로젝트 이름: {project_name or plan.objective}",
@@ -332,5 +341,12 @@ def build_brain_question_context(
         lines.append("")
         lines.append("[가장 최근 개발 결과 요약(실제 확인된 증거만)]")
         lines.append(_describe_development_evidence_compact(development_entry))
+
+    if recent_consultation:
+        lines.append("")
+        lines.append("[이번 checkpoint에서 방금 나눈 대화(참고용)]")
+        for question, answer in recent_consultation:
+            lines.append(f"사용자: {question}")
+            lines.append(f"Brain: {answer}")
 
     return "\n".join(lines)

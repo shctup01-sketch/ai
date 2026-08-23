@@ -266,6 +266,17 @@ class ChatPanel(QWidget):
 
         self._history: list[dict] = []
         self._waiting_for_response = False
+        # 59단계 - MainWindow가 "지금 project checkpoint가 떠 있는지"를
+        # 안다(PersistentProjectState/checkpoint 상태는 여기서 전혀
+        # 모른다 - ChatPanel은 계속 project를 모르는 채로 둔다, §0 "전체
+        # 채팅 시스템 재작성 금지"). MainWindow가 이 콜백을 등록해두면,
+        # 메시지를 보낼 때마다 먼저 이 콜백에게 "네가 처리할래?"라고
+        # 물어본다 - True를 돌려주면(체크포인트 중이라 Brain 상담으로
+        # 가로챈 경우) 기존 plan_work() 호출을 건너뛴다. None이거나
+        # False를 돌려주면(체크포인트가 없거나 콜백 자체가 없는 경우)
+        # 기존 흐름을 그대로 탄다 - project가 없는 기존 채팅은 전혀
+        # 영향받지 않는다(§7).
+        self._checkpoint_consultation_handler = None
         # 보내기 전까지만 들고 있는 첨부 이미지들(Ctrl+V로 붙여넣은 것과
         # "+" 버튼으로 선택한 이미지 파일 모두 이 목록 하나를 공유한다 -
         # 2단계 "동일한 첨부 구조" 요구사항). 각 항목은
@@ -533,10 +544,6 @@ class ChatPanel(QWidget):
         self._add_message(display_text, is_user=True, thumbnails=thumbnails)
         self.chat_input.clear()
 
-        combined_text = file_content.build_combined_text(text, file_blocks)
-        content = image_content.build_user_message_content(combined_text, data_urls)
-        self._history.append({"role": "user", "content": content})
-
         self._pending_images = []
         self._pending_files = []
         self._refresh_image_preview()
@@ -544,7 +551,46 @@ class ChatPanel(QWidget):
         self._clear_paste_status()
 
         self._set_waiting(True)
+
+        # 59단계 - project checkpoint가 떠 있으면 MainWindow가 미리 등록해
+        # 둔 콜백에게 먼저 맡긴다(handler(text) -> bool). True를 돌려주면
+        # (Brain 상담으로 이미 처리를 시작한 경우) 여기서 끝난다 - 이
+        # 질문/답변은 plan_work()용 _history에 넣지 않는다(§11 - 상담
+        # 질답을 계획 생성 대화 기록에 섞어서 다음 plan_work 호출마다
+        # 반복 전송하지 않는다). handler가 없거나 False를 돌려주면(체크
+        # 포인트가 없는 평소 상태, §7) 기존 흐름을 그대로 탄다 - project가
+        # 없는 기존 채팅은 전혀 영향받지 않는다.
+        if self._checkpoint_consultation_handler is not None and self._checkpoint_consultation_handler(text):
+            return
+
+        combined_text = file_content.build_combined_text(text, file_blocks)
+        content = image_content.build_user_message_content(combined_text, data_urls)
+        self._history.append({"role": "user", "content": content})
         self.chief_brain_service.plan_work(list(self._history))
+
+    def set_checkpoint_consultation_handler(self, handler):
+        """59단계 - MainWindow가 "지금 project checkpoint가 떠 있는지"를
+        판단해 대신 처리할 콜백을 등록한다. handler(text: str) -> bool.
+        ChatPanel은 project/checkpoint 개념을 전혀 모른 채로 남는다 -
+        이 콜백 하나만 갖고 있을 뿐이다.
+        """
+        self._checkpoint_consultation_handler = handler
+
+    def add_assistant_note(self, text: str):
+        """59단계 - Brain 상담 답변 등을 화면에만 보여준다(_history에는
+        넣지 않는다 - §11, 다음 plan_work 호출이 이 내용을 다시 반복해서
+        보내지 않도록 한다)."""
+        self._add_message(text, is_user=False)
+
+    def set_waiting(self, waiting: bool):
+        """59단계 - MainWindow가 비동기 Brain 상담 응답을 받은 뒤 입력을
+        다시 활성화할 때 쓰는 공개 메서드다(기존 _set_waiting 그대로 재사용)."""
+        self._set_waiting(waiting)
+
+    def focus_input(self):
+        """59단계(사용자 검토) §4 - "수정 요청" 버튼 등에서 메인 채팅
+        입력창으로 사용자의 시선/커서를 옮길 때 쓴다."""
+        self.chat_input.setFocus()
 
     def _on_chief_brain_plan_ready(self, plan: ChiefBrainPlan):
         self._history.append({"role": "assistant", "content": plan.user_reply})

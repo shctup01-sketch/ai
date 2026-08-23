@@ -323,6 +323,26 @@ class MainWindow(QMainWindow):
         self._active_product_context: ProjectProductContext | None = None
         self._main_analysis_executor: AnalysisExecutor | None = None
 
+        # 59단계 - 지금 checkpoint_panel에 떠 있는 project checkpoint의
+        # 대상 step/승인 이유다. None이면 "지금 열려 있는 project
+        # checkpoint가 없다"는 뜻 - 메인 채팅 메시지를 Brain 상담으로
+        # 가로챌지 판단하는 유일한 기준이다(_handle_chat_message_during_
+        # checkpoint). _active_product_context와 동일한 패턴으로 새
+        # project를 시작하면 초기화된다.
+        self._active_project_checkpoint_step: BrainTaskStep | None = None
+        self._active_project_checkpoint_reason: str | None = None
+        # 59단계(사용자 검토) - 같은 checkpoint 안에서 오간 (질문, 답변)
+        # 최근 몇 턴만 짧게 들고 있는다 - 후속 질문("그럼 왜 그걸 먼저
+        # 해야 해?")이 직전 질문/답변을 실제로 참고할 수 있게 하기
+        # 위해서다(연속 대화). plan_work용 ChatPanel._history와는 완전히
+        # 별개의 목록이다 - 무한 누적하지 않고 최근
+        # _MAX_CHECKPOINT_CONSULTATION_TURNS개만 남긴다(오래된 턴은
+        # 버린다). checkpoint가 새로 뜰 때/승인될 때/다른 project로
+        # 전환될 때 비운다(§3 - 다른 project/새 project로 이어지지
+        # 않는다). 세션 중에만 메모리에 있고 저장하지 않는다(v1은 세션
+        # 중 연속 대화만 필요하다는 지시에 따름).
+        self._checkpoint_consultation_history: list[tuple[str, str]] = []
+
         # 45단계 - 저장된 장기 project의 완료된 research(와 그에 의존하는
         # analysis/development)를 최신 코드로 다시 실행하기 위한 전용
         # OrchestrationService. 37/38단계와 동일한 이유로 원래 project
@@ -425,6 +445,10 @@ class MainWindow(QMainWindow):
         self.chat_panel = ChatPanel()
         self.chat_panel.plan_ready.connect(self._on_plan_ready)
         self.chat_panel.chief_plan_ready.connect(self._on_chief_plan_ready)
+        # 59단계 §0/§6 - 사용자는 메인 채팅에서 계속 대화한다. checkpoint가
+        # 떠 있을 때만 이 콜백이 메시지를 Brain 상담 경로로 가로챈다
+        # (ChatPanel 자신은 project/checkpoint를 전혀 모른다).
+        self.chat_panel.set_checkpoint_consultation_handler(self._handle_chat_message_during_checkpoint)
         return self.chat_panel
 
     def _build_right_panel(self) -> QWidget:
@@ -443,6 +467,38 @@ class MainWindow(QMainWindow):
         layout.addWidget(QLabel("작업 단계"))
         self.work_step_value_label = QLabel("아직 시작된 작업 없음")
         layout.addWidget(self.work_step_value_label)
+
+        # 59단계 §3/§4 - project checkpoint를 modal QDialog 대신 여기
+        # 표시한다. state(waiting_for_approval/pending_step 등)는 전혀
+        # 바뀌지 않는다 - presentation만 이 패널로 옮긴다. 평소에는
+        # 숨겨져 있다가 project checkpoint가 뜰 때만 보인다. 이 패널이
+        # 떠 있어도 QDialog.exec()처럼 다른 위젯(채팅 입력 포함)을
+        # 막지 않는다 - 같은 MainWindow 안의 평범한 위젯일 뿐이다.
+        self.checkpoint_panel = QWidget()
+        self.checkpoint_panel.setObjectName("CheckpointPanel")
+        checkpoint_layout = QVBoxLayout(self.checkpoint_panel)
+        checkpoint_layout.setContentsMargins(0, 8, 0, 8)
+        checkpoint_title_label = QLabel("확인이 필요합니다")
+        checkpoint_title_label.setObjectName("SectionLabel")
+        checkpoint_layout.addWidget(checkpoint_title_label)
+        self.checkpoint_message_label = QLabel("")
+        self.checkpoint_message_label.setWordWrap(True)
+        checkpoint_layout.addWidget(self.checkpoint_message_label)
+
+        self.checkpoint_approve_button = QPushButton("진행 승인")
+        self.checkpoint_approve_button.clicked.connect(self._on_checkpoint_panel_approve_clicked)
+        self.checkpoint_revise_button = QPushButton("수정 요청")
+        self.checkpoint_revise_button.clicked.connect(self._on_checkpoint_panel_revise_clicked)
+        # "프로젝트 저장" 버튼은 42단계 저장 handler를 그대로 재사용한다
+        # (§5/Q - 새 저장 로직을 만들지 않는다).
+        self.checkpoint_save_button = QPushButton("프로젝트 저장")
+        self.checkpoint_save_button.clicked.connect(self._on_checkpoint_save_button_clicked)
+        checkpoint_layout.addWidget(self.checkpoint_approve_button)
+        checkpoint_layout.addWidget(self.checkpoint_revise_button)
+        checkpoint_layout.addWidget(self.checkpoint_save_button)
+
+        self.checkpoint_panel.setVisible(False)
+        layout.addWidget(self.checkpoint_panel)
 
         layout.addStretch(1)
 
@@ -596,12 +652,24 @@ class MainWindow(QMainWindow):
             # 57단계 - 새 project를 시작하면 이전 project의 제품 기준을
             # 이어받지 않는다(project별로 별개의 값이다, §3).
             self._active_product_context = None
+            # 59단계 - 새 project를 시작하면 이전 project의 열린
+            # checkpoint를 이어받지 않는다.
+            self._active_project_checkpoint_step = None
+            self._active_project_checkpoint_reason = None
+            self.checkpoint_panel.setVisible(False)
+            # 59단계(사용자 검토) §3 - 상담 기록도 이전 project 것을
+            # 이어받지 않는다.
+            self._checkpoint_consultation_history = []
             self._save_active_project_state()
         else:
             self._active_project_id = None
             self._active_project_name = None
             self._active_project_created_at = None
             self._active_product_context = None
+            self._active_project_checkpoint_step = None
+            self._active_project_checkpoint_reason = None
+            self.checkpoint_panel.setVisible(False)
+            self._checkpoint_consultation_history = []
 
     def _on_plan_button_clicked(self):
         if self._current_plan is None:
@@ -1174,6 +1242,11 @@ class MainWindow(QMainWindow):
         elif task_type == _SCREEN_OBSERVATION_TASK_TYPE:
             self.chief_brain_status_label.setText("오류")
 
+    # 59단계(사용자 검토) §2 - checkpoint 상담 연속 대화에 남길 최대
+    # 턴 수(질문 1개 + 답변 1개 = 1턴). 무한 누적을 막는 유일한 상수다 -
+    # 여기 값 하나만 바꾸면 유지 범위가 바뀐다.
+    _MAX_CHECKPOINT_CONSULTATION_TURNS = 4
+
     _ORCHESTRATION_STATUS_LABELS = {
         "completed": "업무 완료",
         "waiting_for_approval": "승인 대기",
@@ -1374,15 +1447,22 @@ class MainWindow(QMainWindow):
     def _handle_project_checkpoint_approval(self, pending_step_result: OrchestrationStepResult):
         """34단계 - project 체크포인트에서 waiting_for_approval로 멈췄을 때 호출된다.
 
-        screen_observation과 달리 승인은 "이 step을 지금부터 실제로
-        실행해도 된다"는 뜻일 뿐이다(캡처처럼 UI에서 미리 해둘 일이
-        없다) - 승인하면 바로 resume_project_checkpoint()를 호출해 그
-        step을 처음 실행시킨다. 승인 이유는 pending_step_result의
-        approval_reason을 쓴다(원본 BrainTaskStep.approval_reason이
-        아니다) - §3 안전장치가 강제로 만든 승인 대기는 원본 step에
-        approval_reason이 비어 있을 수 있고, 실제로 보여줘야 할 이유는
-        OrchestrationStepResult 쪽에 담겨 있다(chief_brain_orchestrator.py
-        참고).
+        59단계 §3/§4 - modal QDialog(_show_project_checkpoint_approval_
+        dialog) 대신 메인 창 오른쪽의 checkpoint_panel로 표시를 바꿨다.
+        state machine(waiting_for_approval로 멈춘 것, completed_steps,
+        승인 시 resume_project_checkpoint 호출)은 전혀 바뀌지 않았다 -
+        _show_project_checkpoint_panel()이 그 결과를 "보여주는 방식"만
+        바뀐 것이다. 이 함수 자체는 더 이상 여기서 블로킹하지 않고
+        즉시 반환한다 - 실제 승인/수정 요청/저장은 checkpoint_panel의
+        버튼 handler(_on_checkpoint_panel_*)가 사용자가 실제로 누를 때
+        비동기로 처리한다. 이 세 함수를 부르는 3곳(_on_orchestration_
+        result/_resume_loaded_project/_on_project_stage_rerun_result)
+        모두 이 새 방식을 그대로 물려받는다(§4 - 기존 handler 재사용).
+
+        _show_project_checkpoint_approval_dialog 자체는 삭제하지 않고
+        그대로 둔다 - 38단계 revision 체크포인트(_on_revision_
+        orchestration_result)가 여전히 그 modal Dialog를 그대로 쓴다
+        (§5 - project checkpoint만 우선 옮기고 다른 흐름은 유지).
         """
         plan = self._current_chief_plan
         step = self._find_plan_step(plan, pending_step_result.step_id) if plan is not None else None
@@ -1400,21 +1480,162 @@ class MainWindow(QMainWindow):
         completed_steps = (
             self._last_orchestration_result.completed_steps if self._last_orchestration_result is not None else None
         )
-        approved = self._show_project_checkpoint_approval_dialog(
-            step, pending_step_result.approval_reason, completed_steps
+        self._show_project_checkpoint_panel(step, pending_step_result.approval_reason, completed_steps)
+
+    def _show_project_checkpoint_panel(
+        self,
+        step: BrainTaskStep,
+        approval_reason: str | None,
+        completed_steps: list[OrchestrationStepResult] | None,
+    ):
+        """59단계 §3/§10 - checkpoint_panel에 초보자 기준 순서(지금 상황 ->
+        완료한 것 -> 다음에 만들 것 -> 왜 확인이 필요한지 -> 어떤 선택을
+        할 수 있는지)로 내용을 채우고 보여준다. 새 AI 요약 호출 없이
+        이미 있는 42단계 helper(find_latest_step_result/describe_step_
+        result)만 재사용한다 - 내부 step_id는 화면 문구 어디에도 넣지
+        않는다(§10, title/goal만 사용).
+        """
+        self._active_project_checkpoint_step = step
+        self._active_project_checkpoint_reason = approval_reason
+        # 59단계(사용자 검토) §3 - 새 checkpoint가 뜰 때마다 상담 기록을
+        # 비운다. 다른 project의 상담 내용이 섞여 들어오지 않는다.
+        self._checkpoint_consultation_history = []
+
+        completed_steps = completed_steps or []
+        development_entry = find_latest_step_result(completed_steps, "development")
+        analysis_entry = find_latest_step_result(completed_steps, "analysis")
+        if development_entry is not None:
+            completed_summary = describe_step_result(development_entry)
+        elif analysis_entry is not None:
+            completed_summary = describe_step_result(analysis_entry)
+        else:
+            completed_summary = "아직 완료된 작업이 없습니다."
+
+        message = (
+            "지금 상황: 다음 개발을 시작하기 전에 확인이 필요합니다.\n\n"
+            f"지금까지:\n{completed_summary}\n\n"
+            f"다음에는:\n{step.title}\n{step.goal}\n\n"
+            f"왜 확인이 필요한가요:\n{approval_reason or ''}\n\n"
+            "'진행 승인'을 누르면 위 내용으로 개발이 시작됩니다.\n"
+            "궁금한 점이나 바꾸고 싶은 부분이 있으면 왼쪽 채팅창에 편하게 물어보세요."
         )
-        if not approved:
-            self.work_step_value_label.setText("프로젝트 체크포인트 대기 중")
+        self.checkpoint_message_label.setText(message)
+        self.checkpoint_panel.setVisible(True)
+
+    def _on_checkpoint_panel_approve_clicked(self):
+        """59단계 §4/Q - 기존 승인 handler가 하던 일(resume_project_
+        checkpoint 호출)을 그대로 재사용한다. 예전 modal Dialog의
+        approve_button.clicked.connect(dialog.accept) 이후 흐름과
+        동일하다.
+        """
+        step = self._active_project_checkpoint_step
+        plan = self._current_chief_plan
+        if step is None or plan is None or self._last_orchestration_result is None:
             return
 
+        self.checkpoint_panel.setVisible(False)
+        self._active_project_checkpoint_step = None
+        self._active_project_checkpoint_reason = None
+        # 59단계(사용자 검토) §3 - checkpoint가 승인으로 끝나면 상담
+        # 기록도 함께 정리한다(이 checkpoint는 끝났다).
+        self._checkpoint_consultation_history = []
+
         orchestration_service = self._ensure_orchestration_service()
-        if orchestration_service is None or self._last_orchestration_result is None:
+        if orchestration_service is None:
             return
 
         self.work_step_value_label.setText("업무 실행 중")
         orchestration_service.resume_project_checkpoint(
             plan, self._last_orchestration_result.completed_steps, step.step_id
         )
+
+    def _on_checkpoint_panel_revise_clicked(self):
+        """59단계(사용자 검토) §4 - 버튼 자체는 아무 상태도 바꾸지 않는다.
+
+        checkpoint/승인 상태를 전혀 건드리지 않고(§8 "계획 변경은 승인
+        없이 자동 적용 금지"), 메인 채팅 입력창에 포커스를 주고 안내
+        문구만 남긴다. 사용자가 실제로 채팅에 원하는 변경을 입력하면
+        그 메시지는 이미 checkpoint가 열려 있는 상태이므로 자동으로
+        _handle_chat_message_during_checkpoint를 타 같은 Chief Brain
+        상담 경로(is_change_request 판단 포함)로 이어진다 - 별도 수정
+        Dialog를 열지 않는다(§5, 메인 채팅이 유일한 상담 창구).
+        """
+        self.chat_panel.add_assistant_note(
+            "바꾸고 싶은 내용을 아래 채팅창에 말씀해주세요.\n"
+            "아직 계획이나 개발 내용은 변경되지 않았습니다."
+        )
+        self.chat_panel.focus_input()
+
+    def _handle_chat_message_during_checkpoint(self, text: str) -> bool:
+        """59단계 §6 - ChatPanel이 메시지를 보낼 때마다 먼저 물어보는 콜백.
+
+        지금 열려 있는 project checkpoint가 없으면(가장 흔한 경우, §7)
+        곧바로 False를 돌려줘 ChatPanel이 기존 plan_work() 흐름을 그대로
+        타게 한다 - project가 없는 기존 채팅은 전혀 영향받지 않는다.
+
+        checkpoint가 열려 있으면 58단계에서 만든 build_brain_question_
+        context()/BrainQuestionService를 그대로 재사용해 질문 1건당
+        Chief Brain(상담 모드) 1회만 호출한다(§11 - Research/Analysis/
+        Developer 호출 없음, chief_brain_service.plan_work도 호출하지
+        않는다 - 같은 메시지에 두 총괄 AI를 부르지 않는다).
+
+        59단계(사용자 검토) §1/§2 - 후속 질문이 직전 대화를 실제로 참고할
+        수 있도록 self._checkpoint_consultation_history(최근
+        _MAX_CHECKPOINT_CONSULTATION_TURNS턴만 유지)를 build_brain_
+        question_context()의 recent_consultation 인자로 함께 넘긴다.
+        전체 plan_work용 _history와는 별개이고, 여기서도 무한 누적하지
+        않는다 - 매번 답변이 온 뒤 append하고 초과분은 앞에서부터 자른다.
+        """
+        if self._active_project_checkpoint_step is None or self._current_chief_plan is None:
+            return False
+
+        completed_steps = (
+            self._last_orchestration_result.completed_steps if self._last_orchestration_result is not None else []
+        )
+        context = build_brain_question_context(
+            self._current_chief_plan,
+            self._active_project_checkpoint_step,
+            self._active_project_checkpoint_reason,
+            completed_steps,
+            product_context=self._active_product_context,
+            project_name=self._active_project_name,
+            last_user_request=self._revision_user_request_text,
+            recent_consultation=list(self._checkpoint_consultation_history),
+        )
+        service = self._ensure_brain_question_service()
+        if service is None:
+            self.chat_panel.set_waiting(False)
+            return False
+
+        def on_answer(answer):
+            note = (
+                "\n(정리: 지금 계획을 바꾸고 싶은 요청으로 이해했습니다. "
+                "아직 아무것도 바뀌지 않았습니다. 계획을 바꾸려면 별도로 검토하고 승인하는 절차가 필요합니다.)"
+                if answer.is_change_request
+                else ""
+            )
+            self.chat_panel.add_assistant_note(f"{answer.answer}{note}")
+            self.chat_panel.set_waiting(False)
+            # 59단계(사용자 검토) §2 - 이번 턴을 기록하고, 최대 턴 수를
+            # 넘으면 가장 오래된 턴부터 버린다(무한 누적 금지).
+            self._checkpoint_consultation_history.append((text, answer.answer))
+            if len(self._checkpoint_consultation_history) > self._MAX_CHECKPOINT_CONSULTATION_TURNS:
+                self._checkpoint_consultation_history = self._checkpoint_consultation_history[
+                    -self._MAX_CHECKPOINT_CONSULTATION_TURNS :
+                ]
+            service.answer_ready.disconnect(on_answer)
+            service.error_occurred.disconnect(on_error)
+
+        def on_error(message: str):
+            self.chat_panel.add_assistant_note(f"Brain 응답 중 오류가 발생했습니다: {message}")
+            self.chat_panel.set_waiting(False)
+            service.answer_ready.disconnect(on_answer)
+            service.error_occurred.disconnect(on_error)
+
+        service.answer_ready.connect(on_answer)
+        service.error_occurred.connect(on_error)
+        service.ask(BrainQuestionRequest(project_context=context, question=text))
+        return True
 
     def _show_project_checkpoint_approval_dialog(
         self,
@@ -2811,6 +3032,15 @@ class MainWindow(QMainWindow):
         self._active_project_id = state.project_id
         self._active_project_name = state.project_name
         self._active_project_created_at = state.created_at
+        # 59단계(사용자 검토) §3 - 다른 project를 불러오면 이전 project의
+        # 열린 checkpoint/상담 기록을 무조건 비운다. 아래에서 이
+        # project가 실제로 waiting_for_approval이면 _handle_project_
+        # checkpoint_approval -> _show_project_checkpoint_panel이 새로
+        # 채우고, 아니면 빈 채로 남아 이전 project 내용이 섞이지 않는다.
+        self._active_project_checkpoint_step = None
+        self._active_project_checkpoint_reason = None
+        self._checkpoint_consultation_history = []
+        self.checkpoint_panel.setVisible(False)
         # 57단계 - 54단계 이전 project와 동일한 이유로, 이 필드가
         # 추가되기 전에 저장된 project는 None으로 복구된다(§3 - 지어낸
         # 값으로 채우지 않는다. 필요하면 사용자가 새 설정 Dialog로
