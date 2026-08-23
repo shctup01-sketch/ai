@@ -53,7 +53,7 @@ from ai.development_revision_plan import DevelopmentRevisionPlan
 from ai.development_revision_request import DevelopmentRevisionRequest
 from ai.development_revision_service import DevelopmentRevisionService
 from ai.development_revision_summary import DevelopmentRevisionSummary, build_revision_summary
-from ai.development_evidence_snapshot import build_development_evidence_snapshot
+from ai.development_evidence_snapshot import build_development_evidence_snapshot, has_usable_development_evidence
 from ai.execution_result import ExecutionResult
 from ai.execution_service import ExecutionService
 from ai.openai_developer_provider import OpenAIDeveloperProvider
@@ -448,6 +448,17 @@ class MainWindow(QMainWindow):
         self.rerun_research_analysis_button = QPushButton("조사/분석 다시 실행")
         self.rerun_research_analysis_button.clicked.connect(self._on_rerun_research_analysis_button_clicked)
         layout.addWidget(self.rerun_research_analysis_button)
+
+        # 55단계 §2/§4 - "조사/분석 다시 실행"은 항상 research를 root로
+        # 삼아 재실행한다(find_rerun_root_step_ids가 research 전용,
+        # project_stage_rerun.py 참고) - Research/Development를 그대로
+        # 보존한 채 "가장 최근 완료된 Analysis 하나만" 54단계 evidence로
+        # 다시 검토하는 이번 요구와는 맞지 않아 별도의 작은 버튼을
+        # 둔다. 같은 rerun_orchestration_service/result/error handler를
+        # 그대로 재사용한다(§1.F - 새 서비스/handler를 만들지 않는다).
+        self.reevaluate_analysis_button = QPushButton("증거 반영 분석 재검토")
+        self.reevaluate_analysis_button.clicked.connect(self._on_reevaluate_analysis_button_clicked)
+        layout.addWidget(self.reevaluate_analysis_button)
 
         return panel
 
@@ -2674,6 +2685,114 @@ class MainWindow(QMainWindow):
         self._rerun_start_time = time.monotonic()
         rerun_orchestration_service.resume_after_review(self._current_chief_plan, candidate_completed_steps)
 
+    def _on_reevaluate_analysis_button_clicked(self):
+        """55단계 - "증거 반영 재검토". 가장 최근 완료된 Analysis
+        step만 다시 실행 대상으로 삼는다(find_latest_step_result - 42단계
+        기존 함수 재사용, §1.F). Research/Development는 candidate에서
+        제외되지 않으므로 재실행되지 않는다 - build_resume_candidate_
+        completed_steps(53단계 기존 함수, root=이 Analysis step_id 1개)가
+        이 Analysis 자신과 거기 의존하는 후속 결과만 골라 제거한다(45단계
+        dependency 계산 helper를 그 안에서 그대로 재사용).
+
+        아직 실행되지 않은 승인 대기 중인 다음 Development(예: step_07
+        체크포인트)는 completed_steps에 아예 들어있지 않으므로 애초에
+        제거할 대상이 아니다 - 새 Analysis 결과로 재실행되면 기존
+        project 체크포인트 규칙에 따라 자동으로 다시 표시된다(§1.G,
+        _on_project_stage_rerun_result가 이미 처리).
+        """
+        if (
+            self._active_project_id is None
+            or self._current_chief_plan is None
+            or self._current_chief_plan.execution_mode != "project"
+            or self._last_orchestration_result is None
+        ):
+            QMessageBox.information(self, "증거 반영 재검토", "현재 재검토할 수 있는 대형 프로젝트가 없습니다.")
+            return
+
+        completed_steps = self._last_orchestration_result.completed_steps
+        latest_analysis_entry = find_latest_step_result(completed_steps, "analysis")
+        step = (
+            self._find_plan_step(self._current_chief_plan, latest_analysis_entry.step_id)
+            if latest_analysis_entry is not None
+            else None
+        )
+        if latest_analysis_entry is None or step is None:
+            QMessageBox.information(self, "증거 반영 재검토", "다시 검토할 완료된 분석 결과가 없습니다.")
+            return
+
+        # 55단계 §2 - preflight. 54단계 이전에 완료된 Development는
+        # completed_steps에 순수 DeveloperResult로만 남아 있고(migration/
+        # backfill 없음, 직접 확인) evidence가 전혀 없다 - 그 상태로
+        # Analysis를 다시 실행해봐야 과거와 비슷한 결과가 나올 뿐 실제
+        # AI 호출 비용만 낭비한다. Dialog를 띄우기도 전에(§2 "Analysis를
+        # 바로 실행하지 마세요") 여기서 막는다.
+        if not has_usable_development_evidence(step, completed_steps):
+            QMessageBox.information(
+                self,
+                "증거 반영 재검토",
+                "이 개발 단계에는 저장된 실행/화면 검수 증거가 없습니다.\n"
+                "54단계 도입 이전에 완료된 개발 결과일 수 있습니다.\n"
+                "증거 없이 다시 분석하면 이전과 비슷한 결과가 나올 수 있으므로 재검토를 시작하지 않았습니다.",
+            )
+            return
+
+        candidate_completed_steps = build_resume_candidate_completed_steps(
+            self._current_chief_plan, completed_steps, latest_analysis_entry.step_id
+        )
+        preserved_count = len(candidate_completed_steps)
+
+        if not self._show_analysis_reevaluation_confirm_dialog(step, preserved_count):
+            return
+
+        rerun_orchestration_service = self._ensure_rerun_orchestration_service()
+        if rerun_orchestration_service is None:
+            return
+
+        # 같은 rerun_orchestration_service(QThread 1개짜리 단일 worker,
+        # OrchestrationService 참고)를 "조사/분석 다시 실행" 버튼과
+        # 공유하므로, 둘 중 하나가 실행 중일 때 다른 쪽을 눌러 겹쳐
+        # 실행되지 않도록 둘 다 잠근다 - 완료/실패 handler에서 함께
+        # 풀어준다.
+        self.rerun_research_analysis_button.setEnabled(False)
+        self.reevaluate_analysis_button.setEnabled(False)
+        self.work_step_value_label.setText("증거 반영 분석 재검토 중")
+        self._rerun_start_time = time.monotonic()
+        rerun_orchestration_service.resume_after_review(self._current_chief_plan, candidate_completed_steps)
+
+    def _show_analysis_reevaluation_confirm_dialog(self, step: BrainTaskStep, preserved_count: int) -> bool:
+        """55단계 §4 - 재검토 시작 전 최소 확인(53단계 재개 확인 Dialog와
+        동일한 패턴 - 새 Dialog 시스템 아님). X/Escape/"취소"는 모두
+        동일하게 아무 것도 실행하지 않는다(이 Dialog도 예/아니오 둘뿐).
+        """
+        dialog = QDialog(self)
+        dialog.setWindowTitle("증거 반영 분석 재검토")
+
+        layout = QVBoxLayout(dialog)
+        message = QLabel(
+            "저장된 실행/화면 검수 증거를 반영해 가장 최근 분석만 다시 실행합니다.\n\n"
+            f"재검토 대상:\n{step.step_id}\n{step.title}\n\n"
+            f"보존되는 완료 단계:\n{preserved_count}개\n\n"
+            f"다시 실행:\n{step.step_id} 분석부터\n\n"
+            "기존 개발 결과는 다시 실행하지 않습니다.\n"
+            "저장된 실행/화면 검수 증거를 분석에 사용합니다."
+        )
+        message.setWordWrap(True)
+        layout.addWidget(message)
+
+        button_row = QHBoxLayout()
+        reevaluate_button = QPushButton("재검토 시작")
+        cancel_button = QPushButton("취소")
+        button_row.addWidget(reevaluate_button)
+        button_row.addWidget(cancel_button)
+        layout.addLayout(button_row)
+
+        reevaluate_button.clicked.connect(lambda: dialog.done(1))
+        cancel_button.clicked.connect(lambda: dialog.done(0))
+        cancel_button.setDefault(True)
+        cancel_button.setFocus()
+
+        return dialog.exec() == 1
+
     def _show_project_stage_rerun_confirm_dialog(self) -> bool:
         """45단계 §10 - 버튼 클릭 즉시 실행하지 않는다. 취소하면 아무것도
         바꾸지 않는다(호출자가 dialog.exec() 결과만 보고 판단한다).
@@ -2808,6 +2927,7 @@ class MainWindow(QMainWindow):
         구체화한다(예외의 전체 호출 스택은 여전히 노출하지 않는다, §10).
         """
         self.rerun_research_analysis_button.setEnabled(True)
+        self.reevaluate_analysis_button.setEnabled(True)
         elapsed_text = self._consume_rerun_elapsed_text()
 
         pending_step_result = result.completed_steps[-1] if result.completed_steps else None
@@ -2850,6 +2970,7 @@ class MainWindow(QMainWindow):
         다른 error_occurred 핸들러들과 동일)를 원인으로 보여준다.
         """
         self.rerun_research_analysis_button.setEnabled(True)
+        self.reevaluate_analysis_button.setEnabled(True)
         elapsed_text = self._consume_rerun_elapsed_text()
         self.work_step_value_label.setText("조사/분석 재실행 실패 - 기존 상태 유지")
         QMessageBox.warning(

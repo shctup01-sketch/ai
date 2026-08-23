@@ -19,9 +19,11 @@ snapshot이 "development 결과"로 그대로 인식된다. 새로 추가한 필
 존재하지 않는 실행 검증/화면 검수/수정 이력을 지어내지 않는다(§7).
 """
 
+from .brain_task_step import BrainTaskStep
 from .developer_result import DeveloperResult
 from .development_revision_summary import DevelopmentRevisionSummary
 from .execution_result import ExecutionResult
+from .orchestration_step_result import OrchestrationStepResult
 from .screen_observation_result import ScreenObservationResult
 
 
@@ -74,3 +76,28 @@ def build_development_evidence_snapshot(
         revision_requested=revision_summary.requested_change if revision_summary is not None else None,
         revision_summary=revision_summary.summary if revision_summary is not None else None,
     )
+
+
+def has_usable_development_evidence(step: BrainTaskStep, completed_steps: list[OrchestrationStepResult]) -> bool:
+    """55단계 - step이 의존하는 Development 결과 중 하나라도 실제
+    runtime/visual/revision evidence를 갖고 있는지 확인한다(preflight).
+
+    54단계 이전에 완료된 Development 결과는 completed_steps에 순수
+    DeveloperResult로만 남아 있다 - project_state_store.py에는 옛
+    DeveloperResult를 DevelopmentEvidenceSnapshot으로 자동 변환하는
+    migration/backfill 코드가 없다(직접 확인, 55단계 §1). 그래서
+    DevelopmentEvidenceSnapshot이 아니면(순수 DeveloperResult거나 다른
+    모양) 무조건 evidence 없음으로 본다 - isinstance만으로는 부족하고
+    (snapshot이어도 evidence 필드가 전부 기본값일 수 있다), 실제 evidence
+    필드 중 하나라도 채워져 있어야 True다. depends_on 여러 개 중
+    하나라도 evidence가 있으면 재검토 가치가 있다고 보고 True를
+    돌려준다(§2 - 있는 것만 확인, 없는 것을 만들어내지 않는다).
+    """
+    results_by_id = {entry.step_id: entry.result for entry in completed_steps}
+    for dep_id in step.depends_on:
+        result = results_by_id.get(dep_id)
+        if not isinstance(result, DevelopmentEvidenceSnapshot):
+            continue
+        if result.runtime_checked or result.visual_review_summary or result.revision_requested or result.revision_summary:
+            return True
+    return False
