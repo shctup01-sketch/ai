@@ -53,7 +53,12 @@ from ai.development_revision_plan import DevelopmentRevisionPlan
 from ai.development_revision_request import DevelopmentRevisionRequest
 from ai.development_revision_service import DevelopmentRevisionService
 from ai.development_revision_summary import DevelopmentRevisionSummary, build_revision_summary
-from ai.development_evidence_snapshot import build_development_evidence_snapshot, has_usable_development_evidence
+from ai.development_evidence_snapshot import (
+    build_development_evidence_snapshot,
+    carry_forward_revision_evidence,
+    find_first_development_dependency,
+    has_usable_development_evidence,
+)
 from ai.execution_result import ExecutionResult
 from ai.execution_service import ExecutionService
 from ai.openai_developer_provider import OpenAIDeveloperProvider
@@ -273,6 +278,14 @@ class MainWindow(QMainWindow):
         self._revision_before_observation: ScreenObservationResult | None = None
         self._revision_after_image: QPixmap | None = None
         self._revision_after_observation: ScreenObservationResult | None = None
+
+        # 56단계 - 과거(54단계 이전) Development 결과를 재개발 없이
+        # "실행해서 확인"만 다시 수행하는 재검수 모드 표시(§7). True일
+        # 때는 _present_development_review의 "계속 진행"이 project를
+        # 자동으로 이어서 실행하지 않고 evidence만 저장한다 - 일반
+        # development 검토(_handle_development_review)를 시작할 때마다
+        # False로 되돌린다.
+        self._runtime_review_is_backfill: bool = False
 
         # 41단계 - 장기 project 진행 상태 저장/불러오기. project_state_store는
         # 순수 Python(JSON 파일)만 다루고 API Key/OpenAI client가 전혀
@@ -1473,6 +1486,7 @@ class MainWindow(QMainWindow):
         self._revision_before_observation = None
         self._revision_after_image = None
         self._revision_after_observation = None
+        self._runtime_review_is_backfill = False
 
         self._present_development_review(step, dev_result, plan)
 
@@ -1525,6 +1539,9 @@ class MainWindow(QMainWindow):
             # 저장되어 있으므로(§15) 그대로 유지된다. 다음에 프로젝트를
             # 열면 같은 결과 검토 Dialog가 다시 뜬다(§10 - 새 복구
             # 시스템을 만들지 않는다, 기존 불러오기 경로 재사용).
+            # 56단계 §7 - 과거 재검수 도중 닫아도 다음 정상 검토에
+            # 재검수 모드가 새지 않도록 여기서도 되돌린다.
+            self._runtime_review_is_backfill = False
             return
 
         if decision == "run":
@@ -1532,6 +1549,18 @@ class MainWindow(QMainWindow):
             return
 
         if decision == "revise":
+            if self._runtime_review_is_backfill:
+                # 56단계 §3/§15 - 과거 재검수 목적은 evidence 확보뿐이다.
+                # 수정 요청은 Development AI를 다시 호출하고 실제
+                # workspace를 수정할 수 있어 이번 v1 범위를 넘는다 -
+                # 범위를 넓히는 대신 안내 후 중단한다.
+                QMessageBox.information(
+                    self,
+                    "기존 개발 결과 재검수",
+                    "과거 개발 결과 재검수 중에는 수정 요청을 시작하지 않습니다.\n"
+                    "먼저 재검수를 마치거나 취소한 뒤, 일반 검토 흐름에서 수정 요청을 진행하세요.",
+                )
+                return
             # 38단계 - 36단계의 "안내만 하고 멈춘다"를 실제 수정 루프로
             # 대체한다(개발 -> 결과 확인 -> 수정 요청 -> 재개발 -> 다시
             # 결과 확인). 40단계 - 지금 보고 있는 image_pixmap도 함께
@@ -1539,8 +1568,7 @@ class MainWindow(QMainWindow):
             self._start_development_revision(step, dev_result, plan, observation_result, image_pixmap)
             return
 
-        orchestration_service = self._ensure_orchestration_service()
-        if orchestration_service is None or self._last_orchestration_result is None:
+        if self._last_orchestration_result is None:
             return
 
         # 54단계 §5/§9 - "계속 진행"을 누르는 지금이 이번 development
@@ -1555,6 +1583,10 @@ class MainWindow(QMainWindow):
         evidence_snapshot = build_development_evidence_snapshot(
             dev_result, execution_result, observation_result, self._revision_last_summary
         )
+        # 56단계 §11 - 이번 세션에 새 revision 정보가 없어도, dev_result가
+        # 이미 evidence를 갖고 있던 snapshot이었다면(과거 재검수를 다시
+        # 하는 경우 등) 그 안의 revision evidence까지 지우지 않는다.
+        evidence_snapshot = carry_forward_revision_evidence(evidence_snapshot, dev_result)
         updated_completed_steps = self._attach_development_evidence(
             self._last_orchestration_result.completed_steps, step.step_id, evidence_snapshot
         )
@@ -1564,6 +1596,27 @@ class MainWindow(QMainWindow):
             pending_step_id=self._last_orchestration_result.pending_step_id,
             summary=self._last_orchestration_result.summary,
         )
+
+        if self._runtime_review_is_backfill:
+            # 56단계 §7/§8 - 과거 step 재검수에서는 "계속 진행"이 project
+            # 전체를 자동으로 이어서 실행하는 게 아니라 지금까지 모은
+            # evidence를 저장하는 것으로 끝난다(step_06/step_07을 자동
+            # 진행하지 않는다). 2단계 방식(§8) - evidence 저장 후 사용자가
+            # "증거 반영 재검토"를 다시 눌러야 Analysis가 재실행된다.
+            self._runtime_review_is_backfill = False
+            self._save_active_project_state()
+            self.work_step_value_label.setText("기존 개발 결과 재검수 완료 - 증거 저장됨")
+            QMessageBox.information(
+                self,
+                "기존 개발 결과 재검수 완료",
+                "실행/화면 검수 증거를 저장했습니다.\n"
+                "'증거 반영 분석 재검토' 버튼을 다시 눌러 분석을 재검토할 수 있습니다.",
+            )
+            return
+
+        orchestration_service = self._ensure_orchestration_service()
+        if orchestration_service is None:
+            return
 
         self.work_step_value_label.setText("업무 실행 중")
         orchestration_service.resume_after_review(plan, updated_completed_steps)
@@ -2727,13 +2780,21 @@ class MainWindow(QMainWindow):
         # AI 호출 비용만 낭비한다. Dialog를 띄우기도 전에(§2 "Analysis를
         # 바로 실행하지 마세요") 여기서 막는다.
         if not has_usable_development_evidence(step, completed_steps):
-            QMessageBox.information(
-                self,
-                "증거 반영 재검토",
-                "이 개발 단계에는 저장된 실행/화면 검수 증거가 없습니다.\n"
-                "54단계 도입 이전에 완료된 개발 결과일 수 있습니다.\n"
-                "증거 없이 다시 분석하면 이전과 비슷한 결과가 나올 수 있으므로 재검토를 시작하지 않았습니다.",
-            )
+            # 56단계 §4/§5 - evidence가 없다고 안내만 하고 끝내지 않는다.
+            # step이 의존하는 Development(첫 번째만 지원, §5)를 찾을 수
+            # 있으면 "재개발 없이 다시 실행해서 확인"을 제안한다.
+            dev_entry = find_first_development_dependency(step, completed_steps)
+            if dev_entry is None:
+                QMessageBox.information(
+                    self,
+                    "증거 반영 재검토",
+                    "이 개발 단계에는 저장된 실행/화면 검수 증거가 없습니다.\n"
+                    "54단계 도입 이전에 완료된 개발 결과일 수 있습니다.\n"
+                    "증거 없이 다시 분석하면 이전과 비슷한 결과가 나올 수 있으므로 재검토를 시작하지 않았습니다.",
+                )
+                return
+            if self._show_development_evidence_backfill_offer_dialog():
+                self._start_development_evidence_backfill(dev_entry)
             return
 
         candidate_completed_steps = build_resume_candidate_completed_steps(
@@ -2792,6 +2853,65 @@ class MainWindow(QMainWindow):
         cancel_button.setFocus()
 
         return dialog.exec() == 1
+
+    def _show_development_evidence_backfill_offer_dialog(self) -> bool:
+        """56단계 §4 - evidence가 없을 때 안내만 하고 끝내지 않고, 재개발
+        없이 다시 실행해서 확인할 수 있다는 안전한 선택지를 제공한다
+        (53/55단계 확인 Dialog들과 동일한 패턴 - 새 Dialog 시스템 아님).
+        """
+        dialog = QDialog(self)
+        dialog.setWindowTitle("기존 개발 결과 다시 확인")
+
+        layout = QVBoxLayout(dialog)
+        message = QLabel(
+            "저장된 실행/화면 검수 증거가 없습니다.\n"
+            "기존 개발 결과를 다시 개발하지 않고 실행해서 확인할 수 있습니다."
+        )
+        message.setWordWrap(True)
+        layout.addWidget(message)
+
+        button_row = QHBoxLayout()
+        check_button = QPushButton("기존 개발 결과 다시 확인")
+        cancel_button = QPushButton("취소")
+        button_row.addWidget(check_button)
+        button_row.addWidget(cancel_button)
+        layout.addLayout(button_row)
+
+        check_button.clicked.connect(lambda: dialog.done(1))
+        cancel_button.clicked.connect(lambda: dialog.done(0))
+        cancel_button.setDefault(True)
+        cancel_button.setFocus()
+
+        return dialog.exec() == 1
+
+    def _start_development_evidence_backfill(self, dev_entry: OrchestrationStepResult):
+        """56단계 §6/§9 - 과거(54단계 이전) Development 결과를 재개발
+        없이 다시 실행해서 확인한다. 기존 runtime review pipeline
+        (_start_runtime_review -> _on_review_execution_result ->
+        _capture_runtime_review_screen -> _on_review_screen_observation_result
+        -> _present_development_review, 37단계)을 그대로 재사용한다(§6 -
+        새 Dialog 시스템 없음, Development AI 호출 없음 - 이 경로 전체가
+        기존 dev_entry.result의 project_path/entry_point만 실행할 뿐
+        DeveloperProvider를 전혀 부르지 않는다). self._runtime_review_
+        is_backfill=True로 "계속 진행"의 의미만 다르게 만든다(§7).
+        """
+        plan = self._current_chief_plan
+        dev_step = self._find_plan_step(plan, dev_entry.step_id) if plan is not None else None
+        if plan is None or dev_step is None or not isinstance(dev_entry.result, DeveloperResult):
+            QMessageBox.information(self, "기존 개발 결과 다시 확인", "다시 확인할 개발 결과를 찾을 수 없습니다.")
+            return
+
+        # 39/40단계 §10과 동일한 이유로, 다른 step의 이전 revision
+        # 요약/전후 화면이 이번 재검수에 섞이지 않도록 비운다.
+        self._revision_last_summary = None
+        self._revision_before_image = None
+        self._revision_before_observation = None
+        self._revision_after_image = None
+        self._revision_after_observation = None
+        self._runtime_review_is_backfill = True
+
+        self.work_step_value_label.setText("기존 개발 결과 재검수 대기")
+        self._present_development_review(dev_step, dev_entry.result, plan)
 
     def _show_project_stage_rerun_confirm_dialog(self) -> bool:
         """45단계 §10 - 버튼 클릭 즉시 실행하지 않는다. 취소하면 아무것도

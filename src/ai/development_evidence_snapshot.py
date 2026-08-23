@@ -17,6 +17,14 @@ isinstance(result, DeveloperResult) 체크 등)을 전혀 고치지 않아도 �
 snapshot이 "development 결과"로 그대로 인식된다. 새로 추가한 필드는
 전부 선택적이고 기본값이 "증거 없음"을 뜻한다(False/None/[]) - 실제로
 존재하지 않는 실행 검증/화면 검수/수정 이력을 지어내지 않는다(§7).
+
+56단계 - 54단계 이전에 완료된 Development는 evidence 없이 저장돼
+있을 수 있다(project_state_store.py에 구형 DeveloperResult ->
+DevelopmentEvidenceSnapshot 자동 migration/backfill 코드가 없음을
+직접 확인). find_first_development_dependency()/
+carry_forward_revision_evidence()는 "재개발 없이 다시 실행해서
+확인"만으로 evidence를 새로 만들 때 쓰는 보조 함수다 - 둘 다 새
+AI 호출/Provider와 무관한 순수 판별·병합 로직이다.
 """
 
 from .brain_task_step import BrainTaskStep
@@ -101,3 +109,46 @@ def has_usable_development_evidence(step: BrainTaskStep, completed_steps: list[O
         if result.runtime_checked or result.visual_review_summary or result.revision_requested or result.revision_summary:
             return True
     return False
+
+
+def find_first_development_dependency(
+    step: BrainTaskStep, completed_steps: list[OrchestrationStepResult]
+) -> OrchestrationStepResult | None:
+    """56단계 §5 - step이 의존하는 첫 Development 결과를 찾는다.
+
+    depends_on에 Development step이 여러 개 있어도 첫 번째만 지원한다
+    (§5 - 복잡하면 선택 UI를 만들지 말고 한계를 보고한다). Development
+    dependency가 아예 없으면 None(재검수를 제안할 근거 자체가 없다는
+    뜻) - 지어내지 않는다.
+    """
+    entries_by_id = {entry.step_id: entry for entry in completed_steps}
+    for dep_id in step.depends_on:
+        entry = entries_by_id.get(dep_id)
+        if entry is not None and entry.task_type == "development":
+            return entry
+    return None
+
+
+def carry_forward_revision_evidence(
+    new_snapshot: DevelopmentEvidenceSnapshot, previous_result: object
+) -> DevelopmentEvidenceSnapshot:
+    """56단계 §11 - 재검수로 새 runtime/visual evidence를 만들 때, 이전에
+    이미 있던 revision evidence(실제 revision이 있었을 때만 존재)를
+    지우지 않는다. 이번 세션에서 새 revision 정보가 없으면(재검수
+    중에는 수정 요청을 시작하지 않는다, §15) 새로 지어내지 않고 이전
+    값을 그대로 이어간다 - 이전 결과가 DevelopmentEvidenceSnapshot이
+    아니거나(순수 DeveloperResult) revision evidence 자체가 없었으면
+    아무 것도 하지 않는다.
+    """
+    if not isinstance(previous_result, DevelopmentEvidenceSnapshot):
+        return new_snapshot
+    if new_snapshot.revision_requested or new_snapshot.revision_summary:
+        return new_snapshot
+    if not (previous_result.revision_requested or previous_result.revision_summary):
+        return new_snapshot
+    return new_snapshot.model_copy(
+        update={
+            "revision_requested": previous_result.revision_requested,
+            "revision_summary": previous_result.revision_summary,
+        }
+    )
