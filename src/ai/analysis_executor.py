@@ -273,12 +273,23 @@ def _format_development_dependency(dep: StepContext) -> str:
     필드를 지어내지 않는다. 값이 비어 있는 필드는 그 섹션 자체를
     생략한다(_format_analysis_dependency와 동일한 관례). 전체 파일
     내용/소스코드 원문은 절대 옮기지 않는다(§4 - 파일 "이름"만 옮긴다).
+
+    54단계 §9 - dep.result가 DevelopmentEvidenceSnapshot(DeveloperResult
+    상속)이면, 실제로 존재하는 실행 검증/화면 검수/수정 이력 증거도
+    이어서 붙인다. getattr(..., 기본값)으로 판별한다 - 순수
+    DeveloperResult(evidence가 붙지 않은 과거 저장분/구버전 호환 결과)는
+    getattr이 항상 기본값을 돌려주므로 이 블록에서 아무 것도 추가되지
+    않는다(§AF - 하위 호환). "사용자 검수 완료"처럼 실제로 없는 사실을
+    만들어 쓰지 않는다(§7) - visual_review_summary는 어디까지나 "Brain
+    화면 분석" 결과로만 표시한다.
     """
     result = dep.result
     sections = [f"[이전 개발 결과: {dep.step_id}]"]
 
+    if result.status:
+        sections.append(f"개발 상태:\n{'성공' if result.status == 'success' else '실패'}")
     if result.summary:
-        sections.append(f"완료 요약:\n{result.summary}")
+        sections.append(f"개발 요약:\n{result.summary}")
     if result.project_path:
         sections.append(f"프로젝트 경로:\n{result.project_path}")
     if result.entry_point:
@@ -289,6 +300,26 @@ def _format_development_dependency(dep: StepContext) -> str:
         sections.append("수정 파일:\n" + "\n".join(f"- {name}" for name in result.modified_files))
     if result.errors:
         sections.append("오류:\n" + "\n".join(f"- {item}" for item in result.errors))
+
+    if getattr(result, "runtime_checked", False):
+        exec_lines = [f"실행 성공: {'예' if result.runtime_success else '아니오'}"]
+        if result.runtime_summary:
+            exec_lines.append(f"실행 결과:\n{result.runtime_summary}")
+        sections.append("[실행 검증]\n" + "\n".join(exec_lines))
+
+    if getattr(result, "visual_review_summary", None):
+        visual_lines = [f"Brain 화면 분석:\n{result.visual_review_summary}"]
+        if result.observed_features:
+            visual_lines.append("관찰된 기능:\n" + "\n".join(f"- {item}" for item in result.observed_features))
+        sections.append("[화면 검수]\n" + "\n".join(visual_lines))
+
+    if getattr(result, "revision_requested", None) or getattr(result, "revision_summary", None):
+        revision_lines = []
+        if getattr(result, "revision_requested", None):
+            revision_lines.append(f"수정 요청:\n{result.revision_requested}")
+        if getattr(result, "revision_summary", None):
+            revision_lines.append(f"수정 완료 요약:\n{result.revision_summary}")
+        sections.append("[수정 이력]\n" + "\n".join(revision_lines))
 
     return "\n\n".join(sections)
 

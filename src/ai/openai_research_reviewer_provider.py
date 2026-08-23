@@ -98,6 +98,15 @@ def _build_review_prompt(request: ResearchReviewRequest) -> str:
     결과: ...]")로 실제 어떤 종류가 섞여 있는지만 구분해(§7 - 새 구조화
     필드를 추가하지 않고 기존 dependency_context 문자열 안의 관례를
     그대로 재사용) 정확한 문구만 보여준다.
+
+    54단계 §10 - development dependency가 있으면 마지막에 짧은 지시
+    문단을 덧붙인다. 실기에서 Development evidence(52/54단계로 이미
+    전달되고 있음에도) Analysis가 "검증할 수 없음"으로 판단해 이미
+    구현된 기능을 처음부터 다시 만들자고 제안한 문제가 확인됐다 - 이미
+    확인된 증거는 유효한 근거로 쓰고, 확인 안 된 것만 "검증 필요"로
+    구분하며, 중복 개발을 제안하지 말라고 명시한다. AI에게 사실을
+    강제로 긍정하게 하지 않는다(§10 단서) - "확인되지 않은 항목만 검증
+    필요로 구분하라"는 문장이 이 균형을 유지한다.
     """
     lines = [
         f"조사 제목: {request.task_title}",
@@ -157,5 +166,21 @@ def _build_review_prompt(request: ResearchReviewRequest) -> str:
         else:
             lines.append("이전 분석 결과:")
         lines.append(request.dependency_context)
+
+    if has_development_dependency:
+        # 54단계 §10 - "자료 없음" 오판 방지. Development evidence(산출물/
+        # 실행 검증/화면 검수/수정 이력)가 제공됐는데도 이미 확인된
+        # 기능을 "미구현"으로 보고 처음부터 다시 만들자고 제안하는
+        # 문제가 실기에서 확인됐다(GameBlock 재개 사례). 사실을 강제로
+        # 긍정하게 하지 않는다 - 확인되지 않은 항목은 "검증 필요"로
+        # 남기라는 지시도 함께 준다(§10 마지막 문장).
+        lines.append("")
+        lines.append(
+            "제공된 개발 산출물/실행 검증/검수 증거는 유효한 이전 단계 근거로 사용하세요. "
+            "증거로 확인된 기능을 미구현으로 가정하지 마세요. "
+            "확인되지 않은 항목만 검증 필요로 구분하세요. "
+            "기존 구현과 중복되는 다음 개발을 제안하지 말고, "
+            "다음 개발은 확인된 현재 상태에서의 다음 증분이어야 합니다."
+        )
 
     return "\n".join(lines)

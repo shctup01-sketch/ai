@@ -53,6 +53,7 @@ from ai.development_revision_plan import DevelopmentRevisionPlan
 from ai.development_revision_request import DevelopmentRevisionRequest
 from ai.development_revision_service import DevelopmentRevisionService
 from ai.development_revision_summary import DevelopmentRevisionSummary, build_revision_summary
+from ai.development_evidence_snapshot import build_development_evidence_snapshot
 from ai.execution_result import ExecutionResult
 from ai.execution_service import ExecutionService
 from ai.openai_developer_provider import OpenAIDeveloperProvider
@@ -1531,8 +1532,55 @@ class MainWindow(QMainWindow):
         if orchestration_service is None or self._last_orchestration_result is None:
             return
 
+        # 54단계 §5/§9 - "계속 진행"을 누르는 지금이 이번 development
+        # step 검토가 끝나는 시점이다. 지금까지 실제로 모인 증거
+        # (execution_result/observation_result/self._revision_last_summary)를
+        # 이 step의 결과에 붙여 completed_steps에 다시 써넣는다 - 그래야
+        # Development -> Analysis dependency context(52단계)에 실제로
+        # 전달되고, resume_after_review의 seed를 통해 저장(§13)에도
+        # 살아남는다. 지금 여기서 손대지 않으면 이 증거는 여기서
+        # 화면에만 표시되고 그대로 사라진다(실기에서 확인된 문제의
+        # 직접 원인).
+        evidence_snapshot = build_development_evidence_snapshot(
+            dev_result, execution_result, observation_result, self._revision_last_summary
+        )
+        updated_completed_steps = self._attach_development_evidence(
+            self._last_orchestration_result.completed_steps, step.step_id, evidence_snapshot
+        )
+        self._last_orchestration_result = OrchestrationResult(
+            status=self._last_orchestration_result.status,
+            completed_steps=updated_completed_steps,
+            pending_step_id=self._last_orchestration_result.pending_step_id,
+            summary=self._last_orchestration_result.summary,
+        )
+
         self.work_step_value_label.setText("업무 실행 중")
-        orchestration_service.resume_after_review(plan, self._last_orchestration_result.completed_steps)
+        orchestration_service.resume_after_review(plan, updated_completed_steps)
+
+    @staticmethod
+    def _attach_development_evidence(
+        completed_steps: list[OrchestrationStepResult], step_id: str, snapshot
+    ) -> list[OrchestrationStepResult]:
+        """54단계 - step_id 항목 하나의 result만 evidence snapshot으로
+        바꾼다. step_id/task_type/status/task_id/requires_approval/
+        approval_reason은 원본 그대로 유지한다(52단계 _apply_revision_result와
+        동일한 "결과만 교체" 관례) - 다른 step은 전혀 건드리지 않는다.
+        """
+        updated: list[OrchestrationStepResult] = []
+        for entry in completed_steps:
+            if entry.step_id == step_id:
+                entry = OrchestrationStepResult(
+                    step_id=entry.step_id,
+                    task_type=entry.task_type,
+                    status=entry.status,
+                    task_id=entry.task_id,
+                    result=snapshot,
+                    error=entry.error,
+                    requires_approval=entry.requires_approval,
+                    approval_reason=entry.approval_reason,
+                )
+            updated.append(entry)
+        return updated
 
     def _show_development_review_dialog(
         self,

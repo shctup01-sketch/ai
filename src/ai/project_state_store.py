@@ -27,6 +27,7 @@ from pathlib import Path
 from pydantic import BaseModel
 
 from .developer_result import DeveloperResult
+from .development_evidence_snapshot import DevelopmentEvidenceSnapshot
 from .project_state import SCHEMA_VERSION, PersistentProjectState
 from .research_review_result import ResearchReviewResult
 from .screen_observation_result import ScreenObservationResult
@@ -35,9 +36,17 @@ from .screen_observation_result import ScreenObservationResult
 # 등록한다(§9 - 새 모델을 만들지 않는다). research task의 result는 원래도
 # 순수 dict(research_worker.py 참고)라 여기 등록할 모델이 없다 - "raw"
 # 태그로 그대로 왕복시킨다.
+#
+# 54단계 - DevelopmentEvidenceSnapshot(DeveloperResult를 상속, 실행
+# 검증/화면 검수/수정 이력 증거를 선택적으로 담는다)도 여기 등록해야
+# 저장 후 다시 불러왔을 때 순수 dict가 아니라 원래 타입으로 복구된다
+# (§5 - 이 등록이 없으면 evidence가 재시작 후 사라지는 문제 자체가
+# 그대로 남는다). type(result).__name__이 "DeveloperResult"가 아니라
+# "DevelopmentEvidenceSnapshot"으로 저장되므로 별도 태그가 필요하다.
 _RESULT_MODEL_REGISTRY: dict[str, type[BaseModel]] = {
     "ResearchReviewResult": ResearchReviewResult,
     "DeveloperResult": DeveloperResult,
+    "DevelopmentEvidenceSnapshot": DevelopmentEvidenceSnapshot,
     "ScreenObservationResult": ScreenObservationResult,
 }
 
