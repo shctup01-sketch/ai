@@ -385,6 +385,12 @@ class MainWindow(QMainWindow):
 
         self.setCentralWidget(central_widget)
 
+        # 60단계 §1 - 창을 처음 열 때도 왼쪽 PROJECTS 목록이 실제 저장된
+        # 프로젝트를 곧바로 보여준다(패널들이 모두 만들어진 뒤에만
+        # 안전하게 호출할 수 있다 - self.project_list/self.project_state_
+        # store가 둘 다 이 시점에는 이미 있다).
+        self._refresh_project_list()
+
     def _build_top_bar(self) -> QWidget:
         top_bar = QWidget()
         top_bar.setObjectName("TopBar")
@@ -404,28 +410,26 @@ class MainWindow(QMainWindow):
         projects_label.setObjectName("SectionLabel")
         layout.addWidget(projects_label)
 
+        # 60단계 §1 - 지금까지 이 목록은 stub이었다(_on_new_project_
+        # clicked가 가짜 문자열만 addItem했을 뿐, 실제 ProjectStateStore와
+        # 전혀 연결되어 있지 않았음을 직접 확인). 이제 실제 저장된
+        # project 목록을 보여준다(_refresh_project_list) - project_id/
+        # status/path 같은 내부 값은 항목 텍스트에 넣지 않고 이름과
+        # "지금 열려 있는 project" 표시(●)만 보여준다(§1). 더블클릭하면
+        # 기존 _show_loaded_project_info_dialog(-> _resume_loaded_project)
+        # 흐름을 그대로 재사용한다 - 새 불러오기 로직을 만들지 않는다.
         self.project_list = QListWidget()
+        self.project_list.itemDoubleClicked.connect(self._on_project_list_item_double_clicked)
         layout.addWidget(self.project_list)
 
+        # 60단계 §2 - 이 버튼의 기존 동작(_on_new_project_clicked)은
+        # 바꾸지 않는다(지시 - "기존 새 프로젝트 생성 흐름은 변경하지
+        # 마세요"). 실제 새 project는 지금도 Brain과의 채팅으로
+        # 생성되며, 그 경로는 이미 _save_active_project_state() ->
+        # _refresh_project_list()로 목록이 자동 갱신된다.
         new_project_button = QPushButton("+ 새 프로젝트")
         new_project_button.clicked.connect(self._on_new_project_clicked)
         layout.addWidget(new_project_button)
-
-        ai_team_label = QLabel("AI TEAM")
-        ai_team_label.setObjectName("SectionLabel")
-        layout.addWidget(ai_team_label)
-
-        # 32단계 - 4개 행 모두 상태 label을 self 속성으로 저장한다(기존
-        # Developer만 저장하던 방식을 일반화 - developer_status_label을
-        # 쓰는 기존 단일 development/실행/PackageFix 코드는 속성 이름이
-        # 그대로라 전혀 바뀌지 않는다).
-        for name, attr_name in (
-            ("Chief Brain (총괄 두뇌)", "chief_brain_status_label"),
-            ("Research (조사 AI)", "research_status_label"),
-            ("Analysis (분석 AI)", "analysis_status_label"),
-            ("Developer (개발 AI)", "developer_status_label"),
-        ):
-            layout.addLayout(self._build_ai_status_row(name, attr_name))
 
         layout.addStretch(1)
         return panel
@@ -464,9 +468,34 @@ class MainWindow(QMainWindow):
         layout.addWidget(QLabel("현재 작업"))
         self.current_task_value_label = QLabel("대기 중")
         layout.addWidget(self.current_task_value_label)
-        layout.addWidget(QLabel("작업 단계"))
+        # 60단계(사용자 검토) §3 - 화면 라벨만 "진행 상황"으로 바꾼다.
+        # 파이썬 속성 이름(work_step_value_label)/이 값을 채우는 내부
+        # 로직(_ORCHESTRATION_STATUS_LABELS 등)은 그대로 둔다 - 이미
+        # 내부 상태값을 사람이 읽을 문장으로 바꿔 보여주고 있었고
+        # (waiting_for_approval 같은 원문을 그대로 노출하지 않음),
+        # 라벨 문구만 더 쉬운 표현으로 다듬는다.
+        layout.addWidget(QLabel("진행 상황"))
         self.work_step_value_label = QLabel("아직 시작된 작업 없음")
         layout.addWidget(self.work_step_value_label)
+        # 60단계 §7 - "다음 단계"를 별도 줄로 추가한다. 기존 work_step_
+        # value_label이 쓰는 내부 상태값(_ORCHESTRATION_STATUS_LABELS)은
+        # 전혀 바꾸지 않는다 - 표시를 하나 더 늘렸을 뿐이다. checkpoint가
+        # 뜨면 _show_project_checkpoint_panel이 실제 다음 step 제목으로
+        # 채운다(내부 step_id 아님, title만).
+        layout.addWidget(QLabel("다음 단계"))
+        self.next_step_value_label = QLabel("아직 없음")
+        layout.addWidget(self.next_step_value_label)
+        # 60단계(사용자 검토) §2 - "내가 할 일"을 추가한다. 화면 단순화는
+        # 정보 축소가 아니다 - 지금 하는 일/진행 상황/다음 작업만으로는
+        # "그래서 나는 지금 뭘 해야 하지?"에 답하지 못한다. 상태값에
+        # 따라 _USER_ACTION_LABELS로 문장을 고른다(_on_orchestration_
+        # result/_on_orchestration_stage_changed에서 채움) - checkpoint가
+        # 뜨면 _show_project_checkpoint_panel이 더 구체적인 문장으로
+        # 다시 채운다.
+        layout.addWidget(QLabel("내가 할 일"))
+        self.your_action_value_label = QLabel("아직 할 일이 없습니다.")
+        self.your_action_value_label.setWordWrap(True)
+        layout.addWidget(self.your_action_value_label)
 
         # 59단계 §3/§4 - project checkpoint를 modal QDialog 대신 여기
         # 표시한다. state(waiting_for_approval/pending_step 등)는 전혀
@@ -502,6 +531,35 @@ class MainWindow(QMainWindow):
 
         layout.addStretch(1)
 
+        # 60단계 §8 - 기본 화면은 여기서 끝난다. 아래는 전부 "고급 기능"
+        # 하나로 접는다(새 dock/설정 framework 없이 QPushButton +
+        # QWidget + setVisible만 사용, §8). 기본 상태는 접힘이다 - 이
+        # 토글 버튼 하나만 기본 화면에 보인다.
+        self.advanced_toggle_button = QPushButton("고급 기능 ▸")
+        self.advanced_toggle_button.clicked.connect(self._on_advanced_toggle_button_clicked)
+        layout.addWidget(self.advanced_toggle_button)
+
+        self.advanced_panel = QWidget()
+        self.advanced_panel.setObjectName("AdvancedPanel")
+        advanced_layout = QVBoxLayout(self.advanced_panel)
+        advanced_layout.setContentsMargins(0, 4, 0, 0)
+
+        # 60단계 §6 - AI TEAM 개별 상태(Research/Analysis/Developer 등)는
+        # 일반 사용자에게 불필요하다(WORK STATUS의 "현재 작업"/"작업
+        # 단계"/"다음 단계"로 충분하다). 삭제하지 않고 고급 기능 안으로
+        # 옮긴다 - status_label들은 여전히 self 속성이라 기존 상태
+        # 갱신 코드(_mark_ai_team_error 등)를 전혀 바꾸지 않아도 된다.
+        ai_team_label = QLabel("AI TEAM")
+        ai_team_label.setObjectName("SectionLabel")
+        advanced_layout.addWidget(ai_team_label)
+        for name, attr_name in (
+            ("Chief Brain (총괄 두뇌)", "chief_brain_status_label"),
+            ("Research (조사 AI)", "research_status_label"),
+            ("Analysis (분석 AI)", "analysis_status_label"),
+            ("Developer (개발 AI)", "developer_status_label"),
+        ):
+            advanced_layout.addLayout(self._build_ai_status_row(name, attr_name))
+
         self.plan_button = QPushButton("작업 계획")
         self.plan_button.setEnabled(False)
         self.plan_button.clicked.connect(self._on_plan_button_clicked)
@@ -521,27 +579,37 @@ class MainWindow(QMainWindow):
         self.chief_plan_execute_button = QPushButton("업무 실행")
         self.chief_plan_execute_button.setEnabled(False)
         self.chief_plan_execute_button.clicked.connect(self._on_chief_plan_execute_button_clicked)
-        layout.addWidget(self.plan_button)
-        layout.addWidget(self.develop_button)
-        layout.addWidget(self.execute_button)
-        layout.addWidget(self.task_execute_button)
-        layout.addWidget(self.chief_plan_execute_button)
+        advanced_layout.addWidget(self.plan_button)
+        advanced_layout.addWidget(self.develop_button)
+        advanced_layout.addWidget(self.execute_button)
+        advanced_layout.addWidget(self.task_execute_button)
+        advanced_layout.addWidget(self.chief_plan_execute_button)
 
-        # 41단계 §13 - 대형 Project Manager가 아니라 최소 저장/불러오기
-        # 버튼 2개만 기존 WORK STATUS 패널에 추가한다(새 UI 영역을 만들지
-        # 않는다).
+        # 41단계 §13 - 저장/불러오기 버튼 자체(backend)는 그대로 둔다.
+        # 60단계 §4/§5 - 기본 화면에서는 빼고 고급 기능 안으로 옮긴다 -
+        # 왼쪽 PROJECTS 목록(§1)이 이제 실제 프로젝트를 보여주고
+        # 자동저장이 기본이므로, 일반 사용자는 이 버튼들을 몰라도 된다.
+        # handler(_on_save_project_button_clicked/_on_load_project_button_
+        # clicked) 자체는 삭제하지 않는다(§10 - Brain이 나중에 이
+        # backend를 직접 부를 수 있어야 한다).
         self.save_project_button = QPushButton("프로젝트 저장")
         self.save_project_button.clicked.connect(self._on_save_project_button_clicked)
         self.load_project_button = QPushButton("프로젝트 불러오기")
         self.load_project_button.clicked.connect(self._on_load_project_button_clicked)
-        layout.addWidget(self.save_project_button)
-        layout.addWidget(self.load_project_button)
+        advanced_layout.addWidget(self.save_project_button)
+        advanced_layout.addWidget(self.load_project_button)
 
         # 45단계 §18 - 대형 Project Manager/편집기가 아니라 최소 버튼
         # 하나만 기존 저장/불러오기 버튼 옆에 추가한다.
-        self.rerun_research_analysis_button = QPushButton("조사/분석 다시 실행")
+        # 60단계 §9 - 표시 문구만 쉬운 말로 바꾼다("조사부터 다시
+        # 확인"). 속성 이름/click 연결/handler는 전혀 바꾸지 않는다 -
+        # 기존 테스트가 찾는 self.rerun_research_analysis_button과
+        # _on_rerun_research_analysis_button_clicked 연결 그대로다.
+        # tooltip에 원래 개발용 이름을 남겨 진단 시 참고할 수 있게 한다.
+        self.rerun_research_analysis_button = QPushButton("조사부터 다시 확인")
+        self.rerun_research_analysis_button.setToolTip("조사/분석 다시 실행")
         self.rerun_research_analysis_button.clicked.connect(self._on_rerun_research_analysis_button_clicked)
-        layout.addWidget(self.rerun_research_analysis_button)
+        advanced_layout.addWidget(self.rerun_research_analysis_button)
 
         # 55단계 §2/§4 - "조사/분석 다시 실행"은 항상 research를 root로
         # 삼아 재실행한다(find_rerun_root_step_ids가 research 전용,
@@ -550,24 +618,96 @@ class MainWindow(QMainWindow):
         # 다시 검토하는 이번 요구와는 맞지 않아 별도의 작은 버튼을
         # 둔다. 같은 rerun_orchestration_service/result/error handler를
         # 그대로 재사용한다(§1.F - 새 서비스/handler를 만들지 않는다).
-        self.reevaluate_analysis_button = QPushButton("증거 반영 분석 재검토")
+        # 60단계 §9 - 표시 문구만 "확인한 결과로 다시 검토"로 바꾼다.
+        self.reevaluate_analysis_button = QPushButton("확인한 결과로 다시 검토")
+        self.reevaluate_analysis_button.setToolTip("증거 반영 분석 재검토")
         self.reevaluate_analysis_button.clicked.connect(self._on_reevaluate_analysis_button_clicked)
-        layout.addWidget(self.reevaluate_analysis_button)
+        advanced_layout.addWidget(self.reevaluate_analysis_button)
 
         # 57단계 §3 - 대형 Project Manager/편집기가 아니라 최소 버튼
         # 하나만 기존 버튼들 옆에 추가한다. 54단계 이전 project처럼,
         # 이 필드가 추가되기 전에 저장된 project는 제품 기준이 비어
         # 있다 - 새 project든 기존 project든 이 버튼 하나로 같은 Dialog를
-        # 통해 (재)설정할 수 있다.
-        self.set_product_context_button = QPushButton("프로젝트 제품 기준 설정")
+        # 통해 (재)설정할 수 있다. 60단계 §9 - 표시 문구만 "프로젝트
+        # 방향 설정"으로 바꾼다.
+        self.set_product_context_button = QPushButton("프로젝트 방향 설정")
+        self.set_product_context_button.setToolTip("프로젝트 제품 기준 설정")
         self.set_product_context_button.clicked.connect(self._on_set_product_context_button_clicked)
-        layout.addWidget(self.set_product_context_button)
+        advanced_layout.addWidget(self.set_product_context_button)
+
+        self.advanced_panel.setVisible(False)
+        layout.addWidget(self.advanced_panel)
 
         return panel
 
+    def _on_advanced_toggle_button_clicked(self):
+        """60단계 §8 - 새 상태 machine 없이 현재 보이는지만 뒤집는다."""
+        expanded = not self.advanced_panel.isVisible()
+        self.advanced_panel.setVisible(expanded)
+        self.advanced_toggle_button.setText("고급 기능 ▾" if expanded else "고급 기능 ▸")
+
+    def _refresh_project_list(self):
+        """60단계 §1/§2 - 왼쪽 PROJECTS 목록을 실제 저장된 프로젝트로
+        다시 채운다. project_id/status/path 같은 내부 값은 항목 텍스트에
+        넣지 않는다(§1) - 이름과, 지금 열려 있는 project라면 최소 표시
+        (●)만 붙인다. project_id는 항목의 UserRole 데이터로만 들고
+        있는다(더블클릭 시 그 값으로 불러오기 위해서일 뿐, 화면에
+        보이지 않는다).
+        """
+        try:
+            states = self.project_state_store.list_projects()
+        except ProjectStateError:
+            return
+        self.project_list.clear()
+        for state in states:
+            marker = "  ●" if state.project_id == self._active_project_id else ""
+            item = QListWidgetItem(f"{state.project_name}{marker}")
+            item.setData(Qt.ItemDataRole.UserRole, state.project_id)
+            self.project_list.addItem(item)
+
+    def _on_project_list_item_double_clicked(self, item: QListWidgetItem):
+        """60단계 §1 - PROJECTS 목록에서 프로젝트를 여는 유일한 동작.
+
+        기존 _show_loaded_project_info_dialog(상태 확인 -> "이어서
+        진행")/_resume_loaded_project를 그대로 재사용한다(41단계 원래
+        설계 - 불러오기 자체는 실행 명령이 아니다) - 새 불러오기 로직을
+        만들지 않는다.
+        """
+        project_id = item.data(Qt.ItemDataRole.UserRole)
+        if not project_id:
+            return
+        try:
+            state = self.project_state_store.load(project_id)
+        except ProjectStateError as exc:
+            QMessageBox.warning(self, "프로젝트 열기 실패", str(exc))
+            return
+        self._show_loaded_project_info_dialog(state)
+
     def _on_new_project_clicked(self):
-        count = self.project_list.count() + 1
-        self.project_list.addItem(f"새 프로젝트 {count}")
+        """60단계(사용자 검토) §1 - 더미 QListWidgetItem을 더 이상
+        추가하지 않는다(예전 동작은 실제 프로젝트와 무관한 가짜
+        항목이었음, 60단계 조사에서 확인). 새 project wizard도 만들지
+        않는다 - 우리 Studio의 핵심 UX는 "사용자 -> 메인 Brain과
+        대화"이므로, 이 버튼은 메인 채팅 입력으로 안내만 한다.
+
+        현재 프로젝트 state(_active_project_id/_current_chief_plan 등)를
+        전혀 건드리지 않는다 - 버튼을 누르는 것만으로는 아무 AI도
+        호출되지 않고 아무것도 바뀌지 않는다. 실제 새 project는
+        사용자가 이 안내를 보고 자연어 요청을 채팅으로 보낼 때만
+        시작된다 - 그 뒤로는 ChatPanel의 기존 Brain 계획 생성 경로
+        (_on_chief_plan_ready로 이어지는 기존 흐름)가 그대로 처리한다.
+        그 흐름은 이미 execution_mode=="project"일 때마다 새 uuid로 _active_
+        project_id를 발급하고 이전 project 데이터는 그 project_id로
+        저장된 파일에 그대로 남겨둔다(41단계 - 덮어쓰거나 지우지 않음)
+        - "현재 프로젝트가 있는 상태에서 새 프로젝트를 시작해도 기존
+        프로젝트를 파괴하지 않는" 안전장치가 이미 있으므로 여기서 새로
+        만들 필요가 없다.
+        """
+        self.chat_panel.add_assistant_note(
+            "새 프로젝트를 시작할게요.\n"
+            "만들고 싶은 프로그램이나 작업을 아래에 말씀해주세요."
+        )
+        self.chat_panel.focus_input()
 
     def _on_plan_ready(self, plan: BrainResponse):
         self._current_plan = plan
@@ -660,6 +800,9 @@ class MainWindow(QMainWindow):
             # 59단계(사용자 검토) §3 - 상담 기록도 이전 project 것을
             # 이어받지 않는다.
             self._checkpoint_consultation_history = []
+            # 60단계 - WORK STATUS "다음 단계"/"내가 할 일" 표시도 초기화한다.
+            self.next_step_value_label.setText("아직 없음")
+            self.your_action_value_label.setText("아직 할 일이 없습니다.")
             self._save_active_project_state()
         else:
             self._active_project_id = None
@@ -670,6 +813,8 @@ class MainWindow(QMainWindow):
             self._active_project_checkpoint_reason = None
             self.checkpoint_panel.setVisible(False)
             self._checkpoint_consultation_history = []
+            self.next_step_value_label.setText("아직 없음")
+            self.your_action_value_label.setText("아직 할 일이 없습니다.")
 
     def _on_plan_button_clicked(self):
         if self._current_plan is None:
@@ -1206,6 +1351,12 @@ class MainWindow(QMainWindow):
 
     def _on_orchestration_stage_changed(self, stage: str):
         self.work_step_value_label.setText(stage)
+        # 60단계(사용자 검토) §2 - 작업이 실제로 진행되는 동안("N/전체
+        # ... 시작"류 stage 문자열)에는 사용자가 할 일이 없다는 것을
+        # 짧게 알린다. "승인 대기"가 섞인 stage 문자열이 잠깐 지나가도
+        # 곧이어 오는 _on_orchestration_result(waiting_for_approval)가
+        # 더 구체적인 문장으로 다시 덮어쓴다.
+        self.your_action_value_label.setText("지금은 기다리시면 됩니다.")
         self._apply_stage_to_ai_team(stage)
 
     def _apply_stage_to_ai_team(self, stage: str):
@@ -1256,9 +1407,25 @@ class MainWindow(QMainWindow):
         "blocked": "업무 중단",
     }
 
+    # 60단계(사용자 검토) §2 - "내가 할 일"에 쓸 상태별 안내 문장.
+    # _ORCHESTRATION_STATUS_LABELS와 동일한 status 키를 그대로 재사용한다
+    # (새 상태 체계를 만들지 않는다). waiting_for_approval은 checkpoint_
+    # panel이 뜨는 상태라 여기 문장은 그 패널이 뜨기 직전 잠깐만 보이고,
+    # _show_project_checkpoint_panel이 곧바로 더 구체적인 문장으로
+    # 덮어쓴다.
+    _USER_ACTION_LABELS = {
+        "completed": "작업이 완료되었습니다.\n결과를 확인하거나 Brain에게 다음 작업을 말씀해주세요.",
+        "waiting_for_approval": "아래 '진행 승인'을 눌러주세요.\n방향을 바꾸고 싶다면 Brain에게 말씀해주세요.",
+        "waiting_for_review": "결과를 확인해주세요.\n궁금한 점은 Brain에게 물어보셔도 됩니다.",
+        "waiting_for_executor": "지금은 기다리시면 됩니다.",
+        "failed": "작업 중 문제가 생겼습니다.\nBrain에게 물어보면 현재 상황을 설명해드립니다.",
+        "blocked": "작업이 잠시 멈췄습니다.\nBrain에게 물어보면 현재 상황을 설명해드립니다.",
+    }
+
     def _on_orchestration_result(self, result: OrchestrationResult):
         self.chief_plan_execute_button.setEnabled(True)
         self.work_step_value_label.setText(self._ORCHESTRATION_STATUS_LABELS.get(result.status, result.status))
+        self.your_action_value_label.setText(self._USER_ACTION_LABELS.get(result.status, "아직 할 일이 없습니다."))
         self._last_orchestration_result = result
 
         # 41단계 §11 - step 완료/승인 대기 진입/결과 검토 대기 진입/최종
@@ -1521,6 +1688,9 @@ class MainWindow(QMainWindow):
         )
         self.checkpoint_message_label.setText(message)
         self.checkpoint_panel.setVisible(True)
+        # 60단계 §7 - WORK STATUS의 "다음 단계"도 실제 다음 step 제목으로
+        # 채운다(step_id 아님).
+        self.next_step_value_label.setText(step.title)
 
     def _on_checkpoint_panel_approve_clicked(self):
         """59단계 §4/Q - 기존 승인 handler가 하던 일(resume_project_
@@ -1539,6 +1709,13 @@ class MainWindow(QMainWindow):
         # 59단계(사용자 검토) §3 - checkpoint가 승인으로 끝나면 상담
         # 기록도 함께 정리한다(이 checkpoint는 끝났다).
         self._checkpoint_consultation_history = []
+        # 60단계 - 방금 승인한 step은 곧 실행되므로 "다음 단계" 표시를
+        # 비운다(다음 checkpoint가 뜨면 다시 채워진다). "내가 할 일"도
+        # 곧 뒤따라오는 stage_changed("지금은 기다리시면 됩니다.")가
+        # 다시 채우지만, 그 전까지 방금 승인 문구가 남아있지 않도록
+        # 여기서도 미리 정리한다.
+        self.next_step_value_label.setText("아직 없음")
+        self.your_action_value_label.setText("지금은 기다리시면 됩니다.")
 
         orchestration_service = self._ensure_orchestration_service()
         if orchestration_service is None:
@@ -2906,6 +3083,10 @@ class MainWindow(QMainWindow):
             return False
 
         self._active_project_created_at = state.created_at
+        # 60단계 §1/§2 - 상태가 바뀔 때마다(새 project 시작 포함, 그
+        # 자리에서 곧바로 이 함수를 부른다) 왼쪽 PROJECTS 목록도 최신으로
+        # 유지한다 - 별도 새로고침 버튼 없이 자동으로 갱신된다.
+        self._refresh_project_list()
         return True
 
     def _on_save_project_button_clicked(self):
@@ -3041,6 +3222,11 @@ class MainWindow(QMainWindow):
         self._active_project_checkpoint_reason = None
         self._checkpoint_consultation_history = []
         self.checkpoint_panel.setVisible(False)
+        self.next_step_value_label.setText("아직 없음")
+        self.your_action_value_label.setText("아직 할 일이 없습니다.")
+        # 60단계 §1 - 지금 열려 있는 project가 바뀌었으니 PROJECTS
+        # 목록의 ● 표시도 즉시 옮긴다.
+        self._refresh_project_list()
         # 57단계 - 54단계 이전 project와 동일한 이유로, 이 필드가
         # 추가되기 전에 저장된 project는 None으로 복구된다(§3 - 지어낸
         # 값으로 채우지 않는다. 필요하면 사용자가 새 설정 Dialog로
