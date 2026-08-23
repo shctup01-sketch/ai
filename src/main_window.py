@@ -33,8 +33,10 @@ from ai.checkpoint_context import (
     find_latest_step_result,
 )
 from ai.project_stage_rerun import (
+    build_resume_candidate_completed_steps,
     build_rerun_candidate_completed_steps,
     compute_affected_step_ids,
+    find_first_failed_step_id,
     find_rerun_root_step_ids,
     format_elapsed_seconds,
     summarize_research_step_results,
@@ -2504,12 +2506,84 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "프로젝트 불러오기", "이미 완료된 프로젝트입니다.")
             return
 
+        if state.orchestration_status == "failed":
+            # 53단계 - failed는 v1에서 안전하게 지원하는 유일한 재개
+            # 대상 상태다(§15). failed_step_id/step을 찾지 못하면(방어적
+            # - 정상 흐름에서는 발생하지 않는다) 아래 기존 "자동으로
+            # 이어서 진행할 수 없습니다" 메시지로 그대로 폴백한다.
+            failed_step_id = find_first_failed_step_id(state.completed_steps)
+            step = self._find_plan_step(state.plan, failed_step_id) if failed_step_id else None
+            if failed_step_id is not None and step is not None:
+                self._handle_failed_project_resume(state, step, failed_step_id)
+                return
+
         QMessageBox.information(
             self,
             "프로젝트 불러오기",
             "이 상태(실행기 없음/실패/중단/시작 전)는 이번 버전에서 자동으로 이어서 "
             "진행할 수 없습니다. 상태 정보만 복구되었습니다.",
         )
+
+    def _handle_failed_project_resume(self, state: PersistentProjectState, step: BrainTaskStep, failed_step_id: str):
+        """53단계 §2/§7/§9 - 저장된 project가 실패 상태로 멈췄을 때,
+        사용자 명시적 확인 후에만 그 실패 지점부터 재개한다(load 자체는
+        실행 명령이 아니다 - 자동 실행 금지). 새 Orchestrator를 만들지
+        않는다 - candidate completed_steps만 축소해(45단계 dependency
+        helper 재사용, project_stage_rerun.py 참고) 기존
+        resume_after_review()에 그대로 넘긴다. 그 결과는 항상 거쳐가는
+        기존 _on_orchestration_result가 처리하므로(성공 시 저장/다음
+        checkpoint 진입/실패 시 안내 모두 기존 동작 그대로) 여기서 새로
+        만들 필요가 없다.
+        """
+        candidate_completed_steps = build_resume_candidate_completed_steps(state.plan, state.completed_steps, failed_step_id)
+        preserved_count = len(candidate_completed_steps)
+
+        if not self._show_project_resume_confirmation_dialog(step, preserved_count):
+            return
+
+        orchestration_service = self._ensure_orchestration_service()
+        if orchestration_service is None:
+            return
+
+        self.work_step_value_label.setText("프로젝트 재개 중")
+        orchestration_service.resume_after_review(state.plan, candidate_completed_steps)
+
+    def _show_project_resume_confirmation_dialog(self, step: BrainTaskStep, preserved_count: int) -> bool:
+        """53단계 §8 - 실패 지점 재개 전 최소 확인 Dialog(기존 승인
+        Dialog들과 동일한 패턴 - 새 Dialog 시스템 아님). 사용자가 명시적으로
+        "이어 진행"을 눌러야만 재실행이 시작된다 - X/Escape/"취소"는
+        모두 동일하게 아무 것도 실행하지 않는다(이 Dialog는 예/아니오
+        둘뿐이라 51단계의 revise/close 구분 문제가 애초에 없다).
+        """
+        dialog = QDialog(self)
+        dialog.setWindowTitle("프로젝트 재개 확인")
+
+        layout = QVBoxLayout(dialog)
+        message = QLabel(
+            "이 프로젝트는 다음 단계에서 중단되었습니다.\n"
+            "완료된 이전 단계는 유지하고, 해당 단계부터 최신 Studio로 다시 실행할 수 있습니다.\n\n"
+            f"재개 단계:\n{step.step_id}\n{step.title}\n\n"
+            f"목표:\n{step.goal}\n\n"
+            f"보존되는 완료 단계:\n{preserved_count}개\n\n"
+            f"재실행되는 단계:\n{step.step_id}부터\n\n"
+            "기존 개발 결과는 다시 실행하지 않습니다."
+        )
+        message.setWordWrap(True)
+        layout.addWidget(message)
+
+        button_row = QHBoxLayout()
+        resume_button = QPushButton("이어 진행")
+        cancel_button = QPushButton("취소")
+        button_row.addWidget(resume_button)
+        button_row.addWidget(cancel_button)
+        layout.addLayout(button_row)
+
+        resume_button.clicked.connect(lambda: dialog.done(1))
+        cancel_button.clicked.connect(lambda: dialog.done(0))
+        cancel_button.setDefault(True)
+        cancel_button.setFocus()
+
+        return dialog.exec() == 1
 
     def _on_rerun_research_analysis_button_clicked(self):
         """45단계 §11/§18 - project mode + 저장된 project에서만 동작한다.

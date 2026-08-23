@@ -21,6 +21,44 @@ from .orchestration_step_result import OrchestrationStepResult
 
 RESEARCH_TASK_TYPE = "research"
 
+# 53단계 - 저장된 project를 불러왔을 때 안전하게 재개할 수 있는 step
+# 상태. v1은 failed만 지원한다(§15 - blocked/waiting_for_executor 등은
+# 이후 라운드에서 검토, 과도하게 자동화하지 않는다).
+_RESUMABLE_STEP_STATUSES = ("failed",)
+
+
+def find_first_failed_step_id(completed_steps: list[OrchestrationStepResult]) -> str | None:
+    """저장된 project 상태에서 재개 대상 첫 step_id를 찾는다(53단계).
+
+    Orchestrator는 실패 시 즉시 멈추므로(chief_brain_orchestrator.py의
+    _run_from() - break) completed_steps 안에 failed 항목이 있어도 실제로는
+    최대 1개뿐이다 - 순서대로 찾아 첫 번째를 돌려준다. 없으면 None(재개
+    대상 없음 - 지어내지 않는다).
+    """
+    for entry in completed_steps:
+        if entry.status in _RESUMABLE_STEP_STATUSES:
+            return entry.step_id
+    return None
+
+
+def build_resume_candidate_completed_steps(
+    plan: ChiefBrainPlan, completed_steps: list[OrchestrationStepResult], failed_step_id: str
+) -> list[OrchestrationStepResult]:
+    """failed_step_id를 root로 삼아, 그 step 자신과 거기 의존하는 모든
+    후속 결과를 candidate에서 제거한다(53단계 §4/§5). 그 이전의 정상
+    완료 결과(예: 이미 검수를 마친 Development 결과)는 전부 보존한다.
+
+    45단계 project_stage_rerun의 dependency 계산 helper
+    (compute_affected_step_ids/build_rerun_candidate_completed_steps)를
+    그대로 재사용한다 - 새 graph 시스템을 만들지 않는다(§5/§19). 이
+    조합으로 만든 candidate를 기존 ChiefBrainOrchestrator.resume_after_review()에
+    그대로 seed로 넘기면, "seed에 없는 step_id는 처음부터 다시 실행한다"는
+    기존 동작(_run_from())이 failed_step_id부터 자연스럽게 재실행한다 -
+    새 재개 실행 로직을 여기 만들 필요가 없다(§9).
+    """
+    affected = compute_affected_step_ids(plan, {failed_step_id})
+    return build_rerun_candidate_completed_steps(completed_steps, affected)
+
 
 def find_rerun_root_step_ids(completed_steps: list[OrchestrationStepResult]) -> set[str]:
     """이미 완료(status=="completed")된 research step의 step_id를 전부 찾는다.
