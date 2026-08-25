@@ -1,0 +1,24 @@
+[project]
+name = "assetforge"
+version = "0.1.0"
+description = "Procedural high-quality 3D game-asset generator (rocks, crystals, trees, terrain) with PBR materials, exporting engine-ready GLB/OBJ."
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24",
+    "trimesh>=4.0",
+    "pillow>=10.0",
+    "scipy>=1.10",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0"]
+
+[project.scripts]
+assetforge = "assetforge.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["assetforge*"]
