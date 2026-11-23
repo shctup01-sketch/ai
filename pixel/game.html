@@ -806,6 +806,15 @@ function drawUnit(c, u, L, ph, o) {
 }
 function portrait(cv, type, tint) {
   const g = cv.getContext('2d'), w = cv.width, h = cv.height; g.clearRect(0, 0, w, h);
+  try {   // same pixel sprite as in the field, enlarged with hard edges
+    const D = UNITS[type], dino = D.cls === 'dino', tier = +cv.dataset.t || 0, len = dino ? Math.round(D.size * 2.4 * (1 + 0.07 * tier)) : 22, spr = unitSprite(type, len, tier), A = spr.an.idle, row = DIRROW[1];
+    const k = dino ? Math.min(w / (len * 0.86), h / (len * 0.64)) : h / 29, dx = Math.round(w / 2 - spr.ax * k), dy = Math.round(h * (dino ? 0.74 : 0.9) - spr.ay * k);
+    cv.style.imageRendering = 'pixelated'; g.imageSmoothingEnabled = false;
+    const gr = g.createRadialGradient(w / 2, h * 0.6, 0, w / 2, h * 0.6, h * 0.7); gr.addColorStop(0, 'rgba(210,190,150,.3)'); gr.addColorStop(1, 'rgba(210,190,150,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
+    g.drawImage(A.cv, 0, row * spr.fh, spr.fw, spr.fh, dx, dy, spr.fw * k, spr.fh * k);
+    if (tint) { g.globalCompositeOperation = 'source-atop'; g.fillStyle = tint; g.fillRect(0, 0, w, h); g.globalCompositeOperation = 'source-over'; }
+    return;
+  } catch (e) { g.clearRect(0, 0, w, h); }
   const P = PORTRAIT[type];
   if (P && P.complete && P.naturalWidth) { const gr = g.createRadialGradient(w / 2, h * 0.55, 0, w / 2, h * 0.55, h * 0.7); gr.addColorStop(0, 'rgba(210,190,150,.32)'); gr.addColorStop(1, 'rgba(210,190,150,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h); g.drawImage(P, 0, 0, w, h); return; }
   const gr = g.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, h * 0.6); gr.addColorStop(0, 'rgba(210,190,150,.35)'); gr.addColorStop(1, 'rgba(210,190,150,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
@@ -1729,8 +1738,8 @@ function renderTown() {
 function renderParty() {
   const el = $('v-party'), P = party();
   const row = u => { const D = UNITS[u.type], mh = maxHp(u);
-    return `<div class="row"><canvas data-u="${u.type}" width="104" height="80"></canvas><div class="info"><b>${unitName(u)} Lv${u.lv} <span class="tag">${D.role}</span>${u.pts > 0 ? ` <span class="tag" style="color:var(--amber)">포인트 ${u.pts}</span>` : ''}${u.ko ? ' <span class="tag" style="color:var(--bad)">쓰러짐</span>' : ''}</b>
-      <div class="bar"><i style="width:${u.hp / mh * 100}%;${u.ko ? 'background:var(--bad)' : ''}"></i></div><small>체력 ${u.hp}/${mh} · 공격 ${Math.round(D.atk * lvMul(u.lv) * gearMul(u).atk)} · 무기 ${u.gw || 0} · 방어구 ${u.ga || 0} · 짐 ${carryOf(u)}칸${u.type === 'porter' ? ' (레벨마다 +2)' : ''} · 경험치 ${u.xp}/${xpNeed(u.lv)}</small>${skillOf(u.type) ? `<small style="color:var(--amber)">스킬 · ${skName(skillOf(u.type), u.tier)}: ${skDesc(skillOf(u.type), u.tier)}</small>` : ''}</div>
+    return `<div class="row"><canvas data-u="${u.type}" data-t="${u.tier || 0}" width="104" height="80"></canvas><div class="info"><b>${unitName(u)} Lv${u.lv} <span class="tag">${D.role}</span>${u.pts > 0 ? ` <span class="tag" style="color:var(--amber)">포인트 ${u.pts}</span>` : ''}${u.ko ? ' <span class="tag" style="color:var(--bad)">쓰러짐</span>' : ''}</b>
+      <div class="bar"><i style="width:${u.hp / mh * 100}%;${u.ko ? 'background:var(--bad)' : ''}"></i></div><small>체력 ${Math.round(u.hp)}/${mh} · 공격 ${Math.round(D.atk * lvMul(u.lv) * gearMul(u).atk)} · 무기 ${u.gw || 0} · 방어구 ${u.ga || 0} · 짐 ${carryOf(u)}칸${u.type === 'porter' ? ' (레벨마다 +2)' : ''} · 경험치 ${u.xp}/${xpNeed(u.lv)}</small>${skillOf(u.type) ? `<small style="color:var(--amber)">스킬 · ${skName(skillOf(u.type), u.tier)}: ${skDesc(skillOf(u.type), u.tier)}</small>` : ''}</div>
       <button class="btn small" data-act="unit" data-id="${u.id}">관리</button>
       ${u.type === 'leader' ? '<span class="tag on">대장</span>' : `<button class="btn small ${u.inParty ? '' : 'primary'}" data-act="toggle" data-id="${u.id}">${u.inParty ? '대기' : '참전'}</button>`}</div>`; };
   const reserve = S.units.filter(u => !u.inParty);
@@ -1761,7 +1770,7 @@ function unitModal(id) {
   const gearRow = (key, item, label, eff) => { const lv = u[key] || 0, need = lv + 1, have = S.cargo[item] || 0;
     return `<div class="row"><div class="info"><b>${label} ${lv}/3단계</b><small>${eff}${lv < 3 ? ` · 다음 단계: ${GOODS[item].n} ${need}개 (보유 ${have})` : ''}</small></div><button class="btn small primary" data-act="gear" data-id="${u.id}" data-k="${key}" ${lv >= 3 || have < need ? 'disabled' : ''}>${lv >= 3 ? '최고' : '강화'}</button></div>`; };
   const names = dino ? TIER_DINO : TIER_HUMAN;
-  showModal(`<canvas data-u="${u.type}" width="260" height="200" style="width:156px;height:120px;align-self:center"></canvas><h3>${unitName(u)}</h3><div class="sub">Lv${u.lv} · ${D.role} · 전투력 <b style="color:var(--amber)">${fmt(powerOf(u))}</b></div>
+  showModal(`<canvas data-u="${u.type}" data-t="${u.tier || 0}" width="156" height="120" style="width:156px;height:120px;align-self:center"></canvas><h3>${unitName(u)}</h3><div class="sub">Lv${u.lv} · ${D.role} · 전투력 <b style="color:var(--amber)">${fmt(powerOf(u))}</b></div>
     <div class="card"><div class="row"><div class="info"><b>능력치 포인트 ${u.pts || 0}</b><small>레벨이 오를 때마다 3 · 공격 ${u.st.a} (각 +2.5%) · 체력 ${u.st.h} (각 +3%) · 방어 ${u.st.d} (각 +4%)</small></div>${[['a', '공격'], ['h', '체력'], ['d', '방어'], ['auto', '알아서']].map(([k, n]) => `<button class="btn small ${k === 'auto' ? 'primary' : ''}" data-act="stat" data-id="${u.id}" data-k="${k}" ${u.pts > 0 ? '' : 'disabled'}>${n}</button>`).join('')}</div>
     <div class="row"><div class="info"><b>${dino ? '친밀도' : '숙련도'}: ${MAST_N[mastery(u)]} (${mastery(u)}/10)</b><div class="bar"><i style="width:${mastery(u) >= 10 ? 100 : Math.min(100, (u.wins || 0) / masteryNext(u) * 100)}%;background:var(--amber)"></i></div><small>함께 이긴 전투 ${u.wins || 0}번${mastery(u) < 10 ? ` · 다음 단계까지 ${masteryNext(u) - (u.wins || 0)}번` : ''} · 지금 효과: 공격 +${mastery(u) * 3}%, 체력 +${mastery(u) * 2}%</small></div>${dino ? `<button class="btn small" data-act="feed" data-id="${u.id}" ${S.cargo.meat && mastery(u) < 10 ? '' : 'disabled'}>고기 주기</button>` : ''}</div>
     <div class="row"><div class="info"><b>성장 단계</b>${PERKS.map(([lv, n]) => `<small style="color:${u.lv >= lv ? 'var(--good, #8fbf6a)' : 'var(--muted)'}">${u.lv >= lv ? '✓' : '·'} Lv${lv} ${n}</small>`).join('')}</div></div></div>
