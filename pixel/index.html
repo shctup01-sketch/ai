@@ -114,7 +114,7 @@ h2 small { font-family: var(--f-body); font-size: 11px; color: var(--muted); mar
 .cargobar { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .cargobar span { flex: none; } .cargobar .bar { flex: 1; height: 7px; }
 #loading { display: flex; flex-direction: column; gap: 8px; align-items: center; justify-content: center; min-height: 60%; color: var(--muted); }
-#bTip { animation: tipfade 6s forwards; position: absolute; left: 50%; top: 8px; transform: translateX(-50%); font-size: 11px; color: #d8cdb9; background: rgba(18,14,10,.7); padding: 3px 9px; border-radius: 10px; pointer-events: none; white-space: nowrap; }
+#bTip { animation: tipfade 6s forwards; position: absolute; left: 50%; top: 52px; transform: translateX(-50%); font-size: 11px; color: #d8cdb9; background: rgba(18,14,10,.7); padding: 3px 9px; border-radius: 10px; pointer-events: none; white-space: nowrap; }
 #bSel { position: absolute; left: 8px; right: 8px; bottom: 8px; background: rgba(18,14,10,.86); border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; font-size: 12px; display: flex; gap: 8px; align-items: center; pointer-events: none; }
 #bSel .bar { flex: 1; } #bSel .bar i { background: var(--bad); }
 .bfoot { display: flex; gap: 6px; padding: 7px max(12px, env(safe-area-inset-right, 0px)) 9px max(12px, env(safe-area-inset-left, 0px)); }
@@ -556,10 +556,12 @@ function startBattle(opt) {
   for (const c of W.crew) { const u = spawn(0, c.u.type, c.u.lv, c.x, c.y, c.u); u.a = c.a; }
   for (const u of B.units.filter(u => u.side === 0 && UNITS[u.type].turret)) spawnTurret(u);
   opt.mons.forEach(m => { const u = spawn(1, m.f.type, m.f.lv, m.x, m.y, null, m.f.boss); u.a = m.a; });
+  { const ex = opt.mons.reduce((s, m) => s + m.x, 0) / opt.mons.length, ey = opt.mons.reduce((s, m) => s + m.y, 0) / opt.mons.length; B.org = { x: W.lead.x, y: W.lead.y }; B.dir = Math.atan2(ey - W.lead.y, ex - W.lead.x);
+    const c = Math.cos(B.dir), sn = Math.sin(B.dir); for (const u of B.units) if (u.ref && u.ref.pos) u.order = { x: clamp(B.org.x + c * u.ref.pos.a - sn * u.ref.pos.s, 10, WW - 10), y: clamp(B.org.y + sn * u.ref.pos.a + c * u.ref.pos.s, 10, WH - 10) }; }
   $('bTitle').textContent = opt.kind === 'ambush' ? '습격!' : opt.boss ? `우두머리 사냥 · ${BOSSES[opt.boss].n}` : opt.kind === 'hunt' ? `${Z.n} · ${HUNT_NAMES[opt.zone][opt.tier]}` : `${Z.n} 사냥터`;
   $('bInfo').innerHTML = `<span class="hud warn"><i>적</i>${opt.foes.length}</span><span class="hud"><i>아군</i>${ours.length}</span>`;
   for (const f of opt.foes) { S.dex[f.type] = Math.max(S.dex[f.type] || 0, 1); if (UNITS[f.type].rare && !f.boss) setTimeout(() => toast(`희귀종 발견: ${UNITS[f.type].n}!`, 'good'), 900); }
-  $('bfoot').hidden = false; $('ffoot').hidden = true; $('joy').hidden = true; JOY.on = false; $('bTip').hidden = false; $('bTip').textContent = '적을 눌러 집중 공격 · 체력 30% 이하면 포획'; updCapture();
+  $('bfoot').hidden = false; $('ffoot').hidden = true; $('joy').hidden = true; JOY.on = false; $('bTip').hidden = false; $('bTip').textContent = '적: 눌러서 집중 공격 · 대원: 끌어서 자리 배치'; updCapture();
   SND.mood = 'battle'; SND.step = 0; sfx('drums'); flash(0.3);
 }
 function spawn(side, type, lv, x, y, ref, boss) {
@@ -593,8 +595,16 @@ function bStep(dt) {
       const hurt = alive(u.side).filter(o => o !== u && o.hp < o.max * 0.85).sort((a, b) => a.hp / a.max - b.hp / b.max)[0];
       if (hurt) { moveToward(u, hurt, D.range * 0.8, dt); u.cd -= dt; if (u.cd <= 0 && d2(u.x, u.y, hurt.x, hurt.y) < (D.range + 10) ** 2) { u.cd = 1 / u.as; const h = D.heal * lvMul(u.lv); hurt.hp = Math.min(hurt.max, hurt.hp + h); B.fx.push({ t: 0.5, kind: 'heal', x: hurt.x, y: hurt.y }); burst(hurt.x, hurt.y, 4, 6, '#8fd36a', { spd: 14, up: 55, g: 0, life: 0.7 }); sfx('heal', 150); num(hurt, '+' + Math.round(h), '#8fbf6a'); } continue; }
     }
+    if (u.order) {   // walking to the spot you dragged them to
+      if (d2(u.x, u.y, u.order.x, u.order.y) > 36) { const sp0 = u.spd; u.spd = Math.max(sp0, 40) * 1.5; moveToward(u, u.order, 3, dt); u.spd = sp0; continue; }
+      if (u.range > 40) u.anchor = { t: 0 }; u.order = null;
+    }
     if (u.sk && S.auto.skill && u.skCd <= 0) castSkill(u);
-    const tgt = chooseTarget(u);
+    let tgt = chooseTarget(u);
+    if (tgt && u.anchor) {   // ranged members hold the spot while anything is in reach
+      const inR = f => d2(u.x, u.y, f.x, f.y) < (u.range + (u.size + f.size) * 0.45) ** 2;
+      if (!inR(tgt)) { const near = alive(1).filter(inR).sort((a, b) => d2(a.x, a.y, u.x, u.y) - d2(b.x, b.y, u.x, u.y))[0]; if (near) { tgt = near; u.anchor.t = 0; } else { u.anchor.t += dt; if (u.anchor.t > 2.5) u.anchor = null; else { u.moving = false; continue; } } }
+    }
     if (!tgt) { u.moving = false; continue; }
     u.target = tgt;
     // blocked by a friend in front? after a moment, strike past them and drift sideways around them
@@ -1588,7 +1598,7 @@ function renderWorld(dt) {
       const s = toScreen(W.lead.tx, 0, W.lead.ty); if (s.x < 0 || s.x > cw || s.y < 0 || s.y > ch) { const a = Math.atan2(s.y - ch / 2, s.x - cw / 2), ex = clamp(cw / 2 + Math.cos(a) * cw, 20, cw - 20), ey = clamp(ch / 2 + Math.sin(a) * ch, 40, ch - 20); c.save(); c.translate(ex, ey); c.rotate(a); c.fillStyle = '#8fcf6a'; c.beginPath(); c.moveTo(12, 0); c.lineTo(-7, -8); c.lineTo(-3, 0); c.lineTo(-7, 8); c.closePath(); c.fill(); c.restore(); if (W.dest) tag(`${W.dest.label} ${Math.round(Math.hypot(W.lead.tx - W.lead.x, W.lead.ty - W.lead.y) / 10)}m`, clamp(ex, 70, cw - 70), ey + (ey < ch / 2 ? 34 : -14), '#8fcf6a'); }
     }
     drawPX(c); drawMini(c, cw);
-  } else { renderOverlay(true); updSel(); }
+  } else { renderOverlay(true); drawOrders(bc); updSel(); }
   updSkbar(dt);
 }
 function drawMini(c, cw) {   // corner minimap of the whole world
@@ -1647,7 +1657,7 @@ function updSel() {
   if (S0 && S0.hp > 0) {
     const D = UNITS[S0.type];
     $('bSelName').textContent = `${S0.boss ? BOSSES[S0.boss].n : S0.turret ? '포탑' : D.n}${D && D.rare && !S0.boss ? ' ★희귀' : ''} Lv${S0.lv}${S0.side && D && D.cls === 'dino' && !S0.boss ? (S0.hp <= S0.max * 0.3 ? ' · 포획 가능!' : ' · 30% 이하로') : ''}`;
-    $('bSelHp').style.width = (S0.hp / S0.max * 100) + '%';
+    $('bSelHp').style.width = (S0.hp / S0.max * 100) + '%'; $('bSelHp').style.background = S0.side ? '' : '#8fcf6a';
   }
 }
 const bPtr = new Map(); let bPinch = null;
@@ -1664,7 +1674,20 @@ bcv.addEventListener('pointerdown', e => {
   const x = VO.x + px / PSZ, y = VO.y + py / PSZ; let best = null, bd = 1e9;
   for (const u of B.units) { if (u.hp <= 0) continue; const d = d2(x, y, u.x, u.y - u.size * 0.5); if (d < Math.max(24, u.size * 1.1) ** 2 && d < bd) { best = u; bd = d; } }
   B.sel = best; if (best && best.side === 1) { B.focus = best; sfx('tap'); ringFx(best.x, best.y, '#ffe070', best.size, 0.3); }
+  else if (best && best.side === 0 && !best.turret) B.drag = { u: best, id: e.pointerId, sx: px, sy: py, x: best.x, y: best.y, moved: false };
 });
+bcv.addEventListener('pointermove', e => { const d = B && B.drag; if (!d || d.id !== e.pointerId) return; const r = bcv.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top; if (Math.hypot(px - d.sx, py - d.sy) > 10) d.moved = true; d.x = clamp(VO.x + px / PSZ, 10, WW - 10); d.y = clamp(VO.y + py / PSZ, 10, WH - 10); });
+const dropUnit = e => {
+  const d = B && B.drag; if (!d || d.id !== e.pointerId) return; B.drag = null; if (!d.moved || B.over || d.u.hp <= 0 || bPtr.size > 1) return;
+  d.u.order = { x: d.x, y: d.y }; d.u.anchor = null; sfx('tap'); ringFx(d.x, d.y, '#8fcf6a', 14, 0.4);
+  if (d.u.ref && B.org) { const dx = d.x - B.org.x, dy = d.y - B.org.y, c = Math.cos(B.dir), sn = Math.sin(B.dir); d.u.ref.pos = { a: clamp(dx * c + dy * sn, -260, 260), s: clamp(-dx * sn + dy * c, -260, 260) }; if (!S.posHint) { S.posHint = true; toast('이 자리를 기억해요 · 다음 전투에서도 같은 위치로 가요'); } }
+};
+bcv.addEventListener('pointerup', dropUnit); bcv.addEventListener('pointercancel', e => { if (B && B.drag && B.drag.id === e.pointerId) B.drag = null; });
+function drawOrders(c) {
+  c.lineWidth = 2;
+  for (const u of B.units) { if (u.side || u.hp <= 0 || !u.order) continue; const a = toScreen(u.x, 0, u.y), b = toScreen(u.order.x, 0, u.order.y); c.strokeStyle = 'rgba(143,207,106,.55)'; c.setLineDash([5, 5]); c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.stroke(); c.setLineDash([]); c.beginPath(); c.arc(b.x, b.y, 6, 0, 7); c.stroke(); }
+  const d = B.drag; if (d && d.moved) { const a = toScreen(d.u.x, 0, d.u.y), b = toScreen(d.x, 0, d.y); c.strokeStyle = '#8fcf6a'; c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.stroke(); c.fillStyle = 'rgba(143,207,106,.3)'; c.beginPath(); c.ellipse(b.x, b.y, d.u.size * PSZ * 0.8, d.u.size * PSZ * 0.45, 0, 0, 7); c.fill(); c.stroke(); }
+}
 $('bCapture').onclick = () => B && !B.over && tryCapture();
 $('bRetreat').onclick = () => { if (!B || B.over) return; B.opt.retreat = true; B.loot = {}; endBattle(false); };
 const ZOOMS = [[1, '보통'], [1.3, '크게'], [1.9, '아주 크게']];
@@ -1848,7 +1871,7 @@ function renderParty() {
   const reserve = S.units.filter(u => !u.inParty);
   const psecs = [['crew', '대원', S.units.filter(u => u.inParty && u.pts > 0).length], ['rank', '순위'], ['bag', '가방', S.items.length], ['dex', '도감'], ['skill', '스킬', S.sp], ['cargo', '짐']];
   el.innerHTML = `<div class="card"><div class="row"><div class="info"><b>상단 Lv${S.clv} · ${P.length}/${partyCap()}명</b><div class="bar"><i style="width:${S.cxp / cxpNeed(S.clv) * 100}%;background:var(--amber)"></i></div><small>상단 경험치 ${S.cxp}/${cxpNeed(S.clv)} · 장사, 사냥, 의뢰로 올라요 · 레벨마다 인원 +1(최대 12)</small><small>짐칸 ${cargoUsed()}/${capacity()} · 전투 ${S.stats.battles} · 포획 ${S.stats.captures}</small></div><button class="btn small" data-act="snd">${['소리 끔', '효과음만', '소리 켬'][S.snd]}</button></div></div>${chips(psecs, partySec, 'psec')}
-    ${partySec === 'crew' ? `<h2>자동 설정</h2><div class="card">${[['skill', '스킬 자동 사용', '대원이 준비된 스킬을 알아서 써요 · 끄면 전투 중에 스킬 버튼이 나와요'], ['pot', '회복약 자동 사용', '누군가 체력 30% 아래로 떨어지면 알아서 마셔요 (전투 중 15초에 한 번)'], ['hunt', '자동 사냥', '가까운 무리를 계속 찾아가 사냥해요']].map(([k, n, d]) => `<div class="row"><div class="info"><b>${n}</b><small>${d}</small></div><button class="btn small ${S.auto[k] ? 'primary' : ''}" data-act="auto" data-k="${k}">${S.auto[k] ? '켜짐' : '꺼짐'}</button></div>`).join('')}</div><h2>진형<small>${FORMS[S.form].ds}</small></h2>${chips(Object.entries(FORMS).map(([k, f]) => [k, f.n]), S.form, 'form')}<h2>출전 대원</h2><div class="sub" style="margin:0">▲▼로 줄 서는 순서를 바꿔요. 앞에 선 대원이 먼저 적과 맞붙어요.</div><h2 style="display:none"><small>${''}</small></h2><div class="sub" style="margin:0">상단 전투력 ${fmt(partyPower())} · 용병 일당 하루 ${fmt(wages())}${S.unpaid ? ' <b style="color:var(--bad)">(밀림 · 공격 -20%)</b>' : ''}</div><div class="card">${P.map(row).join('')}</div>
+    ${partySec === 'crew' ? `<h2>자동 설정</h2><div class="card">${[['skill', '스킬 자동 사용', '대원이 준비된 스킬을 알아서 써요 · 끄면 전투 중에 스킬 버튼이 나와요'], ['pot', '회복약 자동 사용', '누군가 체력 30% 아래로 떨어지면 알아서 마셔요 (전투 중 15초에 한 번)'], ['hunt', '자동 사냥', '가까운 무리를 계속 찾아가 사냥해요']].map(([k, n, d]) => `<div class="row"><div class="info"><b>${n}</b><small>${d}</small></div><button class="btn small ${S.auto[k] ? 'primary' : ''}" data-act="auto" data-k="${k}">${S.auto[k] ? '켜짐' : '꺼짐'}</button></div>`).join('')}</div><h2>진형<small>${FORMS[S.form].ds}</small></h2>${chips(Object.entries(FORMS).map(([k, f]) => [k, f.n]), S.form, 'form')}<h2>출전 대원</h2><div class="sub" style="margin:0">▲▼로 줄 서는 순서를 바꿔요. 전투 중에는 대원을 끌어서 자리를 정할 수 있고, 그 자리는 다음 전투에도 기억돼요.${S.units.some(u => u.pos) ? ' <button class="btn small" data-act="resetPos" style="margin-left:6px">배치 초기화</button>' : ''}</div><h2 style="display:none"><small>${''}</small></h2><div class="sub" style="margin:0">상단 전투력 ${fmt(partyPower())} · 용병 일당 하루 ${fmt(wages())}${S.unpaid ? ' <b style="color:var(--bad)">(밀림 · 공격 -20%)</b>' : ''}</div><div class="card">${P.map(row).join('')}</div>
     <h2>대기 대원<small>정착지 우리에서 쉬어요</small></h2><div class="card">${reserve.length ? reserve.map(row).join('') : '<div class="row"><div class="info"><small>없어요. 사냥터에서 공룡을 포획하거나 고용소에서 대원을 구하세요</small></div></div>'}</div>` : ''}
     ${partySec === 'bag' ? `<h2>우두머리 증표<small>변이 진화와 특수 전직에 써요 · 우두머리를 잡으면 하나씩 얻어요</small></h2><div class="card"><div class="row"><div class="info"><small style="color:var(--text)">${Object.entries(S.tokens).filter(([, k]) => k > 0).map(([k, n]) => `${TOKEN_N[k]} ${n}개`).join(' · ') || '아직 없어요'}</small><small>공룡 알: ${Object.entries(S.eggBag).filter(([, k]) => k > 0).map(([ez, k]) => `${ZONES[ez].n} ${k}개`).join(' · ') || '없음'}</small></div></div></div><h2>가방<small>장비 ${S.items.length}/${BAG_MAX} · 대원의 관리 버튼에서 착용해요</small></h2><div class="card">${S.items.length ? [...S.items].sort((a, b) => b.r - a.r || b.lv - a.lv).map(it => `<div class="row"><div class="info"><b>${itemName(it)}</b><small>${SLOTS[it.slot]} · Lv${it.lv} · ${itemText(it)}</small></div><button class="btn small" data-act="sellItem" data-it="${it.id}">${itemPrice(it)}에 팔기</button></div>`).join('') : '<div class="row"><div class="info"><small>아직 얻은 장비가 없어요. 사냥에서 이기면 가끔 떨어져요</small></div></div>'}</div>` : ''}
     ${partySec === 'rank' ? (() => { const me = partyPower(), list = [...RANKS.map(r => [r[0], r[1], 0]), ['내 상단', me, 1]].sort((a, b) => b[1] - a[1]), up = list[list.findIndex(r => r[2]) - 1];
@@ -1960,6 +1983,7 @@ document.body.addEventListener('click', e => {
     const u = S.units.find(x => x.id === +b.dataset.id); if (!u) return; const P = S.units.filter(x => x.inParty && x.type !== 'leader'), i = P.indexOf(u), j = i + +b.dataset.d; if (j < 0 || j >= P.length) return;
     const a = S.units.indexOf(u), c = S.units.indexOf(P[j]); S.units[a] = P[j]; S.units[c] = u; sfx('tap'); if (W) { W.crew = []; syncCrew(); }
   }
+  else if (act === 'resetPos') { for (const u of S.units) delete u.pos; sfx('tap'); toast('전투 배치를 초기화했어요'); }
   else if (act === 'stat') { const u = S.units.find(x => x.id === +b.dataset.id); if (!u || !(u.pts > 0)) return; const r = u.hp / maxHp(u); if (b.dataset.k === 'auto') { const pref = { '탱커': 'h', '짐꾼': 'h', '회복': 'h' }[UNITS[u.type].role] || 'a'; while (u.pts > 0) { const k = u.pts % 3 === 0 ? 'd' : u.pts % 3 === 1 ? pref : (pref === 'a' ? 'h' : 'a'); u.st[k]++; u.pts--; } } else { u.st[b.dataset.k]++; u.pts--; } u.hp = Math.round(maxHp(u) * r); sfx('capture'); checkRank(); save(); renderAll(); unitModal(u.id); return; }
   else if (act === 'feed') { const u = S.units.find(x => x.id === +b.dataset.id); if (!u || !(S.cargo.meat >= 3)) return; S.cargo.meat -= 3; if (!S.cargo.meat) delete S.cargo.meat; u.wins = (u.wins || 0) + 1; sfx('heal'); save(); renderAll(); unitModal(u.id); return; }
   else if (act === 'form') { S.form = b.dataset.k; sfx('tap'); }
