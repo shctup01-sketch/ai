@@ -1,0 +1,954 @@
+<title>흙속왕국</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@700;800&family=IBM+Plex+Sans+KR:wght@400;600&display=swap">
+<style>
+/* Layout: field-guide observation screen — surface view (top-down) over a soil cross-section, caste picker at the bottom.
+   Single deliberate earth-toned dark look; colors set explicitly. */
+:root {
+  --bg: #17110b; --panel: #221912; --panel-2: #2c2118; --line: #3d2e20;
+  --text: #efe4d2; --muted: #a8957b; --amber: #e3a843; --red: #d4573c; --leaf: #93c06c;
+  --f-display: "Nanum Myeongjo", "AppleMyungjo", "Batang", serif;
+  --f-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html { height: 100%; box-sizing: border-box; background: var(--bg); }
+body { height: 100%; margin: 0; background: var(--bg); color: var(--text); font-family: var(--f-body); font-size: 13px; overflow: hidden; user-select: none; -webkit-user-select: none; }
+button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; touch-action: manipulation; }
+button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+#app { height: 100%; max-width: 620px; margin: 0 auto; display: flex; flex-direction: column; }
+
+header { padding-block: 8px 6px; padding-left: max(14px, env(safe-area-inset-left, 0px)); padding-right: max(14px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 6px; }
+.top { display: flex; align-items: center; gap: 8px; }
+.brand { flex: 1; min-width: 0; }
+.brand h1 { font-family: var(--f-display); font-weight: 800; font-size: 19px; margin: 0; letter-spacing: -0.01em; }
+.brand small { display: block; color: var(--muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.brand small i { font-style: italic; }
+.tbtn { height: 30px; padding: 0 10px; border-radius: 8px; background: var(--panel-2); border: 1px solid var(--line); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.tbtn.on { border-color: var(--leaf); color: var(--leaf); }
+.stats { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+.stats::-webkit-scrollbar { display: none; }
+.stat { flex: none; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 3px 8px; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.stat b { color: var(--text); font-size: 13px; margin-left: 3px; }
+.stat.food b { color: var(--amber); }
+
+.views { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 3px; position: relative; }
+.pane { position: relative; min-height: 0; }
+#surfPane { flex: 1.45; }
+#nestPane { flex: 1; }
+canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.tag { position: absolute; left: 8px; top: 6px; font-size: 10px; letter-spacing: .12em; color: rgba(239,228,210,.75); background: rgba(23,17,11,.55); padding: 2px 6px; border-radius: 4px; pointer-events: none; }
+#info { position: absolute; left: 8px; right: 8px; bottom: 8px; background: rgba(23,17,11,.86); border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; font-size: 12px; display: flex; align-items: center; gap: 8px; }
+#info b { font-weight: 600; }
+#info .st { color: var(--muted); flex: 1; min-width: 0; }
+#info .hp { width: 54px; height: 5px; background: #3a2a1d; border-radius: 3px; overflow: hidden; flex: none; }
+#info .hp i { display: block; height: 100%; background: var(--leaf); }
+.hint { position: absolute; right: 8px; top: 6px; font-size: 10px; color: rgba(239,228,210,.6); pointer-events: none; }
+
+#panel { background: var(--panel); border-top: 1px solid var(--line); padding-block: 8px 10px; padding-left: max(12px, env(safe-area-inset-left, 0px)); padding-right: max(12px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 8px; }
+.qrow { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.qrow .ql { font-size: 11px; color: var(--muted); flex: none; letter-spacing: .04em; }
+#queue { display: flex; gap: 4px; flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: none; min-height: 24px; align-items: center; }
+#queue::-webkit-scrollbar { display: none; }
+.qchip { flex: none; height: 24px; padding: 0 7px; border-radius: 12px; background: var(--panel-2); border: 1px solid var(--line); font-size: 11px; display: inline-flex; align-items: center; gap: 4px; }
+.qchip.first { border-color: var(--amber); }
+.qchip .x { color: var(--muted); }
+.qempty { font-size: 11px; color: var(--muted); }
+#layStatus { font-size: 11px; color: var(--amber); flex: none; font-variant-numeric: tabular-nums; }
+.castes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.caste { background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 6px 6px 7px; text-align: left; display: flex; flex-direction: column; gap: 1px; min-width: 0; position: relative; }
+.caste:active { transform: scale(.97); }
+.caste canvas { width: 100%; height: 38px; pointer-events: none; }
+.caste .nm { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.caste .lt { font-size: 10px; color: var(--muted); font-style: italic; }
+.caste .co { font-size: 11px; color: var(--amber); font-variant-numeric: tabular-nums; }
+.caste .ds { font-size: 10px; color: var(--muted); line-height: 1.35; }
+.caste.locked { opacity: .6; }
+.caste.locked canvas { filter: brightness(0) opacity(.5); }
+.caste.locked .co { color: var(--muted); }
+.caste.short .co { color: var(--red); }
+.caste.fresh { border-color: var(--amber); box-shadow: 0 0 0 2px rgba(227,168,67,.3); }
+
+#toast { position: absolute; left: 50%; top: 10px; transform: translate(-50%, -6px); background: rgba(23,17,11,.92); border: 1px solid var(--line); color: var(--text); padding: 7px 14px; border-radius: 18px; font-size: 12px; opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; z-index: 10; max-width: calc(100% - 24px); text-align: center; }
+#toast.show { opacity: 1; transform: translate(-50%, 0); }
+#toast.warn { border-color: var(--red); }
+#toast.good { border-color: var(--amber); }
+@media (prefers-reduced-motion: reduce) { #toast { transition: none; } }
+</style>
+
+<div id="app">
+  <header>
+    <div class="top">
+      <div class="brand"><h1>흙속왕국</h1><small>일본왕개미 군집 · <i>Camponotus japonicus</i> · <span id="clock">0분</span></small></div>
+      <button class="tbtn on" id="phBtn" aria-pressed="true">페로몬</button>
+      <button class="tbtn" id="spdBtn">×1</button>
+    </div>
+    <div class="stats">
+      <span class="stat food">먹이<b id="sFood">0</b></span>
+      <span class="stat">일개미<b id="sWorker">0</b></span>
+      <span class="stat">병정<b id="sSoldier">0</b></span>
+      <span class="stat">알<b id="sEgg">0</b></span>
+      <span class="stat">애벌레<b id="sLarva">0</b></span>
+      <span class="stat">번데기<b id="sPupa">0</b></span>
+      <span class="stat">전사<b id="sDead">0</b></span>
+    </div>
+  </header>
+
+  <div class="views">
+    <div class="pane" id="surfPane">
+      <canvas id="surf" aria-label="땅 위: 개미들이 먹이를 찾고 싸우는 모습"></canvas>
+      <span class="tag">땅 위</span><span class="hint">드래그·확대 · 개미를 눌러 따라가기</span>
+      <div id="info" hidden><b id="iName"></b><span class="st" id="iState"></span><span class="hp"><i id="iHp"></i></span></div>
+    </div>
+    <div class="pane" id="nestPane">
+      <canvas id="nest" aria-label="땅속 단면: 저장고, 육아실, 여왕방"></canvas>
+      <span class="tag">땅속 단면</span>
+    </div>
+    <div id="toast"></div>
+  </div>
+
+  <div id="panel">
+    <div class="qrow"><span class="ql">여왕 산란</span><div id="queue"></div><span id="layStatus"></span></div>
+    <div class="castes" id="castes"></div>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+/* ================= constants ================= */
+const W = 1000, H = 900, CELL = 10, GW = W / CELL, GH = H / CELL;
+const NEST = { x: 500, y: 450 }, MIDDEN = { x: 556, y: 506 };
+const NW = 400, NH = 240;
+const STEP = 1 / 30;
+const NURSE_AGE = 35;          // young workers stay inside as nurses (age polyethism)
+const LAY_TIME = 2.2;
+
+const CASTES = {
+  worker:  { n: '일개미',      lt: 'minor · 소형 일개미',  cost: 8,  hp: 10, atk: 1.3, speed: 36, len: 9,  hs: 1.0, dev: [5, 8, 6],
+             ds: '먹이를 찾아 나르고, 어릴 땐 알을 돌봐요' },
+  soldier: { n: '병정개미',    lt: 'media · 중형 병정',    cost: 20, hp: 34, atk: 3.6, speed: 30, len: 12, hs: 1.45, dev: [6, 10, 8],
+             ds: '굴 주변을 지키고 경보에 달려가요' },
+  major:   { n: '대형 병정개미', lt: 'major · 대형 병정',   cost: 45, hp: 75, atk: 8.5, speed: 24, len: 16, hs: 1.9, dev: [8, 13, 10],
+             ds: '큰 턱으로 거미도 물리쳐요', unlock: { spider: 2 } },
+};
+const FOES = {
+  beetle: { n: '딱정벌레', hp: 60, atk: 2.0, speed: 13, size: 15, food: 30, sense: 60,  life: 80 },
+  spider: { n: '늑대거미', hp: 95, atk: 5.0, speed: 42, size: 17, food: 44, sense: 120, life: 70 },
+  raider: { n: '곰개미 정찰대', hp: 12, atk: 1.1, speed: 37, size: 9, food: 4, sense: 80, life: 120 },
+};
+const STATE_TEXT = {
+  explore: '먹이 찾는 중 · 동료가 남긴 페로몬을 따라가요', toFood: '먹이 발견!', carry: '먹이 운반 중 · 지나간 길에 페로몬을 남겨요',
+  corpse: '죽은 동료를 쓰레기장으로 옮기는 중', return: '먹이를 못 찾고 굴로 돌아가는 중', fight: '전투 중 · 턱으로 물고 있어요',
+  alarm: '경보 페로몬을 맡고 출동', patrol: '굴 입구 주변 순찰', chase: '적을 추격 중', flee: '적을 피해 달아나는 중',
+  deliver: '굴 안: 저장고에 먹이를 내려놓는 중', exit: '굴 안: 밖으로 나가는 중', nurse: '굴 안: 알과 애벌레를 돌보는 중 (어린 일개미)',
+  emerge: '굴 안: 막 태어나 밖으로 나가는 중',
+};
+
+const rand = (a, b) => a + Math.random() * (b - a);
+const d2 = (ax, ay, bx, by) => { const dx = ax - bx, dy = ay - by; return dx * dx + dy * dy; };
+const angTo = (ax, ay, bx, by) => Math.atan2(by - ay, bx - ax);
+const wrapA = a => { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; };
+const turnTo = (o, t, r) => { const d = wrapA(t - o.a); o.a += Math.max(-r, Math.min(r, d)); };
+const $ = id => document.getElementById(id);
+
+/* ================= pheromones ================= */
+const homeP = new Float32Array(GW * GH), foodP = new Float32Array(GW * GH);
+const gi = (x, y) => { const cx = x / CELL | 0, cy = y / CELL | 0; return (cx < 0 || cy < 0 || cx >= GW || cy >= GH) ? -1 : cy * GW + cx; };
+const sense = (g, x, y) => { const i = gi(x, y); return i < 0 ? -1 : g[i]; };
+const deposit = (g, x, y, s) => { const i = gi(x, y); if (i >= 0 && g[i] < s) g[i] = s; };
+function follow(a, g, dt, thr) {
+  const d = a.len * 1.4 + 7, sp = 0.6;
+  const l = sense(g, a.x + Math.cos(a.a - sp) * d, a.y + Math.sin(a.a - sp) * d);
+  const c = sense(g, a.x + Math.cos(a.a) * d, a.y + Math.sin(a.a) * d);
+  const r = sense(g, a.x + Math.cos(a.a + sp) * d, a.y + Math.sin(a.a + sp) * d);
+  if (Math.max(l, c, r) < thr) return false;
+  if (!(c >= l && c >= r)) a.a += (l > r ? -1 : 1) * 4.5 * dt;
+  return true;
+}
+
+/* ================= nest graph (side view) ================= */
+const NODES = {
+  E:  { x: 200, y: 13 },
+  J1: { x: 206, y: 62 },
+  S:  { x: 104, y: 92,  rx: 44, ry: 17, label: '저장고' },
+  J2: { x: 214, y: 124 },
+  B:  { x: 318, y: 130, rx: 48, ry: 18, label: '육아실' },
+  Q:  { x: 196, y: 198, rx: 42, ry: 17, label: '여왕방' },
+};
+const EDGES = [['E', 'J1'], ['J1', 'S'], ['J1', 'J2'], ['J2', 'B'], ['J2', 'Q']];
+const ADJ = {}; Object.keys(NODES).forEach(k => ADJ[k] = []);
+EDGES.forEach(([a, b]) => { ADJ[a].push(b); ADJ[b].push(a); });
+function route(from, to) {
+  const prev = { [from]: null }, q = [from];
+  while (q.length) { const n = q.shift(); if (n === to) break; for (const m of ADJ[n]) if (!(m in prev)) { prev[m] = n; q.push(m); } }
+  const out = []; for (let n = to; n; n = prev[n]) out.unshift(n); return out;
+}
+function chamberScale() { return 1 + Math.min(0.7, G.ants.length / 260); }
+function inChamber(id) {
+  const n = NODES[id]; if (!n.rx) return { x: n.x, y: n.y };
+  const s = chamberScale(), t = rand(0, Math.PI * 2), r = Math.sqrt(Math.random()) * 0.75;
+  return { x: n.x + Math.cos(t) * n.rx * s * r, y: n.y + Math.abs(Math.sin(t)) * n.ry * s * r * 0.8 + n.ry * s * 0.1 };
+}
+function setNestTask(a, task, to) {
+  a.task = task;
+  const ids = route(a.node || 'E', to);
+  a.path = ids.slice(1).map(id => ({ x: NODES[id].x, y: NODES[id].y, id }));
+  const last = inChamber(to); last.id = to;
+  if (NODES[to].rx) a.path.push(last);
+  if (!a.path.length) a.path.push(last);
+  a.np = 0;
+}
+
+/* ================= game state ================= */
+let G;
+function makeAnt(caste) {
+  const C = CASTES[caste];
+  return { id: G.idSeq++, caste, hp: C.hp, len: C.len * rand(0.94, 1.06), x: NEST.x, y: NEST.y, a: rand(-3.14, 3.14), turn: 0, leg: rand(0, 6),
+           loc: 'nest', carry: null, tOut: 0, tPick: 0, age: 0, state: 'explore', task: '', node: 'B', nx: 0, ny: 0, path: null, np: 0, wait: 0, moving: true };
+}
+function exitToSurface(a) {
+  a.loc = 'surface'; a.a = rand(-3.14, 3.14);
+  a.x = NEST.x + Math.cos(a.a) * 6; a.y = NEST.y + Math.sin(a.a) * 6;
+  a.tOut = 0; a.state = a.caste === 'worker' ? 'explore' : 'patrol';
+}
+function enterNest(a, task) {
+  a.loc = 'nest'; a.node = 'E'; a.nx = NODES.E.x; a.ny = NODES.E.y;
+  if (task === 'deliver') setNestTask(a, 'deliver', 'S');
+  else { setNestTask(a, 'deliver', 'S'); }
+}
+function newGame() {
+  G = { t: 0, food: 40, ants: [], brood: [], foes: [], items: [], corpses: [], midden: [], alarms: [],
+        queue: ['worker', 'worker', 'worker', 'worker'], layT: 0, kills: { beetle: 0, spider: 0, raider: 0 },
+        unlocked: { worker: true, soldier: true, major: false }, nextFoe: 45, nextFood: 18, idSeq: 1, dead: 0, spidersSent: 0,
+        queen: { nx: NODES.Q.x, ny: NODES.Q.y + 4, a: 0.1, leg: 0 } };
+  for (let i = 0; i < 9; i++) { const a = makeAnt('worker'); a.age = NURSE_AGE + 1; exitToSurface(a); a.x += rand(-30, 30); a.y += rand(-30, 30); G.ants.push(a); }
+  for (let i = 0; i < 4; i++) { const a = makeAnt('worker'); a.age = rand(0, 20); placeInNest(a, 'B'); setNestTask(a, 'nurse', 'B'); G.ants.push(a); }
+  for (let i = 0; i < 2; i++) { const a = makeAnt('soldier'); exitToSurface(a); G.ants.push(a); }
+  spawnFood(150, 0.4, 'seed'); spawnFood(230, 2.6, 'seed'); spawnFood(190, -1.6, 'sugar'); spawnFood(320, 1.3, 'seed');
+}
+function placeInNest(a, id) { const p = inChamber(id); a.loc = 'nest'; a.node = id; a.nx = p.x; a.ny = p.y; }
+
+function spawnFood(dist, ang, kind) {
+  dist = dist || rand(120, 400); ang = ang ?? rand(-Math.PI, Math.PI);
+  kind = kind || (Math.random() < 0.7 ? 'seed' : 'sugar');
+  const cx = Math.min(W - 40, Math.max(40, NEST.x + Math.cos(ang) * dist));
+  const cy = Math.min(H - 40, Math.max(40, NEST.y + Math.sin(ang) * dist));
+  if (kind === 'seed') {
+    const n = 8 + (Math.random() * 10 | 0);
+    for (let i = 0; i < n; i++) { const t = rand(0, 6.28), r = rand(0, 14); G.items.push({ kind: 'seed', x: cx + Math.cos(t) * r, y: cy + Math.sin(t) * r, a: rand(0, 6.28), amt: 1, val: 2 }); }
+  } else {
+    const amt = 12 + (Math.random() * 10 | 0);
+    G.items.push({ kind: 'sugar', x: cx, y: cy, a: 0, amt, max: amt, val: 2 });
+  }
+}
+function spawnFoe(type) {
+  const edge = Math.random() * 4 | 0;
+  const x = edge === 0 ? 10 : edge === 1 ? W - 10 : rand(40, W - 40);
+  const y = edge === 2 ? 10 : edge === 3 ? H - 10 : rand(40, H - 40);
+  const D = FOES[type];
+  const mk = (ox, oy) => ({ type, x: x + ox, y: y + oy, a: angTo(x, y, NEST.x, NEST.y) + rand(-0.6, 0.6), hp: D.hp, leg: rand(0, 6), life: D.life, turn: 0, alarmCd: 0, moving: true });
+  if (type === 'raider') { const n = 3 + (Math.random() * 3 | 0); for (let i = 0; i < n; i++) G.foes.push(mk(rand(-14, 14), rand(-14, 14))); }
+  else G.foes.push(mk(0, 0));
+  toast(`${D.n}${type === 'raider' ? '가 쳐들어와요' : '가 나타났어요'}`, 'warn');
+}
+
+/* ================= simulation ================= */
+function step(dt) {
+  G.t += dt;
+  const ev = Math.exp(-dt / 28);
+  for (let i = 0; i < homeP.length; i++) { homeP[i] *= ev; foodP[i] *= ev; }
+  for (const al of G.alarms) al.t -= dt;
+  G.alarms = G.alarms.filter(al => al.t > 0);
+
+  // queen lays
+  const Q = G.queen; Q.leg += dt * 0.6;
+  if (G.queue.length) {
+    const C = CASTES[G.queue[0]];
+    if (G.food >= C.cost) {
+      G.layT += dt;
+      if (G.layT >= LAY_TIME) {
+        G.food -= C.cost; G.layT = 0;
+        const p = inChamber('B');
+        G.brood.push({ caste: G.queue.shift(), st: 0, t: 0, x: p.x, y: p.y, r: rand(0, 6.28) });
+      }
+    }
+  } else G.layT = 0;
+
+  // brood develops; nurses speed it up
+  const nurses = G.ants.filter(a => a.loc === 'nest' && a.task === 'nurse').length;
+  const care = Math.min(1, 0.35 + nurses / Math.max(1, G.brood.length) * 0.65 * 3);
+  for (const b of G.brood) {
+    b.t += dt * care;
+    const dur = CASTES[b.caste].dev[b.st];
+    if (b.t >= dur) { b.t = 0; b.st++; }
+    if (b.st >= 3) {
+      b.done = true;
+      const a = makeAnt(b.caste); a.loc = 'nest'; a.node = 'B'; a.nx = b.x; a.ny = b.y;
+      if (b.caste === 'worker') setNestTask(a, 'nurse', 'B'); else { setNestTask(a, 'emerge', 'E'); toast(`${CASTES[b.caste].n}가 번데기에서 나왔어요`, 'good'); }
+      G.ants.push(a);
+    }
+  }
+  G.brood = G.brood.filter(b => !b.done);
+
+  for (const f of G.foes) f.biters = 0;
+  for (const a of G.ants) { a.age += dt; if (a.loc === 'surface') surfAnt(a, dt); else nestAnt(a, dt); }
+  for (const f of G.foes) updFoe(f, dt);
+
+  // deaths
+  for (const a of G.ants) if (a.hp <= 0) {
+    a.dead = true; G.dead++;
+    if (a.loc === 'surface') G.corpses.push({ x: a.x, y: a.y, a: a.a, caste: a.caste, len: a.len, taken: false });
+    if (a.carry && a.carry.type === 'corpse') G.corpses.push({ x: a.x, y: a.y, a: a.a, caste: a.carry.caste, len: a.carry.len, taken: false });
+    if (sel === a) { toast(`${CASTES[a.caste].n} #${a.id}가 전사했어요`, 'warn'); sel = null; }
+  }
+  G.ants = G.ants.filter(a => !a.dead);
+  for (const f of G.foes) if (f.hp <= 0) {
+    f.dead = true; G.kills[f.type]++;
+    const D = FOES[f.type];
+    G.items.push({ kind: 'carcass', foe: f.type, x: f.x, y: f.y, a: f.a, amt: D.food / 2 | 0, max: D.food / 2 | 0, val: 2 });
+    if (f.type !== 'raider') toast(`${D.n}를 물리쳤어요 · 사체는 먹이가 돼요`, 'good');
+    checkUnlocks();
+  }
+  G.foes = G.foes.filter(f => !f.dead && !f.gone);
+  G.items = G.items.filter(it => it.amt > 0);
+  G.corpses = G.corpses.filter(c => !c.gone);
+
+  // world events
+  G.nextFood -= dt;
+  if (G.nextFood <= 0) { const clusters = new Set(G.items.filter(i => i.kind !== 'carcass').map(i => (i.x / 60 | 0) + ',' + (i.y / 60 | 0))).size; if (clusters < 8) spawnFood(); G.nextFood = rand(14, 26); }
+  G.nextFoe -= dt;
+  if (G.nextFoe <= 0) {
+    let type;
+    if (G.t > 140 && G.spidersSent < 1) type = 'spider';
+    else if (G.t < 100) type = Math.random() < 0.5 ? 'beetle' : 'raider';
+    else { const r = Math.random(); type = r < 0.35 ? 'spider' : r < 0.6 ? 'beetle' : 'raider'; }
+    if (type === 'spider') G.spidersSent++;
+    spawnFoe(type);
+    G.nextFoe = Math.max(16, 45 - G.t / 25) + rand(0, 12);
+  }
+}
+
+function checkUnlocks() {
+  for (const [k, C] of Object.entries(CASTES)) {
+    if (G.unlocked[k] || !C.unlock) continue;
+    if (Object.entries(C.unlock).every(([f, n]) => G.kills[f] >= n)) {
+      G.unlocked[k] = true; freshCaste = k;
+      toast(`새 전투개미 발견: ${C.n}!`, 'good'); renderCastes();
+    }
+  }
+}
+
+function nearestFoe(a) {
+  let f = null, fd = Infinity;
+  for (const o of G.foes) { const d = d2(a.x, a.y, o.x, o.y); if (d < fd) { fd = d; f = o; } }
+  return [f, fd];
+}
+
+function surfAnt(a, dt) {
+  const C = CASTES[a.caste];
+  a.tOut += dt; a.moving = true;
+  const [foe, fd] = nearestFoe(a);
+  const contact = foe ? FOES[foe.type].size * 0.6 + a.len * 0.5 + 2 : 0;
+  const carrying = a.caste === 'worker' && a.carry;
+
+  if (foe && fd < contact * contact && !carrying) {
+    a.state = 'fight'; a.moving = false;
+    turnTo(a, angTo(a.x, a.y, foe.x, foe.y), 8 * dt);
+    foe.hp -= C.atk * dt; foe.biters++;
+    raiseAlarm(foe);
+  } else if (a.caste !== 'worker') {
+    let al = null, ad = 330 * 330;
+    for (const o of G.alarms) { const d = d2(a.x, a.y, o.x, o.y); if (d < ad) { ad = d; al = o; } }
+    if (foe && fd < 110 * 110) { a.state = 'chase'; turnTo(a, angTo(a.x, a.y, foe.x, foe.y), 5 * dt); }
+    else if (al) { a.state = 'alarm'; turnTo(a, angTo(a.x, a.y, al.x, al.y), 4 * dt); wander(a, dt, 1); }
+    else {
+      a.state = 'patrol'; wander(a, dt, 3);
+      if (d2(a.x, a.y, NEST.x, NEST.y) > 150 * 150) turnTo(a, angTo(a.x, a.y, NEST.x, NEST.y), 1.6 * dt);
+    }
+  } else workerLogic(a, dt, foe, fd);
+
+  if (a.moving) {
+    const sp = C.speed * (a.carry ? 0.82 : 1);
+    a.x += Math.cos(a.a) * sp * dt; a.y += Math.sin(a.a) * sp * dt;
+    a.leg += dt * sp * 0.55;
+    if (a.x < 4 || a.x > W - 4) { a.a = Math.PI - a.a; a.x = Math.max(4, Math.min(W - 4, a.x)); }
+    if (a.y < 4 || a.y > H - 4) { a.a = -a.a; a.y = Math.max(4, Math.min(H - 4, a.y)); }
+  }
+}
+function wander(a, dt, amt) {
+  a.turn += rand(-1, 1) * dt * 6 * amt; a.turn *= 0.94;
+  a.turn = Math.max(-2.5, Math.min(2.5, a.turn));
+  a.a += a.turn * dt;
+}
+function raiseAlarm(f) {
+  if (f.alarmCd > 0) return;
+  f.alarmCd = 1.2; G.alarms.push({ x: f.x, y: f.y, t: 7 });
+}
+
+function workerLogic(a, dt, foe, fd) {
+  // corpse duty: carry dead nestmates to the refuse pile
+  if (a.carry && a.carry.type === 'corpse') {
+    a.state = 'corpse'; turnTo(a, angTo(a.x, a.y, MIDDEN.x, MIDDEN.y), 3 * dt); wander(a, dt, 0.6);
+    if (d2(a.x, a.y, MIDDEN.x, MIDDEN.y) < 90) { G.midden.push({ x: a.x + rand(-7, 7), y: a.y + rand(-7, 7), a: rand(0, 6.28), len: a.carry.len }); a.carry = null; a.state = 'explore'; a.a += Math.PI; }
+    return;
+  }
+  if (a.carry) {
+    a.state = 'carry'; a.tPick += dt;
+    deposit(foodP, a.x, a.y, Math.max(0.06, 1 - a.tPick / 45));
+    if (foe && fd < 40 * 40) { turnTo(a, angTo(foe.x, foe.y, a.x, a.y), 4 * dt); }
+    else turnTo(a, angTo(a.x, a.y, NEST.x, NEST.y), 2.4 * dt);   // path integration: ants know the way home
+    wander(a, dt, 0.7);
+    if (d2(a.x, a.y, NEST.x, NEST.y) < 64) enterNest(a, 'deliver');
+    return;
+  }
+  if (a.state === 'return') {
+    turnTo(a, angTo(a.x, a.y, NEST.x, NEST.y), 2.4 * dt); wander(a, dt, 0.6);
+    if (d2(a.x, a.y, NEST.x, NEST.y) < 64) enterNest(a, 'rest');
+    return;
+  }
+  deposit(homeP, a.x, a.y, Math.max(0.05, 1 - a.tOut / 50));
+  // flee from a predator unless already mobbing it
+  if (foe && fd < 28 * 28 && foe.biters < 2 && foe.type !== 'raider') { a.state = 'flee'; turnTo(a, angTo(foe.x, foe.y, a.x, a.y), 6 * dt); return; }
+  if (foe && fd < 45 * 45 && (foe.biters >= 2 || foe.type === 'raider')) { a.state = 'chase'; turnTo(a, angTo(a.x, a.y, foe.x, foe.y), 5 * dt); return; }
+  // dead nestmate nearby
+  for (const c of G.corpses) {
+    if (c.taken) continue;
+    const d = d2(a.x, a.y, c.x, c.y);
+    if (d < 30 * 30) {
+      a.state = 'corpse'; turnTo(a, angTo(a.x, a.y, c.x, c.y), 5 * dt);
+      if (d < 36) { c.taken = true; c.gone = true; a.carry = { type: 'corpse', caste: c.caste, len: c.len }; }
+      return;
+    }
+  }
+  let best = null, bd = 34 * 34;
+  for (const it of G.items) { if (it.amt <= 0) continue; const d = d2(a.x, a.y, it.x, it.y); if (d < bd) { bd = d; best = it; } }
+  if (best) {
+    a.state = 'toFood'; turnTo(a, angTo(a.x, a.y, best.x, best.y), 6 * dt);
+    if (bd < 40) { best.amt -= 1; a.carry = { type: 'food', kind: best.kind, foe: best.foe, val: best.val }; a.tPick = 0; a.a += Math.PI; }
+    return;
+  }
+  a.state = 'explore';
+  if (!follow(a, foodP, dt, 0.05)) wander(a, dt, 1.2);
+  if (a.tOut > 85) a.state = 'return';
+}
+
+function nestAnt(a, dt) {
+  a.moving = false;
+  if (a.wait > 0) { a.wait -= dt; a.a += rand(-1, 1) * dt * 3; return; }
+  const p = a.path && a.path[a.np];
+  if (!p) { nestArrive(a); return; }
+  const sp = CASTES[a.caste].speed * 0.75;
+  const dx = p.x - a.nx, dy = p.y - a.ny, d = Math.hypot(dx, dy);
+  a.moving = true; a.leg += dt * sp * 0.55;
+  a.a = Math.atan2(dy, dx);
+  if (d < sp * dt + 0.5) { a.nx = p.x; a.ny = p.y; if (p.id) a.node = p.id; a.np++; }
+  else { a.nx += dx / d * sp * dt; a.ny += dy / d * sp * dt; }
+}
+function nestArrive(a) {
+  if (a.task === 'deliver') {
+    if (a.carry && a.carry.type === 'food') G.food += a.carry.val;
+    a.carry = null; a.wait = rand(0.5, 1.5); setNestTask(a, 'exit', 'E');
+  } else if (a.task === 'exit' || a.task === 'emerge') {
+    exitToSurface(a);
+  } else if (a.task === 'nurse') {
+    if (a.age > NURSE_AGE) { setNestTask(a, 'exit', 'E'); return; }
+    a.wait = rand(1.5, 4);
+    const r = Math.random();
+    setNestTask(a, 'nurse', r < 0.6 ? 'B' : r < 0.85 ? 'S' : 'Q');
+  }
+}
+
+function updFoe(f, dt) {
+  const D = FOES[f.type];
+  f.life -= dt; f.alarmCd -= dt; f.moving = true;
+  let t = null, bd = D.sense * D.sense;
+  for (const a of G.ants) { if (a.loc !== 'surface') continue; const d = d2(f.x, f.y, a.x, a.y); if (d < bd) { bd = d; t = a; } }
+  const slow = 1 / (1 + f.biters * 0.45);          // ants pin legs, slowing prey
+  if (f.type !== 'raider' && f.hp < D.hp * 0.35 && !f.fleeing) { f.fleeing = true; f.life = -1; }
+  if (f.life < 0 && f.type !== 'raider') {
+    turnTo(f, angTo(NEST.x, NEST.y, f.x, f.y), 2 * dt);
+  } else if (t) {
+    const contact = D.size * 0.6 + t.len * 0.5 + 2;
+    if (bd < contact * contact) { f.moving = false; turnTo(f, angTo(f.x, f.y, t.x, t.y), 6 * dt); t.hp -= D.atk * dt; raiseAlarm(f); }
+    else turnTo(f, angTo(f.x, f.y, t.x, t.y), 3 * dt);
+  } else if (f.type === 'raider') {
+    turnTo(f, angTo(f.x, f.y, NEST.x, NEST.y), 1.5 * dt); wander(f, dt, 0.8);
+  } else wander(f, dt, 1);
+  if (f.moving) {
+    const sp = D.speed * slow;
+    f.x += Math.cos(f.a) * sp * dt; f.y += Math.sin(f.a) * sp * dt; f.leg += dt * sp * 0.4;
+  } else f.leg += dt * 2;
+  if (f.x < -30 || f.x > W + 30 || f.y < -30 || f.y > H + 30) f.gone = true;
+  else if (f.life >= 0 || f.type === 'raider') {
+    if (f.x < 6 || f.x > W - 6) { f.a = Math.PI - f.a; f.x = Math.max(6, Math.min(W - 6, f.x)); }
+    if (f.y < 6 || f.y > H - 6) { f.a = -f.a; f.y = Math.max(6, Math.min(H - 6, f.y)); }
+  }
+}
+
+/* ================= drawing: creatures ================= */
+function drawAnt(c, x, y, ang, L, hs, col, leg, o = {}) {
+  c.save(); c.translate(x, y); c.rotate(ang);
+  const q = o.queen ? 1 : 0;
+  c.strokeStyle = col; c.fillStyle = col; c.lineCap = 'round'; c.lineJoin = 'round';
+  if (!o.simple) {
+    c.lineWidth = Math.max(0.45, L * 0.04);
+    const anchors = [0.07, 0.03, -0.02], base = [0.75, 1.55, 2.35];
+    for (let i = 0; i < 3; i++) for (const sd of [-1, 1]) {
+      const group = (i === 1) === (sd > 0) ? 0 : Math.PI;
+      const sw = o.dead ? 0.45 : (o.still ? 0 : Math.sin(leg + group) * 0.32);
+      const th = sd * (base[i] + (o.dead ? 0.5 : 0) + sw * (i === 1 ? 0.8 : 1));
+      const l1 = L * (o.dead ? 0.14 : 0.2) * (1 + q * 0.15), l2 = L * (o.dead ? 0.12 : 0.24);
+      const ax = anchors[i] * L, ay = sd * 0.04 * L;
+      const kx = ax + Math.cos(th) * l1, ky = ay + Math.sin(th) * l1;
+      const th2 = th + sd * (i === 0 ? -0.7 : 0.55) * (o.dead ? 2.2 : 1);
+      c.beginPath(); c.moveTo(ax, ay); c.lineTo(kx, ky); c.lineTo(kx + Math.cos(th2) * l2, ky + Math.sin(th2) * l2); c.stroke();
+    }
+  }
+  const hx = 0.2 * L + 0.04 * L * (hs - 1);
+  // gaster, petiole, thorax, head
+  c.beginPath(); c.ellipse(-0.27 * L - q * 0.12 * L, 0, 0.2 * L * (1 + q * 0.7), 0.14 * L * (1 + q * 0.45), 0, 0, 7); c.fill();
+  c.beginPath(); c.arc(-0.06 * L, 0, 0.035 * L, 0, 7); c.fill();
+  c.beginPath(); c.ellipse(0.03 * L, 0, 0.12 * L * (1 + q * 0.3), 0.06 * L * (1 + q * 0.5), 0, 0, 7); c.fill();
+  c.beginPath(); c.ellipse(hx, 0, 0.09 * L * hs, 0.085 * L * hs, 0, 0, 7); c.fill();
+  if (!o.simple) {
+    // gloss highlights read as a hard, shiny cuticle
+    c.fillStyle = 'rgba(255,240,220,0.17)';
+    c.beginPath(); c.ellipse(-0.31 * L - q * 0.12 * L, -0.05 * L * (1 + q * 0.4), 0.09 * L * (1 + q * 0.6), 0.035 * L, -0.1, 0, 7); c.fill();
+    c.beginPath(); c.ellipse(hx + 0.01 * L, -0.03 * L * hs, 0.035 * L * hs, 0.02 * L * hs, 0, 0, 7); c.fill();
+    if (q) { c.strokeStyle = 'rgba(255,240,220,0.13)'; c.lineWidth = L * 0.012; for (let k = 0; k < 4; k++) { c.beginPath(); c.arc(-0.39 * L, 0, (0.06 + k * 0.05) * L, -1.1, 1.1); c.stroke(); } c.strokeStyle = col; }
+    // mandibles
+    c.lineWidth = Math.max(0.5, L * 0.03 * hs);
+    const mx = hx + 0.08 * L * hs;
+    for (const sd of [-1, 1]) { c.beginPath(); c.moveTo(mx, sd * 0.03 * L * hs); c.quadraticCurveTo(mx + 0.07 * L * hs, sd * 0.05 * L * hs, mx + 0.06 * L * hs, sd * 0.005 * L); c.stroke(); }
+    // elbowed antennae
+    c.lineWidth = Math.max(0.4, L * 0.025);
+    const wig = o.still ? 0 : Math.sin(leg * 1.7) * 0.03 * L;
+    for (const sd of [-1, 1]) {
+      c.beginPath(); c.moveTo(hx + 0.05 * L, sd * 0.05 * L * hs);
+      c.lineTo(hx + 0.12 * L, sd * (0.16 * L + wig));
+      c.lineTo(hx + 0.27 * L, sd * (0.12 * L - wig)); c.stroke();
+    }
+  }
+  if (o.carry) {
+    const cx = hx + 0.17 * L * hs;
+    if (o.carry.type === 'corpse') drawAnt(c, cx + 0.12 * L, 0, 0.4, (o.carry.len || 9) * 0.9, 1, '#3a302a', 0, { dead: true });
+    else if (o.carry.kind === 'seed') { c.fillStyle = '#c9a46a'; c.beginPath(); c.ellipse(cx + 0.05 * L, 0, 0.13 * L, 0.085 * L, 0, 0, 7); c.fill(); c.fillStyle = 'rgba(80,50,20,.4)'; c.fillRect(cx, -0.01 * L, 0.1 * L, 0.02 * L); }
+    else if (o.carry.kind === 'sugar') { c.fillStyle = 'rgba(232,175,70,.9)'; c.beginPath(); c.arc(cx + 0.05 * L, 0, 0.08 * L, 0, 7); c.fill(); }
+    else { c.fillStyle = '#5b4a2f'; c.beginPath(); c.ellipse(cx + 0.05 * L, 0, 0.11 * L, 0.08 * L, 0.5, 0, 7); c.fill(); }
+  }
+  c.restore();
+}
+
+function drawBeetle(c, f, dead) {
+  const s = FOES.beetle.size;
+  c.save(); c.translate(f.x, f.y); c.rotate(f.a);
+  c.strokeStyle = '#141a15'; c.lineWidth = 1.3; c.lineCap = 'round';
+  for (let i = 0; i < 3; i++) for (const sd of [-1, 1]) {
+    const sw = dead ? 0.6 : Math.sin(f.leg + (i % 2 ? Math.PI : 0) + (sd > 0 ? Math.PI : 0)) * 0.3;
+    const th = sd * (0.9 + i * 0.6 + sw), l = dead ? s * 0.3 : s * 0.42;
+    const ax = (0.12 - i * 0.12) * s;
+    c.beginPath(); c.moveTo(ax, 0); const kx = ax + Math.cos(th) * l, ky = Math.sin(th) * l; c.lineTo(kx, ky);
+    c.lineTo(kx + Math.cos(th + sd * 0.6) * l * 0.8, ky + Math.sin(th + sd * 0.6) * l * 0.8); c.stroke();
+  }
+  const g = c.createLinearGradient(0, -s * 0.4, 0, s * 0.4);
+  g.addColorStop(0, dead ? '#4b4a3c' : '#2c3a30'); g.addColorStop(0.5, dead ? '#2f2e26' : '#141c16'); g.addColorStop(1, dead ? '#3d3c31' : '#223026');
+  c.fillStyle = g;
+  c.beginPath(); c.ellipse(-0.08 * s, 0, 0.5 * s, 0.36 * s, 0, 0, 7); c.fill();
+  c.beginPath(); c.ellipse(0.42 * s, 0, 0.17 * s, 0.24 * s, 0, 0, 7); c.fill();
+  c.fillStyle = '#111712'; c.beginPath(); c.ellipse(0.6 * s, 0, 0.09 * s, 0.12 * s, 0, 0, 7); c.fill();
+  c.strokeStyle = 'rgba(0,0,0,.6)'; c.lineWidth = 0.8; c.beginPath(); c.moveTo(0.3 * s, 0); c.lineTo(-0.56 * s, 0); c.stroke();
+  c.fillStyle = 'rgba(200,255,220,.16)'; c.beginPath(); c.ellipse(-0.1 * s, -0.17 * s, 0.3 * s, 0.07 * s, 0, 0, 7); c.fill();
+  c.restore();
+}
+function drawSpider(c, f, dead) {
+  const s = FOES.spider.size;
+  c.save(); c.translate(f.x, f.y); c.rotate(f.a);
+  c.strokeStyle = dead ? '#4f4231' : '#3b2c1e'; c.lineWidth = 1.5; c.lineCap = 'round'; c.lineJoin = 'round';
+  for (let i = 0; i < 4; i++) for (const sd of [-1, 1]) {
+    const sw = dead ? 0 : Math.sin(f.leg * 1.3 + i * 1.6 + (sd > 0 ? Math.PI : 0)) * 0.22;
+    const th = sd * (0.45 + i * 0.6 + sw);
+    const l1 = dead ? s * 0.45 : s * 0.75, l2 = dead ? s * 0.35 : s * 0.85;
+    const kx = Math.cos(th) * l1 + 0.18 * s, ky = Math.sin(th) * l1;
+    const th2 = th + sd * (dead ? 2.0 : (i < 2 ? -0.5 : 0.5));
+    c.beginPath(); c.moveTo(0.18 * s, 0); c.lineTo(kx, ky); c.lineTo(kx + Math.cos(th2) * l2, ky + Math.sin(th2) * l2); c.stroke();
+  }
+  c.fillStyle = dead ? '#5c4c38' : '#4a3826';
+  c.beginPath(); c.ellipse(-0.35 * s, 0, 0.46 * s, 0.34 * s, 0, 0, 7); c.fill();
+  c.beginPath(); c.ellipse(0.2 * s, 0, 0.3 * s, 0.26 * s, 0, 0, 7); c.fill();
+  c.fillStyle = 'rgba(20,12,6,.55)';
+  c.beginPath(); c.ellipse(-0.35 * s, 0, 0.36 * s, 0.08 * s, 0, 0, 7); c.fill();
+  c.beginPath(); c.ellipse(0.2 * s, 0, 0.24 * s, 0.06 * s, 0, 0, 7); c.fill();
+  c.fillStyle = 'rgba(220,200,160,.35)';
+  for (const sd of [-1, 1]) { c.beginPath(); c.ellipse(-0.35 * s, sd * 0.18 * s, 0.3 * s, 0.04 * s, 0, 0, 7); c.fill(); }
+  if (!dead) { c.fillStyle = '#0d0905'; for (const sd of [-1, 1]) { c.beginPath(); c.arc(0.42 * s, sd * 0.07 * s, 0.045 * s, 0, 7); c.fill(); } }
+  c.restore();
+}
+function drawFoe(c, f, dead) {
+  if (f.type === 'beetle') drawBeetle(c, f, dead);
+  else if (f.type === 'spider') drawSpider(c, f, dead);
+  else drawAnt(c, f.x, f.y, f.a, 10, 1.15, dead ? '#5a3a2a' : '#7e2c14', f.leg, { dead, still: !f.moving });
+}
+
+/* ================= textures ================= */
+function noiseBlobs(g, w, h, n, rMin, rMax, colors) {
+  for (let i = 0; i < n; i++) { g.fillStyle = colors[Math.random() * colors.length | 0]; g.beginPath(); g.arc(rand(0, w), rand(0, h), rand(rMin, rMax), 0, 7); g.fill(); }
+}
+function makeGround() {
+  const s = 1.5, cv = document.createElement('canvas'); cv.width = W * s; cv.height = H * s;
+  const g = cv.getContext('2d'); g.scale(s, s);
+  g.fillStyle = '#5e4630'; g.fillRect(0, 0, W, H);
+  noiseBlobs(g, W, H, 1600, 6, 26, ['rgba(80,58,38,.25)', 'rgba(110,86,58,.22)', 'rgba(60,44,30,.25)', 'rgba(124,98,66,.15)']);
+  noiseBlobs(g, W, H, 14000, 0.4, 1.4, ['rgba(30,20,12,.45)', 'rgba(160,130,92,.35)', 'rgba(90,70,48,.5)', 'rgba(190,170,140,.25)']);
+  // nest mound of excavated soil
+  for (let i = 0; i < 900; i++) { const t = rand(0, 6.28), r = 10 + Math.pow(Math.random(), 0.7) * 34; g.fillStyle = Math.random() < 0.5 ? 'rgba(150,120,82,.6)' : 'rgba(120,92,60,.6)'; g.beginPath(); g.arc(NEST.x + Math.cos(t) * r, NEST.y + Math.sin(t) * r, rand(0.6, 1.8), 0, 7); g.fill(); }
+  // pebbles
+  for (let i = 0; i < 170; i++) {
+    const x = rand(0, W), y = rand(0, H); if (d2(x, y, NEST.x, NEST.y) < 50 * 50) continue;
+    const r = rand(2, 9), a = rand(0, 3.14);
+    g.fillStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.ellipse(x + 1.2, y + 1.6, r, r * 0.7, a, 0, 7); g.fill();
+    const gr = g.createRadialGradient(x - r * 0.3, y - r * 0.3, 0, x, y, r);
+    const base = [rand(120, 160), rand(110, 140), rand(95, 120)].map(v => v | 0);
+    gr.addColorStop(0, `rgb(${base[0] + 40},${base[1] + 38},${base[2] + 34})`); gr.addColorStop(1, `rgb(${base[0] - 30},${base[1] - 30},${base[2] - 30})`);
+    g.fillStyle = gr; g.beginPath(); g.ellipse(x, y, r, r * 0.7, a, 0, 7); g.fill();
+  }
+  // dry leaves
+  for (let i = 0; i < 22; i++) {
+    const x = rand(0, W), y = rand(0, H); if (d2(x, y, NEST.x, NEST.y) < 90 * 90) continue;
+    const L = rand(18, 34), a = rand(0, 6.28);
+    g.save(); g.translate(x, y); g.rotate(a);
+    g.fillStyle = 'rgba(0,0,0,.22)'; g.beginPath(); g.ellipse(2, 2, L / 2, L / 5, 0, 0, 7); g.fill();
+    g.fillStyle = ['#8a5f2c', '#7a5428', '#9b6b33', '#6e5a2e'][i % 4]; g.beginPath(); g.ellipse(0, 0, L / 2, L / 5, 0, 0, 7); g.fill();
+    g.strokeStyle = 'rgba(50,30,10,.55)'; g.lineWidth = 0.8; g.beginPath(); g.moveTo(-L / 2 - 4, 0); g.lineTo(L / 2, 0); g.stroke();
+    for (let k = -2; k <= 2; k++) { g.beginPath(); g.moveTo(k * L / 7, 0); g.lineTo(k * L / 7 + L / 10, -L / 7); g.moveTo(k * L / 7, 0); g.lineTo(k * L / 7 + L / 10, L / 7); g.stroke(); }
+    g.restore();
+  }
+  // grass tufts, sparse near the nest
+  for (let i = 0; i < 380; i++) {
+    const x = rand(0, W), y = rand(0, H), dn = Math.sqrt(d2(x, y, NEST.x, NEST.y));
+    if (dn < 110 || Math.random() < 140 / dn) continue;
+    const n = 5 + (Math.random() * 8 | 0);
+    for (let k = 0; k < n; k++) {
+      const a = rand(0, 6.28), l = rand(6, 16);
+      g.strokeStyle = ['#5d7a32', '#6f8c3a', '#4e6a2a', '#8a9a48'][Math.random() * 4 | 0]; g.lineWidth = rand(0.8, 1.6);
+      g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + Math.cos(a) * l * 0.5 + rand(-3, 3), y + Math.sin(a) * l * 0.5 + rand(-3, 3), x + Math.cos(a) * l, y + Math.sin(a) * l); g.stroke();
+    }
+  }
+  // nest entrance
+  const hg = g.createRadialGradient(NEST.x, NEST.y, 0, NEST.x, NEST.y, 11);
+  hg.addColorStop(0, '#060302'); hg.addColorStop(0.7, '#1a0f08'); hg.addColorStop(1, 'rgba(40,26,14,0)');
+  g.fillStyle = hg; g.beginPath(); g.arc(NEST.x, NEST.y, 11, 0, 7); g.fill();
+  return cv;
+}
+function makeSoil() {
+  const s = 2.5, cv = document.createElement('canvas'); cv.width = NW * s; cv.height = NH * s;
+  const g = cv.getContext('2d'); g.scale(s, s);
+  const bands = ['#6a4c30', '#5d4129', '#523822', '#4a321e', '#432c1a', '#3b2717'];
+  bands.forEach((c, i) => {
+    g.fillStyle = c; g.beginPath(); const y0 = 10 + i * (NH / bands.length);
+    g.moveTo(0, y0); for (let x = 0; x <= NW; x += 20) g.lineTo(x, y0 + Math.sin(x * 0.03 + i) * 4 + rand(-2, 2));
+    g.lineTo(NW, NH); g.lineTo(0, NH); g.fill();
+  });
+  noiseBlobs(g, NW, NH, 2600, 0.3, 1.2, ['rgba(20,12,6,.4)', 'rgba(150,120,85,.3)', 'rgba(90,66,42,.4)']);
+  for (let i = 0; i < 70; i++) {
+    const x = rand(0, NW), y = rand(20, NH), r = rand(1.5, 5);
+    g.fillStyle = `rgba(${rand(110, 150) | 0},${rand(100, 125) | 0},${rand(85, 105) | 0},.85)`; g.beginPath(); g.ellipse(x, y, r, r * 0.7, rand(0, 3), 0, 7); g.fill();
+  }
+  // roots
+  g.strokeStyle = 'rgba(150,115,75,.45)'; g.lineCap = 'round';
+  for (let i = 0; i < 9; i++) {
+    let x = rand(0, NW), y = 10; g.lineWidth = rand(0.8, 2.2); g.beginPath(); g.moveTo(x, y);
+    for (let k = 0; k < 8; k++) { x += rand(-12, 12); y += rand(6, 16); g.lineTo(x, y); } g.stroke();
+  }
+  // surface strip: litter and grass in profile
+  g.fillStyle = '#3d2c1c'; g.fillRect(0, 0, NW, 10);
+  for (let x = 0; x < NW; x += 2) {
+    if (Math.abs(x - NODES.E.x) < 12) continue;
+    g.strokeStyle = ['#5d7a32', '#6f8c3a', '#4e6a2a'][Math.random() * 3 | 0]; g.lineWidth = 0.8;
+    g.beginPath(); g.moveTo(x, 10); g.quadraticCurveTo(x + rand(-2, 2), 10 - rand(3, 6), x + rand(-3, 3), 10 - rand(5, 11)); g.stroke();
+  }
+  return cv;
+}
+const groundTex = makeGround();
+let soilTex = makeSoil();
+const seedSpots = Array.from({ length: 260 }, () => { const t = rand(0.15, Math.PI - 0.15), r = Math.sqrt(Math.random()); return { u: Math.cos(t) * r, v: Math.sin(t) * r, a: rand(0, 3) }; })
+  .sort((p, q) => q.v - p.v);
+
+/* ================= canvases & camera ================= */
+const surf = $('surf'), sc = surf.getContext('2d');
+const nest = $('nest'), nc = nest.getContext('2d');
+const phCv = document.createElement('canvas'); phCv.width = GW; phCv.height = GH;
+const phCtx = phCv.getContext('2d'); const phImg = phCtx.createImageData(GW, GH);
+// two rounds of down/up sampling soften the grid into smooth trails
+const phBlur = document.createElement('canvas'); phBlur.width = GW * 4; phBlur.height = GH * 4; const pbx = phBlur.getContext('2d');
+const phCv2 = document.createElement('canvas'); phCv2.width = GW; phCv2.height = GH; const pbx2 = phCv2.getContext('2d');
+let dpr = 1, sw = 0, sh = 0, nw = 0, nh = 0;
+const cam = { x: NEST.x, y: NEST.y, z: 1 };
+let showPh = true, speed = 1, sel = null, freshCaste = null;
+
+function resize() {
+  dpr = Math.min(2.5, window.devicePixelRatio || 1);
+  sw = surf.clientWidth; sh = surf.clientHeight; nw = nest.clientWidth; nh = nest.clientHeight;
+  surf.width = Math.round(sw * dpr); surf.height = Math.round(sh * dpr);
+  nest.width = Math.round(nw * dpr); nest.height = Math.round(nh * dpr);
+  if (!cam.init) { cam.z = Math.max(sw / 250, sh / 230); cam.init = true; }
+  clampCam();
+}
+function minZoom() { return Math.max(sw / W, sh / H); }
+function clampCam() {
+  cam.z = Math.max(minZoom(), Math.min(sw / 70, cam.z));
+  const hw = sw / cam.z / 2, hh = sh / cam.z / 2;
+  cam.x = Math.max(hw, Math.min(W - hw, cam.x)); cam.y = Math.max(hh, Math.min(H - hh, cam.y));
+}
+function screenToWorld(px, py) { return { x: (px - sw / 2) / cam.z + cam.x, y: (py - sh / 2) / cam.z + cam.y }; }
+
+function renderSurface() {
+  const c = sc;
+  c.setTransform(1, 0, 0, 1, 0, 0); c.fillStyle = '#2a1e13'; c.fillRect(0, 0, surf.width, surf.height);
+  const s = cam.z * dpr;
+  c.setTransform(s, 0, 0, s, (sw / 2 - cam.x * cam.z) * dpr, (sh / 2 - cam.y * cam.z) * dpr);
+  c.imageSmoothingEnabled = true;
+  c.drawImage(groundTex, 0, 0, W, H);
+  if (showPh) {
+    const d = phImg.data;
+    for (let i = 0; i < homeP.length; i++) {
+      const h = Math.min(1, homeP[i]), f = Math.min(1, foodP[i] * 1.3), j = i * 4;
+      d[j] = 150 * h + 235 * f; d[j + 1] = 130 * h + 190 * f; d[j + 2] = 235 * h + 90 * f;
+      d[j + 3] = Math.min(150, (h * 0.35 + f * 0.9) * 150);
+    }
+    phCtx.putImageData(phImg, 0, 0);
+    pbx.clearRect(0, 0, phBlur.width, phBlur.height); pbx.drawImage(phCv, 0, 0, phBlur.width, phBlur.height);
+    pbx2.clearRect(0, 0, GW, GH); pbx2.drawImage(phBlur, 0, 0, GW, GH); pbx.clearRect(0, 0, phBlur.width, phBlur.height); pbx.drawImage(phCv2, 0, 0, phBlur.width, phBlur.height);
+    c.globalAlpha = 0.42; c.drawImage(phBlur, 0, 0, W, H); c.globalAlpha = 1;
+  }
+  const simple = cam.z * 9 < 5;
+  // refuse pile
+  for (const m of G.midden) drawAnt(c, m.x, m.y, m.a, m.len, 1, '#3d342c', 0, { dead: true, simple });
+  // food
+  for (const it of G.items) {
+    if (it.kind === 'seed') {
+      c.save(); c.translate(it.x, it.y); c.rotate(it.a);
+      c.fillStyle = 'rgba(0,0,0,.3)'; c.beginPath(); c.ellipse(0.6, 0.8, 2.6, 1.7, 0, 0, 7); c.fill();
+      c.fillStyle = '#cfa96c'; c.beginPath(); c.ellipse(0, 0, 2.6, 1.7, 0, 0, 7); c.fill();
+      c.fillStyle = 'rgba(255,240,200,.45)'; c.beginPath(); c.ellipse(-0.6, -0.5, 1.2, 0.5, 0, 0, 7); c.fill();
+      c.restore();
+    } else if (it.kind === 'sugar') {
+      const r = 3 + Math.sqrt(it.amt) * 2.1;
+      const g = c.createRadialGradient(it.x - r * 0.3, it.y - r * 0.3, 0, it.x, it.y, r);
+      g.addColorStop(0, 'rgba(255,230,160,.95)'); g.addColorStop(0.6, 'rgba(226,160,60,.85)'); g.addColorStop(1, 'rgba(170,100,30,.5)');
+      c.fillStyle = g; c.beginPath(); c.ellipse(it.x, it.y, r, r * 0.8, 0.3, 0, 7); c.fill();
+    } else {
+      c.globalAlpha = 0.35 + 0.65 * it.amt / it.max;
+      drawFoe(c, { type: it.foe, x: it.x, y: it.y, a: it.a, leg: 0, moving: false }, true);
+      c.globalAlpha = 1;
+    }
+  }
+  for (const k of G.corpses) drawAnt(c, k.x, k.y, k.a, k.len, CASTES[k.caste].hs, '#3d342c', 0, { dead: true, simple });
+  for (const a of G.ants) if (a.loc === 'surface') {
+    const C = CASTES[a.caste];
+    drawAnt(c, a.x, a.y, a.a, a.len, C.hs, a.caste === 'worker' ? '#17110d' : '#120c09', a.leg, { carry: a.carry, simple, still: !a.moving });
+  }
+  for (const f of G.foes) drawFoe(c, f, false);
+  if (sel && sel.loc === 'surface') {
+    c.strokeStyle = 'rgba(227,168,67,.9)'; c.lineWidth = 1.5 / cam.z * 1.2;
+    c.beginPath(); c.arc(sel.x, sel.y, sel.len * 0.9 + 3, 0, 7); c.stroke();
+  }
+}
+
+function renderNest() {
+  const c = nc;
+  c.setTransform(1, 0, 0, 1, 0, 0); c.fillStyle = '#2a1c10'; c.fillRect(0, 0, nest.width, nest.height);
+  const s = Math.max(nw / NW, nh / NH) * dpr;
+  const ox = (nest.width - NW * s) / 2, oy = 0;
+  c.setTransform(s, 0, 0, s, ox, oy);
+  c.drawImage(soilTex, 0, 0, NW, NH);
+  const cs = chamberScale();
+  // tunnels
+  c.lineCap = 'round';
+  for (const [w, col] of [[11, '#24170c'], [7.5, '#3a2716']]) {
+    c.strokeStyle = col; c.lineWidth = w;
+    for (const [a, b] of EDGES) { const A = NODES[a], B = NODES[b]; c.beginPath(); c.moveTo(A.x, A.y - (a === 'E' ? 12 : 0)); c.quadraticCurveTo((A.x + B.x) / 2 + 8, (A.y + B.y) / 2, B.x, B.y); c.stroke(); }
+  }
+  // chambers
+  for (const id of ['S', 'B', 'Q']) {
+    const n = NODES[id];
+    c.fillStyle = '#21150b'; c.beginPath(); c.ellipse(n.x, n.y, n.rx * cs + 2.5, n.ry * cs + 2.5, 0, 0, 7); c.fill();
+    const g = c.createLinearGradient(0, n.y - n.ry * cs, 0, n.y + n.ry * cs);
+    g.addColorStop(0, '#2a1b0f'); g.addColorStop(1, '#4a3320');
+    c.fillStyle = g; c.beginPath(); c.ellipse(n.x, n.y, n.rx * cs, n.ry * cs, 0, 0, 7); c.fill();
+    c.fillStyle = 'rgba(239,228,210,.33)'; c.font = '600 7px "IBM Plex Sans KR", sans-serif'; c.textAlign = 'center';
+    c.fillText(n.label, n.x, n.y - n.ry * cs - 4);
+  }
+  // stored food
+  const S = NODES.S, nSeeds = Math.min(seedSpots.length, Math.floor(G.food / 2));
+  for (let i = 0; i < nSeeds; i++) {
+    const p = seedSpots[i];
+    const x = S.x + p.u * S.rx * cs * 0.85, y = S.y + S.ry * cs * 0.85 - (1 - p.v) * S.ry * cs * 0.9 * Math.min(1, nSeeds / 120 + 0.3);
+    c.fillStyle = i % 5 === 0 ? '#e0a64b' : '#c7a26a'; c.beginPath(); c.ellipse(x, y, 2, 1.3, p.a, 0, 7); c.fill();
+  }
+  // brood: eggs, larvae, cocoons (Camponotus pupae spin cocoons)
+  for (const b of G.brood) {
+    const grow = b.t / CASTES[b.caste].dev[b.st], big = b.caste === 'worker' ? 1 : b.caste === 'soldier' ? 1.25 : 1.5;
+    c.save(); c.translate(b.x, b.y); c.rotate(b.r);
+    if (b.st === 0) { c.fillStyle = '#f4efe2'; c.beginPath(); c.ellipse(0, 0, 1.4 * big, 0.95 * big, 0, 0, 7); c.fill(); }
+    else if (b.st === 1) {
+      const L = (2 + grow * 3) * big;
+      c.strokeStyle = '#efe8d6'; c.lineWidth = L * 0.55; c.lineCap = 'round';
+      c.beginPath(); c.arc(0, 0, L * 0.55, 0.4, 4.2); c.stroke();
+      c.fillStyle = '#c9a36a'; c.beginPath(); c.arc(Math.cos(4.2) * L * 0.55, Math.sin(4.2) * L * 0.55, L * 0.18, 0, 7); c.fill();
+    } else {
+      c.fillStyle = '#d7b98a'; c.beginPath(); c.ellipse(0, 0, 4.2 * big, 2.1 * big, 0, 0, 7); c.fill();
+      c.fillStyle = '#5a3d22'; c.beginPath(); c.arc(3.6 * big, 0, 0.6 * big, 0, 7); c.fill();
+    }
+    c.restore();
+  }
+  // queen
+  const Q = G.queen;
+  drawAnt(c, Q.nx + Math.sin(Q.leg) * 1.5, Q.ny, 0.08 + Math.sin(Q.leg * 0.7) * 0.06, 26, 1.25, '#140e0a', Q.leg, { queen: true, still: true });
+  if (G.queue.length && G.layT > 0) {
+    c.fillStyle = 'rgba(227,168,67,.85)'; c.fillRect(Q.nx - 12, Q.ny + 12, 24 * Math.min(1, G.layT / LAY_TIME), 1.6);
+  }
+  // ants inside
+  for (const a of G.ants) if (a.loc === 'nest') {
+    drawAnt(c, a.nx, a.ny, a.a, a.len * 0.95, CASTES[a.caste].hs, '#17110d', a.leg, { carry: a.carry, still: !a.moving });
+  }
+  if (sel && sel.loc === 'nest') { c.strokeStyle = 'rgba(227,168,67,.9)'; c.lineWidth = 0.8; c.beginPath(); c.arc(sel.nx, sel.ny, sel.len * 0.8 + 2, 0, 7); c.stroke(); }
+  nestXform = { s: s / dpr, ox: ox / dpr };
+}
+let nestXform = { s: 1, ox: 0 };
+
+/* ================= UI ================= */
+let toastTimer;
+function toast(msg, kind) {
+  const t = $('toast'); t.textContent = msg; t.className = 'show ' + (kind || '');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.className = ''; }, 2400);
+}
+function renderCastes() {
+  const box = $('castes');
+  box.innerHTML = Object.entries(CASTES).map(([k, C]) => {
+    const locked = !G.unlocked[k];
+    const cond = C.unlock ? Object.entries(C.unlock).map(([f, n]) => `${FOES[f].n} ${Math.min(G.kills[f], n)}/${n}마리 처치`).join(', ') : '';
+    return `<button class="caste${locked ? ' locked' : ''}${freshCaste === k ? ' fresh' : ''}" data-c="${k}" id="caste-${k}">
+      <canvas width="180" height="76"></canvas>
+      <span class="nm">${locked ? '미발견' : C.n}</span><span class="lt">${locked ? '???' : C.lt}</span>
+      <span class="co">${locked ? '발견 조건' : `먹이 ${C.cost}`}</span>
+      <span class="ds">${locked ? cond : `체력 ${C.hp} · 공격 ${C.atk} · ${C.ds}`}</span></button>`;
+  }).join('');
+  box.querySelectorAll('canvas').forEach((cv, i) => {
+    const k = Object.keys(CASTES)[i], C = CASTES[k], g = cv.getContext('2d');
+    drawAnt(g, 92, 38, -0.12, C.len * 4.1, C.hs, '#efe4d2', 1.2, { still: true });
+  });
+}
+function renderUi() {
+  const m = Math.floor(G.t / 60);
+  $('clock').textContent = `${m}분 ${Math.floor(G.t % 60)}초 관찰`;
+  $('sFood').textContent = Math.floor(G.food);
+  $('sWorker').textContent = G.ants.filter(a => a.caste === 'worker').length;
+  $('sSoldier').textContent = G.ants.filter(a => a.caste !== 'worker').length;
+  $('sEgg').textContent = G.brood.filter(b => b.st === 0).length;
+  $('sLarva').textContent = G.brood.filter(b => b.st === 1).length;
+  $('sPupa').textContent = G.brood.filter(b => b.st === 2).length;
+  $('sDead').textContent = G.dead;
+  const q = $('queue');
+  const sig = G.queue.join(',');
+  if (q.dataset.sig !== sig) {
+    q.dataset.sig = sig;
+    q.innerHTML = G.queue.length ? G.queue.map((k, i) => `<button class="qchip${i === 0 ? ' first' : ''}" data-i="${i}" aria-label="${CASTES[k].n} 취소">${CASTES[k].n}<span class="x">×</span></button>`).join('')
+      : '<span class="qempty">아래에서 낳을 개미를 고르세요</span>';
+  }
+  const ls = $('layStatus');
+  if (!G.queue.length) ls.textContent = '대기 중';
+  else { const C = CASTES[G.queue[0]]; ls.textContent = G.food < C.cost ? `먹이 ${C.cost} 필요` : `산란 ${Math.round(G.layT / LAY_TIME * 100)}%`; }
+  for (const k of Object.keys(CASTES)) { const el = $('caste-' + k); if (el) el.classList.toggle('short', G.unlocked[k] && G.food < CASTES[k].cost); }
+  const info = $('info');
+  if (sel) {
+    info.hidden = false;
+    $('iName').textContent = `${CASTES[sel.caste].n} #${sel.id}`;
+    $('iState').textContent = STATE_TEXT[sel.loc === 'nest' ? sel.task : sel.state] || '';
+    $('iHp').style.width = (sel.hp / CASTES[sel.caste].hp * 100) + '%';
+  } else info.hidden = true;
+}
+
+function pickAnt(wx, wy, loc, r) {
+  let best = null, bd = r * r;
+  for (const a of G.ants) {
+    if (a.loc !== loc) continue;
+    const d = loc === 'surface' ? d2(wx, wy, a.x, a.y) : d2(wx, wy, a.nx, a.ny);
+    if (d < bd) { bd = d; best = a; }
+  }
+  return best;
+}
+
+function bind() {
+  const ptrs = new Map(); let pinch = null, moved = false, start = null;
+  surf.addEventListener('pointerdown', e => {
+    surf.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (ptrs.size === 1) { moved = false; start = { x: e.clientX, y: e.clientY }; }
+    if (ptrs.size === 2) { const [p, q] = [...ptrs.values()]; pinch = { d: Math.hypot(p.x - q.x, p.y - q.y), z: cam.z }; moved = true; }
+  });
+  surf.addEventListener('pointermove', e => {
+    const p = ptrs.get(e.pointerId); if (!p) return;
+    const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
+    if (ptrs.size === 1) {
+      if (Math.hypot(e.clientX - start.x, e.clientY - start.y) > 7) moved = true;
+      if (moved) { cam.x -= dx / cam.z; cam.y -= dy / cam.z; sel = sel && sel.loc === 'surface' ? null : sel; clampCam(); }
+    } else if (ptrs.size === 2 && pinch) {
+      const [a, b] = [...ptrs.values()]; cam.z = pinch.z * Math.hypot(a.x - b.x, a.y - b.y) / pinch.d; clampCam();
+    }
+  });
+  const up = e => {
+    if (!ptrs.has(e.pointerId)) return;
+    if (ptrs.size === 1 && !moved) {
+      const r = surf.getBoundingClientRect(), w = screenToWorld(e.clientX - r.left, e.clientY - r.top);
+      sel = pickAnt(w.x, w.y, 'surface', 26 / Math.min(cam.z, 2) + 6);
+      if (sel) toast(`${CASTES[sel.caste].n} #${sel.id}를 따라가요`);
+    }
+    ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = null;
+  };
+  surf.addEventListener('pointerup', up); surf.addEventListener('pointercancel', up);
+  surf.addEventListener('wheel', e => { e.preventDefault(); cam.z *= Math.exp(-e.deltaY * 0.0015); clampCam(); }, { passive: false });
+  nest.addEventListener('click', e => {
+    const r = nest.getBoundingClientRect();
+    const x = (e.clientX - r.left - nestXform.ox) / nestXform.s, y = (e.clientY - r.top) / nestXform.s;
+    sel = pickAnt(x, y, 'nest', 14);
+  });
+  $('castes').addEventListener('click', e => {
+    const b = e.target.closest('.caste'); if (!b) return;
+    const k = b.dataset.c;
+    if (!G.unlocked[k]) { toast('아직 발견하지 못한 개미예요. 조건을 채우면 열려요'); return; }
+    if (G.queue.length >= 12) { toast('산란 대기열이 가득 찼어요'); return; }
+    G.queue.push(k);
+    if (freshCaste === k) { freshCaste = null; renderCastes(); }
+    renderUi();
+  });
+  $('queue').addEventListener('click', e => {
+    const b = e.target.closest('.qchip'); if (!b) return;
+    const i = +b.dataset.i; G.queue.splice(i, 1); if (i === 0) G.layT = 0; renderUi();
+  });
+  $('phBtn').onclick = () => { showPh = !showPh; $('phBtn').classList.toggle('on', showPh); $('phBtn').setAttribute('aria-pressed', showPh); };
+  $('spdBtn').onclick = () => { speed = speed === 1 ? 2 : speed === 2 ? 4 : 1; $('spdBtn').textContent = '×' + speed; };
+  window.addEventListener('resize', resize);
+}
+
+/* ================= loop ================= */
+let last = performance.now(), acc = 0, uiAcc = 0;
+function frame(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  acc += dt * speed;
+  let n = 0;
+  while (acc >= STEP && n < 12) { step(STEP); acc -= STEP; n++; }
+  if (n >= 12) acc = 0;
+  if (sel && sel.loc === 'surface') { cam.x += (sel.x - cam.x) * 0.12; cam.y += (sel.y - cam.y) * 0.12; clampCam(); }
+  if (sel && sel.dead) sel = null;
+  renderSurface(); renderNest();
+  uiAcc += dt; if (uiAcc > 0.2) { uiAcc = 0; renderUi(); }
+  requestAnimationFrame(frame);
+}
+
+newGame();
+bind(); resize(); renderCastes(); renderUi();
+toast('일개미들이 먹이를 찾기 시작했어요');
+requestAnimationFrame(frame);
+})();
+</script>
