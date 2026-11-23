@@ -1,0 +1,766 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#6cc4f0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>햇살농장</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap">
+<style>
+/* Layout: one-screen mobile app — sky HUD on top, scrolling view in the middle, wooden tab bar at the bottom.
+   Single deliberate look (a sunny farm world), so colors are set explicitly instead of following the host theme. */
+:root {
+  --sky-top: #6cc4f0; --sky-bot: #c8ecfb;
+  --grass: #86c351; --grass-dark: #5f9d34;
+  --soil: #a4713f; --soil-wet: #6e4526; --soil-line: #8a5c31;
+  --wood: #d39a5c; --wood-dark: #8c5a2a; --wood-deep: #5e3b1b;
+  --paper: #fff9ec; --paper-line: #ecdcbc;
+  --ink: #3b2a17; --ink-soft: #7a6347;
+  --coin: #f5b92a; --leaf: #3f8f2f; --tomato: #e3553a; --water: #3d8fd6;
+  --f-display: "Jua", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --f-body: "Gowun Dodum", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  color-scheme: light;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html { height: 100%; box-sizing: border-box; background: var(--grass-dark); }
+body { height: 100%; margin: 0; background: var(--grass-dark); color: var(--ink); font-family: var(--f-body); font-size: 15px; overflow: hidden; user-select: none; -webkit-user-select: none; }
+button { font: inherit; color: inherit; border: 0; cursor: pointer; touch-action: manipulation; }
+button:focus-visible { outline: 3px solid var(--water); outline-offset: 2px; }
+#app { height: 100%; max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; position: relative; background: var(--grass); }
+
+/* HUD */
+#hud { position: relative; padding-block: 10px 12px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); background: linear-gradient(var(--sky-top), var(--sky-bot)); overflow: hidden; transition: filter 1s; }
+#hud .sun { position: absolute; width: 34px; height: 34px; border-radius: 50%; background: radial-gradient(#fff6b0, #ffd23e 60%, #ffb21e); box-shadow: 0 0 22px #ffe27a; top: 8px; transition: left 1s linear, top 1s linear, background 1s; }
+#hud .sun.moon { background: radial-gradient(#ffffff, #e5e9f4 70%); box-shadow: 0 0 18px #c9d4ff; }
+#hud .hills { position: absolute; left: 0; right: 0; bottom: -18px; height: 34px; background: radial-gradient(60% 100% at 25% 100%, var(--grass-dark) 98%, transparent 100%), radial-gradient(55% 100% at 80% 100%, var(--grass) 98%, transparent 100%); }
+.hud-row { position: relative; display: flex; align-items: center; gap: 10px; }
+.lvl { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+.lvl .badge { flex: none; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: var(--leaf); color: #fff; font-family: var(--f-display); font-size: 19px; border: 3px solid #fff; box-shadow: 0 2px 0 rgba(0,0,0,.15); }
+.lvl .xp { flex: 1; min-width: 0; }
+.xpbar { height: 10px; background: rgba(255,255,255,.65); border-radius: 6px; overflow: hidden; }
+.xpbar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #9fe060, #4fb43a); transition: width .3s; }
+.lvl small, .day small { display: block; font-size: 11px; color: #24506b; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gold { display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,.85); border-radius: 20px; padding: 5px 12px 5px 6px; font-family: var(--f-display); font-size: 19px; font-variant-numeric: tabular-nums; box-shadow: 0 2px 0 rgba(0,0,0,.1); }
+.coin { width: 22px; height: 22px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #fff2a8, var(--coin) 55%, #c98a10); border: 2px solid #c98a10; display: inline-block; flex: none; }
+.day { text-align: right; font-family: var(--f-display); font-size: 16px; color: #17405a; }
+.day small { font-family: var(--f-body); }
+.icon-btn { width: 36px; height: 36px; border-radius: 50%; background: rgba(255,255,255,.7); font-size: 17px; flex: none; }
+
+/* Main */
+main { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; position: relative; background-color: var(--grass); background-image: radial-gradient(rgba(255,255,255,.12) 1.5px, transparent 1.6px), radial-gradient(rgba(0,0,0,.06) 1.5px, transparent 1.6px); background-size: 22px 22px, 22px 22px; background-position: 0 0, 11px 11px; }
+.view { padding-block: 14px 20px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 14px; }
+h2 { font-family: var(--f-display); font-weight: 400; font-size: 20px; margin: 0; color: #fff; text-shadow: 0 2px 0 var(--grass-dark); text-wrap: balance; }
+.hint { font-size: 13px; color: #fff; opacity: .95; margin: -8px 0 0; text-shadow: 0 1px 0 var(--grass-dark); }
+
+/* Field */
+.field-wrap { position: relative; background: var(--wood); border-radius: 14px; padding: 10px; box-shadow: inset 0 0 0 3px var(--wood-dark), 0 4px 0 var(--wood-deep); }
+.field { display: grid; gap: 8px; grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr)); }
+.plot { position: relative; aspect-ratio: 1; max-width: 100%; border-radius: 10px; background: var(--soil) repeating-linear-gradient(0deg, transparent 0 9px, var(--soil-line) 9px 11px); box-shadow: inset 0 -4px 0 rgba(0,0,0,.18); display: grid; place-items: center; overflow: hidden; transition: background-color .4s, transform .08s; }
+.plot:active { transform: scale(.94); }
+.plot.wet { background-color: var(--soil-wet); }
+.plot .crop { font-size: clamp(22px, 8vw, 40px); line-height: 1; transition: transform .3s; pointer-events: none; }
+.plot.s0 .crop { transform: scale(.55); }
+.plot.s1 .crop { transform: scale(.8); }
+.plot.ready .crop { animation: bob 1.4s ease-in-out infinite; filter: drop-shadow(0 3px 0 rgba(0,0,0,.2)); }
+.plot.ready { box-shadow: inset 0 -4px 0 rgba(0,0,0,.18), 0 0 0 3px #ffe56b; }
+.plot .bar { position: absolute; left: 12%; right: 12%; bottom: 8%; height: 6px; border-radius: 4px; background: rgba(0,0,0,.3); overflow: hidden; pointer-events: none; }
+.plot .bar i { display: block; height: 100%; width: 0; background: #b8f06a; }
+.plot.wet .bar i { background: #7cc8ff; }
+.plot.empty .bar, .plot.ready .bar { display: none; }
+.plot .drop { position: absolute; top: 5%; right: 8%; font-size: 12px; pointer-events: none; }
+.plot.empty .crop { font-size: 18px; color: rgba(255,255,255,.35); font-family: var(--f-display); }
+.plot.buy { background: rgba(255,255,255,.25); border: 3px dashed rgba(255,255,255,.7); box-shadow: none; color: #fff; font-family: var(--f-display); font-size: 13px; text-align: center; line-height: 1.25; }
+.plot.buy b { font-size: 22px; display: block; }
+#night { position: absolute; inset: 0; border-radius: 14px; pointer-events: none; background: #1c2350; opacity: 0; transition: opacity 1s; mix-blend-mode: multiply; }
+@keyframes bob { 0%,100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-4px) scale(1.06); } }
+
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn { background: var(--paper); border-radius: 12px; padding: 10px 14px; font-family: var(--f-display); font-size: 15px; box-shadow: 0 3px 0 var(--paper-line), 0 4px 0 rgba(0,0,0,.12); display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.btn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--paper-line); }
+.btn.primary { background: var(--leaf); color: #fff; box-shadow: 0 3px 0 #2a6420, 0 4px 0 rgba(0,0,0,.12); }
+.btn.warn { background: var(--tomato); color: #fff; box-shadow: 0 3px 0 #a83620; }
+.btn[disabled] { opacity: .45; pointer-events: none; }
+.btn.small { padding: 7px 10px; font-size: 13px; border-radius: 10px; }
+.actions .btn { flex: 1 1 auto; }
+
+/* Seed tray */
+.tray { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 8px; scroll-snap-type: x proximity; }
+.seed { flex: none; scroll-snap-align: start; width: 78px; background: var(--paper); border-radius: 12px; padding: 8px 4px 7px; text-align: center; box-shadow: 0 3px 0 var(--paper-line); position: relative; }
+.seed .e { font-size: 28px; line-height: 1.1; display: block; }
+.seed .n { font-family: var(--f-display); font-size: 14px; display: block; }
+.seed .m { font-size: 11px; color: var(--ink-soft); display: block; font-variant-numeric: tabular-nums; }
+.seed.sel { background: #fff1a8; box-shadow: 0 0 0 3px var(--coin), 0 3px 0 #d19a12; }
+.seed.locked { opacity: .55; }
+.seed.locked .e { filter: grayscale(1); }
+
+/* Panels / cards */
+.panel { background: var(--paper); border-radius: 14px; padding: 12px; box-shadow: 0 4px 0 rgba(0,0,0,.12); display: flex; flex-direction: column; gap: 10px; }
+.panel h3 { font-family: var(--f-display); font-weight: 400; font-size: 17px; margin: 0; }
+.row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.row .e { font-size: 26px; width: 34px; text-align: center; flex: none; }
+.row .info { flex: 1; min-width: 0; }
+.row .info b { font-family: var(--f-display); font-weight: 400; font-size: 15px; display: block; }
+.row .info small { color: var(--ink-soft); font-size: 12px; display: block; font-variant-numeric: tabular-nums; }
+.row + .row { border-top: 1px dashed var(--paper-line); padding-top: 10px; }
+.up { color: #2f8a2a; } .down { color: var(--tomato); }
+
+.pens { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; }
+.pen { background: #e9d3a6; border-radius: 12px; padding: 10px 6px 8px; text-align: center; box-shadow: inset 0 0 0 3px #c9a46b, 0 3px 0 rgba(0,0,0,.12); position: relative; }
+.pen .a { font-size: 36px; line-height: 1.1; display: block; }
+.pen .st { font-size: 12px; display: block; margin-top: 4px; min-height: 16px; }
+.pen .bar { height: 6px; border-radius: 4px; background: rgba(0,0,0,.15); overflow: hidden; margin: 6px 6px 0; }
+.pen .bar i { display: block; height: 100%; background: var(--leaf); width: 0; }
+.pen.ready { box-shadow: inset 0 0 0 3px var(--coin), 0 0 0 3px #ffe56b; }
+.pen .prod { position: absolute; top: -6px; right: -4px; font-size: 24px; animation: bob 1.2s infinite; }
+.pen.hungry .a { filter: saturate(.4); }
+.empty-note { color: var(--ink-soft); font-size: 13px; text-align: center; padding: 8px; }
+
+.order { display: flex; flex-direction: column; gap: 8px; }
+.order .who { display: flex; align-items: center; gap: 8px; }
+.order .who .face { font-size: 28px; }
+.order .who b { font-family: var(--f-display); font-weight: 400; font-size: 16px; }
+.order .who small { display: block; font-size: 12px; color: var(--ink-soft); }
+.need { display: flex; gap: 6px; flex-wrap: wrap; }
+.need span { background: #f3e6c8; border-radius: 10px; padding: 4px 8px; font-size: 13px; font-variant-numeric: tabular-nums; }
+.need span.ok { background: #d8f0c0; }
+.reward { font-family: var(--f-display); display: flex; align-items: center; gap: 6px; }
+.reward .coin { width: 16px; height: 16px; }
+
+/* Tabs */
+#tabs { display: flex; background: var(--wood-dark); padding: 6px max(10px, env(safe-area-inset-right, 0px)) 8px max(10px, env(safe-area-inset-left, 0px)); gap: 6px; box-shadow: 0 -3px 0 var(--wood-deep); }
+#tabs button { flex: 1; background: var(--wood); border-radius: 12px; padding: 6px 2px 5px; font-family: var(--f-display); font-size: 13px; color: var(--wood-deep); position: relative; box-shadow: 0 3px 0 var(--wood-deep); }
+#tabs button .ti { font-size: 22px; display: block; line-height: 1.15; }
+#tabs button.on { background: var(--paper); color: var(--ink); transform: translateY(-2px); }
+#tabs .dot { position: absolute; top: -4px; right: 8px; min-width: 18px; height: 18px; border-radius: 9px; background: var(--tomato); color: #fff; font-size: 11px; display: grid; place-items: center; padding: 0 4px; font-family: var(--f-body); }
+
+/* Feedback */
+#toast { position: absolute; left: 50%; top: 92px; transform: translate(-50%, -10px); background: rgba(59,42,23,.92); color: #fff; padding: 9px 16px; border-radius: 20px; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; z-index: 30; max-width: calc(100% - 32px); text-align: center; }
+#toast.show { opacity: 1; transform: translate(-50%, 0); }
+.float { position: fixed; z-index: 40; pointer-events: none; font-family: var(--f-display); font-size: 18px; color: #fff; text-shadow: 0 2px 0 rgba(0,0,0,.35), 0 0 6px rgba(0,0,0,.3); animation: floatUp .9s ease-out forwards; white-space: nowrap; }
+@keyframes floatUp { from { opacity: 1; transform: translate(-50%, -50%); } to { opacity: 0; transform: translate(-50%, -150%); } }
+#levelup { position: absolute; inset: 0; z-index: 50; display: grid; place-items: center; background: rgba(30,40,20,.45); padding: 24px; }
+#levelup .card { background: var(--paper); border-radius: 20px; padding: 22px 20px; text-align: center; max-width: 320px; width: 100%; box-shadow: 0 6px 0 rgba(0,0,0,.2); animation: pop .35s ease-out; }
+#levelup .card .big { font-family: var(--f-display); font-size: 30px; color: var(--leaf); }
+#levelup .card p { margin: 8px 0 16px; }
+@keyframes pop { from { transform: scale(.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+</style>
+
+<div id="app">
+  <header id="hud">
+    <div class="sun" id="sun"></div>
+    <div class="hills"></div>
+    <div class="hud-row">
+      <div class="lvl">
+        <div class="badge" id="lv">1</div>
+        <div class="xp"><div class="xpbar"><i id="xpfill"></i></div><small id="xptext">경험치 0 / 12</small></div>
+      </div>
+      <div class="gold"><span class="coin"></span><b id="gold">0</b></div>
+      <div class="day"><span id="dayText">1일차</span><small id="weatherText">맑음</small></div>
+      <button class="icon-btn" id="muteBtn" aria-label="소리 켜기/끄기">🔈</button>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="view" id="v-farm">
+      <div class="field-wrap"><div class="field" id="field"></div><div id="night"></div></div>
+      <div class="actions">
+        <button class="btn primary" id="harvestAll">전체 수확</button>
+        <button class="btn" id="plantAll">빈 밭 모두 심기</button>
+      </div>
+      <h2>심을 씨앗</h2>
+      <p class="hint">빈 밭을 누르면 심고, 자라는 밭을 누르면 물을 줘요. 물을 준 밭은 1.5배 빨리 자라요.</p>
+      <div class="tray" id="tray"></div>
+    </section>
+
+    <section class="view" id="v-barn" hidden>
+      <h2>축사</h2>
+      <p class="hint">동물은 사료를 먹고 생산물을 만들어요. 다 되면 눌러서 거두세요.</p>
+      <div class="panel">
+        <div class="row"><span class="e">🌾</span><div class="info"><b>사료 <span id="feedCount">0</span>개</b><small>동물이 한 번 생산할 때 1개씩 먹어요</small></div>
+          <button class="btn small" id="buyFeed1">1개 · 4G</button><button class="btn small" id="buyFeed10">10개 · 36G</button></div>
+      </div>
+      <div class="pens" id="pens"></div>
+      <div class="panel" id="animalShop"><h3>동물 들이기</h3><div id="animalShopRows"></div></div>
+    </section>
+
+    <section class="view" id="v-market" hidden>
+      <h2>시장</h2>
+      <p class="hint">가격은 매일 바뀌어요. 값이 오른 날 파는 게 이득이에요.</p>
+      <div class="panel">
+        <div class="row"><div class="info"><b>창고</b><small id="invSummary">비어 있음</small></div><button class="btn primary small" id="sellAll">모두 판매</button></div>
+      </div>
+      <div class="panel"><h3>오늘의 시세</h3><div id="priceRows"></div></div>
+      <div class="panel"><h3>농장 개선</h3><div id="upgradeRows"></div></div>
+      <div class="panel"><h3>농장 기록</h3><div id="statRows"></div>
+        <button class="btn small warn" id="resetBtn">처음부터 다시 하기</button></div>
+    </section>
+
+    <section class="view" id="v-orders" hidden>
+      <h2>주문 게시판</h2>
+      <p class="hint">이웃의 주문을 채우면 시장보다 비싸게 사 주고 경험치도 줘요.</p>
+      <div id="orders" style="display:flex;flex-direction:column;gap:12px"></div>
+    </section>
+  </main>
+
+  <nav id="tabs">
+    <button data-view="farm" class="on"><span class="ti">🌱</span>밭</button>
+    <button data-view="barn"><span class="ti">🐔</span>축사<span class="dot" id="dotBarn" hidden></span></button>
+    <button data-view="market"><span class="ti">🏪</span>시장</button>
+    <button data-view="orders"><span class="ti">📋</span>주문<span class="dot" id="dotOrders" hidden></span></button>
+  </nav>
+  <div id="toast"></div>
+  <div id="levelup" hidden><div class="card"><div class="big" id="luTitle">레벨 2!</div><p id="luText"></p><button class="btn primary" id="luClose">좋아요</button></div></div>
+</div>
+
+<script>
+(() => {
+'use strict';
+const DAY_LEN = 120;            // seconds of real time per in-game day
+const SAVE_KEY = 'haetsal-farm-v1';
+const MAX_PLOTS = 30;
+const OFFLINE_CAP = 8 * 3600;
+
+const CROPS = [
+  { id: 'carrot',     n: '당근',  e: '🥕', cost: 5,   sell: 10,  t: 12,  xp: 1,  lv: 1 },
+  { id: 'potato',     n: '감자',  e: '🥔', cost: 9,   sell: 18,  t: 25,  xp: 2,  lv: 1 },
+  { id: 'cabbage',    n: '배추',  e: '🥬', cost: 14,  sell: 30,  t: 40,  xp: 3,  lv: 2 },
+  { id: 'tomato',     n: '토마토', e: '🍅', cost: 22,  sell: 48,  t: 60,  xp: 4,  lv: 3 },
+  { id: 'corn',       n: '옥수수', e: '🌽', cost: 30,  sell: 66,  t: 90,  xp: 6,  lv: 4 },
+  { id: 'strawberry', n: '딸기',  e: '🍓', cost: 45,  sell: 100, t: 120, xp: 8,  lv: 5 },
+  { id: 'eggplant',   n: '가지',  e: '🍆', cost: 60,  sell: 135, t: 170, xp: 10, lv: 6 },
+  { id: 'pumpkin',    n: '호박',  e: '🎃', cost: 80,  sell: 185, t: 240, xp: 14, lv: 7 },
+  { id: 'watermelon', n: '수박',  e: '🍉', cost: 120, sell: 280, t: 360, xp: 20, lv: 8 },
+];
+const ANIMALS = [
+  { id: 'chicken', n: '닭',  e: '🐔', cost: 150,  lv: 2, t: 40,  prod: 'egg',  xp: 2 },
+  { id: 'cow',     n: '젖소', e: '🐄', cost: 600,  lv: 4, t: 90,  prod: 'milk', xp: 5 },
+  { id: 'sheep',   n: '양',  e: '🐑', cost: 1500, lv: 6, t: 150, prod: 'wool', xp: 8 },
+];
+const PRODUCTS = {
+  egg:  { id: 'egg',  n: '달걀', e: '🥚', sell: 22,  lv: 2 },
+  milk: { id: 'milk', n: '우유', e: '🥛', sell: 60,  lv: 4 },
+  wool: { id: 'wool', n: '양털', e: '🧶', sell: 120, lv: 6 },
+};
+const ITEMS = {};
+CROPS.forEach(c => ITEMS[c.id] = c);
+Object.values(PRODUCTS).forEach(p => ITEMS[p.id] = p);
+const NEIGHBORS = [['👵', '순덕 할머니'], ['👨‍🍳', '읍내 식당'], ['🧑‍🌾', '옆집 민수'], ['👩‍🏫', '분교 선생님'], ['🧒', '꼬마 지우'], ['👨‍💼', '마트 사장님'], ['🐻', '숲속 곰돌이']];
+const WEATHER = { sunny: '맑음 ☀️', cloudy: '흐림 ☁️', rain: '비 🌧️ 밭이 저절로 젖어요' };
+
+const $ = id => document.getElementById(id);
+const fmt = n => Math.floor(n).toLocaleString('ko-KR');
+const rnd = (a, b) => a + Math.random() * (b - a);
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+const xpNeed = lv => Math.round(12 * Math.pow(lv, 1.6));
+const plotCost = owned => Math.round(60 * Math.pow(1.25, owned - 9));
+const animalCost = (a, owned) => Math.round(a.cost * Math.pow(1.35, owned));
+
+let S;
+
+function fresh() {
+  const s = {
+    gold: 60, xp: 0, lv: 1, day: 1, dayT: 0, weather: 'sunny',
+    plots: [], inv: {}, feed: 3, animals: [], prices: {}, prev: {},
+    orders: [], orderCd: 3, sel: 'carrot', sprinkler: false, fertilizer: false, muted: false,
+    stats: { harvested: 0, earned: 0, orders: 0 }, t: Date.now(),
+  };
+  for (let i = 0; i < 9; i++) s.plots.push(emptyPlot());
+  Object.keys(ITEMS).forEach(k => { s.prices[k] = 1; s.prev[k] = 1; });
+  return s;
+}
+function emptyPlot() { return { c: null, p: 0, wet: 0 }; }
+
+function load() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return null;
+    const s = JSON.parse(raw);
+    const base = fresh();
+    return Object.assign(base, s, { stats: Object.assign(base.stats, s.stats || {}), prices: Object.assign(base.prices, s.prices || {}), prev: Object.assign(base.prev, s.prev || {}) });
+  } catch (e) { return null; }
+}
+function save() {
+  S.t = Date.now();
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) { /* storage unavailable: play continues without saving */ }
+}
+
+/* ---------- simulation ---------- */
+function growMult() { return S.fertilizer ? 1.25 : 1; }
+
+function newDay() {
+  S.day++;
+  const r = Math.random();
+  S.weather = r < 0.25 ? 'rain' : r < 0.45 ? 'cloudy' : 'sunny';
+  Object.keys(ITEMS).forEach(k => {
+    S.prev[k] = S.prices[k];
+    let m = S.prices[k] * rnd(0.82, 1.2) + (1 - S.prices[k]) * 0.3;  // random walk pulled back toward normal
+    S.prices[k] = Math.min(1.6, Math.max(0.6, m));
+  });
+}
+
+function advance(dt) {
+  // Day clock
+  S.dayT += dt;
+  while (S.dayT >= DAY_LEN) { S.dayT -= DAY_LEN; newDay(); }
+  const autoWet = S.sprinkler || S.weather === 'rain';
+  for (const pl of S.plots) {
+    if (autoWet) pl.wet = 30;
+    if (pl.c && pl.p < 1) {
+      const crop = ITEMS[pl.c];
+      const wetPart = Math.min(dt, pl.wet);
+      pl.p += (wetPart * 1.5 + (dt - wetPart)) / crop.t * growMult();
+      if (pl.p > 1) pl.p = 1;
+    }
+    pl.wet = Math.max(0, pl.wet - dt);
+  }
+  for (const an of S.animals) {
+    let left = dt;
+    while (left > 0 && !an.ready) {
+      if (!an.fed) { if (S.feed > 0) { S.feed--; an.fed = true; } else break; }
+      const def = ANIMALS.find(a => a.id === an.type);
+      const need = (1 - an.p) * def.t;
+      if (left >= need) { an.p = 1; an.ready = true; an.fed = false; left -= need; }
+      else { an.p += left / def.t; left = 0; }
+    }
+  }
+  if (S.orders.length < 3) {
+    S.orderCd -= dt;
+    while (S.orderCd <= 0 && S.orders.length < 3) { S.orders.push(makeOrder()); S.orderCd += 25; }
+    if (S.orders.length >= 3) S.orderCd = 25;
+  }
+}
+
+function unlockedItems() { return Object.values(ITEMS).filter(it => it.lv <= S.lv && (PRODUCTS[it.id] ? S.animals.some(a => ANIMALS.find(d => d.id === a.type).prod === it.id) : true)); }
+
+function makeOrder() {
+  const pool = unlockedItems();
+  const kinds = Math.min(pool.length, 1 + Math.floor(Math.random() * Math.min(3, 1 + S.lv / 2)));
+  const chosen = [...pool].sort(() => Math.random() - 0.5).slice(0, kinds);
+  const need = {};
+  let value = 0, xp = 0;
+  chosen.forEach(it => {
+    const q = 1 + Math.floor(Math.random() * (2 + S.lv / 2));
+    need[it.id] = q; value += it.sell * q; xp += (it.xp || 3) * q;
+  });
+  const who = pick(NEIGHBORS);
+  return { face: who[0], who: who[1], need, gold: Math.round(value * rnd(1.35, 1.7)), xp: Math.round(xp * 1.5) + 2 };
+}
+
+function addXp(n, x, y) {
+  S.xp += n;
+  let leveled = false;
+  while (S.xp >= xpNeed(S.lv)) { S.xp -= xpNeed(S.lv); S.lv++; leveled = true; }
+  if (leveled) showLevelUp();
+}
+function earn(g) { S.gold += g; S.stats.earned += g; }
+
+/* ---------- actions ---------- */
+function tapPlot(i, ev) {
+  const pl = S.plots[i];
+  if (pl.c && pl.p >= 1) { harvest(i, ev); return; }
+  if (pl.c) {
+    if (pl.wet > 1) { toast(S.sprinkler || S.weather === 'rain' ? '밭이 이미 촉촉해요' : '아직 촉촉해요'); return; }
+    pl.wet = 30; sfx(520, .08, 'sine'); floatAt(ev, '💧'); renderFarm(); return;
+  }
+  const crop = ITEMS[S.sel];
+  if (!crop || crop.lv > S.lv) { toast('씨앗을 골라 주세요'); return; }
+  if (S.gold < crop.cost) { toast(`골드가 부족해요 (${crop.n} 씨앗 ${crop.cost}G)`); sfx(160, .15, 'square'); return; }
+  S.gold -= crop.cost; pl.c = crop.id; pl.p = 0;
+  sfx(330, .06, 'triangle'); floatAt(ev, `-${crop.cost}G`);
+  renderFarm(); renderHud();
+}
+function harvest(i, ev) {
+  const pl = S.plots[i];
+  const crop = ITEMS[pl.c];
+  S.inv[crop.id] = (S.inv[crop.id] || 0) + 1;
+  S.stats.harvested++;
+  pl.c = null; pl.p = 0;
+  if (ev) floatAt(ev, `+1 ${crop.e}`);
+  sfx(660, .07, 'triangle'); setTimeout(() => sfx(880, .07, 'triangle'), 60);
+  addXp(crop.xp);
+}
+function harvestAll() {
+  let n = 0;
+  S.plots.forEach((pl, i) => { if (pl.c && pl.p >= 1) { harvest(i); n++; } });
+  toast(n ? `${n}개를 거뒀어요` : '다 자란 작물이 없어요');
+  renderAll();
+}
+function plantAll() {
+  const crop = ITEMS[S.sel];
+  let n = 0;
+  for (const pl of S.plots) {
+    if (pl.c) continue;
+    if (S.gold < crop.cost) break;
+    S.gold -= crop.cost; pl.c = crop.id; pl.p = 0; n++;
+  }
+  if (n) { sfx(330, .08, 'triangle'); toast(`${crop.n} ${n}곳 심음 (-${n * crop.cost}G)`); }
+  else toast(S.plots.some(p => !p.c) ? '골드가 부족해요' : '빈 밭이 없어요');
+  renderAll();
+}
+function buyPlot(ev) {
+  const c = plotCost(S.plots.length);
+  if (S.gold < c) { toast(`밭을 넓히려면 ${fmt(c)}G가 필요해요`); return; }
+  S.gold -= c; S.plots.push(emptyPlot()); floatAt(ev, '밭 +1'); sfx(440, .12, 'triangle');
+  renderAll();
+}
+function sellItem(id, qty) {
+  const have = S.inv[id] || 0;
+  qty = Math.min(qty, have);
+  if (!qty) return;
+  const g = price(id) * qty;
+  S.inv[id] = have - qty;
+  earn(g); sfx(990, .05, 'square');
+  toast(`${ITEMS[id].n} ${qty}개 판매 +${fmt(g)}G`);
+  renderAll();
+}
+function sellAll() {
+  let g = 0;
+  Object.keys(S.inv).forEach(id => { const q = S.inv[id] || 0; if (q) { g += price(id) * q; S.inv[id] = 0; } });
+  if (!g) { toast('팔 물건이 없어요'); return; }
+  earn(g); sfx(990, .05, 'square'); toast(`모두 팔아서 +${fmt(g)}G`); renderAll();
+}
+function price(id) { return Math.max(1, Math.round(ITEMS[id].sell * S.prices[id])); }
+
+function buyFeed(n, cost) {
+  if (S.gold < cost) { toast('골드가 부족해요'); return; }
+  S.gold -= cost; S.feed += n; sfx(400, .06, 'triangle'); renderAll();
+}
+function buyAnimal(id) {
+  const def = ANIMALS.find(a => a.id === id);
+  const owned = S.animals.filter(a => a.type === id).length;
+  const c = animalCost(def, owned);
+  if (owned >= 4) return;
+  if (S.gold < c) { toast(`${def.n}을(를) 들이려면 ${fmt(c)}G가 필요해요`); return; }
+  S.gold -= c; S.animals.push({ type: id, p: 0, fed: false, ready: false });
+  sfx(520, .1, 'triangle'); toast(`${def.e} ${def.n}이(가) 농장에 왔어요`);
+  if (S.feed === 0) setTimeout(() => toast('사료가 없어요. 사료를 사 주세요'), 1600);
+  renderAll();
+}
+function collectAnimal(i, ev) {
+  const an = S.animals[i];
+  const def = ANIMALS.find(a => a.id === an.type);
+  if (!an.ready) { toast(an.fed ? '아직 만드는 중이에요' : '사료가 필요해요'); return; }
+  an.ready = false; an.p = 0;
+  S.inv[def.prod] = (S.inv[def.prod] || 0) + 1;
+  floatAt(ev, `+1 ${PRODUCTS[def.prod].e}`); sfx(700, .08, 'triangle');
+  addXp(def.xp); renderAll();
+}
+function fillOrder(i) {
+  const o = S.orders[i];
+  if (!canFill(o)) return;
+  Object.entries(o.need).forEach(([id, q]) => S.inv[id] -= q);
+  earn(o.gold); S.stats.orders++;
+  S.orders.splice(i, 1);
+  sfx(660, .08, 'triangle'); setTimeout(() => sfx(990, .12, 'triangle'), 90);
+  toast(`${o.who}: 고마워요! +${fmt(o.gold)}G`);
+  addXp(o.xp); renderAll();
+}
+function dropOrder(i) { S.orders.splice(i, 1); toast('주문을 넘겼어요. 곧 새 주문이 와요'); renderAll(); }
+function canFill(o) { return Object.entries(o.need).every(([id, q]) => (S.inv[id] || 0) >= q); }
+
+const UPGRADES = [
+  { id: 'sprinkler', n: '스프링클러', e: '🚿', d: '모든 밭에 자동으로 물을 줘요', cost: 1800, lv: 5 },
+  { id: 'fertilizer', n: '퇴비장', e: '🪣', d: '모든 작물이 25% 빨리 자라요', cost: 900, lv: 3 },
+];
+function buyUpgrade(id) {
+  const u = UPGRADES.find(x => x.id === id);
+  if (S[id] || S.lv < u.lv) return;
+  if (S.gold < u.cost) { toast(`${fmt(u.cost)}G가 필요해요`); return; }
+  S.gold -= u.cost; S[id] = true; sfx(523, .1, 'triangle'); setTimeout(() => sfx(784, .15, 'triangle'), 100);
+  toast(`${u.e} ${u.n} 설치 완료`); renderAll();
+}
+function cornToFeed() {
+  if (!(S.inv.corn > 0)) { toast('옥수수가 없어요'); return; }
+  S.inv.corn--; S.feed += 6; toast('옥수수 1개 → 사료 6개'); renderAll();
+}
+
+/* ---------- rendering ---------- */
+let view = 'farm';
+const plotEls = [];
+
+function renderHud() {
+  $('gold').textContent = fmt(S.gold);
+  $('lv').textContent = S.lv;
+  const need = xpNeed(S.lv);
+  $('xpfill').style.width = (S.xp / need * 100) + '%';
+  $('xptext').textContent = `경험치 ${fmt(S.xp)} / ${fmt(need)}`;
+  $('dayText').textContent = `${S.day}일차`;
+  $('weatherText').textContent = WEATHER[S.weather].split(' 밭')[0];
+  const f = S.dayT / DAY_LEN;  // 0 = dawn, 0.75+ = night
+  const sun = $('sun');
+  const isNight = f > 0.75;
+  const arc = isNight ? (f - 0.75) / 0.25 : f / 0.75;
+  sun.classList.toggle('moon', isNight);
+  sun.style.left = `calc(${(arc * 90 + 2).toFixed(2)}% - 17px)`;
+  sun.style.top = `${(8 + Math.pow(arc * 2 - 1, 2) * 26).toFixed(1)}px`;
+  const dark = isNight ? 0.55 : f > 0.65 ? (f - 0.65) * 5.5 * 0.55 : 0;
+  $('hud').style.filter = `brightness(${1 - dark * 0.6}) saturate(${1 - dark * 0.3})${S.weather === 'rain' ? ' grayscale(.35)' : S.weather === 'cloudy' ? ' grayscale(.18)' : ''}`;
+  $('night').style.opacity = (dark * 0.7).toFixed(2);
+  $('muteBtn').textContent = S.muted ? '🔇' : '🔈';
+  const barnReady = S.animals.filter(a => a.ready).length;
+  const hungry = S.animals.some(a => !a.ready && !a.fed) && S.feed === 0;
+  setDot('dotBarn', barnReady || (hungry ? '!' : 0));
+  setDot('dotOrders', S.orders.filter(canFill).length);
+}
+function setDot(id, v) { const el = $(id); el.hidden = !v; el.textContent = v; }
+
+function buildField() {
+  const field = $('field');
+  field.innerHTML = '';
+  plotEls.length = 0;
+  const n = S.plots.length + (S.plots.length < MAX_PLOTS ? 1 : 0);
+  field.style.setProperty('--cols', n <= 12 ? 3 : n <= 20 ? 4 : 5);
+  S.plots.forEach((_, i) => {
+    const d = document.createElement('button');
+    d.className = 'plot'; d.dataset.i = i;
+    d.innerHTML = '<span class="crop"></span><span class="drop"></span><span class="bar"><i></i></span>';
+    field.appendChild(d);
+    plotEls.push({ el: d, crop: d.firstChild, drop: d.children[1], bar: d.querySelector('i'), key: '' });
+  });
+  if (S.plots.length < MAX_PLOTS) {
+    const b = document.createElement('button');
+    b.className = 'plot buy'; b.id = 'buyPlotTile';
+    field.appendChild(b);
+  }
+}
+function renderFarm() {
+  if (plotEls.length !== S.plots.length) buildField();
+  S.plots.forEach((pl, i) => {
+    const r = plotEls[i];
+    const stage = !pl.c ? 'empty' : pl.p >= 1 ? 'ready' : pl.p < 0.35 ? 's0' : 's1';
+    const wet = pl.wet > 0 && pl.c && pl.p < 1;
+    const key = stage + (wet ? 'w' : '') + (pl.c || '');
+    if (key !== r.key) {
+      r.key = key;
+      r.el.className = 'plot ' + (stage === 'empty' ? 'empty' : stage === 'ready' ? 'ready' : 'growing ' + stage) + (wet ? ' wet' : '');
+      const crop = pl.c && ITEMS[pl.c];
+      r.crop.textContent = stage === 'empty' ? '+' : stage === 's0' ? '🌱' : stage === 's1' ? '🌿' : crop.e;
+      r.drop.textContent = wet ? '💧' : '';
+      r.el.setAttribute('aria-label', stage === 'empty' ? '빈 밭: 씨앗 심기' : stage === 'ready' ? `${crop.n} 수확하기` : `${crop.n} 자라는 중`);
+    }
+    if (pl.c && pl.p < 1) r.bar.style.width = (pl.p * 100).toFixed(1) + '%';
+  });
+  const tile = $('buyPlotTile');
+  if (tile) tile.innerHTML = `<span><b>＋</b>밭 넓히기<br>${fmt(plotCost(S.plots.length))}G</span>`;
+}
+function renderTray() {
+  $('tray').innerHTML = CROPS.map(c => {
+    const locked = c.lv > S.lv;
+    return `<button class="seed${S.sel === c.id ? ' sel' : ''}${locked ? ' locked' : ''}" data-seed="${c.id}">
+      <span class="e">${c.e}</span><span class="n">${c.n}</span>
+      <span class="m">${locked ? `레벨 ${c.lv}` : `${c.cost}G · ${fmtTime(c.t / growMult())}`}</span>
+      <span class="m">${locked ? '잠김' : `판매 ${price(c.id)}G`}</span></button>`;
+  }).join('');
+}
+function fmtTime(s) { s = Math.round(s); if (s >= 3600) return `${Math.floor(s / 3600)}시간${Math.floor(s % 3600 / 60) ? ' ' + Math.floor(s % 3600 / 60) + '분' : ''}`; return s >= 60 ? `${Math.floor(s / 60)}분${s % 60 ? ' ' + (s % 60) + '초' : ''}` : `${s}초`; }
+
+function renderBarn() {
+  $('feedCount').textContent = S.feed;
+  const pens = $('pens');
+  if (!S.animals.length) pens.innerHTML = `<div class="panel empty-note" style="grid-column:1/-1">아직 동물이 없어요. ${S.lv < 2 ? '레벨 2가 되면 닭을 들일 수 있어요.' : '아래에서 닭부터 들여 보세요.'}</div>`;
+  else pens.innerHTML = S.animals.map((an, i) => {
+    const def = ANIMALS.find(a => a.id === an.type);
+    const st = an.ready ? '눌러서 거두기' : an.fed ? `만드는 중 ${Math.floor(an.p * 100)}%` : '배고파요';
+    return `<button class="pen${an.ready ? ' ready' : ''}${!an.ready && !an.fed ? ' hungry' : ''}" data-pen="${i}">
+      ${an.ready ? `<span class="prod">${PRODUCTS[def.prod].e}</span>` : ''}
+      <span class="a">${def.e}</span><span class="st">${st}</span><div class="bar"><i style="width:${(an.p * 100).toFixed(0)}%"></i></div></button>`;
+  }).join('');
+  $('animalShopRows').innerHTML = ANIMALS.map(def => {
+    const owned = S.animals.filter(a => a.type === def.id).length;
+    const c = animalCost(def, owned);
+    const locked = def.lv > S.lv;
+    const p = PRODUCTS[def.prod];
+    return `<div class="row"><span class="e">${def.e}</span><div class="info"><b>${def.n} <small style="display:inline">(${owned}/4)</small></b>
+      <small>${p.e} ${p.n} · ${fmtTime(def.t)}마다 · 판매 약 ${p.sell}G</small></div>
+      <button class="btn small" data-animal="${def.id}" ${locked || owned >= 4 ? 'disabled' : ''}>${locked ? `레벨 ${def.lv}` : owned >= 4 ? '가득 참' : fmt(c) + 'G'}</button></div>`;
+  }).join('');
+}
+
+function renderMarket() {
+  const inv = Object.entries(S.inv).filter(([, q]) => q > 0);
+  $('invSummary').textContent = inv.length ? inv.map(([id, q]) => `${ITEMS[id].e}${q}`).join('  ') + ` · 약 ${fmt(inv.reduce((s, [id, q]) => s + price(id) * q, 0))}G` : '비어 있음';
+  const list = Object.values(ITEMS).filter(it => it.lv <= S.lv || (S.inv[it.id] || 0) > 0);
+  $('priceRows').innerHTML = list.map(it => {
+    const pr = price(it.id), q = S.inv[it.id] || 0;
+    const diff = S.prices[it.id] - S.prev[it.id];
+    const tr = Math.abs(diff) < 0.02 ? '<span>–</span>' : diff > 0 ? `<span class="up">▲${Math.round(diff * 100)}%</span>` : `<span class="down">▼${Math.round(-diff * 100)}%</span>`;
+    const vs = Math.round((S.prices[it.id] - 1) * 100);
+    return `<div class="row"><span class="e">${it.e}</span><div class="info"><b>${it.n} ${pr}G ${tr}</b>
+      <small>보유 ${q}개 · 평소 ${it.sell}G 대비 ${vs >= 0 ? '+' : ''}${vs}%</small></div>
+      <button class="btn small" data-sell="${it.id}" data-q="1" ${q ? '' : 'disabled'}>1개</button>
+      <button class="btn small primary" data-sell="${it.id}" data-q="9999" ${q ? '' : 'disabled'}>전부</button></div>`;
+  }).join('');
+  $('upgradeRows').innerHTML = UPGRADES.map(u => {
+    const locked = u.lv > S.lv;
+    return `<div class="row"><span class="e">${u.e}</span><div class="info"><b>${u.n}</b><small>${u.d}</small></div>
+      <button class="btn small" data-up="${u.id}" ${S[u.id] || locked ? 'disabled' : ''}>${S[u.id] ? '설치됨' : locked ? `레벨 ${u.lv}` : fmt(u.cost) + 'G'}</button></div>`;
+  }).join('') + `<div class="row"><span class="e">🌽</span><div class="info"><b>옥수수로 사료 만들기</b><small>옥수수 1개 → 사료 6개</small></div>
+      <button class="btn small" id="cornFeed" ${(S.inv.corn || 0) > 0 ? '' : 'disabled'}>만들기</button></div>`;
+  $('statRows').innerHTML = `<div class="row"><div class="info"><small>수확한 작물 ${fmt(S.stats.harvested)}개 · 채운 주문 ${fmt(S.stats.orders)}건 · 번 돈 ${fmt(S.stats.earned)}G · 밭 ${S.plots.length}칸 · 동물 ${S.animals.length}마리</small></div></div>`;
+}
+
+function renderOrders() {
+  const box = $('orders');
+  const parts = S.orders.map((o, i) => {
+    const ok = canFill(o);
+    return `<div class="panel order"><div class="who"><span class="face">${o.face}</span><div><b>${o.who}</b><small>이것들이 필요해요</small></div></div>
+      <div class="need">${Object.entries(o.need).map(([id, q]) => { const h = S.inv[id] || 0; return `<span class="${h >= q ? 'ok' : ''}">${ITEMS[id].e} ${ITEMS[id].n} ${Math.min(h, q)}/${q}</span>`; }).join('')}</div>
+      <div class="row"><div class="info reward"><span class="coin"></span>${fmt(o.gold)}G · 경험치 ${o.xp}</div>
+      <button class="btn small" data-drop="${i}">넘기기</button><button class="btn small primary" data-fill="${i}" ${ok ? '' : 'disabled'}>납품</button></div></div>`;
+  });
+  if (S.orders.length < 3) parts.push(`<div class="panel empty-note">새 주문이 ${Math.ceil(Math.max(0, S.orderCd))}초 뒤에 와요</div>`);
+  box.innerHTML = parts.join('');
+}
+
+function renderView() {
+  if (view === 'farm') renderFarm();
+  if (view === 'barn') renderBarn();
+  if (view === 'market') renderMarket();
+  if (view === 'orders') renderOrders();
+}
+function renderAll() { renderHud(); renderFarm(); renderTray(); if (view !== 'farm') renderView(); }
+
+/* ---------- feedback ---------- */
+let toastTimer;
+function toast(msg) {
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
+}
+function floatAt(ev, text) {
+  if (!ev) return;
+  const el = document.createElement('div');
+  el.className = 'float'; el.textContent = text;
+  const r = ev.currentTarget ? ev.currentTarget.getBoundingClientRect() : null;
+  const x = ev.clientX || (r ? r.left + r.width / 2 : 0), y = ev.clientY || (r ? r.top + r.height / 2 : 0);
+  el.style.left = x + 'px'; el.style.top = y + 'px';
+  document.body.appendChild(el); setTimeout(() => el.remove(), 950);
+}
+let actx;
+function sfx(freq, dur, type) {
+  if (S.muted) return;
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.12, actx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + dur);
+    o.connect(g).connect(actx.destination); o.start(); o.stop(actx.currentTime + dur + 0.02);
+  } catch (e) { /* audio unavailable */ }
+}
+function showLevelUp() {
+  const newCrops = CROPS.filter(c => c.lv === S.lv).map(c => c.e + ' ' + c.n);
+  const newAnimals = ANIMALS.filter(a => a.lv === S.lv).map(a => a.e + ' ' + a.n);
+  const newUps = UPGRADES.filter(u => u.lv === S.lv).map(u => u.e + ' ' + u.n);
+  const all = [...newCrops, ...newAnimals, ...newUps];
+  $('luTitle').textContent = `레벨 ${S.lv}!`;
+  $('luText').textContent = all.length ? `새로 열린 것: ${all.join(', ')}` : '농장이 점점 커지고 있어요. 계속 힘내요!';
+  $('levelup').hidden = false;
+  sfx(523, .1, 'triangle'); setTimeout(() => sfx(659, .1, 'triangle'), 110); setTimeout(() => sfx(784, .2, 'triangle'), 220);
+  renderTray();
+}
+
+/* ---------- input ---------- */
+function bind() {
+  $('field').addEventListener('click', ev => {
+    const b = ev.target.closest('.plot');
+    if (!b) return;
+    const fakeEv = { clientX: ev.clientX, clientY: ev.clientY, currentTarget: b };
+    if (b.id === 'buyPlotTile') { buyPlot(fakeEv); return; }
+    tapPlot(+b.dataset.i, fakeEv);
+  });
+  $('tray').addEventListener('click', ev => {
+    const b = ev.target.closest('.seed'); if (!b) return;
+    const c = ITEMS[b.dataset.seed];
+    if (c.lv > S.lv) { toast(`${c.n}은(는) 레벨 ${c.lv}에 열려요`); return; }
+    S.sel = c.id; renderTray(); sfx(440, .04, 'sine');
+  });
+  $('harvestAll').onclick = harvestAll;
+  $('plantAll').onclick = plantAll;
+  $('tabs').addEventListener('click', ev => {
+    const b = ev.target.closest('button'); if (!b) return;
+    view = b.dataset.view;
+    document.querySelectorAll('#tabs button').forEach(x => x.classList.toggle('on', x === b));
+    ['farm', 'barn', 'market', 'orders'].forEach(v => $('v-' + v).hidden = v !== view);
+    $('main').scrollTop = 0;
+    if (view === 'farm') renderTray();
+    renderView(); sfx(380, .03, 'sine');
+  });
+  $('pens').addEventListener('click', ev => {
+    const b = ev.target.closest('[data-pen]'); if (!b) return;
+    collectAnimal(+b.dataset.pen, { clientX: ev.clientX, clientY: ev.clientY, currentTarget: b });
+  });
+  $('animalShopRows').addEventListener('click', ev => { const b = ev.target.closest('[data-animal]'); if (b) buyAnimal(b.dataset.animal); });
+  $('buyFeed1').onclick = () => buyFeed(1, 4);
+  $('buyFeed10').onclick = () => buyFeed(10, 36);
+  $('priceRows').addEventListener('click', ev => { const b = ev.target.closest('[data-sell]'); if (b) sellItem(b.dataset.sell, +b.dataset.q); });
+  $('upgradeRows').addEventListener('click', ev => {
+    const b = ev.target.closest('[data-up]'); if (b) buyUpgrade(b.dataset.up);
+    if (ev.target.closest('#cornFeed')) cornToFeed();
+  });
+  $('sellAll').onclick = sellAll;
+  $('orders').addEventListener('click', ev => {
+    const f = ev.target.closest('[data-fill]'); if (f) fillOrder(+f.dataset.fill);
+    const d = ev.target.closest('[data-drop]'); if (d) dropOrder(+d.dataset.drop);
+  });
+  $('luClose').onclick = () => { $('levelup').hidden = true; };
+  $('muteBtn').onclick = () => { S.muted = !S.muted; renderHud(); };
+  let resetArmed = 0;
+  $('resetBtn').onclick = () => {
+    if (Date.now() - resetArmed < 3000) {
+      S = fresh(); save(); plotEls.length = 0; renderAll(); renderView(); toast('새 농장을 시작했어요');
+      $('resetBtn').textContent = '처음부터 다시 하기'; resetArmed = 0; return;
+    }
+    resetArmed = Date.now(); $('resetBtn').textContent = '한 번 더 누르면 모두 지워져요';
+    setTimeout(() => { $('resetBtn').textContent = '처음부터 다시 하기'; }, 3000);
+  };
+  document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
+  window.addEventListener('pagehide', save);
+}
+
+/* ---------- loop ---------- */
+let last = performance.now(), saveAcc = 0, slowAcc = 0;
+function loop() {
+  const now = performance.now();
+  const dt = Math.min(5, (now - last) / 1000); last = now;
+  const prevDay = S.day;
+  advance(dt);
+  if (S.day !== prevDay) { toast(`${S.day}일차 아침이에요 · ${WEATHER[S.weather]}`); renderTray(); }
+  renderHud();
+  if (view === 'farm') renderFarm();
+  slowAcc += dt;
+  if (slowAcc > 0.5) { slowAcc = 0; if (view !== 'farm') renderView(); }
+  saveAcc += dt;
+  if (saveAcc > 5) { saveAcc = 0; save(); }
+}
+
+function start(data) {
+  S = (data && data.S) || load() || fresh();
+  const away = Math.min(OFFLINE_CAP, Math.max(0, (Date.now() - (S.t || Date.now())) / 1000));
+  bind();
+  if (away > 30) {
+    const before = S.plots.filter(p => p.c && p.p >= 1).length;
+    const step = 5;
+    for (let t = 0; t < away; t += step) advance(Math.min(step, away - t));
+    const after = S.plots.filter(p => p.c && p.p >= 1).length;
+    setTimeout(() => toast(`${fmtTime(away)} 동안 농장이 자랐어요${after > before ? ` · 수확할 작물 ${after}개` : ''}`), 400);
+  } else if (S.stats.harvested === 0 && S.plots.every(p => !p.c)) {
+    setTimeout(() => toast('빈 밭을 눌러 당근을 심어 보세요'), 500);
+  }
+  renderAll();
+  setInterval(loop, 250);
+}
+
+if (window.claude && window.claude.hot && typeof window.claude.hot.snapshot === 'function') window.claude.hot.snapshot(() => ({ S }));
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+})();
+</script>
+
+</body>
+</html>
