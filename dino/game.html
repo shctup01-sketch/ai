@@ -1,0 +1,841 @@
+<title>공룡 상단</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;600&display=swap">
+<style>
+/* Layout: caravan ledger — header with money/cargo, three tabs (town, caravan, map), full-screen battle overlay.
+   Single post-apocalyptic look: dust, rust and ash. */
+:root {
+  --bg: #1c1711; --panel: #26201a; --panel-2: #312921; --line: #463a2d;
+  --text: #ece3d4; --muted: #a89a86; --rust: #d0743a; --amber: #e3a843; --good: #8fbf6a; --bad: #d4573c; --steel: #8fa3b0;
+  --f-display: "Black Han Sans", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --f-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html { height: 100%; box-sizing: border-box; background: var(--bg); }
+body { height: 100%; margin: 0; background: var(--bg); color: var(--text); font-family: var(--f-body); font-size: 13px; overflow: hidden; user-select: none; -webkit-user-select: none; }
+button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; touch-action: manipulation; }
+button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+button[disabled] { opacity: .4; pointer-events: none; }
+#app { height: 100%; max-width: 620px; margin: 0 auto; display: flex; flex-direction: column; position: relative; }
+header { padding-block: 8px; padding-left: max(14px, env(safe-area-inset-left, 0px)); padding-right: max(14px, env(safe-area-inset-right, 0px)); display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--line); background: linear-gradient(#2a221a, var(--bg)); }
+.brand { flex: 1; min-width: 0; }
+.brand h1 { font-family: var(--f-display); font-weight: 400; font-size: 21px; margin: 0; letter-spacing: .02em; color: var(--rust); }
+.brand small { display: block; color: var(--muted); font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.res { display: flex; gap: 5px; }
+.rc { display: flex; flex-direction: column; align-items: flex-end; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 2px 7px; min-width: 52px; }
+.rc em { font-style: normal; font-size: 9px; color: var(--muted); }
+.rc b { font-size: 13px; font-variant-numeric: tabular-nums; }
+.rc.money b { color: var(--amber); }
+main { flex: 1; min-height: 0; position: relative; }
+.view { position: absolute; inset: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-block: 12px 20px; padding-left: max(14px, env(safe-area-inset-left, 0px)); padding-right: max(14px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 12px; }
+h2 { font-family: var(--f-display); font-weight: 400; font-size: 17px; margin: 0; letter-spacing: .02em; }
+h2 small { font-family: var(--f-body); font-size: 11px; color: var(--muted); margin-left: 6px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 11px; display: flex; flex-direction: column; gap: 9px; }
+.row { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.row + .row { border-top: 1px dashed var(--line); padding-top: 9px; }
+.row .info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.row .info b { font-weight: 600; font-size: 13px; }
+.row .info small { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.row canvas { flex: none; width: 52px; height: 40px; }
+.btn { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 11px; font-weight: 600; font-size: 12px; flex: none; }
+.btn:active { transform: translateY(1px); }
+.btn.primary { background: var(--rust); color: #1c120a; border-color: #8f4a1e; }
+.btn.big { width: 100%; padding: 13px; font-family: var(--f-display); font-weight: 400; font-size: 17px; }
+.btn.small { padding: 6px 8px; font-size: 11px; }
+.up { color: var(--good); } .down { color: var(--bad); }
+.zonehead { position: relative; border-radius: 12px; overflow: hidden; min-height: 116px; display: flex; align-items: flex-end; border: 1px solid var(--line); }
+.zonehead canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.zonehead .zt { position: relative; padding: 12px; background: linear-gradient(transparent, rgba(20,15,10,.92)); width: 100%; }
+.zonehead .zt b { font-family: var(--f-display); font-weight: 400; font-size: 22px; display: block; }
+.zonehead .zt small { color: #d8cdb9; font-size: 11px; }
+.danger { color: var(--bad); letter-spacing: 1px; }
+.hunts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.hunts .btn { display: flex; flex-direction: column; gap: 2px; align-items: center; padding: 9px 4px; }
+.hunts .btn small { font-weight: 400; font-size: 10px; color: var(--muted); }
+.hunts .btn.boss { border-color: var(--bad); }
+.bar { height: 5px; background: #3a2e22; border-radius: 3px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--good); }
+.tag { font-size: 10px; padding: 1px 6px; border-radius: 5px; background: var(--panel-2); border: 1px solid var(--line); color: var(--muted); }
+.tag.on { background: var(--rust); color: #1c120a; border-color: var(--rust); }
+#mapcv { width: 100%; aspect-ratio: 360 / 300; max-width: 100%; border-radius: 12px; border: 1px solid var(--line); display: block; }
+.travel { display: flex; flex-direction: column; gap: 6px; }
+.travel .bar { height: 8px; } .travel .bar i { background: var(--amber); }
+#tabs { display: flex; background: var(--panel); border-top: 1px solid var(--line); padding: 5px max(8px, env(safe-area-inset-right, 0px)) 6px max(8px, env(safe-area-inset-left, 0px)); gap: 4px; }
+#tabs button { flex: 1; border-radius: 8px; padding: 8px 2px; font-family: var(--f-display); font-size: 15px; color: var(--muted); }
+#tabs button.on { background: var(--panel-2); color: var(--text); box-shadow: inset 0 -2px 0 var(--rust); }
+#battle { position: absolute; inset: 0; z-index: 20; background: #120e0a; display: flex; flex-direction: column; }
+.bhead { display: flex; align-items: center; gap: 8px; padding: 7px max(12px, env(safe-area-inset-right, 0px)) 7px max(12px, env(safe-area-inset-left, 0px)); }
+.bhead b { font-family: var(--f-display); font-weight: 400; font-size: 16px; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bhead small { color: var(--muted); font-size: 11px; }
+.bfield { flex: 1; min-height: 0; position: relative; }
+#bcv { width: 100%; height: 100%; display: block; touch-action: none; }
+#bTip { position: absolute; left: 50%; top: 8px; transform: translateX(-50%); font-size: 11px; color: #d8cdb9; background: rgba(18,14,10,.7); padding: 3px 9px; border-radius: 10px; pointer-events: none; white-space: nowrap; }
+#bSel { position: absolute; left: 8px; right: 8px; bottom: 8px; background: rgba(18,14,10,.86); border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; font-size: 12px; display: flex; gap: 8px; align-items: center; pointer-events: none; }
+#bSel .bar { flex: 1; } #bSel .bar i { background: var(--bad); }
+.bfoot { display: flex; gap: 6px; padding: 7px max(12px, env(safe-area-inset-right, 0px)) 9px max(12px, env(safe-area-inset-left, 0px)); }
+.bfoot .btn { flex: 1; padding: 11px 6px; font-size: 13px; }
+#modal { position: absolute; inset: 0; z-index: 40; background: rgba(8,6,4,.72); display: grid; place-items: center; padding: 20px max(16px, env(safe-area-inset-right, 0px)) 20px max(16px, env(safe-area-inset-left, 0px)); }
+.mcard { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px 16px; width: 100%; max-width: 360px; max-height: 100%; overflow-y: auto; display: flex; flex-direction: column; gap: 11px; animation: pop .22s ease-out; }
+.mcard h3 { font-family: var(--f-display); font-weight: 400; font-size: 24px; margin: 0; text-align: center; }
+.mcard .sub { text-align: center; color: var(--muted); font-size: 12px; margin-top: -5px; line-height: 1.5; }
+.mbtns { display: flex; gap: 8px; } .mbtns .btn { flex: 1; padding: 11px; }
+@keyframes pop { from { transform: scale(.92); opacity: 0; } to { transform: none; opacity: 1; } }
+#toast { position: absolute; left: 50%; top: 56px; transform: translate(-50%, -6px); background: rgba(28,23,17,.95); border: 1px solid var(--line); padding: 7px 14px; border-radius: 16px; font-size: 12px; opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; z-index: 50; max-width: calc(100% - 24px); text-align: center; }
+#toast.show { opacity: 1; transform: translate(-50%, 0); }
+#toast.warn { border-color: var(--bad); } #toast.good { border-color: var(--amber); }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+</style>
+
+<div id="app">
+  <header>
+    <div class="brand"><h1>공룡 상단</h1><small id="sub"></small></div>
+    <div class="res">
+      <span class="rc money"><em>크레딧</em><b id="rMoney">0</b></span>
+      <span class="rc"><em>짐칸</em><b id="rCargo">0/0</b></span>
+      <span class="rc"><em>날짜</em><b id="rDay">1</b></span>
+    </div>
+  </header>
+  <main>
+    <section class="view" id="v-town"></section>
+    <section class="view" id="v-party" hidden></section>
+    <section class="view" id="v-map" hidden></section>
+  </main>
+  <nav id="tabs">
+    <button data-v="town" class="on">정착지</button>
+    <button data-v="party">상단</button>
+    <button data-v="map">지도</button>
+  </nav>
+  <div id="battle" hidden>
+    <div class="bhead"><b id="bTitle"></b><small id="bInfo"></small></div>
+    <div class="bfield"><canvas id="bcv"></canvas><div id="bTip">적을 눌러 집중 공격 · 체력 30% 이하면 포획</div><div id="bSel" hidden><span id="bSelName"></span><span class="bar"><i id="bSelHp"></i></span></div></div>
+    <div class="bfoot"><button class="btn" id="bRetreat">후퇴</button><button class="btn primary" id="bCapture">포획</button><button class="btn" id="bSpeed">×1</button></div>
+  </div>
+  <div id="toast"></div>
+  <div id="modal" hidden><div class="mcard" id="mcard"></div></div>
+</div>
+
+<script>
+(() => {
+'use strict';
+const $ = id => document.getElementById(id);
+const rand = (a, b) => a + Math.random() * (b - a);
+const pick = a => a[Math.random() * a.length | 0];
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const d2 = (ax, ay, bx, by) => { const dx = ax - bx, dy = ay - by; return dx * dx + dy * dy; };
+const fmt = n => Math.floor(n).toLocaleString('ko-KR');
+
+/* ================================================================
+   WORLD DATA — three zones instead of nations; no elements
+   ================================================================ */
+const GOODS = {
+  grain: { n: '곡물', base: 9 }, meat: { n: '고기', base: 14 }, hide: { n: '가죽', base: 20 }, bone: { n: '뼈', base: 12 },
+  water: { n: '깨끗한 물', base: 16 }, ammo: { n: '탄약', base: 28 }, parts: { n: '기계 부품', base: 42 },
+  herb: { n: '약초', base: 24 }, venom: { n: '독샘', base: 50 },
+};
+const ZONES = {
+  plain: { n: '잿빛 평원', lv: 1, danger: 1, ground: 'plain', mx: 0.24, my: 0.72,
+    ds: '재가 날리는 마른 초원. 초식 공룡 떼가 지나가고, 살아남은 농부들이 곡물을 키워요.',
+    recruit: ['hunter', 'spear'], tame: ['trike', 'pachy'], wild: ['pachy', 'pachy', 'trike'], boss: 'trikeKing',
+    loot: { meat: 3, hide: 2, bone: 1 }, price: { grain: .55, hide: .8, meat: .85, bone: .9, water: 1.05, ammo: 1.45, parts: 1.35, herb: 1.35, venom: 1.4 } },
+  city: { n: '무너진 도시', lv: 5, danger: 2, ground: 'city', mx: 0.74, my: 0.42,
+    ds: '공룡에게 짓밟힌 옛 도시. 폐허에서 부품과 탄약을 캐지만 먹을 것과 물이 귀해요. 랩터 무리가 골목을 지배해요.',
+    recruit: ['sniper', 'mechanic'], tame: ['raptor', 'compy'], wild: ['compy', 'compy', 'raptor', 'raptor'], boss: 'oneEye',
+    loot: { parts: 2, ammo: 1, meat: 1, hide: 1 }, price: { parts: .55, ammo: .65, meat: 1.5, grain: 1.45, water: 1.6, herb: 1.2, hide: 1.1, bone: 1.15, venom: 1.25 } },
+  swamp: { n: '썩은 늪지', lv: 9, danger: 3, ground: 'swamp', mx: 0.3, my: 0.24,
+    ds: '독이 고인 늪. 약초와 독샘이 나지만 거대 악어와 산성 침을 뱉는 공룡이 숨어 있어요.',
+    recruit: ['medic', 'venomer'], tame: ['dilo', 'sarco'], wild: ['dilo', 'dilo', 'sarco', 'compy'], boss: 'swampKing',
+    loot: { herb: 2, venom: 1, meat: 2, hide: 1 }, price: { herb: .55, venom: .6, water: .85, parts: 1.6, ammo: 1.35, grain: 1.25, meat: 1.1, hide: 1.2, bone: 1.1 } },
+};
+const ROUTES = { 'plain|city': { t: 26, danger: 1.3 }, 'city|swamp': { t: 32, danger: 2.3 }, 'plain|swamp': { t: 38, danger: 2.7 } };
+const routeOf = (a, b) => ROUTES[a + '|' + b] || ROUTES[b + '|' + a];
+// Units: people for hire and dinosaurs to tame. carry = cargo slots the unit adds.
+const UNITS = {
+  leader:  { n: '상단 대장', cls: 'human', role: '원거리', hp: 130, atk: 14, def: 6, spd: 40, range: 120, as: 1.0, carry: 10, gun: true, ds: '상단을 이끄는 당신. 소총을 써요.' },
+  hunter:  { n: '사냥꾼', cls: 'human', role: '원거리', hp: 80, atk: 11, def: 3, spd: 42, range: 125, as: 1.1, carry: 3, cost: 120, bow: true, ds: '활로 멀리서 꾸준히 공격해요.' },
+  spear:   { n: '창잡이', cls: 'human', role: '탱커', hp: 160, atk: 9, def: 11, spd: 36, range: 20, as: 0.9, carry: 3, cost: 150, taunt: true, ds: '앞줄에서 적을 붙잡아 둬요.' },
+  sniper:  { n: '저격수', cls: 'human', role: '원거리', hp: 70, atk: 34, def: 2, spd: 34, range: 210, as: 0.42, carry: 2, cost: 340, gun: true, ds: '아주 멀리서 강한 한 발을 쏴요.' },
+  mechanic:{ n: '정비공', cls: 'human', role: '지원', hp: 100, atk: 8, def: 6, spd: 36, range: 100, as: 1, carry: 4, cost: 300, turret: true, ds: '전투가 시작되면 자동 포탑을 설치해요.' },
+  medic:   { n: '의무병', cls: 'human', role: '회복', hp: 90, atk: 5, def: 4, spd: 38, range: 110, as: 1, carry: 3, cost: 320, heal: 14, ds: '가장 다친 동료를 치료해요.' },
+  venomer: { n: '독침술사', cls: 'human', role: '약화', hp: 85, atk: 7, def: 3, spd: 40, range: 115, as: 0.9, carry: 3, cost: 360, shred: 4, ds: '독침으로 적의 장갑을 녹여 모두의 피해를 늘려요.' },
+  trike:   { n: '트리케라톱스', cls: 'dino', role: '탱커', hp: 440, atk: 22, def: 16, spd: 27, range: 24, as: 0.7, carry: 40, size: 30, taunt: true, ds: '짐을 40칸 지는 단단한 방패. 상단의 기둥이에요.' },
+  pachy:   { n: '파키케팔로사우루스', cls: 'dino', role: '기절', hp: 230, atk: 18, def: 9, spd: 46, range: 20, as: 0.8, carry: 8, size: 21, stun: 1.2, ds: '박치기로 적을 기절시켜요. 큰 적에게는 안 통해요.' },
+  raptor:  { n: '벨로키랍토르', cls: 'dino', role: '돌격', hp: 140, atk: 16, def: 4, spd: 72, range: 15, as: 1.6, carry: 4, size: 17, pack: true, ds: '빠른 사냥꾼. 같은 랩터가 가까이 있으면 더 강해져요.' },
+  compy:   { n: '콤프소그나투스', cls: 'dino', role: '떼', hp: 50, atk: 7, def: 1, spd: 66, range: 11, as: 1.9, carry: 1, size: 10, ds: '작지만 빠르고 많아요.' },
+  dilo:    { n: '딜로포사우루스', cls: 'dino', role: '약화', hp: 190, atk: 12, def: 5, spd: 46, range: 75, as: 0.9, carry: 6, size: 21, shred: 6, acid: true, ds: '산성 침으로 적의 장갑을 녹여요.' },
+  sarco:   { n: '사르코수쿠스', cls: 'dino', role: '파괴', hp: 400, atk: 36, def: 14, spd: 24, range: 22, as: 0.6, carry: 15, size: 34, ds: '버스만 한 거대 악어. 한 번 물면 놓지 않아요.' },
+};
+const BOSSES = {
+  trikeKing: { base: 'trike', n: '늙은 우두머리 트리케라톱스', hp: 4.5, atk: 1.6, size: 1.35 },
+  oneEye:    { base: 'raptor', n: '외눈 랩터', hp: 5, atk: 2.1, size: 1.35 },
+  swampKing: { base: 'sarco', n: '늪의 왕', hp: 4, atk: 1.7, size: 1.45 },
+};
+const lvMul = lv => 1 + 0.12 * (lv - 1);
+const xpNeed = lv => Math.round(22 * Math.pow(lv, 1.45));
+const STUN_HP_LIMIT = 700;   // like monster grades: big creatures shrug off stuns
+const DAY_LEN = 90;
+
+/* ================================================================
+   STATE
+   ================================================================ */
+const SAVE = 'dino-caravan-v1';
+let S;
+function freshState() {
+  const s = { money: 300, t: 0, day: 1, zone: 'plain', travel: null, cargo: {}, darts: 3, idSeq: 1, units: [], drift: {}, press: {}, stats: { battles: 0, captures: 0, trades: 0, earned: 0 }, snd: 2 };
+  for (const z of Object.keys(ZONES)) { s.drift[z] = {}; s.press[z] = {}; for (const g of Object.keys(GOODS)) { s.drift[z][g] = 1; s.press[z][g] = 1; } }
+  S = s;
+  addUnit('leader', 1, true); addUnit('hunter', 1, true); addUnit('spear', 1, true);
+  const t = addUnit('trike', 2, true); t.name = '돌덩이';
+  return s;
+}
+function addUnit(type, lv, inParty) {
+  const u = { id: S.idSeq++, type, lv, xp: 0, hp: 0, ko: false, inParty: !!inParty };
+  u.hp = maxHp(u); S.units.push(u); return u;
+}
+const maxHp = u => Math.round(UNITS[u.type].hp * lvMul(u.lv));
+const party = () => S.units.filter(u => u.inParty);
+const capacity = () => party().reduce((s, u) => s + UNITS[u.type].carry, 0);
+const cargoUsed = () => Object.values(S.cargo).reduce((a, b) => a + b, 0);
+function load() { try { const r = localStorage.getItem(SAVE); return r ? JSON.parse(r) : null; } catch (e) { return null; } }
+function save() { try { localStorage.setItem(SAVE, JSON.stringify(S)); } catch (e) { /* storage unavailable */ } }
+
+/* market: zone price × daily drift × buying/selling pressure */
+const price = (z, g) => Math.max(1, Math.round(GOODS[g].base * ZONES[z].price[g] * S.drift[z][g] * S.press[z][g]));
+const sellPrice = (z, g) => Math.max(1, Math.round(price(z, g) * 0.9));
+function newDay() {
+  S.day++;
+  for (const z of Object.keys(ZONES)) for (const g of Object.keys(GOODS)) S.drift[z][g] = clamp(S.drift[z][g] * rand(0.88, 1.14) + (1 - S.drift[z][g]) * 0.25, 0.6, 1.6);
+  // a market event now and then shakes one price hard
+  if (Math.random() < 0.5) {
+    const z = pick(Object.keys(ZONES)), g = pick(Object.keys(GOODS)), up = Math.random() < 0.5;
+    S.drift[z][g] = up ? rand(1.5, 1.9) : rand(0.45, 0.6);
+    const why = up ? pick(['랩터 떼가 창고를 습격해', '가뭄이 들어', '수송대가 끊겨']) : pick(['대형 상단이 물건을 풀어', '풍년이 들어', '버려진 창고가 발견되어']);
+    toast(`[${S.day}일차 소식] ${ZONES[z].n}: ${why} ${GOODS[g].n} 값이 ${up ? '치솟았어요' : '폭락했어요'}`, up ? 'good' : '');
+  }
+}
+function tick(dt) {
+  S.t += dt;
+  if (S.t >= S.day * DAY_LEN) newDay();
+  for (const z of Object.keys(ZONES)) for (const g of Object.keys(GOODS)) S.press[z][g] += (1 - S.press[z][g]) * Math.min(1, dt * 0.02);
+  if (S.travel && !B) travelStep(dt);
+}
+
+/* ================================================================
+   TRAVEL
+   ================================================================ */
+function startTravel(to) {
+  if (S.travel || to === S.zone) return;
+  if (party().some(u => u.ko && u.type === 'leader')) { toast('대장이 쓰러져 있어요. 여관에서 회복한 뒤 떠나세요', 'warn'); return; }
+  if (cargoUsed() > capacity()) { toast('짐이 짐칸보다 많아요. 짐을 팔거나 짐 공룡을 데려가세요', 'warn'); return; }
+  const R = routeOf(S.zone, to), events = [];
+  const ambushes = Math.random() < Math.min(0.9, 0.35 * R.danger) ? 1 + (Math.random() < R.danger * 0.15 ? 1 : 0) : 0;
+  for (let i = 0; i < ambushes; i++) events.push({ at: rand(0.2, 0.85), kind: 'ambush' });
+  if (Math.random() < 0.45) events.push({ at: rand(0.15, 0.9), kind: 'find' });
+  events.sort((a, b) => a.at - b.at);
+  S.travel = { from: S.zone, to, p: 0, total: R.t, events };
+  sfx('march'); toast(`${ZONES[to].n}(으)로 출발했어요`); setView('map');
+}
+function travelStep(dt) {
+  const T = S.travel; T.p += dt / T.total;
+  const ev = T.events[0];
+  if (ev && T.p >= ev.at) {
+    T.events.shift();
+    if (ev.kind === 'ambush') {
+      const zone = Math.random() < 0.6 ? T.to : T.from, Z = ZONES[zone], R = routeOf(T.from, T.to);
+      toast('습격! 야생 공룡이 상단을 덮쳐요', 'warn'); sfx('roar');
+      const n = 2 + (R.danger > 2 ? 1 : 0) + (Math.random() < 0.4 ? 1 : 0);
+      setTimeout(() => startBattle({ kind: 'ambush', zone, foes: Array.from({ length: n }, () => ({ type: pick(Z.wild), lv: Math.max(1, Math.round((ZONES[T.from].lv + Z.lv) / 2 + rand(-1, 1))) })) }), 600);
+    } else {
+      const r = Math.random();
+      if (r < 0.35) { const k = Math.round(rand(2, 5)); addCargo('parts', k); toast(`버려진 트럭을 뒤져 기계 부품 ${k}개를 찾았어요`, 'good'); }
+      else if (r < 0.65) { const k = Math.round(rand(3, 6)); addCargo('water', k); toast(`깨끗한 샘을 찾아 물 ${k}통을 채웠어요`, 'good'); }
+      else if (r < 0.85) { T.p = Math.min(0.97, T.p + 0.2); toast('떠돌이 생존자가 지름길을 알려 줬어요'); }
+      else { const m = Math.round(rand(30, 90)); S.money += m; toast(`쓰러진 상인의 금고에서 ${m} 크레딧을 찾았어요`, 'good'); }
+    }
+  }
+  if (T.p >= 1 && !T.events.length) {
+    S.zone = T.to; S.travel = null; toast(`${ZONES[S.zone].n}에 도착했어요`, 'good'); sfx('arrive');
+    setView('town');
+  }
+}
+function addCargo(g, k) { const room = Math.max(0, capacity() - cargoUsed()); k = Math.min(k, room); if (k > 0) S.cargo[g] = (S.cargo[g] || 0) + k; return k; }
+
+/* ================================================================
+   BATTLE — real-time, up to 12 on our side, formation start, auto with focus fire
+   ================================================================ */
+const BW = 360, BH = 600;
+let B = null, bSpeed = 1;
+function unitStats(type, lv, boss) {
+  const D = UNITS[type], m = lvMul(lv), bm = boss ? BOSSES[boss] : null;
+  return { hp: D.hp * m * (bm ? bm.hp : 1), atk: D.atk * m * (bm ? bm.atk : 1), def: D.def * (1 + 0.05 * (lv - 1)), size: (D.size || 11) * (bm ? bm.size : 1) };
+}
+function startBattle(opt) {
+  const Z = ZONES[opt.zone];
+  B = { opt, t: 0, units: [], fx: [], nums: [], over: false, focus: null, sel: null, loot: {}, xp: 0, captured: [], idSeq: 1, ground: groundTex(Z.ground) };
+  // our formation: tanks and melee in front, ranged behind, leader at the back centre
+  const ours = party().filter(u => !u.ko);
+  const front = ours.filter(u => ['탱커', '돌격', '파괴', '기절', '떼'].includes(UNITS[u.type].role) && u.type !== 'leader');
+  const back = ours.filter(u => !front.includes(u));
+  const place = (list, y) => list.forEach((u, i) => { const x = BW / 2 + (i - (list.length - 1) / 2) * Math.min(52, (BW - 60) / Math.max(1, list.length)); spawn(0, u.type, u.lv, x, y + (i % 2) * 14, u); });
+  place(front, 420); place(back.sort((a, b) => (a.type === 'leader') - (b.type === 'leader')), 500);
+  for (const u of B.units.filter(u => u.side === 0 && UNITS[u.type].turret)) spawnTurret(u);
+  opt.foes.forEach((f, i) => spawn(1, f.type, f.lv, BW / 2 + (i - (opt.foes.length - 1) / 2) * 62 + rand(-10, 10), rand(70, 150), null, f.boss));
+  $('bTitle').textContent = opt.kind === 'ambush' ? '습격!' : opt.boss ? `우두머리 사냥 · ${BOSSES[opt.boss].n}` : `${Z.n} 사냥터`;
+  $('bInfo').textContent = `적 ${opt.foes.length} · 아군 ${ours.length}`;
+  $('battle').hidden = false; resizeBattle(); updCapture();
+  SND.mood = 'battle'; SND.step = 0; sfx('drums');
+}
+function spawn(side, type, lv, x, y, ref, boss) {
+  const D = UNITS[type], st = unitStats(type, lv, boss);
+  const u = { id: B.idSeq++, side, type, lv, ref, boss, x, y, a: side ? Math.PI / 2 : -Math.PI / 2, hp: ref ? Math.min(ref.hp, st.hp) : st.hp, max: st.hp, atk: st.atk, def: st.def, size: st.size,
+              range: D.range, as: D.as, spd: D.spd, cd: rand(0, 0.6), stun: 0, shred: 0, shredT: 0, leg: rand(0, 6), moving: false, hitT: 0 };
+  B.units.push(u); return u;
+}
+function spawnTurret(owner) {
+  const u = { id: B.idSeq++, side: 0, type: 'turret', lv: owner.lv, x: owner.x + 22, y: owner.y - 30, a: -Math.PI / 2, hp: 70 * lvMul(owner.lv), max: 70 * lvMul(owner.lv), atk: 9 * lvMul(owner.lv), def: 8, size: 10,
+              range: 140, as: 2.2, spd: 0, cd: 0, stun: 0, shred: 0, shredT: 0, leg: 0, turret: true };
+  B.units.push(u);
+}
+const alive = side => B.units.filter(u => u.side === side && u.hp > 0);
+function bStep(dt) {
+  B.t += dt;
+  const us = B.units;
+  for (const u of us) {
+    if (u.hp <= 0) continue;
+    u.hitT = Math.max(0, u.hitT - dt);
+    if (u.shredT > 0) { u.shredT -= dt; if (u.shredT <= 0) u.shred = 0; }
+    if (u.stun > 0) { u.stun -= dt; u.moving = false; continue; }
+    const D = UNITS[u.type] || {};
+    // medics heal instead of attacking when someone is hurt
+    if (D.heal) {
+      const hurt = alive(u.side).filter(o => o !== u && o.hp < o.max * 0.85).sort((a, b) => a.hp / a.max - b.hp / b.max)[0];
+      if (hurt) { moveToward(u, hurt, D.range * 0.8, dt); u.cd -= dt; if (u.cd <= 0 && d2(u.x, u.y, hurt.x, hurt.y) < (D.range + 10) ** 2) { u.cd = 1 / u.as; const h = D.heal * lvMul(u.lv); hurt.hp = Math.min(hurt.max, hurt.hp + h); B.fx.push({ t: 0.5, kind: 'heal', x: hurt.x, y: hurt.y }); num(hurt, '+' + Math.round(h), '#8fbf6a'); } continue; }
+    }
+    const tgt = chooseTarget(u);
+    if (!tgt) { u.moving = false; continue; }
+    u.target = tgt;
+    const reach = u.range + (u.size + tgt.size) * 0.45;
+    const dd = d2(u.x, u.y, tgt.x, tgt.y);
+    if (dd > reach * reach) { if (u.spd) moveToward(u, tgt, reach * 0.9, dt); }
+    else {
+      u.moving = false; u.a = Math.atan2(tgt.y - u.y, tgt.x - u.x);
+      u.cd -= dt;
+      if (u.cd <= 0) { u.cd = 1 / u.as * rand(0.9, 1.1); attack(u, tgt); }
+    }
+  }
+  // keep bodies from stacking
+  for (let i = 0; i < us.length; i++) for (let j = i + 1; j < us.length; j++) {
+    const a = us[i], b = us[j]; if (a.hp <= 0 || b.hp <= 0) continue;
+    const dx = b.x - a.x, dy = b.y - a.y, min = (a.size + b.size) * 0.5, dd = dx * dx + dy * dy;
+    if (dd < min * min && dd > 0.01) { const d = Math.sqrt(dd), p = (min - d) * 0.5, wa = a.spd ? 1 : 0, wb = b.spd ? 1 : 0; a.x -= dx / d * p * wa; a.y -= dy / d * p * wa; b.x += dx / d * p * wb; b.y += dy / d * p * wb; }
+  }
+  for (const u of us) { u.x = clamp(u.x, 10, BW - 10); u.y = clamp(u.y, 10, BH - 10); }
+  for (const f of B.fx) f.t -= dt; B.fx = B.fx.filter(f => f.t > 0);
+  for (const n of B.nums) { n.t -= dt; n.y -= dt * 22; } B.nums = B.nums.filter(n => n.t > 0);
+  if (B.focus && B.focus.hp <= 0) B.focus = null;
+  if (!alive(1).length) endBattle(true);
+  else if (!alive(0).filter(u => !u.turret).length) endBattle(false);
+}
+function chooseTarget(u) {
+  const foes = alive(1 - u.side); if (!foes.length) return null;
+  if (u.side === 0 && B.focus && B.focus.hp > 0) return B.focus;
+  if (u.side === 1) {   // enemies are drawn to taunting tanks nearby
+    const tank = foes.filter(f => UNITS[f.type] && UNITS[f.type].taunt && d2(f.x, f.y, u.x, u.y) < 160 * 160).sort((a, b) => d2(a.x, a.y, u.x, u.y) - d2(b.x, b.y, u.x, u.y))[0];
+    if (tank) return tank;
+  }
+  if (u.target && u.target.hp > 0 && Math.random() > 0.01) return u.target;
+  return foes.sort((a, b) => d2(a.x, a.y, u.x, u.y) - d2(b.x, b.y, u.x, u.y))[0];
+}
+function moveToward(u, t, stopAt, dt) {
+  const d = Math.sqrt(d2(u.x, u.y, t.x, t.y)); if (d <= stopAt) { u.moving = false; return; }
+  u.a = Math.atan2(t.y - u.y, t.x - u.x); u.x += Math.cos(u.a) * u.spd * dt; u.y += Math.sin(u.a) * u.spd * dt; u.leg += u.spd * dt * 0.12; u.moving = true;
+}
+function attack(u, t) {
+  const D = UNITS[u.type] || {};
+  const acc = 85 + u.lv * 2, eva = (UNITS[t.type] ? UNITS[t.type].spd : 0) * 0.25;
+  if (Math.random() > acc / (acc + eva)) { num(t, '빗나감', '#a89a86'); return; }
+  let atk = u.atk;
+  if (D.pack) atk *= 1 + 0.15 * Math.min(3, alive(u.side).filter(o => o !== u && o.type === u.type && d2(o.x, o.y, u.x, u.y) < 90 * 90).length);
+  const def = Math.max(0, t.def - t.shred * 2.5);
+  let dmg = atk * rand(0.85, 1.15) * 40 / (40 + def), crit = Math.random() < 0.08;
+  if (crit) dmg *= 1.8;
+  const ranged = u.range > 40;
+  B.fx.push({ t: ranged ? 0.25 : 0.15, kind: D.acid ? 'acid' : u.turret || D.gun ? 'bullet' : D.bow ? 'arrow' : ranged ? 'dart' : 'bite', x: u.x, y: u.y, x2: t.x, y2: t.y });
+  t.hp -= dmg; t.hitT = 0.15; num(t, Math.round(dmg) + (crit ? '!' : ''), crit ? '#e3a843' : t.side ? '#ece3d4' : '#d4573c');
+  if (D.shred) { t.shred = Math.min(5, t.shred + 1); t.shredT = 5; }
+  if (D.stun && t.max <= STUN_HP_LIMIT && !t.boss) { t.stun = D.stun; B.fx.push({ t: 0.6, kind: 'stun', x: t.x, y: t.y }); }
+  sfx(u.turret || D.gun ? 'shot' : D.bow ? 'bow' : ranged ? 'spit' : 'bite', 70);
+  if (t.hp <= 0) onKill(u, t);
+}
+function num(t, s, col) { B.nums.push({ x: t.x + rand(-6, 6), y: t.y - t.size * 0.6, s, col, t: 0.8 }); }
+function onKill(u, t) {
+  t.hp = 0; sfx(t.size > 25 ? 'crunchBig' : 'crunch', 60);
+  if (t.side === 1) {
+    B.xp += 12 * t.lv * (t.boss ? 6 : 1);
+    if (B.opt.kind !== 'escort') for (const [g, k] of Object.entries(ZONES[B.opt.zone].loot)) { const n = Math.max(0, Math.round(k * (t.size / 20) * rand(0.6, 1.3)) * (t.boss ? 3 : 1)); if (n) B.loot[g] = (B.loot[g] || 0) + n; }
+    if (t.type === 'dilo' || t.type === 'sarco') B.loot.venom = (B.loot.venom || 0) + (t.type === 'dilo' ? 1 : 0);
+  } else if (t.ref) { t.ref.hp = 0; t.ref.ko = true; toast(`${unitName(t.ref)}가 쓰러졌어요`, 'warn'); }
+  if (B.sel === t) B.sel = null;
+}
+function tryCapture() {
+  const t = B.sel;
+  if (!t || t.side !== 1 || t.hp <= 0) { toast('포획할 공룡을 먼저 눌러 주세요'); return; }
+  if (t.boss) { toast('우두머리는 포획할 수 없어요'); return; }
+  if (!UNITS[t.type] || UNITS[t.type].cls !== 'dino') return;
+  if (t.hp > t.max * 0.3) { toast('체력을 30% 이하로 깎아야 마취가 통해요'); return; }
+  if (S.darts <= 0) { toast('마취 다트가 없어요. 정착지 상점에서 사세요', 'warn'); return; }
+  S.darts--; sfx('dart');
+  const leader = party().find(u => u.type === 'leader');
+  const chance = clamp(0.55 + (1 - t.hp / (t.max * 0.3)) * 0.4 - Math.max(0, t.lv - leader.lv) * 0.04, 0.15, 0.95);
+  B.fx.push({ t: 0.3, kind: 'dart', x: BW / 2, y: BH - 40, x2: t.x, y2: t.y });
+  setTimeout(() => {
+    if (!B || t.hp <= 0) return;
+    if (Math.random() < chance) {
+      t.hp = 0; B.captured.push({ type: t.type, lv: t.lv }); B.xp += 15 * t.lv; B.sel = null; sfx('capture');
+      toast(`포획 성공! ${UNITS[t.type].n} Lv${t.lv}`, 'good');
+    } else { t.atk *= 1.1; toast(`포획 실패 (성공 확률 ${Math.round(chance * 100)}%) · 공룡이 성났어요`, 'warn'); sfx('roar'); }
+    updCapture();
+  }, 320);
+}
+function endBattle(win) {
+  if (B.over) return; B.over = true; S.stats.battles++;
+  const opt = B.opt;
+  for (const bu of B.units) if (bu.ref) { bu.ref.hp = Math.max(0, Math.round(bu.hp)); bu.ref.ko = bu.hp <= 0; }
+  const lines = [];
+  if (win) {
+    const ours = party();
+    const share = Math.round(B.xp / Math.max(1, Math.sqrt(ours.length)));
+    for (const u of ours) {
+      u.xp += u.ko ? Math.round(share * 0.3) : share;
+      while (u.xp >= xpNeed(u.lv) && u.lv < 40) { u.xp -= xpNeed(u.lv); u.lv++; u.hp = Math.min(maxHp(u), u.hp + Math.round(maxHp(u) * 0.3)); lines.push(`${unitName(u)} Lv${u.lv} 달성`); }
+    }
+    for (const [g, k] of Object.entries(B.loot)) { const got = addCargo(g, k); lines.unshift(`${GOODS[g].n} +${got}${got < k ? ` (짐칸 부족으로 ${k - got}개 버림)` : ''}`); }
+    for (const c of B.captured) { const inP = party().length < 12; const u = addUnit(c.type, c.lv, inP); u.hp = Math.round(maxHp(u) * 0.4); lines.push(`${UNITS[c.type].n} Lv${c.lv}이(가) 상단에 합류했어요${inP ? '' : ' (대기)'}`); S.stats.captures++; }
+    lines.splice(Object.keys(B.loot).length, 0, `경험치 +${share} (참전 대원 모두)`);
+  } else {
+    if (opt.kind === 'ambush') { const lost = loseCargo(0.35); lines.push(lost ? `짐 ${lost}개를 잃었어요` : '잃은 짐은 없어요'); }
+    lines.push('쓰러진 대원은 여관에서 회복할 수 있어요');
+  }
+  sfx(win ? 'win' : 'lose');
+  setTimeout(() => {
+    showModal(`<h3>${win ? '승리' : opt.retreat ? '후퇴' : '패배'}</h3><div class="sub">${$('bTitle').textContent}</div>
+      <div class="card">${lines.map(l => `<div class="row"><div class="info"><small style="color:var(--text)">${l}</small></div></div>`).join('') || '<div class="row"><div class="info"><small>얻은 것이 없어요</small></div></div>'}</div>
+      <div class="mbtns"><button class="btn primary" data-act="closeBattle">확인</button></div>`);
+  }, 700);
+  save();
+}
+function loseCargo(frac) { let lost = 0; for (const g of Object.keys(S.cargo)) { const k = Math.floor(S.cargo[g] * frac); S.cargo[g] -= k; lost += k; if (!S.cargo[g]) delete S.cargo[g]; } return lost; }
+function closeBattle() { B = null; $('battle').hidden = true; SND.mood = 'town'; SND.step = 0; closeModal(); renderAll(); }
+function updCapture() { $('bCapture').textContent = `포획 · 다트 ${S.darts}`; }
+
+/* ================================================================
+   DRAWING — top-down creatures with a light from the upper left
+   ================================================================ */
+function glossy(g, x, y, rx, ry, base, dark, light, rot = 0, spec = 0.2) {
+  const gr = g.createRadialGradient(x - rx * 0.35, y - ry * 0.4, Math.min(rx, ry) * 0.1, x, y, Math.max(rx, ry) * 1.05);
+  gr.addColorStop(0, light); gr.addColorStop(0.5, base); gr.addColorStop(1, dark);
+  g.fillStyle = gr; g.beginPath(); g.ellipse(x, y, rx, ry, rot, 0, 7); g.fill();
+  if (spec) { g.fillStyle = `rgba(255,248,236,${spec})`; g.beginPath(); g.ellipse(x - rx * 0.3, y - ry * 0.4, rx * 0.3, ry * 0.15, rot, 0, 7); g.fill(); }
+}
+const shade = (h, t) => { const n = parseInt(h.slice(1), 16), c = [n >> 16, n >> 8 & 255, n & 255].map(v => Math.round(t < 0 ? v * (1 + t) : v + (255 - v) * t)); return `rgb(${c})`; };
+const DINO_LOOK = {
+  trike:  { col: '#7d6c4c', stripe: '#5a4a32', quad: true,  body: [0.34, 0.2], head: [0.13, 0.11], neck: 0.36, tail: 0.42 },
+  pachy:  { col: '#8a6a48', stripe: '#6a4a30', quad: false, body: [0.26, 0.14], head: [0.1, 0.09], neck: 0.32, tail: 0.5 },
+  raptor: { col: '#9a7a4c', stripe: '#4a3a22', quad: false, body: [0.22, 0.1], head: [0.1, 0.06], neck: 0.32, tail: 0.6 },
+  compy:  { col: '#7a8a4c', stripe: '#4a5a2a', quad: false, body: [0.22, 0.11], head: [0.09, 0.06], neck: 0.32, tail: 0.6 },
+  dilo:   { col: '#6c7a40', stripe: '#3a4a22', quad: false, body: [0.25, 0.12], head: [0.11, 0.07], neck: 0.36, tail: 0.55 },
+  sarco:  { col: '#4c4c34', stripe: '#33331f', quad: true,  body: [0.3, 0.14], head: [0.2, 0.06], neck: 0.36, tail: 0.5 },
+};
+function drawDino(c, type, x, y, a, L, ph, o = {}) {
+  const K = DINO_LOOK[type], base = o.tint || K.col, dk = shade(base, -0.45), lt = shade(base, 0.35);
+  c.save(); c.translate(x + L * 0.06, y + L * 0.09); c.rotate(a);
+  c.fillStyle = 'rgba(8,5,2,.3)'; c.beginPath(); c.ellipse(-L * 0.05, 0, L * 0.5, L * (K.body[1] + 0.08), 0, 0, 7); c.fill(); c.restore();
+  c.save(); c.translate(x, y); c.rotate(a); c.lineCap = 'round'; c.lineJoin = 'round';
+  const sw = o.still ? 0 : Math.sin(ph * 2) * 0.18;
+  // tail: tapering, swaying
+  const tl = L * K.tail, bx = -L * K.body[0] * 0.9;
+  c.fillStyle = base; c.beginPath(); c.moveTo(bx + L * 0.05, -L * K.body[1] * 0.6);
+  c.quadraticCurveTo(bx - tl * 0.5, Math.sin(sw) * tl * 0.3, bx - tl, Math.sin(sw * 1.6) * tl * 0.45);
+  c.quadraticCurveTo(bx - tl * 0.5, Math.sin(sw) * tl * 0.3 + L * 0.02, bx + L * 0.05, L * K.body[1] * 0.6); c.fill();
+  // legs
+  c.fillStyle = dk;
+  const step = o.still ? 0 : Math.sin(ph * 4) * L * 0.06;
+  const legs = K.quad ? [[L * 0.2, 1], [-L * 0.2, -1]] : [[-L * 0.05, 1]];
+  for (const [lx, phs] of legs) for (const sd of [-1, 1]) { const s = step * phs * sd; c.beginPath(); c.ellipse(lx + s, sd * L * (K.body[1] + 0.03), L * (K.quad ? 0.07 : 0.09), L * 0.045, 0, 0, 7); c.fill(); }
+  if (!K.quad) for (const sd of [-1, 1]) { c.strokeStyle = dk; c.lineWidth = L * 0.025; c.beginPath(); c.moveTo(L * 0.14, sd * L * 0.06); c.lineTo(L * 0.22, sd * L * 0.1); c.stroke(); }
+  // body with back stripes
+  glossy(c, 0, 0, L * K.body[0], L * K.body[1], base, dk, lt, 0, 0.15);
+  c.save(); c.beginPath(); c.ellipse(0, 0, L * K.body[0], L * K.body[1], 0, 0, 7); c.clip();
+  c.fillStyle = K.stripe; c.globalAlpha = 0.35;
+  for (let k = 0; k < 14; k++) { const sx = Math.sin(k * 7.7) * L * K.body[0] * 0.8, sy = Math.cos(k * 3.3) * L * K.body[1] * 0.7; c.beginPath(); c.ellipse(sx, sy, L * 0.03, L * 0.02, k, 0, 7); c.fill(); }
+  if (type === 'raptor' || type === 'compy') { c.strokeStyle = K.stripe; c.globalAlpha = 0.5; c.lineWidth = L * 0.012; for (let k = -2; k <= 2; k++) { c.beginPath(); c.moveTo(k * L * 0.06, -L * K.body[1]); c.lineTo(k * L * 0.06 - L * 0.02, -L * K.body[1] * 0.2); c.moveTo(k * L * 0.06, L * K.body[1]); c.lineTo(k * L * 0.06 - L * 0.02, L * K.body[1] * 0.2); c.stroke(); } }
+  c.globalAlpha = 1;
+  c.strokeStyle = shade(base, -0.35); c.lineWidth = L * 0.03; c.beginPath(); c.moveTo(-L * K.body[0], 0); c.lineTo(L * K.body[0] * 0.9, 0); c.stroke();
+  c.restore();
+  if (type === 'sarco') { c.fillStyle = shade(base, -0.3); for (let k = -4; k <= 4; k++) for (const sd of [-1, 1]) c.fillRect(k * L * 0.06 - L * 0.015, sd * L * 0.04 - L * 0.012, L * 0.03, L * 0.024); }
+  if (type === 'raptor') { c.strokeStyle = 'rgba(60,40,20,.6)'; c.lineWidth = L * 0.012; for (let k = 0; k < 6; k++) { c.beginPath(); c.moveTo(bx - tl * (0.5 + k * 0.08), -L * 0.03); c.lineTo(bx - tl * (0.55 + k * 0.08), -L * 0.08); c.stroke(); } }
+  // neck and head
+  const nx = L * K.body[0] * 0.8, hx = L * K.neck + (type === 'sarco' ? L * 0.08 : 0), look = o.still ? 0 : Math.sin(ph * 1.3) * 0.12;
+  c.save(); c.rotate(look);
+  c.fillStyle = base; c.beginPath(); c.moveTo(nx - L * 0.02, -L * K.body[1] * 0.55); c.lineTo(hx - L * K.head[0] * 0.5, -L * K.head[1] * 0.7); c.lineTo(hx - L * K.head[0] * 0.5, L * K.head[1] * 0.7); c.lineTo(nx - L * 0.02, L * K.body[1] * 0.55); c.fill();
+  if (type === 'trike') {   // bony frill and three horns
+    glossy(c, hx - L * 0.11, 0, L * 0.08, L * 0.2, shade(base, 0.1), dk, lt, 0, 0.15);
+    c.strokeStyle = shade(base, -0.3); c.lineWidth = L * 0.012; c.beginPath(); c.ellipse(hx - L * 0.11, 0, L * 0.07, L * 0.18, 0, -1.4, 1.4); c.stroke();
+  }
+  glossy(c, hx, 0, L * K.head[0], L * K.head[1], base, dk, lt, 0, 0.2);
+  if (type === 'trike') { c.fillStyle = '#e8dcc0'; for (const sd of [-1, 1]) { c.beginPath(); c.moveTo(hx, sd * L * 0.05); c.lineTo(hx + L * 0.2, sd * L * 0.08); c.lineTo(hx + L * 0.02, sd * L * 0.08); c.fill(); } c.beginPath(); c.moveTo(hx + L * 0.1, -L * 0.02); c.lineTo(hx + L * 0.17, 0); c.lineTo(hx + L * 0.1, L * 0.02); c.fill(); }
+  if (type === 'pachy') glossy(c, hx - L * 0.01, 0, L * 0.08, L * 0.075, '#c8b090', '#6a5030', '#fff4dc', 0, 0.35);
+  if (type === 'dilo') { c.strokeStyle = '#d8a830'; c.lineWidth = L * 0.025; for (const sd of [-1, 1]) { c.beginPath(); c.moveTo(hx - L * 0.08, sd * L * 0.025); c.quadraticCurveTo(hx, sd * L * 0.06, hx + L * 0.06, sd * L * 0.02); c.stroke(); } }
+  c.fillStyle = '#120a04'; for (const sd of [-1, 1]) { c.beginPath(); c.arc(hx + L * K.head[0] * 0.15, sd * L * K.head[1] * 0.6, L * 0.014, 0, 7); c.fill(); }
+  if (o.bite) { c.strokeStyle = '#efe6d6'; c.lineWidth = L * 0.01; c.beginPath(); c.moveTo(hx + L * K.head[0] * 0.6, -L * 0.015); c.lineTo(hx + L * K.head[0] * 1.05, 0); c.lineTo(hx + L * K.head[0] * 0.6, L * 0.015); c.stroke(); }
+  c.restore();
+  if (o.hit) { c.fillStyle = 'rgba(255,90,60,.35)'; c.beginPath(); c.ellipse(0, 0, L * K.body[0], L * K.body[1], 0, 0, 7); c.fill(); }
+  c.restore();
+}
+const HUMAN_LOOK = {
+  leader:   { col: '#6a5a44', hood: '#3a2e22', scarf: '#b03a24' }, hunter: { col: '#5a6040', hood: '#3c4028' }, spear: { col: '#6c5c4a', hood: '#7a7a72' },
+  sniper:   { col: '#4a4e52', hood: '#2e3236' }, mechanic: { col: '#7a5a30', hood: '#c8a040' }, medic: { col: '#d8d0c0', hood: '#e8e4da', cross: true }, venomer: { col: '#4e5a3a', hood: '#2e3a22' },
+};
+function drawHuman(c, type, x, y, a, L, ph, o = {}) {
+  const K = HUMAN_LOOK[type];
+  c.save(); c.translate(x + 2, y + 3); c.fillStyle = 'rgba(8,5,2,.3)'; c.beginPath(); c.ellipse(0, 0, L * 0.38, L * 0.3, a, 0, 7); c.fill(); c.restore();
+  c.save(); c.translate(x, y); c.rotate(a); c.lineCap = 'round';
+  const st = o.still ? 0 : Math.sin(ph * 5) * L * 0.12;
+  c.fillStyle = '#2a2018'; for (const sd of [-1, 1]) { c.beginPath(); c.ellipse(st * sd, sd * L * 0.12, L * 0.12, L * 0.07, 0, 0, 7); c.fill(); }
+  c.fillStyle = '#4a3a28'; c.fillRect(-L * 0.32, -L * 0.16, L * 0.16, L * 0.32);   // backpack
+  glossy(c, 0, 0, L * 0.2, L * 0.3, K.col, shade(K.col, -0.5), shade(K.col, 0.4), 0, 0.12);
+  if (K.cross) { c.fillStyle = '#c03028'; c.fillRect(-L * 0.12, -L * 0.03, L * 0.12, L * 0.06); c.fillRect(-L * 0.09, -L * 0.06, L * 0.06, L * 0.12); }
+  if (K.scarf) { c.strokeStyle = K.scarf; c.lineWidth = L * 0.07; c.beginPath(); c.moveTo(-L * 0.05, -L * 0.18); c.quadraticCurveTo(-L * 0.25, -L * 0.1, -L * 0.42, -L * 0.18 + Math.sin(ph * 3) * L * 0.05); c.stroke(); }
+  c.strokeStyle = '#2a2218'; c.lineWidth = L * 0.06;
+  if (type === 'spear') { c.beginPath(); c.moveTo(-L * 0.2, L * 0.18); c.lineTo(L * 0.75, L * 0.18); c.stroke(); c.fillStyle = '#b8b0a0'; c.beginPath(); c.moveTo(L * 0.75, L * 0.13); c.lineTo(L * 0.92, L * 0.18); c.lineTo(L * 0.75, L * 0.23); c.fill(); }
+  else if (type === 'hunter') { c.strokeStyle = '#6a4a28'; c.lineWidth = L * 0.04; c.beginPath(); c.arc(L * 0.22, 0, L * 0.3, -1.2, 1.2); c.stroke(); c.strokeStyle = 'rgba(230,220,200,.6)'; c.lineWidth = L * 0.01; c.beginPath(); c.moveTo(L * 0.33, -L * 0.28); c.lineTo(L * 0.33, L * 0.28); c.stroke(); }
+  else if (type === 'mechanic') { c.beginPath(); c.moveTo(L * 0.1, L * 0.2); c.lineTo(L * 0.45, L * 0.25); c.stroke(); }
+  else if (type === 'venomer') { c.strokeStyle = '#7a6a40'; c.lineWidth = L * 0.035; c.beginPath(); c.moveTo(L * 0.1, 0); c.lineTo(L * 0.6, 0); c.stroke(); }
+  else if (type === 'medic') { c.fillStyle = '#e8e4da'; c.fillRect(L * 0.1, L * 0.12, L * 0.16, L * 0.12); }
+  else { c.beginPath(); c.moveTo(L * 0.05, L * 0.1); c.lineTo(type === 'sniper' ? L * 0.95 : L * 0.62, L * 0.06); c.stroke(); }
+  glossy(c, L * 0.04, 0, L * 0.14, L * 0.14, K.hood, shade(K.hood, -0.5), shade(K.hood, 0.4), 0, 0.2);
+  c.restore();
+}
+function drawTurret(c, u) {
+  c.save(); c.translate(u.x, u.y); c.strokeStyle = '#3a3a38'; c.lineWidth = 2;
+  for (let k = 0; k < 3; k++) { const t = k * 2.1; c.beginPath(); c.moveTo(0, 0); c.lineTo(Math.cos(t) * 9, Math.sin(t) * 9); c.stroke(); }
+  c.rotate(u.a); glossy(c, 0, 0, 6, 5, '#6a6a62', '#2a2a28', '#c0c0b8', 0, 0.3);
+  c.lineWidth = 2.4; c.beginPath(); c.moveTo(2, 0); c.lineTo(14, 0); c.stroke(); c.restore();
+}
+function drawUnit(c, u, L, ph, o) {
+  if (u.turret) return drawTurret(c, u);
+  if (UNITS[u.type].cls === 'dino') drawDino(c, u.type, u.x, u.y, u.a, L, ph, o);
+  else drawHuman(c, u.type, u.x, u.y, u.a, L, ph, o);
+}
+function portrait(cv, type, tint) {
+  const g = cv.getContext('2d'), w = cv.width, h = cv.height; g.clearRect(0, 0, w, h);
+  const gr = g.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, h * 0.6); gr.addColorStop(0, 'rgba(210,190,150,.35)'); gr.addColorStop(1, 'rgba(210,190,150,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
+  if (UNITS[type].cls === 'dino') drawDino(g, type, w * 0.55, h * 0.52, -0.2, Math.min(w * 0.6, h * 1.1), 0.6, { still: true, tint });
+  else drawHuman(g, type, w * 0.5, h * 0.5, -0.4, h * 0.7, 0, { still: true });
+}
+const TEX = {};
+function groundTex(kind) {
+  if (TEX[kind]) return TEX[kind];
+  const s = 2, cv = document.createElement('canvas'); cv.width = BW * s; cv.height = BH * s;
+  const g = cv.getContext('2d'); g.scale(s, s);
+  const blobs = (n, r0, r1, cols) => { for (let i = 0; i < n; i++) { g.fillStyle = pick(cols); g.beginPath(); g.ellipse(rand(0, BW), rand(0, BH), rand(r0, r1), rand(r0, r1) * 0.7, rand(0, 3), 0, 7); g.fill(); } };
+  if (kind === 'plain') {
+    g.fillStyle = '#7d6c4c'; g.fillRect(0, 0, BW, BH);
+    blobs(500, 8, 40, ['rgba(60,48,30,.18)', 'rgba(150,130,90,.16)', 'rgba(110,95,60,.2)']);
+    blobs(5000, 0.3, 1, ['rgba(30,22,14,.5)', 'rgba(190,170,130,.4)', 'rgba(120,110,80,.5)']);
+    for (let i = 0; i < 260; i++) { const x = rand(0, BW), y = rand(0, BH); for (let k = 0; k < 6; k++) { g.strokeStyle = pick(['#a89a5a', '#8a7c44', '#b8a868', '#6a6a3a']); g.lineWidth = 0.8; const t = rand(0, 6.28), l = rand(4, 10); g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(t) * l, y + Math.sin(t) * l); g.stroke(); } }
+    for (let i = 0; i < 2; i++) { const x = rand(30, BW - 30), y = rand(180, 360), a = rand(0, 6.28); g.save(); g.translate(x, y); g.rotate(a); g.strokeStyle = 'rgba(214,204,182,.55)'; g.lineWidth = 1.6; g.beginPath(); g.moveTo(-18, 0); g.lineTo(18, 0); g.stroke(); for (let k = -3; k <= 3; k++) { g.beginPath(); g.moveTo(k * 4, 0); g.quadraticCurveTo(k * 4 + 3, 6, k * 4 + 1, 11); g.stroke(); } g.restore(); }
+  } else if (kind === 'city') {
+    g.fillStyle = '#55585a'; g.fillRect(0, 0, BW, BH);
+    blobs(400, 10, 50, ['rgba(30,30,30,.18)', 'rgba(120,120,115,.12)', 'rgba(90,70,50,.15)']);
+    blobs(6000, 0.3, 1, ['rgba(20,20,20,.5)', 'rgba(170,170,165,.35)']);
+    g.strokeStyle = 'rgba(220,200,120,.4)'; g.lineWidth = 3; g.setLineDash([22, 18]); g.beginPath(); g.moveTo(BW / 2, 0); g.lineTo(BW / 2, BH); g.stroke(); g.setLineDash([]);
+    for (let i = 0; i < 40; i++) { let x = rand(0, BW), y = rand(0, BH); g.strokeStyle = 'rgba(15,15,15,.6)'; g.lineWidth = 0.8; g.beginPath(); g.moveTo(x, y); for (let k = 0; k < 6; k++) { x += rand(-14, 14); y += rand(-14, 14); g.lineTo(x, y); } g.stroke(); }
+    for (let i = 0; i < 9; i++) { const x = rand(10, BW - 50), y = rand(170, 380), w = rand(20, 46), h = rand(12, 26), a = rand(-0.4, 0.4); g.save(); g.translate(x, y); g.rotate(a); g.fillStyle = 'rgba(0,0,0,.3)'; g.fillRect(3, 4, w, h); g.fillStyle = pick(['#8a8a84', '#7a7670', '#9a968e']); g.fillRect(0, 0, w, h); g.strokeStyle = '#5a4030'; g.lineWidth = 1; g.beginPath(); g.moveTo(w * 0.2, 0); g.lineTo(w * 0.3, -6); g.moveTo(w * 0.7, h); g.lineTo(w * 0.8, h + 5); g.stroke(); g.restore(); }
+    for (let i = 0; i < 2; i++) { const x = rand(20, BW - 90), y = rand(200, 330); g.save(); g.translate(x, y); g.rotate(rand(-0.5, 0.5)); g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(4, 5, 70, 32); g.fillStyle = '#7a4a2a'; g.fillRect(0, 0, 70, 32); g.fillStyle = '#3a2a20'; g.fillRect(12, 5, 18, 22); g.fillRect(40, 5, 18, 22); g.restore(); }
+    blobs(120, 2, 6, ['rgba(90,110,50,.5)', 'rgba(70,90,40,.5)']);
+  } else {
+    g.fillStyle = '#4a4a30'; g.fillRect(0, 0, BW, BH);
+    blobs(500, 8, 40, ['rgba(30,34,18,.25)', 'rgba(100,96,60,.18)']);
+    for (let i = 0; i < 14; i++) { const x = rand(0, BW), y = rand(150, 400), rx = rand(20, 60), ry = rx * rand(0.4, 0.7); const gr = g.createRadialGradient(x, y, 0, x, y, rx); gr.addColorStop(0, '#2a3a2e'); gr.addColorStop(0.85, '#344430'); gr.addColorStop(1, 'rgba(52,68,48,0)'); g.fillStyle = gr; g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, 7); g.fill(); g.fillStyle = 'rgba(200,220,200,.12)'; g.beginPath(); g.ellipse(x - rx * 0.3, y - ry * 0.3, rx * 0.3, ry * 0.12, 0, 0, 7); g.fill(); for (let k = 0; k < 3; k++) { g.fillStyle = '#5a7a3a'; g.beginPath(); g.arc(x + rand(-rx, rx) * 0.6, y + rand(-ry, ry) * 0.6, rand(2, 4), 0.3, 6); g.fill(); } }
+    blobs(5000, 0.3, 1, ['rgba(20,20,10,.5)', 'rgba(140,140,90,.35)']);
+    for (let i = 0; i < 200; i++) { const x = rand(0, BW), y = rand(0, BH); g.strokeStyle = pick(['#6a7a3a', '#8a8a4a', '#4a5a2a']); g.lineWidth = 1; for (let k = 0; k < 4; k++) { g.beginPath(); g.moveTo(x, y); g.lineTo(x + rand(-3, 3), y - rand(6, 14)); g.stroke(); } }
+  }
+  const v = g.createRadialGradient(BW / 2, BH / 2, BW * 0.3, BW / 2, BH / 2, BH * 0.75); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,.45)'); g.fillStyle = v; g.fillRect(0, 0, BW, BH);
+  TEX[kind] = cv; return cv;
+}
+
+/* ================================================================
+   BATTLE RENDER + INPUT
+   ================================================================ */
+const bcv = $('bcv'), bc = bcv.getContext('2d');
+let dpr = 1, bView = { s: 1, ox: 0, oy: 0 };
+function resizeBattle() { dpr = Math.min(2.5, window.devicePixelRatio || 1); bcv.width = Math.round(bcv.clientWidth * dpr); bcv.height = Math.round(bcv.clientHeight * dpr); }
+function renderBattle() {
+  const c = bc, w = bcv.width, h = bcv.height;
+  c.setTransform(1, 0, 0, 1, 0, 0); c.fillStyle = '#120e0a'; c.fillRect(0, 0, w, h);
+  const live = B.units.filter(u => u.hp > 0);
+  let x0 = Math.min(...live.map(u => u.x)) - 70, x1 = Math.max(...live.map(u => u.x)) + 70, y0 = Math.min(...live.map(u => u.y)) - 70, y1 = Math.max(...live.map(u => u.y)) + 70;
+  const fit = Math.min(w / BW, h / BH), want = clamp(Math.min(w / (x1 - x0), h / (y1 - y0)), fit, fit * 2.2);
+  const cam = B.cam || (B.cam = { s: want, x: (x0 + x1) / 2, y: (y0 + y1) / 2 });
+  cam.s += (want - cam.s) * 0.04; cam.x += ((x0 + x1) / 2 - cam.x) * 0.05; cam.y += ((y0 + y1) / 2 - cam.y) * 0.05;
+  const s = cam.s, hw = w / s / 2, hh = h / s / 2;
+  cam.x = clamp(cam.x, Math.min(hw, BW / 2), Math.max(BW - hw, BW / 2)); cam.y = clamp(cam.y, Math.min(hh, BH / 2), Math.max(BH - hh, BH / 2));
+  const ox = w / 2 - cam.x * s, oy = h / 2 - cam.y * s;
+  bView = { s: s / dpr, ox: ox / dpr, oy: oy / dpr };
+  c.setTransform(s, 0, 0, s, ox, oy);
+  c.drawImage(B.ground, 0, 0, BW, BH);
+  const list = [...B.units].sort((a, b) => a.y - b.y);
+  for (const u of list) if (u.hp <= 0 && !u.turret) { c.globalAlpha = 0.5; drawUnit(c, u, u.size * 2.2, 0, { still: true, tint: '#4a4030' }); c.globalAlpha = 1; }
+  for (const u of list) {
+    if (u.hp <= 0) continue;
+    c.strokeStyle = u.side ? 'rgba(212,87,60,.6)' : 'rgba(227,168,67,.55)'; c.lineWidth = 1.2;
+    c.beginPath(); c.ellipse(u.x, u.y + u.size * 0.15, u.size * 0.75, u.size * 0.45, 0, 0, 7); c.stroke();
+    if (u === B.sel || u === B.focus) { c.strokeStyle = '#e3a843'; c.setLineDash([3, 3]); c.lineWidth = 1.4; c.beginPath(); c.arc(u.x, u.y, u.size * 1.1 + 4, 0, 7); c.stroke(); c.setLineDash([]); }
+    if (u.boss) { c.fillStyle = 'rgba(160,30,20,.18)'; c.beginPath(); c.arc(u.x, u.y, u.size * 1.4, 0, 7); c.fill(); }
+    drawUnit(c, u, u.size * 2.2, u.leg + B.t * (u.moving ? 0 : 0.3), { still: !u.moving && !u.turret, hit: u.hitT > 0, bite: u.cd > 1 / u.as - 0.2 });
+    const bw = Math.max(16, u.size * 1.4), by = u.y - u.size * 1.1 - 6;
+    c.fillStyle = 'rgba(0,0,0,.55)'; c.fillRect(u.x - bw / 2, by, bw, 2.6);
+    c.fillStyle = u.side ? '#d4573c' : '#8fbf6a'; c.fillRect(u.x - bw / 2, by, bw * Math.max(0, u.hp / u.max), 2.6);
+    if (u.shred) { c.fillStyle = '#b8d040'; for (let k = 0; k < u.shred; k++) c.fillRect(u.x - bw / 2 + k * 3.2, by - 3.4, 2.4, 2); }
+    if (u.stun > 0) { c.fillStyle = '#f0e080'; for (let k = 0; k < 3; k++) { const t = B.t * 5 + k * 2.1; c.beginPath(); c.arc(u.x + Math.cos(t) * u.size * 0.6, u.y - u.size * 0.8 + Math.sin(t) * 2, 1.6, 0, 7); c.fill(); } }
+  }
+  for (const f of B.fx) {
+    const p = 1 - f.t / 0.3;
+    if (f.kind === 'bullet') { c.strokeStyle = `rgba(255,230,160,${f.t * 4})`; c.lineWidth = 1; c.beginPath(); c.moveTo(f.x, f.y); c.lineTo(f.x2, f.y2); c.stroke(); }
+    else if (f.kind === 'arrow' || f.kind === 'dart') { const t = clamp(p, 0, 1), x = f.x + (f.x2 - f.x) * t, y = f.y + (f.y2 - f.y) * t; c.strokeStyle = f.kind === 'dart' ? '#80c0e0' : '#d8c8a0'; c.lineWidth = 1.2; c.beginPath(); c.moveTo(x, y); c.lineTo(x - (f.x2 - f.x) * 0.06, y - (f.y2 - f.y) * 0.06); c.stroke(); }
+    else if (f.kind === 'acid') { const t = clamp(p, 0, 1); c.fillStyle = '#b8d040'; c.beginPath(); c.arc(f.x + (f.x2 - f.x) * t, f.y + (f.y2 - f.y) * t, 2.2, 0, 7); c.fill(); }
+    else if (f.kind === 'heal') { c.strokeStyle = `rgba(143,191,106,${f.t * 2})`; c.lineWidth = 1.5; c.beginPath(); c.arc(f.x, f.y, 14 - f.t * 10, 0, 7); c.stroke(); }
+    else if (f.kind === 'bite') { c.strokeStyle = `rgba(255,240,220,${f.t * 5})`; c.lineWidth = 1.4; c.beginPath(); c.arc(f.x2, f.y2, 6, 0.5, 2.6); c.stroke(); c.beginPath(); c.arc(f.x2, f.y2, 6, 3.6, 5.8); c.stroke(); }
+  }
+  c.font = '700 9px "IBM Plex Sans KR", sans-serif'; c.textAlign = 'center';
+  for (const n of B.nums) { c.fillStyle = 'rgba(0,0,0,.6)'; c.fillText(n.s, n.x + 0.6, n.y + 0.6); c.fillStyle = n.col; c.globalAlpha = Math.min(1, n.t * 2); c.fillText(n.s, n.x, n.y); c.globalAlpha = 1; }
+  const S0 = B.sel; $('bSel').hidden = !S0 || S0.hp <= 0;
+  if (S0 && S0.hp > 0) {
+    const D = UNITS[S0.type];
+    $('bSelName').textContent = `${S0.boss ? BOSSES[S0.boss].n : S0.turret ? '포탑' : D.n} Lv${S0.lv}${S0.side && D && D.cls === 'dino' && !S0.boss ? (S0.hp <= S0.max * 0.3 ? ' · 포획 가능!' : ' · 30% 이하로') : ''}`;
+    $('bSelHp').style.width = (S0.hp / S0.max * 100) + '%';
+  }
+}
+bcv.addEventListener('pointerdown', e => {
+  if (!B || B.over) return;
+  const r = bcv.getBoundingClientRect(), x = (e.clientX - r.left - bView.ox) / bView.s, y = (e.clientY - r.top - bView.oy) / bView.s;
+  let best = null, bd = 900;
+  for (const u of B.units) { if (u.hp <= 0) continue; const d = d2(x, y, u.x, u.y); if (d < Math.max(bd, (u.size + 8) ** 2) && d < bd + (u.size + 8) ** 2) { if (!best || d < bd) { best = u; bd = d; } } }
+  B.sel = best;
+  if (best && best.side === 1) { B.focus = best; sfx('tap'); }
+});
+$('bCapture').onclick = () => B && !B.over && tryCapture();
+$('bRetreat').onclick = () => { if (!B || B.over) return; B.opt.retreat = true; B.loot = {}; endBattle(false); };
+$('bSpeed').onclick = () => { bSpeed = bSpeed === 1 ? 2 : 1; $('bSpeed').textContent = '×' + bSpeed; };
+
+/* ================================================================
+   SOUND — synthesized
+   ================================================================ */
+const SND = { ctx: null, mood: 'town', next: 0, step: 0, last: {} };
+const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
+function sndInit() {
+  if (SND.ctx) { if (SND.ctx.state === 'suspended') SND.ctx.resume(); return; }
+  try {
+    const C = new (window.AudioContext || window.webkitAudioContext)(); SND.ctx = C;
+    SND.master = C.createGain(); SND.master.connect(C.destination);
+    SND.music = C.createGain(); SND.music.connect(SND.master); SND.fx = C.createGain(); SND.fx.connect(SND.master); SND.amb = C.createGain(); SND.amb.connect(SND.master);
+    const len = C.sampleRate * 2, buf = C.createBuffer(1, len, C.sampleRate), d = buf.getChannelData(0); for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1; SND.noise = buf;
+    const w = C.createBufferSource(); w.buffer = buf; w.loop = true; const f = C.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 380; const wg = C.createGain(); wg.gain.value = 0.05; w.connect(f).connect(wg).connect(SND.amb); w.start();
+    const lfo = C.createOscillator(); lfo.frequency.value = 0.05; const lg = C.createGain(); lg.gain.value = 200; lfo.connect(lg).connect(f.frequency); lfo.start();
+    applySnd(); setInterval(sndTick, 100);
+  } catch (e) { SND.ctx = null; }
+}
+function applySnd() { if (!SND.ctx) return; const t = SND.ctx.currentTime, m = S.snd; SND.music.gain.setTargetAtTime(m === 2 ? 0.5 : 0, t, 0.3); SND.fx.gain.setTargetAtTime(m ? 0.8 : 0, t, 0.05); SND.amb.gain.setTargetAtTime(m === 2 ? 1 : 0, t, 0.3); }
+function tone(f, dur, o = {}) { const C = SND.ctx; if (!C) return; const t = C.currentTime + (o.at || 0), osc = C.createOscillator(), g = C.createGain(); osc.type = o.type || 'sine'; osc.frequency.setValueAtTime(f, t); if (o.slide) osc.frequency.exponentialRampToValueAtTime(Math.max(20, f * o.slide), t + dur); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(o.vol || 0.1, t + (o.attack || 0.005)); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); osc.connect(g).connect(o.dest || SND.fx); osc.start(t); osc.stop(t + dur + 0.05); }
+function noiseHit(dur, o = {}) { const C = SND.ctx; if (!C) return; const t = C.currentTime + (o.at || 0), src = C.createBufferSource(), f = C.createBiquadFilter(), g = C.createGain(); src.buffer = SND.noise; f.type = o.type || 'bandpass'; f.frequency.value = o.freq || 2000; f.Q.value = o.q || 1; if (o.sweep) f.frequency.exponentialRampToValueAtTime(o.sweep, t + dur); g.gain.setValueAtTime(o.vol || 0.2, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); src.connect(f).connect(g).connect(o.dest || SND.fx); src.start(t, Math.random()); src.stop(t + dur + 0.05); }
+const SFX = {
+  tap: () => tone(800, 0.05, { type: 'triangle', vol: 0.04 }),
+  coin: () => { tone(1320, 0.06, { type: 'square', vol: 0.035 }); tone(1760, 0.1, { type: 'square', vol: 0.035, at: 0.05 }); },
+  shot: () => { noiseHit(0.09, { freq: 1600, q: 0.6, vol: 0.32 }); tone(120, 0.08, { type: 'square', vol: 0.05, slide: 0.5 }); },
+  bow: () => noiseHit(0.12, { freq: 900, sweep: 3000, q: 2, vol: 0.12 }),
+  spit: () => noiseHit(0.15, { freq: 600, sweep: 200, q: 3, vol: 0.15 }),
+  bite: () => noiseHit(0.06, { freq: 2600, q: 2, vol: 0.14 }),
+  crunch: () => { noiseHit(0.14, { freq: 1100, q: 0.7, vol: 0.3 }); tone(140, 0.12, { type: 'square', vol: 0.05, slide: 0.5 }); },
+  crunchBig: () => { noiseHit(0.35, { freq: 500, q: 0.6, vol: 0.45 }); tone(80, 0.4, { type: 'sawtooth', vol: 0.1, slide: 0.4 }); },
+  roar: () => { tone(95, 1.1, { type: 'sawtooth', vol: 0.13, slide: 1.7, attack: 0.15 }); tone(101, 1.1, { type: 'sawtooth', vol: 0.1, slide: 1.6, attack: 0.15 }); noiseHit(0.9, { freq: 350, vol: 0.25, type: 'lowpass' }); },
+  drums: () => [0, 0.22, 0.44, 0.55].forEach(at => noiseHit(0.22, { freq: 130, type: 'lowpass', vol: 0.55, at })),
+  dart: () => noiseHit(0.1, { freq: 4000, q: 3, vol: 0.1 }),
+  capture: () => [523, 784, 1047, 1568].forEach((f, i) => tone(f, 0.3, { type: 'triangle', vol: 0.09, at: i * 0.07 })),
+  win: () => [392, 523, 659, 784].forEach((f, i) => tone(f, 0.45, { type: 'triangle', vol: 0.09, at: i * 0.12 })),
+  lose: () => [392, 330, 294, 247].forEach((f, i) => tone(f, 0.5, { type: 'triangle', vol: 0.08, at: i * 0.15 })),
+  march: () => [0, 0.3, 0.6].forEach(at => noiseHit(0.15, { freq: 200, type: 'lowpass', vol: 0.35, at })),
+  arrive: () => [523, 659, 784].forEach((f, i) => tone(f, 0.4, { vol: 0.07, at: i * 0.1 })),
+};
+function sfx(n, throttle = 0) { if (!SND.ctx || !S.snd) return; const now = performance.now(); if (throttle && now - (SND.last[n] || 0) < throttle) return; SND.last[n] = now; try { SFX[n](); } catch (e) { /* ignore */ } }
+// wasteland score: low drones and a slow pentatonic guitar-like pluck in town; pounding drums in battle
+function sndTick() {
+  const C = SND.ctx; if (!C || S.snd < 2) return;
+  const battle = SND.mood === 'battle', beat = 60 / (battle ? 120 : 70) / 2;
+  if (SND.next < C.currentTime) SND.next = C.currentTime + 0.05;
+  while (SND.next < C.currentTime + 0.35) {
+    const st = SND.step++, at = SND.next - C.currentTime, root = [40, 43, 38, 40][Math.floor(st / 16) % 4];
+    if (st % 16 === 0) [0, 7, 12].forEach(iv => tone(mtof(root + iv), beat * 16, { type: 'sawtooth', vol: battle ? 0.012 : 0.016, at, attack: 1, dest: SND.music }));
+    if (!battle && st % 2 === 0 && Math.random() < 0.4) tone(mtof(root + 24 + [0, 3, 5, 7, 10][Math.random() * 5 | 0]), beat * 4, { type: 'triangle', vol: 0.03, at, dest: SND.music });
+    if (battle) {
+      if (st % 4 === 0 || st % 16 === 10) noiseHit(0.2, { freq: 100, type: 'lowpass', vol: 0.55, at, dest: SND.music });
+      if (st % 8 === 4) noiseHit(0.14, { freq: 1800, q: 0.7, vol: 0.16, at, dest: SND.music });
+      tone(mtof(root + [0, 0, 12, 0, 3, 0, 7, 10][st % 8]), beat * 0.9, { type: 'square', vol: 0.016, at, dest: SND.music });
+    }
+    SND.next += beat;
+  }
+}
+
+/* ================================================================
+   UI
+   ================================================================ */
+let view = 'town', toastT;
+function toast(m, k) { const t = $('toast'); t.textContent = m; t.className = 'show ' + (k || ''); clearTimeout(toastT); toastT = setTimeout(() => t.className = '', 2600); }
+function showModal(h) { $('mcard').innerHTML = h; $('modal').hidden = false; $('mcard').querySelectorAll('canvas[data-u]').forEach(cv => portrait(cv, cv.dataset.u)); }
+function closeModal() { $('modal').hidden = true; }
+const unitName = u => u.name ? `${u.name}(${UNITS[u.type].n})` : UNITS[u.type].n;
+const stars = n => '★'.repeat(n) + '☆'.repeat(5 - n);
+function zoneHead(z) {
+  const Z = ZONES[z];
+  return `<div class="zonehead"><canvas data-ground="${Z.ground}" width="360" height="160"></canvas><div class="zt"><b>${Z.n}</b><small><span class="danger">${stars(Z.danger + 1)}</span> 위험도 · 야생 Lv${Z.lv}~${Z.lv + 6}</small><br><small>${Z.ds}</small></div></div>`;
+}
+function renderTown() {
+  const z = S.zone, Z = ZONES[z], el = $('v-town');
+  if (S.travel) { el.innerHTML = `<div class="card"><div class="row"><div class="info"><b>이동 중</b><small>${ZONES[S.travel.from].n} → ${ZONES[S.travel.to].n} · 지도 탭에서 볼 수 있어요</small></div></div></div>`; return; }
+  const used = cargoUsed(), cap = capacity();
+  const goods = Object.keys(GOODS).map(g => {
+    const p = price(z, g), sp = sellPrice(z, g), rel = p / GOODS[g].base, have = S.cargo[g] || 0;
+    const cls = rel < 0.85 ? 'up' : rel > 1.2 ? 'down' : '';
+    return `<div class="row"><div class="info"><b>${GOODS[g].n} <span class="${cls}" style="font-weight:400;font-size:11px">${rel < 0.85 ? '싸요' : rel > 1.2 ? '비싸요' : ''}</span></b><small>살 때 ${p} · 팔 때 ${sp} · 보유 ${have}</small></div>
+      <button class="btn small" data-act="buy" data-g="${g}" data-n="1" ${S.money < p || used >= cap ? 'disabled' : ''}>1개 사기</button>
+      <button class="btn small" data-act="buy" data-g="${g}" data-n="5" ${S.money < p * 5 || used + 5 > cap ? 'disabled' : ''}>5개</button>
+      <button class="btn small primary" data-act="sell" data-g="${g}" ${have ? '' : 'disabled'}>팔기</button></div>`;
+  }).join('');
+  const recruit = Z.recruit.map(t => { const D = UNITS[t]; return `<div class="row"><canvas data-u="${t}" width="104" height="80"></canvas><div class="info"><b>${D.n} <span class="tag">${D.role}</span></b><small>${D.ds}</small><small>체력 ${D.hp} · 공격 ${D.atk} · 짐 ${D.carry}칸</small></div><button class="btn small primary" data-act="hire" data-t="${t}" ${S.money < D.cost ? 'disabled' : ''}>${D.cost}</button></div>`; }).join('');
+  const tame = Z.tame.map(t => `${UNITS[t].n}(${UNITS[t].role})`).join(', ');
+  const hurt = S.units.filter(u => u.hp < maxHp(u) || u.ko), healCost = Math.round(S.units.reduce((s, u) => s + (maxHp(u) - u.hp), 0) * 0.12) + (hurt.length ? 5 : 0);
+  el.innerHTML = `${zoneHead(z)}
+    <h2>사냥터<small>여기서 길들일 수 있는 공룡: ${tame}</small></h2>
+    <div class="hunts">
+      <button class="btn" data-act="hunt" data-tier="1">얕은 곳<small>Lv${Z.lv}~${Z.lv + 1} · 2마리</small></button>
+      <button class="btn" data-act="hunt" data-tier="2">깊은 곳<small>Lv${Z.lv + 2}~${Z.lv + 4} · 3~4마리</small></button>
+      <button class="btn boss" data-act="hunt" data-tier="3">우두머리<small>${BOSSES[Z.boss].n.split(' ').slice(-1)[0]} · Lv${Z.lv + 6}</small></button>
+    </div>
+    <h2>시장<small>사면 값이 오르고, 팔면 떨어져요 · 매일 시세가 바뀌어요</small></h2>
+    <div class="card">${goods}</div>
+    <h2>고용소<small>이 구역에서만 구할 수 있는 대원</small></h2>
+    <div class="card">${recruit}</div>
+    <h2>여관과 상점</h2>
+    <div class="card">
+      <div class="row"><div class="info"><b>여관에서 쉬기</b><small>${hurt.length ? `다친 대원 ${hurt.length}명 모두 회복` : '모두 건강해요'}</small></div><button class="btn small primary" data-act="heal" ${!hurt.length || S.money < healCost ? 'disabled' : ''}>${healCost}</button></div>
+      <div class="row"><div class="info"><b>마취 다트</b><small>공룡 포획에 써요 · 보유 ${S.darts}개</small></div><button class="btn small" data-act="dart" data-n="1" ${S.money < 35 ? 'disabled' : ''}>35</button><button class="btn small" data-act="dart" data-n="5" ${S.money < 165 ? 'disabled' : ''}>5개 165</button></div>
+    </div>`;
+  el.querySelectorAll('canvas[data-u]').forEach(cv => portrait(cv, cv.dataset.u));
+  el.querySelectorAll('canvas[data-ground]').forEach(cv => { const g = cv.getContext('2d'); g.drawImage(groundTex(cv.dataset.ground), 0, 200, BW, 160, 0, 0, 360, 160); });
+}
+function renderParty() {
+  const el = $('v-party'), P = party();
+  const row = u => { const D = UNITS[u.type], mh = maxHp(u);
+    return `<div class="row"><canvas data-u="${u.type}" width="104" height="80"></canvas><div class="info"><b>${unitName(u)} Lv${u.lv} <span class="tag">${D.role}</span>${u.ko ? ' <span class="tag" style="color:var(--bad)">쓰러짐</span>' : ''}</b>
+      <div class="bar"><i style="width:${u.hp / mh * 100}%;${u.ko ? 'background:var(--bad)' : ''}"></i></div><small>체력 ${u.hp}/${mh} · 공격 ${Math.round(D.atk * lvMul(u.lv))} · 짐 ${D.carry}칸 · 경험치 ${u.xp}/${xpNeed(u.lv)}</small></div>
+      ${u.type === 'leader' ? '<span class="tag on">대장</span>' : `<button class="btn small ${u.inParty ? '' : 'primary'}" data-act="toggle" data-id="${u.id}">${u.inParty ? '대기' : '참전'}</button>`}</div>`; };
+  const reserve = S.units.filter(u => !u.inParty);
+  el.innerHTML = `<div class="card"><div class="row"><div class="info"><b>상단 ${P.length}/12명</b><small>짐칸 ${cargoUsed()}/${capacity()} · 전투 ${S.stats.battles} · 포획 ${S.stats.captures}</small></div><button class="btn small" data-act="snd">${['소리 끔', '효과음만', '소리 켬'][S.snd]}</button></div></div>
+    <h2>출전 대원<small>앞줄: 탱커·근접 / 뒷줄: 원거리·지원</small></h2><div class="card">${P.map(row).join('')}</div>
+    <h2>대기 대원<small>정착지 우리에서 쉬어요</small></h2><div class="card">${reserve.length ? reserve.map(row).join('') : '<div class="row"><div class="info"><small>없어요. 사냥터에서 공룡을 포획하거나 고용소에서 대원을 구하세요</small></div></div>'}</div>
+    <h2>짐</h2><div class="card">${Object.keys(S.cargo).length ? Object.entries(S.cargo).map(([g, k]) => `<div class="row"><div class="info"><b>${GOODS[g].n} ${k}개</b><small>이 정착지에서 팔면 개당 ${S.travel ? '-' : sellPrice(S.zone, g)}</small></div></div>`).join('') : '<div class="row"><div class="info"><small>짐칸이 비었어요</small></div></div>'}</div>`;
+  el.querySelectorAll('canvas[data-u]').forEach(cv => portrait(cv, cv.dataset.u));
+}
+function renderMap() {
+  const el = $('v-map');
+  const T = S.travel;
+  const dests = Object.keys(ZONES).filter(z => z !== S.zone).map(z => { const R = routeOf(S.zone, z); return `<div class="row"><div class="info"><b>${ZONES[z].n}</b><small>이동 ${R.t}초 · 길의 위험 <span class="danger">${stars(Math.round(R.danger + 1))}</span> · 야생 Lv${ZONES[z].lv}~</small></div><button class="btn small primary" data-act="go" data-z="${z}" ${T ? 'disabled' : ''}>출발</button></div>`; }).join('');
+  el.innerHTML = `<canvas id="mapcv" width="720" height="600"></canvas>
+    ${T ? `<div class="card travel"><b>${ZONES[T.from].n} → ${ZONES[T.to].n}</b><div class="bar"><i id="tBar" style="width:${T.p * 100}%"></i></div><small class="muted" style="color:var(--muted)">가는 길에 습격이나 뜻밖의 발견이 있을 수 있어요</small></div>` : `<h2>어디로 갈까요<small>지금 ${ZONES[S.zone].n}</small></h2><div class="card">${dests}</div>`}`;
+  drawMap();
+}
+function drawMap() {
+  const cv = $('mapcv'); if (!cv) return;
+  const g = cv.getContext('2d'), w = cv.width, h = cv.height;
+  g.fillStyle = '#2a231b'; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 900; i++) { g.fillStyle = pick(['rgba(70,58,40,.4)', 'rgba(40,32,24,.5)', 'rgba(110,96,70,.2)']); g.beginPath(); g.arc((i * 97.13) % w, (i * 57.31) % h, (i % 5) + 2, 0, 7); g.fill(); }
+  const P = z => ({ x: ZONES[z].mx * w, y: ZONES[z].my * h });
+  const looks = { plain: ['#8a7650', '#6a5a3c'], city: ['#6e7276', '#4a4c50'], swamp: ['#5a6a3a', '#3a4a26'] };
+  for (const z of Object.keys(ZONES)) { const p = P(z), gr = g.createRadialGradient(p.x, p.y, 0, p.x, p.y, w * 0.24); gr.addColorStop(0, looks[z][0]); gr.addColorStop(1, 'rgba(42,35,27,0)'); g.fillStyle = gr; g.beginPath(); g.arc(p.x, p.y, w * 0.24, 0, 7); g.fill(); }
+  // ruins in the city, reeds in the swamp, grass on the plain
+  const C = P('city'); for (let i = 0; i < 14; i++) { g.fillStyle = pick(['#55585c', '#3e4044', '#6a6e72']); const x = C.x + rand(-80, 80), y = C.y + rand(-60, 60), bw = rand(10, 24); g.fillRect(x, y, bw, rand(10, 30)); }
+  const Sw = P('swamp'); for (let i = 0; i < 8; i++) { g.fillStyle = 'rgba(40,60,50,.7)'; g.beginPath(); g.ellipse(Sw.x + rand(-80, 80), Sw.y + rand(-50, 50), rand(14, 30), rand(6, 12), 0, 0, 7); g.fill(); }
+  const Pl = P('plain'); g.strokeStyle = '#a89a5a'; for (let i = 0; i < 60; i++) { const x = Pl.x + rand(-100, 100), y = Pl.y + rand(-60, 60); g.beginPath(); g.moveTo(x, y); g.lineTo(x + 2, y - 6); g.stroke(); }
+  g.setLineDash([10, 8]); g.lineWidth = 3;
+  for (const k of Object.keys(ROUTES)) { const [a, b] = k.split('|'), A = P(a), Bp = P(b); g.strokeStyle = ROUTES[k].danger > 2 ? 'rgba(212,87,60,.7)' : 'rgba(227,168,67,.6)'; g.beginPath(); g.moveTo(A.x, A.y); g.quadraticCurveTo((A.x + Bp.x) / 2 + 30, (A.y + Bp.y) / 2 - 20, Bp.x, Bp.y); g.stroke(); }
+  g.setLineDash([]);
+  for (const z of Object.keys(ZONES)) {
+    const p = P(z); g.fillStyle = z === S.zone && !S.travel ? '#d0743a' : '#ece3d4'; g.strokeStyle = '#1c1711'; g.lineWidth = 3;
+    g.beginPath(); g.moveTo(p.x, p.y - 14); g.lineTo(p.x + 12, p.y + 6); g.lineTo(p.x - 12, p.y + 6); g.closePath(); g.stroke(); g.fill();
+    g.font = '400 28px "Black Han Sans", sans-serif'; g.textAlign = 'center'; g.lineWidth = 6; g.strokeText(ZONES[z].n, p.x, p.y + 40); g.fillText(ZONES[z].n, p.x, p.y + 40);
+  }
+  const T = S.travel;
+  const at = T ? (() => { const A = P(T.from), Bp = P(T.to), t = T.p, cx = (A.x + Bp.x) / 2 + 30, cy = (A.y + Bp.y) / 2 - 20; return { x: (1 - t) ** 2 * A.x + 2 * (1 - t) * t * cx + t * t * Bp.x, y: (1 - t) ** 2 * A.y + 2 * (1 - t) * t * cy + t * t * Bp.y, a: Math.atan2(Bp.y - A.y, Bp.x - A.x) }; })() : { x: P(S.zone).x - 40, y: P(S.zone).y + 6, a: 0 };
+  drawDino(g, 'trike', at.x, at.y, at.a, 46, performance.now() / 300, { still: !T });
+}
+function renderHeader() {
+  $('rMoney').textContent = fmt(S.money); $('rCargo').textContent = `${cargoUsed()}/${capacity()}`; $('rDay').textContent = S.day;
+  $('sub').textContent = S.travel ? `${ZONES[S.travel.from].n} → ${ZONES[S.travel.to].n} 이동 중` : `${ZONES[S.zone].n} · 멸망 후 ${S.day}일차`;
+}
+function renderAll() { renderHeader(); if (view === 'town') renderTown(); if (view === 'party') renderParty(); if (view === 'map') renderMap(); }
+function setView(v) { view = v; document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.v === v)); ['town', 'party', 'map'].forEach(k => $('v-' + k).hidden = k !== v); renderAll(); }
+
+function huntFoes(z, tier) {
+  const Z = ZONES[z];
+  if (tier === 3) return [{ type: BOSSES[Z.boss].base, lv: Z.lv + 6, boss: Z.boss }, { type: pick(Z.wild), lv: Z.lv + 4 }, { type: pick(Z.wild), lv: Z.lv + 4 }];
+  const n = tier === 1 ? 2 : 3 + (Math.random() < 0.5 ? 1 : 0), lv0 = tier === 1 ? Z.lv : Z.lv + 2;
+  return Array.from({ length: n }, () => ({ type: pick(Z.wild), lv: lv0 + Math.round(rand(0, tier === 1 ? 1 : 2)) }));
+}
+document.body.addEventListener('click', e => {
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const act = b.dataset.act, z = S.zone;
+  if (act === 'buy') { const g = b.dataset.g; let n = +b.dataset.n, spent = 0; while (n-- > 0 && S.money >= price(z, g) && cargoUsed() < capacity()) { const p = price(z, g); S.money -= p; spent += p; S.cargo[g] = (S.cargo[g] || 0) + 1; S.press[z][g] += 0.025; } if (spent) { sfx('coin'); S.stats.trades++; } }
+  else if (act === 'sell') { const g = b.dataset.g; let got = 0; while (S.cargo[g] > 0) { const p = sellPrice(z, g); S.money += p; got += p; S.cargo[g]--; S.press[z][g] = Math.max(0.4, S.press[z][g] - 0.022); } delete S.cargo[g]; S.stats.earned += got; sfx('coin'); toast(`${GOODS[g].n}을 팔아 ${got} 크레딧`, 'good'); }
+  else if (act === 'hire') { const t = b.dataset.t, D = UNITS[t]; if (S.money < D.cost) return; S.money -= D.cost; const u = addUnit(t, Math.max(1, ZONES[z].lv - 1), party().length < 12); sfx('coin'); toast(`${D.n}을 고용했어요${u.inParty ? '' : ' (상단이 가득 차 대기)'}`, 'good'); }
+  else if (act === 'heal') { const cost = +b.textContent; if (S.money < cost) return; S.money -= cost; for (const u of S.units) { u.hp = maxHp(u); u.ko = false; } toast('모두 푹 쉬었어요', 'good'); sfx('arrive'); }
+  else if (act === 'dart') { const n = +b.dataset.n, cost = n === 5 ? 165 : 35; if (S.money < cost) return; S.money -= cost; S.darts += n; sfx('coin'); }
+  else if (act === 'hunt') {
+    const tier = +b.dataset.tier;
+    if (!party().some(u => !u.ko && u.type !== 'leader') && party().find(u => u.type === 'leader').ko) { toast('싸울 수 있는 대원이 없어요. 여관에서 쉬세요', 'warn'); return; }
+    const foes = huntFoes(z, tier); startBattle({ kind: 'hunt', zone: z, tier, foes, boss: tier === 3 ? ZONES[z].boss : null }); if (tier === 3) sfx('roar');
+  }
+  else if (act === 'toggle') { const u = S.units.find(x => x.id === +b.dataset.id); if (!u) return; if (!u.inParty && party().length >= 12) { toast('상단은 대장 포함 12명까지예요'); return; } u.inParty = !u.inParty; if (cargoUsed() > capacity()) toast('짐칸이 모자라요. 출발 전에 짐을 줄이세요', 'warn'); }
+  else if (act === 'go') startTravel(b.dataset.z);
+  else if (act === 'closeBattle') { closeBattle(); return; }
+  else if (act === 'close') closeModal();
+  else if (act === 'snd') { sndInit(); S.snd = (S.snd + 2) % 3; applySnd(); }
+  save(); renderAll();
+});
+$('tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { sfx('tap'); setView(b.dataset.v); } });
+document.addEventListener('pointerdown', sndInit);
+window.addEventListener('resize', () => { if (B) resizeBattle(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
+
+/* ================================================================
+   LOOP
+   ================================================================ */
+let last = performance.now(), acc = 0, uiAcc = 0, saveAcc = 0;
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  tick(dt);
+  if (B && !B.over) { acc += dt * bSpeed; let k = 0; while (acc >= 1 / 30 && k < 8) { bStep(1 / 30); acc -= 1 / 30; k++; } if (k >= 8) acc = 0; }
+  if (B) renderBattle();
+  uiAcc += dt;
+  if (uiAcc > 0.5) { uiAcc = 0; renderHeader(); if (view === 'map' && S.travel) { const bar = $('tBar'); if (bar) bar.style.width = (S.travel.p * 100) + '%'; drawMap(); } }
+  saveAcc += dt; if (saveAcc > 5) { saveAcc = 0; save(); }
+}
+S = load() || freshState();
+if (!S.units || !S.units.length) freshState();
+setView('town');
+if (S.stats.battles === 0) setTimeout(() => toast('잿빛 평원에서 시작해요 · 곡물을 싸게 사서 무너진 도시에 팔아 보세요'), 600);
+window.__dino = { get S() { return S; }, get B() { return B; } };
+requestAnimationFrame(frame);
+})();
+</script>
