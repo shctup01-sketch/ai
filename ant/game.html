@@ -73,8 +73,17 @@ canvas { display: block; width: 100%; height: 100%; touch-action: none; }
 .qchip { flex: none; height: 24px; padding: 0 7px; border-radius: 12px; background: var(--panel-2); border: 1px solid var(--line); font-size: 11px; display: inline-flex; align-items: center; gap: 4px; }
 .qchip.first { border-color: var(--amber); } .qchip .x { color: var(--muted); }
 #layStatus { font-size: 11px; color: var(--amber); flex: none; font-variant-numeric: tabular-nums; }
-.castes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
-.caste { background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 5px 6px 6px; text-align: left; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.castes { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; scroll-snap-type: x proximity; }
+.castes::-webkit-scrollbar { display: none; }
+.caste { flex: none; width: 108px; scroll-snap-align: start; background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 5px 6px 6px; text-align: left; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.caste .nm em { font-style: normal; font-size: 10px; color: var(--muted); font-weight: 400; }
+.caste.more { width: 120px; justify-content: center; font-size: 10px; color: var(--muted); border-style: dashed; line-height: 1.4; }
+#fade { position: absolute; inset: 0; z-index: 15; background: #0b0805; opacity: 0; pointer-events: none; transition: opacity .6s; }
+#fade.on { opacity: 1; }
+.stars { color: var(--honey); letter-spacing: 1px; } .stars i { color: #4a3a2a; font-style: normal; }
+.site { background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 9px 10px; }
+.site.cur { border-color: var(--leaf); }
+.sgrid { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; font-size: 11px; color: var(--muted); margin-top: 4px; }
 .caste canvas { height: 30px; pointer-events: none; }
 .caste .nm { font-weight: 600; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .caste .co { font-size: 11px; color: var(--amber); font-variant-numeric: tabular-nums; }
@@ -191,9 +200,10 @@ canvas { display: block; width: 100%; height: 100%; touch-action: none; }
     <section class="view colony" id="v-colony">
       <div class="ctool">
         <div class="stats">
-          <span class="stat">일개미<b id="sWorker">0</b></span><span class="stat">병정<b id="sSoldier">0</b></span>
+          <span class="stat">일개미<b id="sWorker">0</b></span><span class="stat">전투<b id="sSoldier">0</b></span><span class="stat">정찰<b id="sScout">0</b></span>
           <span class="stat">알<b id="sEgg">0</b></span><span class="stat">애벌레<b id="sLarva">0</b></span><span class="stat">번데기<b id="sPupa">0</b></span><span class="stat">전사<b id="sDead">0</b></span>
         </div>
+        <button class="tbtn" id="siteBtn">터</button>
         <button class="tbtn on" id="phBtn" aria-pressed="true">페로몬</button>
         <button class="tbtn" id="spdBtn">×1</button>
       </div>
@@ -256,6 +266,7 @@ canvas { display: block; width: 100%; height: 100%; touch-action: none; }
     <div class="bcards" id="bCards"></div>
   </div>
 
+  <div id="fade"></div>
   <div id="toast"></div>
   <div id="modal" hidden><div class="mcard" id="mcard"></div></div>
 </div>
@@ -331,6 +342,7 @@ const MISSION_POOL = [
   { k: 'hunt',    n: '군집 근처 사냥감 3마리 잡기',          goal: 3,   honey: 25 },
   { k: 'lay',     n: '군집에서 개미 10마리 키우기',          goal: 10,  honey: 20 },
   { k: 'upgrade', n: '개미 1번 강화하기',                  goal: 1,   honey: 20 },
+  { k: 'report',  n: '정찰개미 보고 2번 받기',              goal: 2,   honey: 25 },
 ];
 const hatchMult = lv => Math.pow(0.94, lv - 1);
 const NEST_UPS = {
@@ -390,21 +402,60 @@ const deckAvgLv = () => { const ids = ['worker', ...M.deck.filter(Boolean)]; ret
 const W = 1000, H = 900, CELL = 10, GW = W / CELL, GH = H / CELL;
 const NEST = { x: 500, y: 450 }, MIDDEN = { x: 556, y: 506 };
 const NW = 400, NH = 240, STEP = 1 / 30, NURSE_AGE = 35, LAY_TIME = 2.2;
-const CASTES = {
-  worker:  { n: '일개미',      cost: 8,  hp: 10, atk: 1.3, speed: 36, len: 9,  hs: 1.0,  dev: [5, 8, 6],   ds: '먹이 수집 · 육아' },
-  soldier: { n: '병정개미',    cost: 20, hp: 34, atk: 3.6, speed: 30, len: 12, hs: 1.45, dev: [6, 10, 8],  ds: '순찰 · 경보 출동' },
-  major:   { n: '대형 병정개미', cost: 45, hp: 75, atk: 8.5, speed: 24, len: 16, hs: 1.9,  dev: [8, 13, 10], ds: '거미도 물리쳐요' },
-};
+// Every discovered species can be raised at home, and card levels make the home colony stronger too.
+const SCOUT = { n: '정찰개미', col: '#2a1d14', cost: 9, t: 3, hp: 10, atk: 1, spd: 50, len: 8.5, hs: 0.95 };
+const ROLE_TXT = { forager: '먹이 수집 · 육아', guard: '순찰 · 경보 출동', scout: '탐험 · 새 터 찾기', store: '굴에서 먹이를 만들어요' };
+const roleOf = k => k === 'scout' ? 'scout' : SPECIES[k].stay ? 'store' : SPECIES[k].eco ? 'forager' : 'guard';
+let CASTES = {};
+function buildCastes() {
+  CASTES = {};
+  for (const k of ['worker', 'scout', ...SP_IDS.filter(x => x !== 'worker')]) {
+    const S = k === 'scout' ? SCOUT : SPECIES[k];
+    const lv = Math.max(1, M.cards[k === 'scout' ? 'worker' : k].lv), m = lvMult(lv);
+    CASTES[k] = { k, n: S.n, role: roleOf(k), lv, col: S.col, cost: Math.round(S.cost * 1.4), hp: S.hp * m, atk: S.atk * m,
+                  speed: (S.spd || 0) * (k === 'worker' ? 0.95 : 1), len: S.len, hs: S.hs, carry: S.carry || 2, sp: S,
+                  dev: [S.t * 1.9, S.t * 3.1, S.t * 2.3] };
+  }
+}
 const FOES = {
   beetle: { n: '딱정벌레', hp: 60, atk: 2.0, speed: 13, size: 15, food: 30, sense: 60,  life: 80,  honey: 4, shard: 'soldier' },
   spider: { n: '늑대거미', hp: 95, atk: 5.0, speed: 42, size: 17, food: 44, sense: 120, life: 70,  honey: 8, shard: 'major' },
   raider: { n: '고동털개미 정찰대', hp: 12, atk: 1.1, speed: 37, size: 9, food: 4, sense: 80, life: 120, honey: 1, shard: null },
 };
+const casteOk = k => k === 'scout' || owned(k);
+const isForager = a => CASTES[a.caste].role === 'forager';
+
+/* places the colony can live; scouts find new ones */
+const SITE_KIND = {
+  root:   { n: '느티나무 뿌리 밑', food: 1.0, danger: 1.0, brood: 1.0,  special: null },
+  sand:   { n: '개울가 모래땅',   food: 0.85, danger: 0.65, brood: 0.85, special: null },
+  wood:   { n: '썩은 통나무 속',  food: 1.0, danger: 1.15, brood: 1.15, special: 'beetle' },
+  stone:  { n: '평평한 돌 밑',    food: 0.85, danger: 0.7, brood: 1.3,  special: 'warm' },
+  meadow: { n: '들꽃 언덕',       food: 1.3, danger: 1.0, brood: 1.0,  special: 'nectar' },
+  aphid:  { n: '진딧물 덤불',     food: 1.1, danger: 1.05, brood: 1.0, special: 'aphid' },
+  field:  { n: '보리밭 가장자리', food: 1.55, danger: 1.35, brood: 0.95, special: 'seeds' },
+  pine:   { n: '솔숲 바닥',       food: 0.9, danger: 0.8, brood: 1.05, special: null },
+  moss:   { n: '이끼 낀 둔덕',    food: 1.0, danger: 0.9, brood: 1.2,  special: null },
+};
+const SPECIAL_TXT = { beetle: '딱정벌레가 많아 사냥감이 풍부해요', warm: '햇볕에 데워진 돌이 알을 빨리 키워요', nectar: '꽃꿀 방울이 자주 떨어져요',
+                      aphid: '진딧물 목장 · 30초마다 꿀 +1', seeds: '씨앗이 아주 많지만 천적도 많아요' };
+const DEFAULT_SITE = { id: 'home', kind: 'root', name: '느티나무 뿌리 밑', food: 1, danger: 1, brood: 1, special: null };
+function makeSite() {
+  const kind = pick(Object.keys(SITE_KIND)), K = SITE_KIND[kind];
+  return { id: Date.now() + '-' + (Math.random() * 1e6 | 0), kind, name: K.n, special: K.special,
+           food: +(K.food * rand(0.75, 1.3)).toFixed(2), danger: +(K.danger * rand(0.7, 1.3)).toFixed(2), brood: +(K.brood * rand(0.9, 1.12)).toFixed(2) };
+}
+const starN = v => Math.max(1, Math.min(5, Math.round((v - 0.25) * 4)));
+const siteScore = s => s.food + (2 - s.danger) + s.brood + (s.special === 'aphid' ? 0.5 : 0);
+
 const STATE_TEXT = {
   explore: '먹이 찾는 중 · 동료가 남긴 페로몬을 따라가요', toFood: '먹이 발견!', carry: '먹이 운반 중 · 지나간 길에 페로몬을 남겨요',
   corpse: '죽은 동료를 쓰레기장으로 옮기는 중', return: '먹이를 못 찾고 굴로 돌아가는 중', fight: '전투 중 · 턱으로 물고 있어요',
   alarm: '경보 페로몬을 맡고 출동', patrol: '굴 입구 주변 순찰', chase: '적을 추격 중', flee: '적을 피해 달아나는 중',
-  deliver: '굴 안: 저장고에 먹이를 내려놓는 중', exit: '굴 안: 밖으로 나가는 중', nurse: '굴 안: 알과 애벌레를 돌보는 중 (어린 일개미)', emerge: '굴 안: 막 태어나 밖으로 나가는 중', lockdown: '굴 안: 입구에 적이 있어 숨어서 기다리는 중',
+  scout: '먼 곳을 탐험하러 가는 중 · 새 보금자리를 찾아요', report: '탐험을 마치고 보고하러 돌아가는 중', migrate: '새 보금자리로 이사하는 중',
+  deliver: '굴 안: 저장고에 먹이를 내려놓는 중', exit: '굴 안: 밖으로 나가는 중', nurse: '굴 안: 알과 애벌레를 돌보는 중 (어린 일개미)',
+  emerge: '굴 안: 막 태어나 밖으로 나가는 중', lockdown: '굴 안: 입구에 적이 있어 숨어서 기다리는 중', store: '굴 안: 배에 꿀을 채우고 천장에 매달려 있어요',
+  reporting: '굴 안: 여왕방에서 동료들에게 탐험 결과를 알리는 중',
 };
 const homeP = new Float32Array(GW * GH), foodP = new Float32Array(GW * GH);
 const gi = (x, y) => { const cx = x / CELL | 0, cy = y / CELL | 0; return (cx < 0 || cy < 0 || cx >= GW || cy >= GH) ? -1 : cy * GW + cx; };
@@ -455,14 +506,16 @@ function makeAnt(caste) {
 function exitToSurface(a) {
   a.loc = 'surface'; a.a = rand(-3.14, 3.14);
   a.x = NEST.x + Math.cos(a.a) * 6; a.y = NEST.y + Math.sin(a.a) * 6;
-  a.tOut = 0; a.state = a.caste === 'worker' ? 'explore' : 'patrol';
+  const r = CASTES[a.caste].role;
+  a.tOut = 0; a.state = r === 'forager' ? 'explore' : r === 'scout' ? 'scout' : 'patrol';
 }
 function enterNest(a) { a.loc = 'nest'; a.node = 'E'; a.nx = NODES.E.x; a.ny = NODES.E.y; setNestTask(a, 'deliver', 'S'); }
 function placeInNest(a, id) { const p = inChamber(id); a.loc = 'nest'; a.node = id; a.nx = p.x; a.ny = p.y; }
 function newColony() {
   G = { t: 0, food: 40, ants: [], brood: [], foes: [], items: [], corpses: [], midden: [], alarms: [],
-        queue: ['worker', 'worker', 'worker', 'worker'], layT: 0, kills: { beetle: 0, spider: 0, raider: 0 },
+        queue: ['worker', 'worker', 'worker', 'scout'], layT: 0, kills: { beetle: 0, spider: 0, raider: 0 },
         nextFoe: 45, nextFood: 18, idSeq: 1, dead: 0, spidersSent: 0, saved: Date.now(),
+        site: Object.assign({}, DEFAULT_SITE), sites: [], reports: 0, moves: 0, aphidT: 0,
         queen: { nx: NODES.Q.x, ny: NODES.Q.y + 4, a: 0.1, leg: 0 } };
   for (let i = 0; i < 9; i++) { const a = makeAnt('worker'); a.age = NURSE_AGE + 1; exitToSurface(a); a.x += rand(-30, 30); a.y += rand(-30, 30); G.ants.push(a); }
   for (let i = 0; i < 4; i++) { const a = makeAnt('worker'); a.age = rand(0, 20); placeInNest(a, 'B'); setNestTask(a, 'nurse', 'B'); G.ants.push(a); }
@@ -471,11 +524,12 @@ function newColony() {
 }
 function spawnFood(dist, ang, kind) {
   dist = dist || rand(120, 400); ang = ang ?? rand(-Math.PI, Math.PI);
-  kind = kind || (Math.random() < 0.7 ? 'seed' : 'sugar');
+  const sp = G.site.special;
+  kind = kind || (Math.random() < (sp === 'nectar' ? 0.6 : 0.3) ? 'sugar' : 'seed');
   const cx = Math.min(W - 40, Math.max(40, NEST.x + Math.cos(ang) * dist)), cy = Math.min(H - 40, Math.max(40, NEST.y + Math.sin(ang) * dist));
   if (kind === 'seed') {
-    const n = 8 + (Math.random() * 10 | 0);
-    for (let i = 0; i < n; i++) { const t = rand(0, 6.28), r = rand(0, 14); G.items.push({ kind: 'seed', x: cx + Math.cos(t) * r, y: cy + Math.sin(t) * r, a: rand(0, 6.28), amt: 1, val: 2 }); }
+    const n = Math.round((8 + Math.random() * 10) * (sp === 'seeds' ? 1.7 : 1));
+    for (let i = 0; i < n; i++) { const t = rand(0, 6.28), r = rand(0, 14 + n * 0.3); G.items.push({ kind: 'seed', x: cx + Math.cos(t) * r, y: cy + Math.sin(t) * r, a: rand(0, 6.28), amt: 1, val: 2 }); }
   } else { const amt = 12 + (Math.random() * 10 | 0); G.items.push({ kind: 'sugar', x: cx, y: cy, a: 0, amt, max: amt, val: 2 }); }
 }
 function spawnFoe(type) {
@@ -488,13 +542,19 @@ function spawnFoe(type) {
   if (view === 'colony' && !BT) toast(`${D.n}${type === 'raider' ? '가 쳐들어와요' : '가 나타났어요'}`, 'warn');
 }
 function hatch(b) {
-  const a = makeAnt(b.caste); a.loc = 'nest'; a.node = 'B'; a.nx = b.x; a.ny = b.y;
-  if (b.caste === 'worker') setNestTask(a, 'nurse', 'B'); else setNestTask(a, 'emerge', 'E');
-  G.ants.push(a); mission('lay', 1);
-  return a;
+  const C = CASTES[b.caste]; let first = null;
+  for (let i = 0; i < (C.sp.swarm || 1); i++) {
+    const a = makeAnt(b.caste); a.loc = 'nest'; a.node = 'B'; a.nx = b.x + rand(-3, 3); a.ny = b.y;
+    if (C.role === 'forager') setNestTask(a, 'nurse', 'B'); else if (C.role === 'store') setNestTask(a, 'store', 'S'); else setNestTask(a, 'emerge', 'E');
+    G.ants.push(a); first = first || a;
+  }
+  mission('lay', 1);
+  return first;
 }
+const colonyMsg = (msg, kind) => { if (view === 'colony' && !BT) toast(msg, kind); };
 function colonyStep(dt) {
   G.t += dt;
+  if (G.migrating) { migrateStep(dt); return; }
   const ev = Math.exp(-dt / 28);
   for (let i = 0; i < homeP.length; i++) { homeP[i] *= ev; foodP[i] *= ev; }
   for (const al of G.alarms) al.t -= dt;
@@ -508,31 +568,39 @@ function colonyStep(dt) {
     }
   } else G.layT = 0;
   // Claustral founding: a collapsing colony's queen raises workers from her own body reserves, no food needed.
-  const workerTotal = G.ants.filter(a => a.caste === 'worker').length + G.brood.filter(b => b.caste === 'worker').length;
-  G.founding = workerTotal < 4;
+  const foragerTotal = G.ants.filter(isForager).length + G.brood.filter(b => CASTES[b.caste].role === 'forager').length;
+  G.founding = foragerTotal < 4;
   if (G.founding) {
     G.foundT = (G.foundT || 0) + dt;
     if (G.foundT >= 4) {
       G.foundT = 0; const p = inChamber('B');
       G.brood.push({ caste: 'worker', st: 0, t: 0, x: p.x, y: p.y, r: rand(0, 6.28) });
-      if (!G.foundNotice && view === 'colony' && !BT) { G.foundNotice = true; toast('군집이 위험해요 · 여왕이 몸에 저장한 영양으로 일개미를 키워요', 'warn'); }
+      if (!G.foundNotice) { G.foundNotice = true; colonyMsg('군집이 위험해요 · 여왕이 몸에 저장한 영양으로 일개미를 키워요', 'warn'); }
     }
   } else { G.foundT = 0; G.foundNotice = false; }
   const nurses = G.ants.filter(a => a.loc === 'nest' && a.task === 'nurse').length;
-  const care = Math.min(1, (nurses ? 0.35 : 0.7) + nurses / Math.max(1, G.brood.length) * 1.95);
+  const care = Math.min(1, (nurses ? 0.35 : 0.7) + nurses / Math.max(1, G.brood.length) * 1.95) * G.site.brood;
   for (const b of G.brood) {
     b.t += dt * care;
     if (b.t >= CASTES[b.caste].dev[b.st]) { b.t = 0; b.st++; }
-    if (b.st >= 3) { b.done = true; hatch(b); if (b.caste !== 'worker' && view === 'colony' && !BT) toast(`${CASTES[b.caste].n}가 번데기에서 나왔어요`, 'good'); }
+    if (b.st >= 3) { b.done = true; hatch(b); if (b.caste !== 'worker') colonyMsg(`${CASTES[b.caste].n}가 번데기에서 나왔어요`, 'good'); }
   }
   G.brood = G.brood.filter(b => !b.done);
+  // honeypot ants turn stored nectar into food; an aphid herd at the site yields honeydew
+  const pots = G.ants.filter(a => CASTES[a.caste].role === 'store').length;
+  if (pots) G.food += pots * 0.07 * lvMult(CASTES.honey.lv) * dt;
+  if (G.site.special === 'aphid') { G.aphidT = (G.aphidT || 0) + dt; if (G.aphidT >= 30) { G.aphidT = 0; M.honey += 1; } }
   for (const f of G.foes) f.biters = 0;
-  for (const a of G.ants) { a.age += dt; if (a.loc === 'surface') surfAnt(a, dt); else nestAnt(a, dt); }
+  for (const a of G.ants) {
+    a.age += dt;
+    if (a.loc === 'surface') surfAnt(a, dt); else if (a.loc === 'nest') nestAnt(a, dt); else awayAnt(a, dt);
+  }
   for (const f of G.foes) updFoe(f, dt);
   for (const a of G.ants) if (a.hp <= 0) {
     a.dead = true; G.dead++;
     if (a.loc === 'surface') G.corpses.push({ x: a.x, y: a.y, a: a.a, caste: a.caste, len: a.len });
     if (a.carry && a.carry.type === 'corpse') G.corpses.push({ x: a.x, y: a.y, a: a.a, caste: a.carry.caste, len: a.carry.len });
+    if (a.lost) colonyMsg(`정찰개미 #${a.id}가 탐험에서 돌아오지 못했어요`, 'warn');
     if (sel === a) { toast(`${CASTES[a.caste].n} #${a.id}가 전사했어요`, 'warn'); sel = null; }
   }
   G.ants = G.ants.filter(a => !a.dead);
@@ -541,9 +609,13 @@ function colonyStep(dt) {
     const D = FOES[f.type];
     G.items.push({ kind: 'carcass', foe: f.type, x: f.x, y: f.y, a: f.a, amt: D.food / 2 | 0, max: D.food / 2 | 0, val: 2 });
     M.honey += D.honey; if (f.type !== 'raider') mission('hunt', 1);
+    if (f.type === 'raider' && f.lastBy && CASTES[f.lastBy.caste] && CASTES[f.lastBy.caste].sp.convert) {
+      const a = makeAnt('worker'); a.loc = 'surface'; a.x = f.x; a.y = f.y; a.age = NURSE_AGE + 1; a.state = 'explore'; G.ants.push(a);
+      colonyMsg('사무라이개미가 쓰러뜨린 고동털개미를 일꾼으로 데려왔어요', 'good');
+    }
     let msg = `${D.n}를 잡았어요 · 꿀 +${D.honey}`;
-    if (D.shard) { const isNew = addShards(D.shard, 1); msg += ` · ${SPECIES[D.shard].n} 표본 +1`; if (isNew) { msg = `새 개미 발견: ${SPECIES[D.shard].n}!`; renderCastes(); } }
-    if (f.type !== 'raider' && !BT) toast(msg, 'good');
+    if (D.shard) { const isNew = addShards(D.shard, 1); msg += ` · ${SPECIES[D.shard].n} 표본 +1`; if (isNew) { msg = `새 개미 발견: ${SPECIES[D.shard].n}!`; buildCastes(); renderCastes(); } }
+    if (f.type !== 'raider') colonyMsg(msg, 'good');
     saveMeta();
   }
   G.foes = G.foes.filter(f => !f.dead && !f.gone);
@@ -553,46 +625,96 @@ function colonyStep(dt) {
   G.nextFood -= dt;
   if (G.nextFood <= 0) {
     const clusters = new Set(G.items.filter(i => i.kind !== 'carcass').map(i => (i.x / 60 | 0) + ',' + (i.y / 60 | 0))).size;
-    if (clusters < 8) spawnFood(); G.nextFood = rand(14, 26);
+    if (clusters < 8 * G.site.food) spawnFood(); G.nextFood = rand(14, 26) / G.site.food;
   }
+  // a small colony gets left alone so it can recover
   if (G.ants.length < 10) for (const f of G.foes) if (f.life >= 0) { f.life = -1; f.fleeing = true; }
   G.nextFoe -= dt;
-  if (G.nextFoe <= 0 && G.ants.length < 10) G.nextFoe = 20;   // let a small colony recover
+  if (G.nextFoe <= 0 && G.ants.length < 10) G.nextFoe = 20;
   if (G.nextFoe <= 0) {
     let type;
     if (G.t > 140 && G.spidersSent < 1) type = 'spider';
     else if (G.t < 100) type = Math.random() < 0.5 ? 'beetle' : 'raider';
-    else { const r = Math.random(); type = r < 0.35 ? 'spider' : r < 0.6 ? 'beetle' : 'raider'; }
+    else { const r = Math.random(), bw = G.site.special === 'beetle' ? 0.35 : 0; type = r < 0.35 - bw / 2 ? 'spider' : r < 0.6 + bw / 2 ? 'beetle' : 'raider'; }
     if (type === 'spider') G.spidersSent++;
     spawnFoe(type);
-    G.nextFoe = Math.max(16, 45 - G.t / 25) + rand(0, 12);
+    G.nextFoe = (Math.max(16, 45 - G.t / 25) + rand(0, 12)) / G.site.danger;
   }
 }
 function nearestFoe(a) { let f = null, fd = Infinity; for (const o of G.foes) { const d = d2(a.x, a.y, o.x, o.y); if (d < fd) { fd = d; f = o; } } return [f, fd]; }
 function wander(a, dt, amt) { a.turn += rand(-1, 1) * dt * 6 * amt; a.turn *= 0.94; a.turn = Math.max(-2.5, Math.min(2.5, a.turn)); a.a += a.turn * dt; }
 function raiseAlarm(f) { if (f.alarmCd > 0) return; f.alarmCd = 1.2; G.alarms.push({ x: f.x, y: f.y, t: 7 }); }
+function colonyHit(a, foe, dt) {
+  const C = CASTES[a.caste], S = C.sp;
+  if (S.range) { a.cd = (a.cd || 0) - dt; if (a.cd <= 0) { a.cd = 1; foe.hp -= C.atk; CFX.push({ t: 0.35, x: a.x, y: a.y, x2: foe.x, y2: foe.y }); } }
+  else foe.hp -= C.atk * dt;
+  if (S.first && !a.struck) { foe.hp -= C.atk * S.first; a.struck = true; }
+  if (S.poison) foe.poison = { t: S.poison, dps: C.atk * 0.6 };
+  if (S.stun && Math.random() < dt * 0.4) foe.stun = S.stun;
+  foe.lastBy = a; foe.biters++; raiseAlarm(foe);
+}
+let CFX = [];
 function surfAnt(a, dt) {
-  const C = CASTES[a.caste];
+  const C = CASTES[a.caste], role = C.role;
   a.tOut += dt; a.moving = true;
   const [foe, fd] = nearestFoe(a);
   const contact = foe ? FOES[foe.type].size * 0.6 + a.len * 0.5 + 2 : 0;
-  const carrying = a.caste === 'worker' && a.carry;
-  if (foe && fd < contact * contact && !carrying) {
+  const reach = Math.max(contact, C.sp.range || 0);
+  const carrying = role === 'forager' && a.carry;
+  if (foe && fd < reach * reach && !carrying && role !== 'scout') {
     a.state = 'fight'; a.moving = false; turnTo(a, angTo(a.x, a.y, foe.x, foe.y), 8 * dt);
-    foe.hp -= C.atk * dt; foe.biters++; raiseAlarm(foe);
-  } else if (a.caste !== 'worker') {
+    colonyHit(a, foe, dt);
+  } else if (role === 'guard') {
     let al = null, ad = 330 * 330;
     for (const o of G.alarms) { const d = d2(a.x, a.y, o.x, o.y); if (d < ad) { ad = d; al = o; } }
     if (foe && fd < 110 * 110) { a.state = 'chase'; turnTo(a, angTo(a.x, a.y, foe.x, foe.y), 5 * dt); }
     else if (al) { a.state = 'alarm'; turnTo(a, angTo(a.x, a.y, al.x, al.y), 4 * dt); wander(a, dt, 1); }
     else { a.state = 'patrol'; wander(a, dt, 3); if (d2(a.x, a.y, NEST.x, NEST.y) > 150 * 150) turnTo(a, angTo(a.x, a.y, NEST.x, NEST.y), 1.6 * dt); }
-  } else workerLogic(a, dt, foe, fd);
+  } else if (role === 'scout') scoutLogic(a, dt, foe, fd);
+  else workerLogic(a, dt, foe, fd);
+  if (a.loc !== 'surface') return;
   if (a.moving) {
     const sp = C.speed * (a.carry ? 0.82 : 1);
     a.x += Math.cos(a.a) * sp * dt; a.y += Math.sin(a.a) * sp * dt; a.leg += dt * sp * 0.55;
     if (a.x < 4 || a.x > W - 4) { a.a = Math.PI - a.a; a.x = Math.max(4, Math.min(W - 4, a.x)); }
     if (a.y < 4 || a.y > H - 4) { a.a = -a.a; a.y = Math.max(4, Math.min(H - 4, a.y)); }
   }
+}
+// Scouts head far out, leave the map to explore, and come back to report what they found.
+function scoutLogic(a, dt, foe, fd) {
+  if (foe && fd < 55 * 55) { turnTo(a, angTo(foe.x, foe.y, a.x, a.y), 6 * dt); if (a.state !== 'report') a.state = 'flee'; return; }
+  if (a.state === 'report') {
+    turnTo(a, angTo(a.x, a.y, NEST.x, NEST.y), 2.6 * dt); wander(a, dt, 0.5);
+    if (d2(a.x, a.y, NEST.x, NEST.y) < 64) { enterNest(a); setNestTask(a, 'reporting', 'Q'); }
+    return;
+  }
+  a.state = 'scout';
+  turnTo(a, angTo(NEST.x, NEST.y, a.x, a.y) + Math.sin(a.id + G.t * 0.2) * 0.6, 0.9 * dt); wander(a, dt, 1.2);
+  if (a.tOut > 3 && (a.x < 7 || a.x > W - 7 || a.y < 7 || a.y > H - 7)) { a.loc = 'away'; a.awayT = rand(35, 70); if (sel === a) { sel = null; colonyMsg('정찰개미가 지도 밖으로 탐험을 떠났어요'); } }
+}
+function awayAnt(a, dt) {
+  a.awayT -= dt;
+  if (a.awayT > 0) return;
+  if (Math.random() < 0.1 * G.site.danger) { a.hp = 0; a.lost = true; return; }
+  const t = rand(0, 6.28);
+  a.loc = 'surface'; a.x = Math.max(6, Math.min(W - 6, NEST.x + Math.cos(t) * 700)); a.y = Math.max(6, Math.min(H - 6, NEST.y + Math.sin(t) * 700));
+  a.a = angTo(a.x, a.y, NEST.x, NEST.y); a.state = 'report'; a.tOut = 0;
+}
+function processReport() {
+  G.reports = (G.reports || 0) + 1; mission('report', 1);
+  const r = Math.random();
+  if (r < 0.65) {
+    const s = makeSite(); G.sites.push(s);
+    if (G.sites.length > 5) { G.sites.sort((x, y) => siteScore(y) - siteScore(x)); G.sites.length = 5; }
+    colonyMsg(`정찰개미가 새 터를 찾았어요: ${s.name} · 터 버튼에서 볼 수 있어요`, 'good');
+  } else if (r < 0.85) {
+    const h = Math.round(rand(4, 12)); M.honey += h; colonyMsg(`정찰개미가 진딧물 무리를 찾아 꿀 +${h}`, 'good');
+  } else {
+    const pool = SP_IDS.filter(k => k !== 'worker' && SPECIES[k].tier <= tierOf(M.trophies) + 1), k = pick(pool), isNew = addShards(k, 1);
+    buildCastes(); if (isNew) renderCastes();
+    colonyMsg(isNew ? `정찰개미가 ${SPECIES[k].n} 군집 흔적을 찾았어요 · 새 개미 발견!` : `정찰개미가 ${SPECIES[k].n} 표본을 가져왔어요`, 'good');
+  }
+  saveMeta();
 }
 function workerLogic(a, dt, foe, fd) {
   if (a.carry && a.carry.type === 'corpse') {
@@ -626,7 +748,7 @@ function workerLogic(a, dt, foe, fd) {
   for (const it of G.items) { if (it.amt <= 0) continue; const d = d2(a.x, a.y, it.x, it.y); if (d < bd) { bd = d; best = it; } }
   if (best) {
     a.state = 'toFood'; turnTo(a, angTo(a.x, a.y, best.x, best.y), 6 * dt);
-    if (bd < 40) { best.amt -= 1; a.carry = { type: 'food', kind: best.kind, foe: best.foe, val: best.val }; a.tPick = 0; a.a += Math.PI; }
+    if (bd < 40) { best.amt -= 1; a.carry = { type: 'food', kind: a.caste === 'leaf' ? 'leaf' : best.kind, foe: best.foe, val: best.val * CASTES[a.caste].carry / 2 }; a.tPick = 0; a.a += Math.PI; }
     return;
   }
   a.state = 'explore';
@@ -638,27 +760,31 @@ function nestAnt(a, dt) {
   if (a.wait > 0) { a.wait -= dt; a.a += rand(-1, 1) * dt * 3; return; }
   const p = a.path && a.path[a.np];
   if (!p) { nestArrive(a); return; }
-  const sp = CASTES[a.caste].speed * 0.75, dx = p.x - a.nx, dy = p.y - a.ny, d = Math.hypot(dx, dy);
+  const sp = Math.max(18, CASTES[a.caste].speed) * 0.75, dx = p.x - a.nx, dy = p.y - a.ny, d = Math.hypot(dx, dy);
   a.moving = true; a.leg += dt * sp * 0.55; a.a = Math.atan2(dy, dx);
   if (d < sp * dt + 0.5) { a.nx = p.x; a.ny = p.y; if (p.id) a.node = p.id; a.np++; }
   else { a.nx += dx / d * sp * dt; a.ny += dy / d * sp * dt; }
 }
 function nestArrive(a) {
+  const role = CASTES[a.caste].role;
   if (a.task === 'deliver') {
     if (a.carry && a.carry.type === 'food') { G.food += a.carry.val; mission('gather', a.carry.val); }
     a.carry = null; a.wait = rand(0.5, 1.5); setNestTask(a, 'exit', 'E');
+  } else if (a.task === 'reporting') {
+    processReport(); a.wait = rand(2, 4); setNestTask(a, 'exit', 'E');
   } else if (a.task === 'exit' || a.task === 'emerge') {
-    if (a.caste === 'worker' && G.foes.some(f => f.life >= 0 && d2(f.x, f.y, NEST.x, NEST.y) < 80 * 80)) { a.wait = 1.5; a.lockdown = true; return; }
+    if (role !== 'guard' && G.foes.some(f => f.life >= 0 && d2(f.x, f.y, NEST.x, NEST.y) < 80 * 80)) { a.wait = 1.5; a.lockdown = true; return; }
     a.lockdown = false; exitToSurface(a);
-  }
-  else if (a.task === 'nurse') {
+  } else if (a.task === 'nurse') {
     if (a.age > NURSE_AGE) { setNestTask(a, 'exit', 'E'); return; }
     a.wait = rand(1.5, 4); const r = Math.random();
     setNestTask(a, 'nurse', r < 0.6 ? 'B' : r < 0.85 ? 'S' : 'Q');
-  }
+  } else if (a.task === 'store') { a.wait = rand(5, 10); setNestTask(a, 'store', 'S'); }
 }
 function updFoe(f, dt) {
   const D = FOES[f.type];
+  if (f.poison) { f.hp -= f.poison.dps * dt; f.poison.t -= dt; if (f.poison.t <= 0) f.poison = null; }
+  if (f.stun > 0) { f.stun -= dt; f.moving = false; return; }
   f.life -= dt; f.alarmCd -= dt; f.moving = true;
   let t = null, bd = D.sense * D.sense;
   for (const a of G.ants) { if (a.loc !== 'surface') continue; const d = d2(f.x, f.y, a.x, a.y); if (d < bd) { bd = d; t = a; } }
@@ -678,18 +804,89 @@ function updFoe(f, dt) {
     if (f.y < 6 || f.y > H - 6) { f.a = -f.a; f.y = Math.max(6, Math.min(H - 6, f.y)); }
   }
 }
+
+/* Emigration: everyone leaves in a column, workers carrying the brood, the queen walking with them. */
+function startMigration(site) {
+  if (G.migrating) return;
+  const ang = rand(-Math.PI, Math.PI);
+  const exit = { x: Math.max(-30, Math.min(W + 30, NEST.x + Math.cos(ang) * 700)), y: Math.max(-30, Math.min(H + 30, NEST.y + Math.sin(ang) * 700)) };
+  G.migrating = { t: 0, site, exit };
+  const carriers = [];
+  for (const a of G.ants) {
+    if (a.loc === 'away') continue;
+    if (a.loc === 'nest') { exitToSurface(a); a.x += rand(-25, 25); a.y += rand(-25, 25); }
+    a.state = 'migrate'; a.carry = null;
+    if (isForager(a)) carriers.push(a);
+  }
+  G.brood.forEach((b, i) => { const c = carriers[i]; if (c) c.carry = { type: 'brood', st: b.st }; });
+  G.movingBrood = G.brood; G.brood = [];
+  G.queen.walk = { x: NEST.x, y: NEST.y, a: angTo(NEST.x, NEST.y, exit.x, exit.y), leg: 0 };
+  for (const f of G.foes) f.life = -1;
+  sel = null;
+  toast(`${site.name}(으)로 이사를 시작했어요`, 'good');
+}
+function migrateStep(dt) {
+  const Mg = G.migrating; if (Mg.done) return;
+  Mg.t += dt;
+  const X = Mg.exit;
+  for (const a of G.ants) {
+    if (a.loc !== 'surface') continue;
+    turnTo(a, angTo(a.x, a.y, X.x, X.y), 3 * dt); wander(a, dt, 0.4);
+    const sp = Math.max(18, CASTES[a.caste].speed) * 1.1;
+    a.x += Math.cos(a.a) * sp * dt; a.y += Math.sin(a.a) * sp * dt; a.leg += sp * dt * 0.55; a.moving = true;
+  }
+  const q = G.queen.walk;
+  turnTo(q, angTo(q.x, q.y, X.x, X.y), 2 * dt); q.x += Math.cos(q.a) * 20 * dt; q.y += Math.sin(q.a) * 20 * dt; q.leg += dt * 11;
+  for (const f of G.foes) updFoe(f, dt);
+  G.foes = G.foes.filter(f => !f.gone && f.hp > 0);
+  if (Mg.t > 13) finishMigration(false);
+}
+function finishMigration(now) {
+  const Mg = G.migrating; if (!Mg || Mg.done) return;
+  Mg.done = true;
+  const settle = () => {
+    const site = Mg.site;
+    G.site = site; G.sites = G.sites.filter(s => s.id !== site.id);
+    G.items = []; G.corpses = []; G.midden = []; G.foes = []; G.alarms = []; homeP.fill(0); foodP.fill(0); CFX = [];
+    G.food = Math.round(G.food * 0.85);
+    G.brood = G.movingBrood || []; G.movingBrood = null;
+    for (const b of G.brood) { const p = inChamber('B'); b.x = p.x; b.y = p.y; }
+    delete G.queen.walk;
+    for (const a of G.ants) {
+      if (a.loc === 'away') continue;
+      a.carry = null; a.path = null; a.wait = 0;
+      const role = CASTES[a.caste].role;
+      if (role === 'store') { placeInNest(a, 'S'); setNestTask(a, 'store', 'S'); }
+      else if (role === 'forager' && a.age < NURSE_AGE) { placeInNest(a, 'B'); setNestTask(a, 'nurse', 'B'); }
+      else { exitToSurface(a); a.x += rand(-50, 50); a.y += rand(-50, 50); }
+    }
+    for (let i = 0; i < 5; i++) spawnFood();
+    G.nextFoe = 60; G.nextFood = 10; G.migrating = null; G.moves = (G.moves || 0) + 1; G.spidersSent = 0;
+    groundTex = makeGround(W, H, [NEST], 2, SITE_LOOK[site.kind]); grainPat = null;
+    cam.x = NEST.x; cam.y = NEST.y; clampCam();
+    saveColony(); saveMeta();
+  };
+  if (now) { settle(); return; }
+  $('fade').classList.add('on');
+  setTimeout(() => { settle(); $('fade').classList.remove('on'); toast(`새 보금자리 ${G.site.name}에 정착했어요`, 'good'); renderAll(); }, 700);
+}
+
 // Time away: foragers keep bringing food and brood keeps developing (no combat while away).
 function colonyCatchUp(sec) {
   sec = Math.min(sec, 6 * 3600);
   if (sec < 5) return 0;
-  const foragers = G.ants.filter(a => a.caste === 'worker' && a.age > NURSE_AGE).length;
-  const gain = Math.round(foragers * 0.05 * sec);
+  if (G.migrating) finishMigration(true);
+  let rate = 0;
+  for (const a of G.ants) if (isForager(a) && a.age > NURSE_AGE) rate += 0.05 * CASTES[a.caste].carry / 2;
+  const pots = G.ants.filter(a => CASTES[a.caste].role === 'store').length;
+  const gain = Math.round(rate * sec * G.site.food + pots * 0.07 * sec);
   G.food += gain; mission('gather', gain);
-  for (const a of G.ants) a.age += sec;
+  if (G.site.special === 'aphid') M.honey += Math.floor(sec / 30);
+  for (const a of G.ants) { a.age += sec; if (a.loc === 'away') a.awayT = Math.min(a.awayT, 1); }
   for (const b of G.brood) {
     let t = sec;
     while (t > 0 && b.st < 3) { const need = CASTES[b.caste].dev[b.st] - b.t; if (t >= need) { t -= need; b.t = 0; b.st++; } else { b.t += t; t = 0; } }
-    if (b.st >= 3) { b.done = true; const a = hatch(b); a.age = NURSE_AGE + 1; setNestTask(a, 'exit', 'E'); }
+    if (b.st >= 3) { b.done = true; const a = hatch(b); if (isForager(a)) { a.age = NURSE_AGE + 1; setNestTask(a, 'exit', 'E'); } }
   }
   G.brood = G.brood.filter(b => !b.done);
   return gain;
@@ -791,6 +988,7 @@ function paintAnt(g, L, hs, col, ph, f) {
 }
 function drawCarry(c, L, hs, carry) {
   const hx = 0.215 * L + 0.05 * L * (hs - 1), cx = hx + 0.21 * L * hs;
+  if (carry.type === 'brood') { glossy(c, cx + 0.06 * L, 0, 0.13 * L, 0.075 * L, carry.st === 2 ? '#d9bc8c' : '#ece4d0', '#9c8460', '#ffffff', 0, 0.4); return; }
   if (carry.type === 'corpse') { drawAnt(c, cx + 0.14 * L, 0, 0.4, (carry.len || 9) * 0.9, 1, '#3d342c', 0, { dead: true, noShadow: true }); return; }
   if (carry.kind === 'sugar') { const g = c.createRadialGradient(cx, -0.03 * L, 0, cx + 0.03 * L, 0, 0.1 * L); g.addColorStop(0, '#fff3c8'); g.addColorStop(0.5, 'rgba(232,170,64,.95)'); g.addColorStop(1, 'rgba(160,90,20,.85)'); c.fillStyle = g; c.beginPath(); c.arc(cx + 0.03 * L, 0, 0.09 * L, 0, 7); c.fill(); return; }
   if (carry.kind === 'leaf') { c.fillStyle = '#6d8f3a'; c.beginPath(); c.ellipse(cx, -0.06 * L, 0.24 * L, 0.14 * L, 0.6, 0, 7); c.fill(); c.strokeStyle = 'rgba(40,60,20,.6)'; c.lineWidth = L * 0.01; c.beginPath(); c.moveTo(cx - 0.18 * L, -0.18 * L); c.lineTo(cx + 0.18 * L, 0.06 * L); c.stroke(); return; }
@@ -1003,26 +1201,41 @@ function soilPellet(g, x, y, r, tone) {
   g.fillStyle = gr; g.beginPath(); g.ellipse(x, y, r, r * q, a, 0, 7); g.fill();
   if (r > 1) { g.fillStyle = 'rgba(30,20,12,.35)'; g.fillRect(x + rand(-r, r) * 0.5, y + rand(-r, r) * 0.5, 0.35, 0.35); }
 }
-function makeGround(w, h, nests, scale) {
+const SITE_LOOK = {
+  root:   { soil: '#56402b', grass: 1,   leaf: 1.3, pebble: 1,   moss: 1,   twig: 1.2 },
+  sand:   { soil: '#8a7352', grass: 0.5, leaf: 0.3, pebble: 2.2, moss: 0.1, twig: 0.4 },
+  wood:   { soil: '#46301f', grass: 0.4, leaf: 2.2, pebble: 0.6, moss: 2.4, twig: 3.5 },
+  stone:  { soil: '#5e4c3a', grass: 0.7, leaf: 0.6, pebble: 3.2, moss: 0.9, twig: 0.6 },
+  meadow: { soil: '#5a432c', grass: 2.6, leaf: 0.5, pebble: 0.8, moss: 0.6, twig: 0.5 },
+  aphid:  { soil: '#50402a', grass: 1.9, leaf: 1.6, pebble: 0.8, moss: 1,   twig: 1.6 },
+  field:  { soil: '#6c5438', grass: 1.3, leaf: 0.3, pebble: 1,   moss: 0.3, twig: 0.3 },
+  pine:   { soil: '#4e3826', grass: 0.4, leaf: 0.2, pebble: 1,   moss: 1.2, twig: 1,  needles: true },
+  moss:   { soil: '#4a3a26', grass: 0.8, leaf: 0.8, pebble: 0.8, moss: 4,   twig: 0.8 },
+};
+const hex2 = v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0');
+const mixHex = (a, b, t) => { const A = hexRgb(a), B = hexRgb(b); return '#' + [0, 1, 2].map(i => hex2(A[i] + (B[i] - A[i]) * t)).join(''); };
+function makeGround(w, h, nests, scale, o = SITE_LOOK.root) {
   const s = scale, cv = document.createElement('canvas'); cv.width = w * s; cv.height = h * s;
   const g = cv.getContext('2d'); g.scale(s, s);
-  g.fillStyle = '#56402b'; g.fillRect(0, 0, w, h);
-  noiseLayer(g, w, h, 140, 0.55, '#3b2a1a', '#7a5d40');
-  noiseLayer(g, w, h, 45, 0.4, '#3f2d1d', '#806347');
-  noiseLayer(g, w, h, 14, 0.28, '#35261a', '#8c6f50');
-  noiseLayer(g, w, h, 4, 0.2, '#2e2116', '#9a7d5c');
+  g.fillStyle = o.soil; g.fillRect(0, 0, w, h);
+  const dk = t => mixHex(o.soil, '#000000', t), lt = t => mixHex(o.soil, '#ffffff', t);
+  noiseLayer(g, w, h, 140, 0.55, dk(0.32), lt(0.2));
+  noiseLayer(g, w, h, 45, 0.4, dk(0.28), lt(0.24));
+  noiseLayer(g, w, h, 14, 0.28, dk(0.38), lt(0.3));
+  noiseLayer(g, w, h, 4, 0.2, dk(0.45), lt(0.36));
   const area = w * h / 900000;
   noiseBlobs(g, w, h, 22000 * area, 0.3, 1.1, ['rgba(25,16,9,.5)', 'rgba(170,140,100,.4)', 'rgba(95,72,48,.55)', 'rgba(205,185,150,.3)', 'rgba(120,120,110,.3)']);
   const nearNest = (x, y, r) => nests.some(n => d2(x, y, n.x, n.y) < r * r);
   // moss patches in damp spots
-  for (let i = 0; i < 18 * area + 1; i++) {
+  for (let i = 0; i < 18 * area * o.moss + 1; i++) {
     const cx = rand(0, w), cy = rand(0, h); if (nearNest(cx, cy, 130)) continue;
     for (let k = 0; k < 160; k++) { const t = rand(0, 6.28), r = Math.pow(Math.random(), 0.6) * 22; g.fillStyle = ['rgba(92,118,46,.55)', 'rgba(70,96,36,.6)', 'rgba(120,140,60,.45)'][k % 3]; g.beginPath(); g.arc(cx + Math.cos(t) * r, cy + Math.sin(t) * r * 0.7, rand(0.6, 1.6), 0, 7); g.fill(); }
   }
-  for (let i = 0; i < 190 * area; i++) { const x = rand(0, w), y = rand(0, h); if (!nearNest(x, y, 50)) pebble(g, x, y, Math.random() < 0.85 ? rand(1.8, 5) : rand(6, 11), rand(0, 3.14)); }
-  for (let i = 0; i < 9 * area + 1; i++) { const x = rand(0, w), y = rand(0, h); if (!nearNest(x, y, 80)) twig(g, x, y, rand(24, 60), rand(0, 6.28)); }
-  for (let i = 0; i < 26 * area + 2; i++) { const x = rand(0, w), y = rand(0, h); if (!nearNest(x, y, 90)) leafLitter(g, x, y, rand(18, 36), rand(0, 6.28), i % 4); }
-  for (let i = 0; i < 420 * area; i++) {
+  for (let i = 0; i < 190 * area * o.pebble; i++) { const x = rand(0, w), y = rand(0, h); if (!nearNest(x, y, 50)) pebble(g, x, y, Math.random() < 0.85 ? rand(1.8, 5) : rand(6, 11), rand(0, 3.14)); }
+  for (let i = 0; i < 9 * area * o.twig + 1; i++) { const x = rand(0, w), y = rand(0, h); if (!nearNest(x, y, 80)) twig(g, x, y, rand(24, 60), rand(0, 6.28)); }
+  if (o.needles) for (let i = 0; i < 1400 * area; i++) { const x = rand(0, w), y = rand(0, h), a = rand(0, 6.28), l = rand(8, 16); g.strokeStyle = ['#7a5428', '#8f6a35', '#5e3f1d'][i % 3]; g.lineWidth = 0.8; g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); g.stroke(); }
+  for (let i = 0; i < 26 * area * o.leaf + 2; i++) { const x = rand(0, w), y = rand(0, h); if (!nearNest(x, y, 90)) leafLitter(g, x, y, rand(18, 36), rand(0, 6.28), i % 4); }
+  for (let i = 0; i < 420 * area * o.grass; i++) {
     const x = rand(0, w), y = rand(0, h), dn = Math.min(...nests.map(n => Math.sqrt(d2(x, y, n.x, n.y))));
     if (dn < 110 || Math.random() < 140 / dn) continue;
     grassTuft(g, x, y, 5 + (Math.random() * 9 | 0));
@@ -1072,7 +1285,7 @@ function makeSoil() {
   }
   return cv;
 }
-const groundTex = makeGround(W, H, [NEST], 2);
+let groundTex = null;
 const grainTex = (() => { const cv = document.createElement('canvas'); cv.width = cv.height = 256; const g = cv.getContext('2d');
   for (let i = 0; i < 2600; i++) { const r = rand(0.6, 2.2); g.fillStyle = ['rgba(25,16,9,.45)', 'rgba(185,155,115,.4)', 'rgba(110,85,58,.45)', 'rgba(215,200,170,.3)', 'rgba(130,130,120,.35)'][i % 5]; g.beginPath(); g.ellipse(rand(0, 256), rand(0, 256), r, r * rand(0.6, 1), rand(0, 3), 0, 7); g.fill(); }
   return cv; })();
@@ -1137,7 +1350,9 @@ function renderSurface() {
     else { c.globalAlpha = 0.35 + 0.65 * it.amt / it.max; drawFoe(c, { type: it.foe, x: it.x, y: it.y, a: it.a, leg: 0, moving: false }, true); c.globalAlpha = 1; }
   }
   for (const k of G.corpses) drawAnt(c, k.x, k.y, k.a, k.len, CASTES[k.caste].hs, '#3d342c', 0, { dead: true, simple });
-  for (const a of G.ants) if (a.loc === 'surface') drawAnt(c, a.x, a.y, a.a, a.len, CASTES[a.caste].hs, a.caste === 'worker' ? '#17110d' : '#120c09', a.leg, { carry: a.carry, simple, still: !a.moving });
+  for (const a of G.ants) if (a.loc === 'surface') drawAnt(c, a.x, a.y, a.a, a.len, CASTES[a.caste].hs, CASTES[a.caste].col, a.leg, { carry: a.carry, simple, still: !a.moving, trap: a.caste === 'trap' });
+  if (G.queen.walk) { const q = G.queen.walk; drawAnt(c, q.x, q.y, q.a, 26, 1.25, '#140e0a', q.leg, { queen: true }); }
+  for (const f of CFX) { c.strokeStyle = `rgba(220,240,150,${Math.min(1, f.t * 2.5)})`; c.lineWidth = 1.2; c.setLineDash([2, 2]); c.beginPath(); c.moveTo(f.x, f.y); c.lineTo(f.x2, f.y2); c.stroke(); c.setLineDash([]); }
   for (const f of G.foes) drawFoe(c, f, false);
   if (sel && sel.loc === 'surface') { c.strokeStyle = 'rgba(227,168,67,.9)'; c.lineWidth = 1.8 / cam.z; c.beginPath(); c.arc(sel.x, sel.y, sel.len * 0.9 + 3, 0, 7); c.stroke(); }
 }
@@ -1174,7 +1389,7 @@ function renderNest() {
     if (i % 7 === 0) { c.fillStyle = 'rgba(226,160,60,.9)'; c.beginPath(); c.arc(x, y, 1.4, 0, 7); c.fill(); } else drawSeed(c, x, y, p.a, 4);
   }
   for (const b of G.brood) {
-    const grow = b.t / CASTES[b.caste].dev[b.st], big = b.caste === 'worker' ? 1 : b.caste === 'soldier' ? 1.25 : 1.5;
+    const grow = b.t / CASTES[b.caste].dev[b.st], big = Math.max(0.85, CASTES[b.caste].len / 9);
     c.save(); c.translate(b.x, b.y); c.rotate(b.r);
     if (b.st === 0) {   // eggs: tiny, glossy, sticky clusters
       glossy(c, 0, 0, 1.5 * big, 1.0 * big, '#efe9da', '#b9ae96', '#ffffff', 0, 0.6);
@@ -1197,26 +1412,29 @@ function renderNest() {
     c.restore();
   }
   const Q = G.queen;
-  drawAnt(c, Q.nx + Math.sin(Q.leg) * 1.5, Q.ny, 0.08 + Math.sin(Q.leg * 0.7) * 0.06, 26, 1.25, '#140e0a', Q.leg, { queen: true, still: true, noShadow: true });
+  if (!Q.walk) drawAnt(c, Q.nx + Math.sin(Q.leg) * 1.5, Q.ny, 0.08 + Math.sin(Q.leg * 0.7) * 0.06, 26, 1.25, '#140e0a', Q.leg, { queen: true, still: true, noShadow: true });
   if (G.queue.length && G.layT > 0) { c.fillStyle = 'rgba(227,168,67,.85)'; c.fillRect(Q.nx - 12, Q.ny + 12, 24 * Math.min(1, G.layT / LAY_TIME), 1.6); }
-  for (const a of G.ants) if (a.loc === 'nest') drawAnt(c, a.nx, a.ny, a.a, a.len * 0.95, CASTES[a.caste].hs, '#17110d', a.leg, { carry: a.carry, still: !a.moving, noShadow: true });
+  for (const a of G.ants) if (a.loc === 'nest') { const C = CASTES[a.caste]; drawAnt(c, a.nx, a.ny, C.role === 'store' && !a.moving ? -Math.PI / 2 : a.a, a.len * 0.95, C.hs, C.col, a.leg, { carry: a.carry, still: !a.moving, noShadow: true, honeypot: C.role === 'store', trap: a.caste === 'trap' }); }
   if (sel && sel.loc === 'nest') { c.strokeStyle = 'rgba(227,168,67,.9)'; c.lineWidth = 0.8; c.beginPath(); c.arc(sel.nx, sel.ny, sel.len * 0.8 + 2, 0, 7); c.stroke(); }
   nestXform = { s: s / dpr, ox: ox / dpr };
 }
-const casteOk = k => k !== 'major' || owned('major');
 function renderCastes() {
-  const box = $('castes');
-  box.innerHTML = Object.entries(CASTES).map(([k, C]) => {
-    const locked = !casteOk(k);
-    return `<button class="caste${locked ? ' locked' : ''}" data-c="${k}" id="caste-${k}"><canvas width="160" height="60"></canvas>
-      <span class="nm">${locked ? '미발견' : C.n}</span><span class="co">${locked ? '늑대거미 사냥 또는 알집' : `먹이 ${C.cost}`}</span>
-      <span class="ds">${locked ? '표본을 얻으면 열려요' : `체력 ${C.hp} · ${C.ds}`}</span></button>`;
-  }).join('');
-  box.querySelectorAll('canvas').forEach((cv, i) => { const k = Object.keys(CASTES)[i], C = CASTES[k]; paintSpecimen(cv.getContext('2d'), 160, 60, C.len * 3.3, C.hs, '#17110d', {}, casteOk(k)); });
+  const box = $('castes'), ids = Object.keys(CASTES).filter(casteOk);
+  box.innerHTML = ids.map(k => {
+    const C = CASTES[k];
+    return `<button class="caste" data-c="${k}" id="caste-${k}"><canvas width="160" height="60"></canvas>
+      <span class="nm">${C.n} <em>Lv${C.lv}</em></span><span class="co">먹이 ${C.cost}</span>
+      <span class="ds">체력 ${Math.round(C.hp)} · ${ROLE_TXT[C.role]}</span></button>`;
+  }).join('') + `<div class="caste more">도감에서 개미를 발견하면 여기서도 키울 수 있어요</div>`;
+  box.querySelectorAll('canvas').forEach((cv, i) => { const C = CASTES[ids[i]]; paintSpecimen(cv.getContext('2d'), 160, 60, C.len * 3.3, C.hs, C.col, { honeypot: C.role === 'store', trap: ids[i] === 'trap' }, true); });
 }
 function renderColonyUi() {
-  $('sWorker').textContent = G.ants.filter(a => a.caste === 'worker').length;
-  $('sSoldier').textContent = G.ants.filter(a => a.caste !== 'worker').length;
+  $('sWorker').textContent = G.ants.filter(isForager).length;
+  $('sSoldier').textContent = G.ants.filter(a => CASTES[a.caste].role === 'guard').length;
+  const scouts = G.ants.filter(a => a.caste === 'scout'), away = scouts.filter(a => a.loc === 'away').length;
+  $('sScout').textContent = away ? `${scouts.length} (탐험 ${away})` : scouts.length;
+  $('siteBtn').classList.toggle('on', G.sites.length > 0);
+  $('siteBtn').textContent = G.sites.length ? `터 ${G.sites.length}` : '터';
   $('sEgg').textContent = G.brood.filter(b => b.st === 0).length;
   $('sLarva').textContent = G.brood.filter(b => b.st === 1).length;
   $('sPupa').textContent = G.brood.filter(b => b.st === 2).length;
@@ -1227,13 +1445,14 @@ function renderColonyUi() {
     q.innerHTML = G.queue.length ? G.queue.map((k, i) => `<button class="qchip${i === 0 ? ' first' : ''}" data-i="${i}" aria-label="${CASTES[k].n} 취소">${CASTES[k].n}<span class="x">×</span></button>`).join('') : '<span class="muted" style="font-size:11px">아래에서 낳을 개미를 고르세요</span>';
   }
   const ls = $('layStatus');
-  if (G.founding) ls.textContent = '여왕 비상 산란 중';
+  if (G.migrating) ls.textContent = '이사 중';
+  else if (G.founding) ls.textContent = '여왕 비상 산란 중';
   else if (!G.queue.length) ls.textContent = '대기 중';
   else { const C = CASTES[G.queue[0]]; ls.textContent = G.food < C.cost ? `먹이 ${C.cost} 필요` : `산란 ${Math.round(G.layT / LAY_TIME * 100)}%`; }
   for (const k of Object.keys(CASTES)) { const el = $('caste-' + k); if (el) el.classList.toggle('short', casteOk(k) && G.food < CASTES[k].cost); }
   if (sel) {
     $('info').hidden = false;
-    $('iName').textContent = `${CASTES[sel.caste].n} #${sel.id}`;
+    $('iName').textContent = `${CASTES[sel.caste].n} Lv${CASTES[sel.caste].lv} #${sel.id}`;
     $('iState').textContent = STATE_TEXT[sel.loc === 'nest' ? (sel.lockdown ? 'lockdown' : sel.task) : sel.state] || '';
     $('iHp').style.width = (sel.hp / CASTES[sel.caste].hp * 100) + '%';
   } else $('info').hidden = true;
@@ -1271,9 +1490,9 @@ function bindColony() {
   surf.addEventListener('wheel', e => { e.preventDefault(); cam.z *= Math.exp(-e.deltaY * 0.0015); clampCam(); }, { passive: false });
   nest.addEventListener('click', e => { const r = nest.getBoundingClientRect(); sel = pickAnt((e.clientX - r.left - nestXform.ox) / nestXform.s, (e.clientY - r.top) / nestXform.s, 'nest', 14); });
   $('castes').addEventListener('click', e => {
-    const b = e.target.closest('.caste'); if (!b) return;
+    const b = e.target.closest('.caste[data-c]'); if (!b) return;
     const k = b.dataset.c;
-    if (!casteOk(k)) { toast('늑대거미를 잡거나 알집에서 대형 병정개미 표본을 얻으면 열려요'); return; }
+    if (!casteOk(k)) return;
     if (G.queue.length >= 12) { toast('산란 대기열이 가득 찼어요'); return; }
     G.queue.push(k); renderColonyUi();
   });
@@ -1486,7 +1705,7 @@ function endBattle(res) {
   if (newTi > M.bestTier) {
     const unlocked = [];
     for (let t = M.bestTier + 1; t <= newTi; t++) SP_IDS.filter(k => SPECIES[k].tier === t && !owned(k)).forEach(k => { addShards(k, 1); unlocked.push(SPECIES[k].n); });
-    M.bestTier = newTi; tierMsg = `${TIERS[newTi].n} 리그 승급!${unlocked.length ? ' 새 개미 발견: ' + unlocked.join(', ') : ''}`;
+    buildCastes(); renderCastes(); M.bestTier = newTi; tierMsg = `${TIERS[newTi].n} 리그 승급!${unlocked.length ? ' 새 개미 발견: ' + unlocked.join(', ') : ''}`;
   }
   saveMeta();
   const title = res === 'win' ? '승리' : res === 'lose' ? '패배' : '무승부';
@@ -1586,6 +1805,7 @@ function openChest(type) {
     const share = i === chosen.length - 1 ? Math.max(1, left) : Math.max(1, Math.round(C.shards * rand(0.25, 0.5) / (RARITY.indexOf(SPECIES[k].rar) + 1)));
     left -= share; const isNew = addShards(k, share); loot.push({ k, n: share, isNew });
   });
+  buildCastes(); renderCastes();
   const honey = Math.round(rand(...C.honey)); M.honey += honey;
   M.st.chests++; mission('chest', 1); saveMeta();
   showModal(`<canvas class="big-ic" data-chest="${type}" width="160" height="120"></canvas><h3>${C.n}</h3>
@@ -1643,12 +1863,28 @@ function renderDex() {
   }).join('');
   $('dex').querySelectorAll('canvas').forEach(cv => drawSpeciesIcon(cv, cv.parentElement.dataset.sp, owned(cv.parentElement.dataset.sp)));
 }
+const starsHtml = v => { const n = starN(v); return `<span class="stars">${'★'.repeat(n)}<i>${'★'.repeat(5 - n)}</i></span>`; };
+function siteCard(s, cur) {
+  return `<div class="site${cur ? ' cur' : ''}"><div class="row"><div class="info"><b>${s.name}</b>${s.special ? `<small>${SPECIAL_TXT[s.special]}</small>` : ''}</div>
+    ${cur ? '<small class="muted">지금 사는 곳</small>' : `<button class="btn small primary" data-act="move" data-id="${s.id}" ${G.migrating ? 'disabled' : ''}>이사</button>`}</div>
+    <div class="sgrid"><span>먹이</span>${starsHtml(s.food)}<span>안전</span>${starsHtml(2 - s.danger)}<span>육아</span>${starsHtml(s.brood)}</div></div>`;
+}
+function siteModal() {
+  const scouts = G.ants.filter(a => a.caste === 'scout'), away = scouts.filter(a => a.loc === 'away').length;
+  const list = [...G.sites].sort((a, b) => siteScore(b) - siteScore(a));
+  showModal(`<h3>보금자리</h3><div class="sub">정찰개미 ${scouts.length}마리${away ? ` · ${away}마리 탐험 중` : ''} · 보고 ${G.reports || 0}번 · 이사 ${G.moves || 0}번</div>
+    ${siteCard(G.site, true)}
+    <h2 style="font-size:15px">정찰개미가 찾은 터</h2>
+    ${list.length ? list.map(x => siteCard(x, false)).join('') : `<div class="sub" style="margin:0">${scouts.length ? '정찰개미가 지도 끝 너머로 탐험을 나가요. 돌아오면 찾은 곳을 알려 줘요.' : '정찰개미를 키우면 주변을 탐험해 새 보금자리를 찾아요. 아래 산란 목록에서 정찰개미를 골라 보세요.'}</div>`}
+    <div class="sub" style="margin:0">이사하면 일개미가 알과 애벌레를 물고 여왕과 함께 떠나요. 저장한 먹이의 15%는 두고 가요.</div>
+    <div class="mbtns"><button class="btn" data-act="close">닫기</button></div>`);
+}
 function spModal(k) {
   const S = SPECIES[k], c = M.cards[k], have = c.lv > 0, m = lvMult(Math.max(1, c.lv)), m2 = lvMult(c.lv + 1);
   const inDeck = M.deck.includes(k), up = have && c.lv < 10;
   showModal(`<canvas class="big-ic" data-sp="${k}" width="240" height="140"></canvas>
     <h3>${have ? S.n : '미발견 개미'}</h3><div class="sub"><i>${S.sci}</i> · <span class="r-${S.rar}">${S.rar}</span>${have ? ` · Lv${c.lv}` : ''}</div>
-    <div class="muted" style="font-size:12px;line-height:1.5">${S.ds}</div>
+    <div class="muted" style="font-size:12px;line-height:1.5">${S.ds}${have ? ' 군집에서도 키울 수 있고, 강화하면 군집의 이 개미도 같이 강해져요.' : ''}</div>
     <div class="statgrid">
       <div><small>체력</small><b>${Math.round(S.hp * m)}${up ? `<em>+${Math.round(S.hp * (m2 - m))}</em>` : ''}</b></div>
       <div><small>공격</small><b>${(S.atk * m).toFixed(1)}${up && S.atk ? `<em>+${(S.atk * (m2 - m)).toFixed(1)}</em>` : ''}</b></div>
@@ -1681,7 +1917,7 @@ function renderGrow() {
 }
 function renderHeader() {
   $('rFood').textContent = fmt(G.food); $('rHoney').textContent = fmt(M.honey); $('rTroph').textContent = fmt(M.trophies);
-  $('clock').textContent = `관찰 ${Math.floor(G.t / 60)}분`;
+  $('clock').textContent = `${G.site.name} · 관찰 ${Math.floor(G.t / 60)}분`;
   ensureMissions();
   const readyMissions = M.missions.list.filter(m => !m.claimed && m.prog >= MISSION_POOL.find(p => p.k === m.k).goal).length;
   const dot = (id, n) => { $(id).hidden = !n; $(id).textContent = n; };
@@ -1705,6 +1941,7 @@ function setView(v) {
 function bindMeta() {
   $('tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setView(b.dataset.v); });
   $('fightBtn').onclick = startBattle;
+  $('siteBtn').onclick = siteModal;
   $('chests').addEventListener('click', e => { const b = e.target.closest('.chest[data-i]'); if (b) tapChest(+b.dataset.i); });
   $('freeBtn').onclick = () => { if (Date.now() < M.freeAt + FREE_EVERY * 1000) return; M.freeAt = Date.now(); saveMeta(); openChest('free'); };
   const deckClick = e => { const b = e.target.closest('[data-sp]'); if (b) spModal(b.dataset.sp); };
@@ -1716,12 +1953,17 @@ function bindMeta() {
     if (!bEnqueue(s, k)) toast(`먹이가 ${SPECIES[k].cost} 필요해요`);
     renderBattleUi();
   });
-  let resetArmed = 0;
+  let resetArmed = 0, moveArmed = null;
   document.body.addEventListener('click', e => {
     const b = e.target.closest('[data-act]'); if (!b) return;
     const act = b.dataset.act;
     if (act === 'close') closeModal();
     else if (act === 'home') { closeModal(); closeBattle(); }
+    else if (act === 'move') {
+      const site = G.sites.find(x => x.id === b.dataset.id); if (!site || G.migrating) return;
+      if (moveArmed !== site.id) { moveArmed = site.id; b.textContent = '한 번 더 누르면 출발'; setTimeout(() => { if (moveArmed === site.id) { moveArmed = null; if (b.isConnected) b.textContent = '이사'; } }, 3000); return; }
+      moveArmed = null; closeModal(); if (view !== 'colony') setView('colony'); startMigration(site);
+    }
     else if (act === 'again') { closeModal(); closeBattle(); startBattle(); }
     else if (act === 'rush') {
       const i = +b.dataset.i, c = M.chests[i]; if (!c) return;
@@ -1730,7 +1972,7 @@ function bindMeta() {
     } else if (act === 'upgrade') {
       const k = b.dataset.sp; if (!canUpgrade(k)) return;
       const c = M.cards[k]; M.honey -= HONEY_NEED[c.lv]; c.sh -= SHARD_NEED[c.lv]; c.lv++;
-      mission('upgrade', 1); saveMeta(); toast(`${SPECIES[k].n} Lv${c.lv}!`, 'good'); spModal(k); renderAll();
+      mission('upgrade', 1); buildCastes(); renderCastes(); saveMeta(); toast(`${SPECIES[k].n} Lv${c.lv}! 군집의 ${SPECIES[k].n}도 강해졌어요`, 'good'); spModal(k); renderAll();
     } else if (act === 'deck') {
       const k = b.dataset.sp, i = M.deck.indexOf(k);
       if (i >= 0) M.deck[i] = null;
@@ -1752,7 +1994,7 @@ function bindMeta() {
       toast(`${NEST_UPS[k].n} Lv${M.nest[k]}`, 'good'); renderAll();
     } else if (act === 'reset') {
       if (Date.now() - resetArmed < 3000) {
-        M = freshMeta(); newColony(); homeP.fill(0); foodP.fill(0); saveMeta(); saveColony(); sel = null; toast('새 군집을 시작했어요'); setView('colony'); resetArmed = 0; return;
+        M = freshMeta(); buildCastes(); newColony(); groundTex = makeGround(W, H, [NEST], 2, SITE_LOOK.root); grainPat = null; homeP.fill(0); foodP.fill(0); saveMeta(); saveColony(); sel = null; toast('새 군집을 시작했어요'); setView('colony'); resetArmed = 0; return;
       }
       resetArmed = Date.now(); b.textContent = '한 번 더 누르면 모든 기록이 지워져요';
     }
@@ -1786,7 +2028,9 @@ function frame(now) {
   else if (BT && BT.banner > 0) { BT.banner -= dt; if (BT.banner <= 0) $('bBanner').classList.remove('show'); }
   if (colonyVisible && sw) {
     if (sel && sel.dead) sel = null;
-    if (sel && sel.loc === 'surface') { cam.x += (sel.x - cam.x) * 0.12; cam.y += (sel.y - cam.y) * 0.12; clampCam(); }
+    const tgt = G.queen.walk || (sel && sel.loc === 'surface' ? sel : null);
+    if (tgt) { cam.x += (tgt.x - cam.x) * 0.12; cam.y += (tgt.y - cam.y) * 0.12; clampCam(); }
+    for (const f of CFX) f.t -= dt; CFX = CFX.filter(f => f.t > 0);
     renderSurface(); renderNest();
   }
   if (BT) renderBattle();
@@ -1801,10 +2045,14 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 function boot() {
-  M = loadMeta(); ensureMissions();
+  M = loadMeta(); ensureMissions(); buildCastes();
   const saved = loadJSON(SAVE_COL);
-  if (saved && saved.ants) { G = saved; G.alarms = G.alarms || []; }
-  else newColony();
+  if (saved && saved.ants) {
+    G = saved; G.alarms = G.alarms || []; G.site = G.site || Object.assign({}, DEFAULT_SITE); G.sites = G.sites || [];
+    G.ants = G.ants.filter(a => CASTES[a.caste]); G.brood = G.brood.filter(b => CASTES[b.caste]); G.queue = G.queue.filter(k => CASTES[k] && casteOk(k));
+  } else newColony();
+  groundTex = makeGround(W, H, [NEST], 2, SITE_LOOK[G.site.kind] || SITE_LOOK.root);
+  if (G.migrating) { G.migrating.done = false; finishMigration(true); }
   bindColony(); bindMeta();
   setView('colony');
   const away = saved ? (Date.now() - (saved.saved || Date.now())) / 1000 : 0;
