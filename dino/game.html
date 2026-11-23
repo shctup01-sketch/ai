@@ -191,10 +191,46 @@ const cxpNeed = lv => Math.round(120 * Math.pow(lv, 1.5));
 const partyCap = () => Math.min(12, 5 + S.clv);
 const TIER_HUMAN = ['', '숙련 ', '정예 '], TIER_DINO = ['', '성체 ', '우두머리 '];
 const PROMO = [{ lv: 10, clv: 3, cost: 400 }, { lv: 20, clv: 6, cost: 1500 }];
-const gearMul = u => { const t = 1 + 0.3 * (u.tier || 0); return { hp: t * (1 + 0.1 * (u.ga || 0)), atk: t * (1 + 0.15 * (u.gw || 0)), def: 1 + 0.25 * (u.ga || 0) }; };
+const gearMul = u => {
+  const t = 1 + 0.3 * (u.tier || 0), b = { atk: 0, hp: 0, def: 0 };
+  for (const it of Object.values(u.eq || {})) if (it) { const s = itemStat(it); for (const k in s) b[k] += s[k]; }
+  return { hp: t * (1 + 0.1 * (u.ga || 0)) * (1 + b.hp), atk: t * (1 + 0.15 * (u.gw || 0)) * (1 + b.atk), def: (1 + 0.25 * (u.ga || 0)) * (1 + b.def) };
+};
 function gainCxp(n) {
   S.cxp += Math.round(n);
   while (S.cxp >= cxpNeed(S.clv)) { S.cxp -= cxpNeed(S.clv); S.clv++; S.sp++; toast(`상단 레벨 ${S.clv}! 스킬 포인트 +1${partyCap() > Math.min(12, 4 + S.clv) ? ` · 상단 인원 ${partyCap()}명` : ''}`, 'good'); sfx('capture'); }
+}
+// Five hunting grounds per zone, each deeper one opens after winning the one before.
+const HUNT_NAMES = {
+  plain: ['마른 강바닥', '버려진 농장', '무너진 풍차 언덕', '공룡 뼈 무덤', '우두머리의 둥지'],
+  city: ['주차장 폐허', '무너진 백화점', '지하철 입구', '고층 빌딩 숲', '외눈 랩터의 영역'],
+  swamp: ['잠긴 주택가', '썩은 수로', '안개 낀 늪', '폭군의 사냥길', '폭군의 둥지'],
+};
+const HUNTS = [
+  { lv: [0, 1], n: [2, 2], rare: 0.08, drop: 0.14 },
+  { lv: [2, 3], n: [3, 3], rare: 0.2, drop: 0.2 },
+  { lv: [3, 5], n: [3, 4], rare: 0.3, drop: 0.27 },
+  { lv: [5, 6], n: [4, 5], rare: 0.45, drop: 0.36 },
+  { boss: true, lv: [6, 6], drop: 1 },
+];
+// Loot: equipment drops with five rarities. Anyone in the caravan, human or dinosaur, can wear it.
+const RAR = [{ n: '일반', c: '#d8cdb9', m: 1, w: 60 }, { n: '고급', c: '#8fbf6a', m: 1.6, w: 26 }, { n: '희귀', c: '#79b4e4', m: 2.4, w: 10 }, { n: '영웅', c: '#c58be6', m: 3.4, w: 3.2 }, { n: '전설', c: '#f0b94a', m: 5, w: 0.8 }];
+const SLOTS = { weapon: '무기', armor: '방어구', charm: '장신구' };
+const ITEM_NAMES = {
+  weapon: ['뼈 창날', '랩터 발톱 단검', '녹슨 마체테', '개조 소총 부품', '폭군의 이빨 검'],
+  armor: ['누더기 가죽 조끼', '폐타이어 갑옷', '골판 방패', '스테고 골판 갑주', '폭군 가죽 망토'],
+  charm: ['공룡 이빨 목걸이', '깃털 부적', '낡은 나침반', '호박 속 모기', '티라노 발톱 장식'],
+};
+const BAG_MAX = 40;
+function itemStat(it) { const m = RAR[it.r].m * (1 + it.lv * 0.03); return it.slot === 'weapon' ? { atk: 0.06 * m } : it.slot === 'armor' ? { hp: 0.05 * m, def: 0.08 * m } : { atk: 0.03 * m, hp: 0.03 * m }; }
+const itemPrice = it => Math.round(18 * RAR[it.r].m * RAR[it.r].m * (1 + it.lv * 0.1));
+const itemText = it => { const s = itemStat(it), parts = []; if (s.atk) parts.push(`공격 +${Math.round(s.atk * 100)}%`); if (s.hp) parts.push(`체력 +${Math.round(s.hp * 100)}%`); if (s.def) parts.push(`방어 +${Math.round(s.def * 100)}%`); return parts.join(' · '); };
+const itemName = it => `<span style="color:${RAR[it.r].c}">[${RAR[it.r].n}] ${it.n}</span>`;
+function rollItem(lv, luck, minR = 0) {
+  const w = RAR.map((R, i) => i < minR ? 0 : R.w * Math.pow(1 + luck, i)); let r = Math.random() * w.reduce((a, b) => a + b, 0), ri = minR;
+  for (let i = 0; i < w.length; i++) { r -= w[i]; if (r <= 0) { ri = i; break; } }
+  const slot = pick(Object.keys(SLOTS));
+  return { id: S.itemSeq = (S.itemSeq || 0) + 1, slot, r: ri, lv, n: ITEM_NAMES[slot][ri] };
 }
 const ROUTES = { 'plain|city': { t: 26, danger: 1.3 }, 'city|swamp': { t: 32, danger: 2.3 }, 'plain|swamp': { t: 38, danger: 2.7 } };
 const routeOf = (a, b) => ROUTES[a + '|' + b] || ROUTES[b + '|' + a];
@@ -240,7 +276,7 @@ const DAY_LEN = 90;
 const SAVE = 'dino-caravan-v1';
 let S;
 function freshState() {
-  const s = { money: 300, t: 0, day: 1, zone: 'plain', travel: null, cargo: {}, darts: 3, idSeq: 1, units: [], drift: {}, press: {}, stats: { battles: 0, captures: 0, trades: 0, earned: 0 }, snd: 2, dex: {}, clv: 1, cxp: 0, sp: 0, skills: {}, jobs: {}, out: {}, quests: {}, qday: 0 };
+  const s = { money: 300, t: 0, day: 1, zone: 'plain', travel: null, cargo: {}, darts: 3, idSeq: 1, units: [], drift: {}, press: {}, stats: { battles: 0, captures: 0, trades: 0, earned: 0 }, snd: 2, dex: {}, clv: 1, cxp: 0, sp: 0, skills: {}, jobs: {}, out: {}, quests: {}, qday: 0, items: [], cleared: {}, itemSeq: 0 };
   for (const z of Object.keys(ZONES)) { s.drift[z] = {}; s.press[z] = {}; for (const g of Object.keys(GOODS)) { s.drift[z][g] = 1; s.press[z][g] = 1; } }
   S = s;
   addUnit('leader', 1, true); addUnit('hunter', 1, true); addUnit('spear', 1, true);
@@ -365,7 +401,7 @@ function startBattle(opt) {
   place(front, 420); place(back.sort((a, b) => (a.type === 'leader') - (b.type === 'leader')), 500);
   for (const u of B.units.filter(u => u.side === 0 && UNITS[u.type].turret)) spawnTurret(u);
   opt.foes.forEach((f, i) => spawn(1, f.type, f.lv, BW / 2 + (i - (opt.foes.length - 1) / 2) * 62 + rand(-10, 10), rand(70, 150), null, f.boss));
-  $('bTitle').textContent = opt.kind === 'ambush' ? '습격!' : opt.boss ? `우두머리 사냥 · ${BOSSES[opt.boss].n}` : `${Z.n} 사냥터`;
+  $('bTitle').textContent = opt.kind === 'ambush' ? '습격!' : opt.boss ? `우두머리 사냥 · ${BOSSES[opt.boss].n}` : opt.kind === 'hunt' ? `${Z.n} · ${HUNT_NAMES[opt.zone][opt.tier]}` : `${Z.n} 사냥터`;
   $('bInfo').textContent = `적 ${opt.foes.length} · 아군 ${ours.length}`;
   for (const f of opt.foes) { S.dex[f.type] = Math.max(S.dex[f.type] || 0, 1); if (UNITS[f.type].rare && !f.boss) setTimeout(() => toast(`희귀종 발견: ${UNITS[f.type].n}!`, 'good'), 900); }
   $('battle').hidden = false; resizeBattle(); updCapture();
@@ -500,6 +536,13 @@ function endBattle(win) {
   const lines = [];
   if (win) {
     gainCxp(B.xp / 6 + B.captured.length * 15);
+    if (opt.kind === 'hunt') S.cleared[opt.zone] = Math.max(S.cleared[opt.zone] || 0, opt.tier + 1);
+    {   // loot roll: deeper grounds, rare dinosaurs and bosses drop better gear
+      const H = opt.kind === 'hunt' ? HUNTS[opt.tier] : { drop: 0.1 }, rares = opt.foes.filter(f => UNITS[f.type].rare && !f.boss).length;
+      const lv = Math.max(...opt.foes.map(f => f.lv)), luck = (opt.tier || 0) * 0.35 + rares * 0.3;
+      const drops = []; if (Math.random() < H.drop + rares * 0.15) drops.push(rollItem(lv, luck, H.boss ? 2 : 0)); if (H.boss && Math.random() < 0.5) drops.push(rollItem(lv, luck, 1));
+      for (const it of drops) { if (S.items.length >= BAG_MAX) { const pr = itemPrice(it); S.money += pr; lines.push(`가방이 가득 차서 ${itemName(it)}을(를) ${pr} 크레딧에 팔았어요`); } else { S.items.push(it); lines.push(`<b style="color:var(--amber)">득템!</b> ${itemName(it)} <span style="color:var(--muted)">${SLOTS[it.slot]} · ${itemText(it)}</span>`); if (it.r >= 2) sfx('capture'); } }
+    }
     if (opt.kind === 'hunt') for (const q of S.quests[opt.zone] || []) if (q.type === 'hunt' && !q.done && q.prog < q.n) q.prog++;
     const ours = party();
     const share = Math.round(B.xp / Math.max(1, Math.sqrt(ours.length)));
@@ -796,14 +839,56 @@ function playAnim(r, name, once) {
   r.cur = a;
 }
 const ZONE3 = {
-  plain: { ground: [0x8a7650, 0x6e5c3c, 0xa08a5c], fog: 0xb8a47c, sky: 0xc8b48a },
-  city:  { ground: [0x5c5e60, 0x48494b, 0x707274], fog: 0x8a8c90, sky: 0x9a9ca0 },
+  plain: { ground: [0x8a7650, 0x6e5c3c, 0xa08a5c], fog: 0xc0a070, sky: 0xd0a868 },
+  city:  { ground: [0x56585a, 0x44464a, 0x5e6a52], fog: 0x9a9a88, sky: 0xa8a890 },
   swamp: { ground: [0x4e5634, 0x3c4426, 0x606a40], fog: 0x6a7a5a, sky: 0x7a8a68 },
 };
+const RUIN_TEX = {};
+function ruinTex(style) {   // one wall tile = 2 windows x 2 floors: stained concrete or brick, broken and boarded windows
+  if (RUIN_TEX[style]) return RUIN_TEX[style];
+  const cv = document.createElement('canvas'); cv.width = cv.height = 128; const g = cv.getContext('2d');
+  const base = { concrete: '#8f8f88', brick: '#8a5a44', pale: '#b0a890', glass: '#3a5a66' }[style];
+  g.fillStyle = base; g.fillRect(0, 0, 128, 128);
+  for (let i = 0; i < 500; i++) { g.fillStyle = Math.random() < 0.5 ? 'rgba(0,0,0,.08)' : 'rgba(255,255,255,.06)'; g.fillRect(Math.random() * 128, Math.random() * 128, 1 + Math.random() * 3, 1 + Math.random() * 2); }
+  if (style === 'brick') { g.strokeStyle = 'rgba(40,20,14,.35)'; g.lineWidth = 1; for (let y = 0; y < 128; y += 8) { g.beginPath(); g.moveTo(0, y); g.lineTo(128, y); g.stroke(); for (let x = (y / 8 % 2) * 8; x < 128; x += 16) { g.beginPath(); g.moveTo(x, y); g.lineTo(x, y + 8); g.stroke(); } } }
+  if (style === 'glass') {   // curtain wall: a grid of panes, some shattered, some still catching the sky
+    for (let py = 0; py < 4; py++) for (let px = 0; px < 4; px++) { const r = Math.random(), x = px * 32, y = py * 32; g.fillStyle = r < 0.22 ? '#0e1214' : r < 0.5 ? '#4f7480' : r < 0.6 ? '#86a8b0' : '#3a5a66'; g.fillRect(x + 1, y + 1, 30, 30); if (r > 0.9) { g.fillStyle = 'rgba(60,90,40,.6)'; g.fillRect(x + 4, y + 1, 8, 20 + Math.random() * 10); } }
+    g.strokeStyle = '#9aa0a0'; g.lineWidth = 2; for (let k = 0; k <= 128; k += 32) { g.beginPath(); g.moveTo(k, 0); g.lineTo(k, 128); g.moveTo(0, k); g.lineTo(128, k); g.stroke(); }
+  } else for (let fy = 0; fy < 2; fy++) for (let fx = 0; fx < 2; fx++) {
+    const x = fx * 64 + 16, y = fy * 64 + 14, r = Math.random();
+    g.fillStyle = '#14120f'; g.fillRect(x, y, 32, 36);
+    if (r < 0.3) { g.fillStyle = '#5a4630'; g.fillRect(x, y + 8, 32, 6); g.fillRect(x, y + 22, 32, 6); }           // boarded up
+    else if (r < 0.55) { g.fillStyle = 'rgba(150,180,190,.35)'; g.beginPath(); g.moveTo(x, y); g.lineTo(x + 20, y); g.lineTo(x + 8, y + 22); g.lineTo(x, y + 14); g.fill(); }   // shard of glass
+    g.fillStyle = 'rgba(20,16,12,.35)'; g.fillRect(x - 1, y + 36, 34, 14);                                          // rain stain under the sill
+    g.fillStyle = 'rgba(60,90,40,.55)'; for (let k = 0; k < 5; k++) g.fillRect(x + Math.random() * 30, y + 34 + Math.random() * 4, 3, 4 + Math.random() * 12);   // moss dripping from the sill
+  }
+  g.strokeStyle = 'rgba(15,12,10,.6)'; g.lineWidth = 1; for (let i = 0; i < 3; i++) { let x = Math.random() * 128, y = Math.random() * 128; g.beginPath(); g.moveTo(x, y); for (let k = 0; k < 6; k++) { x += Math.random() * 20 - 10; y += Math.random() * 16; g.lineTo(x, y); } g.stroke(); }
+  const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.encoding = THREE.sRGBEncoding; t.magFilter = THREE.NearestFilter;
+  return RUIN_TEX[style] = t;
+}
+function makeRuin(R, w, floors, d, o = {}) {
+  const rr = (a, b) => a + R() * (b - a), g = new THREE.Group(), h = floors * 13, style = o.style || ['concrete', 'concrete', 'brick', 'pale'][(R() * 4) | 0];
+  const side = rep => { const t = ruinTex(style).clone(); t.needsUpdate = true; t.repeat.set(Math.max(1, Math.round(rep / 26)), Math.max(1, floors / 2)); return new THREE.MeshLambertMaterial({ map: t }); };
+  const roof = lam(0x55554e), sx = side(d), sz = side(w);
+  const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), [sx, sx, roof, roof, sz, sz]); body.position.y = h / 2; body.castShadow = body.receiveShadow = true; g.add(body);
+  // the top floor has partly collapsed: jagged wall stubs and bent rebar
+  const wallM = lam({ concrete: 0x86867e, brick: 0x7e5240, pale: 0xa49c86, glass: 0x5a6a70 }[style]);
+  for (let i = 0; i < 3 + floors; i++) { const ww = rr(4, w * 0.45), hh = rr(3, 12), onX = R() < 0.5, m = new THREE.Mesh(new THREE.BoxGeometry(onX ? ww : 2.2, hh, onX ? 2.2 : Math.min(ww, d * 0.8)), wallM); m.position.set(onX ? rr(-w / 2 + ww / 2, w / 2 - ww / 2) : (R() < 0.5 ? -1 : 1) * (w / 2 - 1.1), h + hh / 2, onX ? (R() < 0.5 ? -1 : 1) * (d / 2 - 1.1) : rr(-d / 4, d / 4)); m.castShadow = true; g.add(m); }
+  for (let i = 0; i < 4; i++) { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, rr(6, 13), 4), lam(0x6a3a22)); m.position.set(rr(-w / 2, w / 2), h + 5, rr(-d / 2, d / 2)); m.rotation.set(rr(-0.5, 0.5), 0, rr(-0.5, 0.5)); g.add(m); }
+  // nature taking it back: vines down the walls, moss and bushes on the roof, sometimes a tree growing through
+  const veg = o.veg ?? 1, greens = [0x4a7a34, 0x5a8a3a, 0x3e6a2c, 0x6a9442];
+  for (let i = 0; i < Math.round((4 + floors * 2) * veg); i++) {
+    const len = rr(h * 0.15, h * 0.85), vw = rr(2.5, 8), f = (R() * 4) | 0, m = new THREE.Mesh(new THREE.BoxGeometry(f < 2 ? vw : 0.7, len, f < 2 ? 0.7 : vw), lam(greens[(R() * 4) | 0]));
+    m.position.set(f < 2 ? rr(-w / 2 + vw, w / 2 - vw) : (f === 2 ? -1 : 1) * (w / 2 + 0.35), h - len / 2 + 1, f < 2 ? (f ? -1 : 1) * (d / 2 + 0.35) : rr(-d / 2 + vw, d / 2 - vw)); g.add(m);
+  }
+  for (let i = 0; i < Math.round(3 * veg); i++) { const m = new THREE.Mesh(new THREE.IcosahedronGeometry(rr(3, 7), 0), lam(greens[(R() * 4) | 0])); m.scale.y = 0.45; m.position.set(rr(-w / 2.5, w / 2.5), h + 1.5, rr(-d / 2.5, d / 2.5)); m.castShadow = true; g.add(m); }
+  if (veg > 0.5 && R() < 0.6 && PROPS.CommonTree_1) { const P = PROPS[R() < 0.5 ? 'CommonTree_1' : 'BirchTree_1'] || PROPS.CommonTree_1, t = P.obj.clone(true); t.scale.multiplyScalar(rr(24, 44)); t.position.set(rr(-w / 4, w / 4), h - 2, rr(-d / 4, d / 4)); t.traverse(c => { if (c.isMesh) c.castShadow = true; }); g.add(t); }
+  return g;
+}
 function seeded(seed) { let s = seed >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }
 function buildWorld(scene, kind, seed = 7) {
   const Z = ZONE3[kind], R = seeded(seed), rr = (a, b) => a + R() * (b - a);
-  scene.background = srgb(Z.sky); scene.fog = new THREE.Fog(srgb(Z.fog), 500, 1100);
+  scene.background = srgb(Z.sky); scene.fog = new THREE.Fog(srgb(Z.fog), 380, 950);
   scene.add(new THREE.HemisphereLight(0xfff2dc, 0x4a3a28, 0.75));
   const sun = new THREE.DirectionalLight(0xfff0d8, 0.95); sun.position.set(-160, 340, 140); sun.castShadow = true;
   Object.assign(sun.shadow.camera, { left: -420, right: 420, top: 420, bottom: -420, near: 10, far: 1000 }); sun.shadow.mapSize.set(1024, 1024); sun.shadow.bias = -0.002;
@@ -836,34 +921,51 @@ function buildWorld(scene, kind, seed = 7) {
   if (kind === 'plain') { scatter(45, ['Grass', 'Grass_2', 'Grass_Short'], 5, 10, fieldPt, 0xb8a860, 0.75); scatter(12, ['Rock_1', 'Rock_3'], 2, 5, fieldPt, 0x9a8c74, 0.4); }
   else if (kind === 'city') { scatter(28, ['Grass_Short'], 4, 8, fieldPt, 0x6a8a40, 0.4); scatter(18, ['Rock_1', 'Rock_5'], 2, 5, fieldPt, 0x8a8a86, 0.7); }
   else { scatter(45, ['Grass', 'Grass_2'], 6, 12, fieldPt, 0x6a7a3a, 0.5); scatter(10, ['Plant_1'], 5, 9, fieldPt, 0x4a6a34, 0.4); scatter(8, ['Rock_Moss_2'], 2, 5, fieldPt); }
+  // tall ruins stay north of the field and at its sides so they never block the camera
+  const tall = () => { let x, z, k = 0; do { [x, z] = edge(); } while (z > BH * 0.62 && k++ < 40); return [x, z]; };
+  const ruinAt = (w, floors, d, where, o) => { const g = makeRuin(R, w, floors, d, o), [x, z] = where(); place(g, x, z, rr(-0.5, 0.5) + ((R() * 4) | 0) * Math.PI / 2); return g; };
+  const trees = ['CommonTree_1', 'CommonTree_3', 'BirchTree_1'], dead = ['CommonTree_Dead_1', 'CommonTree_Dead_3', 'BirchTree_Dead_2'];
+  const lamp = () => { const g = new THREE.Group(), m = lam(0x4a4a48), p = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.9, 44, 6), m); p.position.y = 22; g.add(p); const a = new THREE.Mesh(new THREE.BoxGeometry(12, 1, 1), m); a.position.set(5, 43, 0); g.add(a); const v = new THREE.Mesh(new THREE.BoxGeometry(1.2, 14, 1.2), lam(0x4a7a34)); v.position.set(0.8, 30, 0); g.add(v); g.rotation.z = rr(-0.25, 0.25); return g; };
+  const billboard = () => { const g = new THREE.Group(), m = lam(0x4a4a48); for (const sx of [-12, 12]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 40, 5), m); p.position.set(sx, 20, 0); g.add(p); } const b = new THREE.Mesh(new THREE.BoxGeometry(36, 16, 1), lam(0xa89878)); b.position.y = 34; b.rotation.z = rr(-0.12, 0.12); g.add(b); const tear = new THREE.Mesh(new THREE.BoxGeometry(12, 9, 1.2), lam(0x6a5a44)); tear.position.set(rr(-8, 8), 34, 0); g.add(tear); const v = new THREE.Mesh(new THREE.BoxGeometry(9, 12, 1.4), lam(0x4a7a34)); v.position.set(-12, 30, 0); g.add(v); return g; };
+  const road = (wd, col) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(wd, BH + 900), lam(col)); m.rotation.x = -Math.PI / 2; m.position.set(BW / 2, 1.5, BH / 2); m.receiveShadow = true; scene.add(m); for (let z = -400; z < BH + 400; z += 34) { const d = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 15), lam(0xc8b468, { transparent: true, opacity: 0.45 })); d.rotation.x = -Math.PI / 2; d.position.set(BW / 2, 1.8, z); scene.add(d); } scatter(60, ['Grass_Short', 'Grass'], 4, 9, () => [BW / 2 + (R() < 0.5 ? -1 : 1) * rr(wd / 2 - 6, wd / 2 + 8), rr(-300, BH + 300)], 0x6a8a40, 0.4); };
+  const wrecks = (n, where, sink = 0) => { for (let i = 0; i < n; i++) { const o = prop(['NormalCar1', 'SUV', 'Taxi'], rr(15, 18), 0x8a4a28, 0.55); if (!o) continue; const [x, z] = where(); place(o, x, z); o.position.y = -sink * rr(2, 7); o.rotation.z = rr(-0.15, 0.15) - sink * rr(0, 0.3); const gsz = prop(['Grass', 'Bush_1'], rr(8, 13), 0x5a8a3a, 0.3); if (gsz) place(gsz, x + rr(-8, 8), z + rr(-6, 6)); } };
   if (kind === 'plain') {
-    scatter(26, ['CommonTree_Dead_1', 'CommonTree_Dead_3', 'BirchTree_Dead_2'], 60, 110, edge, 0x6a5a48, 0.45);
-    scatter(44, ['Rock_1', 'Rock_3', 'Rock_5'], 6, 26, edge, 0x9a8c74, 0.4);
-    scatter(8, ['Rock_1', 'Rock_5'], 3, 7, any, 0x9a8c74, 0.4);
-    scatter(90, ['Grass', 'Grass_2', 'Grass_Short'], 6, 13, any, 0xb8a860, 0.75);
-    scatter(40, ['Wheat'], 12, 18, edge, 0xc8b060, 0.4);
-    scatter(16, ['Bush_1'], 10, 18, edge, 0x9a8a50, 0.7);
-    scatter(8, ['TreeStump'], 7, 11, edge);
-    for (let i = 0; i < 3; i++) { const g = new THREE.Group(); for (let k = 0; k < 7; k++) { const rib = new THREE.Mesh(new THREE.TorusGeometry(9, 0.8, 4, 8, Math.PI), lam(0xe0d6c0)); rib.position.set(k * 4.5, 0, 0); rib.rotation.y = Math.PI / 2; g.add(rib); } place(g, ...edge()); }
+    // an abandoned farm district: low ruins, a silo, a cracked country road, dry grass with young trees pushing through
+    road(34, 0x4a4640);
+    for (let i = 0; i < 9; i++) ruinAt(rr(34, 60), 1 + ((R() * 2) | 0), rr(26, 40), tall, { veg: 0.8, style: R() < 0.5 ? 'brick' : 'pale' });
+    for (let i = 0; i < 3; i++) { const g = new THREE.Group(), hh = rr(50, 80), c = new THREE.Mesh(new THREE.CylinderGeometry(13, 13, hh, 10), lam(0x8a7a6a)); c.position.y = hh / 2; g.add(c); const cap = new THREE.Mesh(new THREE.ConeGeometry(14, 10, 10), lam(0x7a4a2a)); cap.position.y = hh + 4; cap.rotation.z = 0.25; g.add(cap); for (let k = 0; k < 5; k++) { const v = new THREE.Mesh(new THREE.BoxGeometry(4, rr(14, hh * 0.7), 0.8), lam(0x4a7a34)); const t = rr(0, 6.28); v.position.set(Math.cos(t) * 13.2, hh * 0.45, Math.sin(t) * 13.2); v.rotation.y = -t + Math.PI / 2; g.add(v); } place(g, ...tall()); }
+    wrecks(6, edge);
+    scatter(16, dead, 60, 100, edge, 0x6a5a48, 0.45); scatter(12, trees, 50, 85, tall, 0x8a8a40, 0.35);
+    scatter(40, ['Rock_1', 'Rock_3', 'Rock_5'], 6, 22, edge, 0x9a8c74, 0.4);
+    scatter(110, ['Grass', 'Grass_2', 'Grass_Short'], 6, 13, any, 0xb8a860, 0.7);
+    scatter(50, ['Wheat'], 12, 18, edge, 0xc8b060, 0.4); scatter(20, ['Bush_1'], 10, 18, edge, 0x7a8a48, 0.5);
+    for (let i = 0; i < 6; i++) place(billboard(), ...tall());
+    for (let i = 0; i < 2; i++) { const g = new THREE.Group(); for (let k = 0; k < 7; k++) { const rib = new THREE.Mesh(new THREE.TorusGeometry(9, 0.8, 4, 8, Math.PI), lam(0xe0d6c0)); rib.position.set(k * 4.5, 0, 0); rib.rotation.y = Math.PI / 2; g.add(rib); } place(g, ...edge()); }
   } else if (kind === 'city') {
-    for (let i = 0; i < 30; i++) place(boxRubble(), ...edge());
-    scatter(10, ['NormalCar1', 'SUV', 'Taxi'], 16, 19, edge, 0x8a4a28, 0.55);
-    for (let i = 0; i < 2; i++) { const o = prop(['NormalCar1', 'Taxi'], 17, 0x7a4426, 0.6); if (o) { place(o, i ? BW + 6 : -6, rr(140, BH - 140)); o.rotation.z = rr(-0.1, 0.1); } }
-    scatter(10, ['CommonTree_Dead_1', 'BirchTree_Dead_2'], 50, 90, edge, 0x4a4a48, 0.6);
-    scatter(30, ['Rock_1', 'Rock_3', 'Rock_5'], 4, 14, edge, 0x8a8a86, 0.7);
-    scatter(70, ['Grass_Short', 'Grass'], 5, 10, any, 0x6a8a40, 0.4);
-    scatter(14, ['Bush_1'], 9, 16, edge, 0x5a7a38, 0.4);
-    for (let i = 0; i < 8; i++) { const g = new THREE.Group(), p = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 1, 46, 6), lam(0x4a4a48)); p.position.y = 23; p.rotation.z = rr(-0.5, 0.5); g.add(p); place(g, ...edge()); }
-    const stripe = new THREE.Mesh(new THREE.PlaneGeometry(3, BH + 600), lam(0xc8b060, { transparent: true, opacity: 0.3 })); stripe.rotation.x = -Math.PI / 2; stripe.position.set(BW / 2, 1.6, BH / 2); scene.add(stripe);
+    // downtown, decades later: gutted towers wrapped in vines, trees through the asphalt, rusting traffic
+    road(70, 0x3c3c3e);
+    for (let i = 0; i < 24; i++) ruinAt(rr(38, 70), 3 + ((R() * 7) | 0), rr(34, 60), tall, { veg: 1.2, style: ['glass', 'glass', 'concrete', 'pale'][(R() * 4) | 0] });
+    for (let i = 0; i < 10; i++) ruinAt(rr(24, 44), 1, rr(20, 30), edge, { veg: 1 });
+    for (let i = 0; i < 16; i++) place(boxRubble(), ...edge());
+    wrecks(12, edge);
+    for (let i = 0; i < 3; i++) { const o = prop(['NormalCar1', 'Taxi', 'SUV'], 16, 0x7a4426, 0.6); if (o) place(o, BW / 2 + rr(-26, 26), [-60, BH + 40, -160][i], rr(-0.3, 0.3)); }
+    scatter(26, trees, 55, 100, tall); scatter(10, trees, 40, 60, edge); scatter(8, dead, 50, 90, edge, 0x4a4a48, 0.6);
+    scatter(40, ['Bush_1', 'Plant_1'], 9, 17, edge, 0x4a7a34, 0.3);
+    scatter(100, ['Grass_Short', 'Grass'], 5, 11, any, 0x5a8a3a, 0.4);
+    for (let i = 0; i < 12; i++) place(lamp(), BW / 2 + (i % 2 ? 44 : -44), -330 + i * 95, i % 2 ? Math.PI : 0);
+    for (let i = 0; i < 5; i++) place(billboard(), ...tall());
   } else {
+    // a drowned suburb: leaning houses and half-sunk cars in black water, willows and moss over everything
     const pools = [];
-    for (let i = 0; i < 22; i++) { const r = rr(22, 60), m = new THREE.Mesh(new THREE.CircleGeometry(r, 14), lam(0x24383a, { transparent: true, opacity: 0.88 })); m.rotation.x = -Math.PI / 2; m.scale.y = rr(0.5, 0.9); const [x, z] = edge(); m.position.set(x, 1.6, z); m.receiveShadow = true; scene.add(m); pools.push([x, z, r]); }
+    for (let i = 0; i < 26; i++) { const r = rr(24, 70), m = new THREE.Mesh(new THREE.CircleGeometry(r, 14), lam(0x24383a, { transparent: true, opacity: 0.88 })); m.rotation.x = -Math.PI / 2; m.scale.y = rr(0.5, 0.9); const [x, z] = edge(); m.position.set(x, 1.6, z); m.receiveShadow = true; scene.add(m); pools.push([x, z, r]); }
     for (const [x, z, r] of pools) for (let k = 0; k < 3; k++) { const o = prop(['Lilypad'], rr(1.2, 2)); if (o) { place(o, x + rr(-r, r) * 0.5, z + rr(-r, r) * 0.3); o.position.y = 1.8; } }
-    scatter(22, ['Willow_Dead_1', 'Willow_Dead_3', 'Willow_2'], 70, 120, edge, 0x4a5a38, 0.35);
-    scatter(30, ['Rock_Moss_2', 'Rock_Moss_5'], 6, 22, edge);
-    scatter(14, ['TreeStump_Moss', 'WoodLog_Moss'], 8, 13, edge);
-    scatter(110, ['Grass', 'Grass_2'], 8, 16, any, 0x6a7a3a, 0.5);
-    scatter(40, ['Plant_1', 'Bush_1'], 8, 15, edge, 0x4a6a34, 0.4);
+    for (let i = 0; i < 14; i++) { const g = ruinAt(rr(30, 54), 1 + ((R() * 3) | 0), rr(26, 40), tall, { veg: 1.6 }); g.position.y = -rr(3, 12); g.rotation.z = rr(-0.16, 0.16); g.rotation.x = rr(-0.08, 0.08); }
+    wrecks(9, () => { const p = pools[(R() * pools.length) | 0]; return [p[0] + rr(-10, 10), p[1] + rr(-8, 8)]; }, 1);
+    scatter(24, ['Willow_Dead_1', 'Willow_Dead_3', 'Willow_2', 'Willow_2'], 70, 120, edge, 0x4a5a38, 0.3);
+    scatter(8, trees, 50, 80, tall, 0x3e5a30, 0.4);
+    scatter(30, ['Rock_Moss_2', 'Rock_Moss_5'], 6, 22, edge); scatter(14, ['TreeStump_Moss', 'WoodLog_Moss'], 8, 13, edge);
+    scatter(120, ['Grass', 'Grass_2'], 8, 16, any, 0x6a7a3a, 0.5); scatter(44, ['Plant_1', 'Bush_1'], 8, 15, edge, 0x4a6a34, 0.4);
+    for (let i = 0; i < 6; i++) place(lamp(), ...edge());
   }
 }
 function ensureG3() {
@@ -998,9 +1100,9 @@ function initMap3D() {
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 34, 5), lam(0x3a2e22)); pole.position.set(P.x, 19, P.z - 2); scene.add(pole);
     const flag = new THREE.Mesh(new THREE.BoxGeometry(12, 7, 0.6), lam({ plain: 0xd0743a, city: 0x8fa3b0, swamp: 0x8fbf6a }[k])); flag.position.set(P.x + 6.5, 32, P.z - 2); scene.add(flag);
     const lab = labelSprite(ZONES[k].n, `위험 ${'★'.repeat(ZONES[k].danger + 1)}`); lab.position.set(P.x, 78, P.z); scene.add(lab);
-    if (kind === 'plain') { for (let i = 0; i < 26; i++) put(prop(['CommonTree_Dead_1', 'CommonTree_Dead_3', 'BirchTree_Dead_2'], rr(30, 55), 0x6a5a48, 0.45), ...around(P, 55, 220)); for (let i = 0; i < 30; i++) put(prop(['Rock_1', 'Rock_3', 'Rock_5'], rr(5, 16), 0x9a8c74, 0.4), ...around(P, 45, 230)); for (let i = 0; i < 50; i++) put(prop(['Wheat', 'Grass'], rr(7, 11), 0xc8b060, 0.5), ...around(P, 40, 120)); }
-    else if (kind === 'city') { for (let i = 0; i < 46; i++) { const [x, z] = around(P, 50, 210), w = rr(12, 30), h = rr(14, 70), m = new THREE.Mesh(new THREE.BoxGeometry(w, h, rr(12, 28)), lam([0x7a7c80, 0x8a8a84, 0x66686c][i % 3])); m.position.set(x, h / 2, z); m.rotation.set(rr(-0.06, 0.06), rr(0, 3), rr(-0.08, 0.08)); m.castShadow = true; scene.add(m); } for (let i = 0; i < 12; i++) put(prop(['NormalCar1', 'SUV', 'Taxi'], 8, 0x8a4a28, 0.55), ...around(P, 40, 170)); }
-    else { for (let i = 0; i < 14; i++) { const [x, z] = around(P, 40, 210), r = rr(18, 44), m = new THREE.Mesh(new THREE.CircleGeometry(r, 12), lam(0x24383a, { transparent: true, opacity: 0.9 })); m.rotation.x = -Math.PI / 2; m.scale.y = 0.7; m.position.set(x, 6, z); scene.add(m); } for (let i = 0; i < 30; i++) put(prop(['Willow_Dead_1', 'Willow_Dead_3', 'Willow_2'], rr(34, 60), 0x4a5a38, 0.35), ...around(P, 50, 220)); for (let i = 0; i < 24; i++) put(prop(['Rock_Moss_2', 'Rock_Moss_5'], rr(5, 14)), ...around(P, 45, 220)); }
+    if (kind === 'plain') { for (let i = 0; i < 26; i++) put(prop(['CommonTree_Dead_1', 'CommonTree_Dead_3', 'BirchTree_Dead_2'], rr(30, 55), 0x6a5a48, 0.45), ...around(P, 55, 220)); for (let i = 0; i < 30; i++) put(prop(['Rock_1', 'Rock_3', 'Rock_5'], rr(5, 16), 0x9a8c74, 0.4), ...around(P, 45, 230)); for (let i = 0; i < 50; i++) put(prop(['Wheat', 'Grass'], rr(7, 11), 0xc8b060, 0.5), ...around(P, 40, 120)); for (let i = 0; i < 7; i++) { const [x, z] = around(P, 70, 200), m = makeRuin(R, rr(18, 28), 1, rr(14, 20), { veg: 0.8, style: 'brick' }); m.position.set(x, 3, z); m.rotation.y = rr(0, 3); scene.add(m); } }
+    else if (kind === 'city') { for (let i = 0; i < 46; i++) { const [x, z] = around(P, 50, 210), w = rr(12, 30), h = rr(14, 70), m = makeRuin(R, w, Math.max(1, Math.round(h / 13)), rr(12, 28), { veg: 1.2 }); m.position.set(x, 3, z); m.rotation.set(rr(-0.06, 0.06), rr(0, 3), rr(-0.08, 0.08)); scene.add(m); } for (let i = 0; i < 16; i++) put(prop(['CommonTree_1', 'CommonTree_3', 'BirchTree_1'], rr(24, 40)), ...around(P, 45, 200)); for (let i = 0; i < 12; i++) put(prop(['NormalCar1', 'SUV', 'Taxi'], 8, 0x8a4a28, 0.55), ...around(P, 40, 170)); }
+    else { for (let i = 0; i < 14; i++) { const [x, z] = around(P, 40, 210), r = rr(18, 44), m = new THREE.Mesh(new THREE.CircleGeometry(r, 12), lam(0x24383a, { transparent: true, opacity: 0.9 })); m.rotation.x = -Math.PI / 2; m.scale.y = 0.7; m.position.set(x, 6, z); scene.add(m); } for (let i = 0; i < 30; i++) put(prop(['Willow_Dead_1', 'Willow_Dead_3', 'Willow_2'], rr(34, 60), 0x4a5a38, 0.35), ...around(P, 50, 220)); for (let i = 0; i < 24; i++) put(prop(['Rock_Moss_2', 'Rock_Moss_5'], rr(5, 14)), ...around(P, 45, 220)); for (let i = 0; i < 8; i++) { const [x, z] = around(P, 60, 200), m = makeRuin(R, rr(18, 30), 1 + ((R() * 2) | 0), rr(14, 22), { veg: 1.6 }); m.position.set(x, -3, z); m.rotation.set(rr(-0.1, 0.1), rr(0, 3), rr(-0.16, 0.16)); scene.add(m); } }
   }
   // roads: worn dashes along each route, red on the dangerous ones
   for (const key of Object.keys(ROUTES)) { const [a, b] = key.split('|'), mat = lam(ROUTES[key].danger > 2 ? 0xc0523a : 0xd8b46a); for (let i = 3; i < 58; i++) { const p = routePoint(a, b, i / 60), q = routePoint(a, b, (i + 0.5) / 60), m = new THREE.Mesh(new THREE.BoxGeometry(7, 0.8, 4), mat); m.position.set(p.x, 7.5, p.z); m.rotation.y = -Math.atan2(q.z - p.z, q.x - p.x); scene.add(m); } }
@@ -1243,11 +1345,9 @@ function renderTown() {
   const hurt = S.units.filter(u => u.hp < maxHp(u) || u.ko), healCost = Math.round(S.units.reduce((s, u) => s + (maxHp(u) - u.hp), 0) * 0.12) + (hurt.length ? 5 : 0);
   el.innerHTML = `${zoneHead(z)}
     <h2>사냥터<small>여기서 길들일 수 있는 공룡: ${tame}</small></h2>
-    <div class="hunts">
-      <button class="btn" data-act="hunt" data-tier="1">얕은 곳<small>Lv${Z.lv}~${Z.lv + 1} · 2마리</small></button>
-      <button class="btn" data-act="hunt" data-tier="2">깊은 곳<small>Lv${Z.lv + 2}~${Z.lv + 4} · 3~4마리</small></button>
-      <button class="btn boss" data-act="hunt" data-tier="3">우두머리<small>${BOSSES[Z.boss].n.split(' ').slice(-1)[0]} · Lv${Z.lv + 6}</small></button>
-    </div>
+    <div class="card">${HUNTS.map((H, i) => { const open = i <= (S.cleared[z] || 0), done = i < (S.cleared[z] || 0);
+      return `<div class="row"><div class="info"><b>${HUNT_NAMES[z][i]} ${done ? '<span class="tag">정복</span>' : ''}${H.boss ? ' <span class="tag" style="color:var(--bad)">우두머리</span>' : ''}</b><small>${H.boss ? `${BOSSES[Z.boss].n} Lv${Z.lv + 6} · 희귀 이상 장비 확정` : `Lv${Z.lv + H.lv[0]}~${Z.lv + H.lv[1]} · ${H.n[0] === H.n[1] ? H.n[0] : H.n[0] + '~' + H.n[1]}마리 · 희귀종 ${Math.round(H.rare * 100)}% · 장비 ${Math.round(H.drop * 100)}%`}</small></div>
+        <button class="btn small ${open ? 'primary' : ''}" data-act="hunt" data-tier="${i}" ${open ? '' : 'disabled'}>${open ? '사냥' : '잠김'}</button></div>`; }).join('')}</div>
     <h2>시장<small>사면 값이 오르고, 팔면 떨어져요 · 매일 시세가 바뀌어요</small></h2>
     <div class="card">${goods}</div>
     <h2>의뢰 게시판<small>매일 새 의뢰가 올라와요</small></h2>
@@ -1277,9 +1377,18 @@ function renderParty() {
     <h2>상단 스킬<small>남은 포인트 ${S.sp}</small></h2><div class="card">${Object.entries(SKILLS).map(([k, K]) => { const lv = sk(k); return `<div class="row"><div class="info"><b>${K.n} Lv${lv}</b><small>${lv ? K.ds(lv) : '아직 배우지 않았어요'}${lv < SKILL_MAX ? ` → ${K.ds(lv + 1)}` : ''}</small></div><button class="btn small primary" data-act="skill" data-k="${k}" ${S.sp < 1 || lv >= SKILL_MAX ? 'disabled' : ''}>${lv >= SKILL_MAX ? '최고' : '배우기'}</button></div>`; }).join('')}</div>
     <h2>출전 대원<small>앞줄: 탱커·근접 / 뒷줄: 원거리·지원</small></h2><div class="card">${P.map(row).join('')}</div>
     <h2>대기 대원<small>정착지 우리에서 쉬어요</small></h2><div class="card">${reserve.length ? reserve.map(row).join('') : '<div class="row"><div class="info"><small>없어요. 사냥터에서 공룡을 포획하거나 고용소에서 대원을 구하세요</small></div></div>'}</div>
+    <h2>가방<small>장비 ${S.items.length}/${BAG_MAX} · 대원의 관리 버튼에서 착용해요</small></h2><div class="card">${S.items.length ? [...S.items].sort((a, b) => b.r - a.r || b.lv - a.lv).map(it => `<div class="row"><div class="info"><b>${itemName(it)}</b><small>${SLOTS[it.slot]} · Lv${it.lv} · ${itemText(it)}</small></div><button class="btn small" data-act="sellItem" data-it="${it.id}">${itemPrice(it)}에 팔기</button></div>`).join('') : '<div class="row"><div class="info"><small>아직 얻은 장비가 없어요. 사냥에서 이기면 가끔 떨어져요</small></div></div>'}</div>
     <h2>공룡 도감<small>${Object.keys(UNITS).filter(t => UNITS[t].cls === 'dino').filter(t => S.dex[t] === 2).length} / ${Object.keys(UNITS).filter(t => UNITS[t].cls === 'dino').length}종 포획</small></h2><div class="dexg">${Object.keys(UNITS).filter(t => UNITS[t].cls === 'dino').map(t => { const st = S.dex[t] || 0, D = UNITS[t]; return `<div class="dexc${st ? '' : ' unk'}${st === 2 ? ' own' : ''}"><canvas data-u="${t}" width="104" height="80"></canvas><b>${st ? D.n : '???'}</b><small>${st === 2 ? (D.rare ? '★희귀 · ' : '') + D.role : st ? '미포획' : (D.rare ? '희귀종' : '미발견')}</small></div>`; }).join('')}</div>
     <h2>짐</h2><div class="card">${Object.keys(S.cargo).length ? Object.entries(S.cargo).map(([g, k]) => `<div class="row"><div class="info"><b>${GOODS[g].n} ${k}개</b><small>이 정착지에서 팔면 개당 ${S.travel ? '-' : sellPrice(S.zone, g)}</small></div></div>`).join('') : '<div class="row"><div class="info"><small>짐칸이 비었어요</small></div></div>'}</div>`;
   el.querySelectorAll('canvas[data-u]').forEach(cv => portrait(cv, cv.dataset.u));
+}
+function itemModal(uid, slot) {
+  const u = S.units.find(x => x.id === uid), cur = (u.eq || {})[slot];
+  const list = S.items.filter(x => x.slot === slot).sort((a, b) => RAR[b.r].m * (1 + b.lv * 0.03) - RAR[a.r].m * (1 + a.lv * 0.03));
+  showModal(`<h3>${SLOTS[slot]} 고르기</h3><div class="sub">${unitName(u)} · 지금: ${cur ? itemName(cur) + ' ' + itemText(cur) : '없음'}</div>
+    <div class="card">${cur ? `<div class="row"><div class="info"><b>${itemName(cur)}</b><small>착용 중 · ${itemText(cur)}</small></div><button class="btn small" data-act="unequip" data-id="${uid}" data-slot="${slot}">해제</button></div>` : ''}
+    ${list.map(it => `<div class="row"><div class="info"><b>${itemName(it)}</b><small>Lv${it.lv} · ${itemText(it)}</small></div><button class="btn small primary" data-act="equip" data-id="${uid}" data-it="${it.id}">착용</button></div>`).join('') || '<div class="row"><div class="info"><small>가방에 맞는 장비가 없어요. 사냥터 깊은 곳일수록 좋은 장비가 나와요</small></div></div>'}</div>
+    <div class="mbtns"><button class="btn" data-act="unit" data-id="${uid}">돌아가기</button></div>`);
 }
 function unitModal(id) {
   const u = S.units.find(x => x.id === id); if (!u) return;
@@ -1291,6 +1400,7 @@ function unitModal(id) {
     <div class="card"><div class="row"><div class="info"><small style="color:var(--text)">체력 ${maxHp(u)} · 공격 ${Math.round(D.atk * lvMul(u.lv) * gm.atk)} · 방어 ${Math.round(D.def * (1 + 0.05 * (u.lv - 1)) * gm.def)} · 짐 ${D.carry}칸</small></div></div>
     ${gearRow('gw', 'weapon', dino ? '강철 발톱 덮개' : '무기', '단계마다 공격 +15%')}
     ${gearRow('ga', 'armor', dino ? '가죽 갑주' : '방어구', '단계마다 방어 +25%, 체력 +10%')}
+    ${Object.entries(SLOTS).map(([sl, sn]) => { const it = (u.eq || {})[sl], n = S.items.filter(x => x.slot === sl).length; return `<div class="row"><div class="info"><b>${sn}: ${it ? itemName(it) : '<span style="color:var(--muted)">비어 있음</span>'}</b><small>${it ? itemText(it) + ` · Lv${it.lv}` : '사냥터에서 얻은 장비를 착용해요'} · 가방에 ${n}개</small></div><button class="btn small" data-act="pickItem" data-id="${u.id}" data-slot="${sl}" ${n || it ? '' : 'disabled'}>교체</button></div>`; }).join('')}
     <div class="row"><div class="info"><b>${dino ? '성장' : '전직'}: ${tier >= 2 ? '최고 단계' : names[tier + 1] + D.n}</b><small>${tier >= 2 ? '더 오를 단계가 없어요' : `체력과 공격 +30% · 조건: Lv${P.lv}, 상단 Lv${P.clv}, ${P.cost} 크레딧`}</small></div><button class="btn small primary" data-act="promote" data-id="${u.id}" ${tier >= 2 || u.lv < P.lv || S.clv < P.clv || S.money < P.cost ? 'disabled' : ''}>${tier >= 2 ? '완료' : dino ? '성장' : '전직'}</button></div></div>
     <div class="sub" style="margin:0">강철 무기는 무너진 도시 공방, 가죽 갑옷은 잿빛 평원 공방에서 만들어요</div>
     <div class="mbtns"><button class="btn" data-act="close">닫기</button></div>`);
@@ -1341,10 +1451,10 @@ function addRare(foes, z, chance) {
   return foes;
 }
 function huntFoes(z, tier) {
-  const Z = ZONES[z];
-  if (tier === 3) return [{ type: BOSSES[Z.boss].base, lv: Z.lv + 6, boss: Z.boss }, { type: pick(Z.wild), lv: Z.lv + 4 }, { type: pick(Z.wild), lv: Z.lv + 4 }];
-  const n = tier === 1 ? 2 : 3 + (Math.random() < 0.5 ? 1 : 0), lv0 = tier === 1 ? Z.lv : Z.lv + 2;
-  return addRare(Array.from({ length: n }, () => ({ type: pick(Z.wild), lv: lv0 + Math.round(rand(0, tier === 1 ? 1 : 2)) })), z, tier === 1 ? 0.1 : 0.35);
+  const Z = ZONES[z], H = HUNTS[tier];
+  if (H.boss) return [{ type: BOSSES[Z.boss].base, lv: Z.lv + 6, boss: Z.boss }, { type: pick(Z.wild), lv: Z.lv + 4 }, { type: pick(Z.wild), lv: Z.lv + 4 }];
+  const n = H.n[0] + Math.round(Math.random() * (H.n[1] - H.n[0]));
+  return addRare(Array.from({ length: n }, () => ({ type: pick(Z.wild), lv: Z.lv + H.lv[0] + Math.round(rand(0, H.lv[1] - H.lv[0])) })), z, H.rare);
 }
 document.body.addEventListener('click', e => {
   const b = e.target.closest('[data-act]'); if (!b) return;
@@ -1356,9 +1466,9 @@ document.body.addEventListener('click', e => {
   else if (act === 'heal') { const cost = +b.dataset.cost; if (S.money < cost) return; S.money -= cost; for (const u of S.units) { u.hp = maxHp(u); u.ko = false; } toast('모두 푹 쉬었어요', 'good'); sfx('arrive'); }
   else if (act === 'dart') { const n = +b.dataset.n, cost = n === 5 ? 165 : 35; if (S.money < cost) return; S.money -= cost; S.darts += n; sfx('coin'); }
   else if (act === 'hunt') {
-    const tier = +b.dataset.tier;
+    const tier = +b.dataset.tier; if (tier > (S.cleared[z] || 0)) return;
     if (!party().some(u => !u.ko && u.type !== 'leader') && party().find(u => u.type === 'leader').ko) { toast('싸울 수 있는 대원이 없어요. 여관에서 쉬세요', 'warn'); return; }
-    const foes = huntFoes(z, tier); startBattle({ kind: 'hunt', zone: z, tier, foes, boss: tier === 3 ? ZONES[z].boss : null }); if (tier === 3) sfx('roar');
+    const foes = huntFoes(z, tier); startBattle({ kind: 'hunt', zone: z, tier, foes, boss: HUNTS[tier].boss ? ZONES[z].boss : null }); if (HUNTS[tier].boss) sfx('roar');
   }
   else if (act === 'toggle') { const u = S.units.find(x => x.id === +b.dataset.id); if (!u) return; if (!u.inParty && party().length >= partyCap()) { toast(`지금은 대장 포함 ${partyCap()}명까지예요. 상단 레벨을 올리면 늘어나요 (최대 12명)`); return; } u.inParty = !u.inParty; if (cargoUsed() > capacity()) toast('짐칸이 모자라요. 출발 전에 짐을 줄이세요', 'warn'); }
   else if (act === 'go') startTravel(b.dataset.z);
@@ -1380,6 +1490,14 @@ document.body.addEventListener('click', e => {
   }
   else if (act === 'skill') { const k = b.dataset.k; if (S.sp < 1 || sk(k) >= SKILL_MAX) return; S.sp--; S.skills[k] = sk(k) + 1; sfx('capture'); }
   else if (act === 'unit') { unitModal(+b.dataset.id); return; }
+  else if (act === 'pickItem') { itemModal(+b.dataset.id, b.dataset.slot); return; }
+  else if (act === 'equip' || act === 'unequip') {
+    const u = S.units.find(x => x.id === +b.dataset.id); u.eq = u.eq || {}; const r = u.hp / maxHp(u);
+    if (act === 'equip') { const i = S.items.findIndex(x => x.id === +b.dataset.it); if (i < 0) return; const it = S.items.splice(i, 1)[0]; if (u.eq[it.slot]) S.items.push(u.eq[it.slot]); u.eq[it.slot] = it; }
+    else { const sl = b.dataset.slot; if (u.eq[sl]) { S.items.push(u.eq[sl]); u.eq[sl] = null; } }
+    u.hp = Math.max(u.ko ? 0 : 1, Math.round(maxHp(u) * r)); sfx('coin'); save(); renderAll(); unitModal(u.id); return;
+  }
+  else if (act === 'sellItem') { const i = S.items.findIndex(x => x.id === +b.dataset.it); if (i < 0) return; const it = S.items.splice(i, 1)[0], pr = itemPrice(it); S.money += pr; S.stats.earned += pr; sfx('coin'); toast(`${it.n}을(를) ${pr} 크레딧에 팔았어요`); }
   else if (act === 'gear') {
     const u = S.units.find(x => x.id === +b.dataset.id), key = b.dataset.k, item = key === 'gw' ? 'weapon' : 'armor', need = (u[key] || 0) + 1;
     if ((u[key] || 0) >= 3 || (S.cargo[item] || 0) < need) return;
@@ -1418,6 +1536,7 @@ function frame(now) {
 S = load() || freshState();
 if (!S.units || !S.units.length) freshState();
 for (const u of S.units) { if (u.type === 'pachy') u.type = 'para'; if (u.type === 'sarco') u.type = 'stego'; }
+S.items = S.items || []; S.cleared = S.cleared || {};
 S.clv = S.clv || 1; S.cxp = S.cxp || 0; S.sp = S.sp || 0; S.skills = S.skills || {}; S.jobs = S.jobs || {}; S.out = S.out || {}; S.quests = S.quests || {};
 for (const z of Object.keys(ZONES)) for (const g of Object.keys(GOODS)) { if (S.drift[z][g] === undefined) S.drift[z][g] = 1; if (S.press[z][g] === undefined) S.press[z][g] = 1; }
 ensureQuests();
