@@ -135,7 +135,7 @@ h2 { margin-top: 2px; } h2 small { display: block; margin: 3px 0 0; line-height:
 .mcard::before { content: ""; width: 44px; height: 4px; border-radius: 2px; background: var(--line); margin: 0 auto 6px; flex: none; }
 @keyframes sheet { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
 #toast { top: 62px; border-radius: 12px; padding: 9px 14px; font-size: 13px; box-shadow: 0 6px 20px rgba(0,0,0,.4); }
-.bfoot .btn { min-height: 46px; } #bCapture { flex: 1.6; font-size: 14px; }
+.bfoot .btn { min-height: 46px; } #bCapture { flex: 1.6; font-size: 14px; } #fNearest { flex: 1.5; }
 .dexg { gap: 8px; } .dexc { border-radius: 10px; }
 #menu { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 /* landscape: the world fills the screen and the menus slide in as a side panel */
@@ -171,18 +171,13 @@ h2 { margin-top: 2px; } h2 small { display: block; margin: 3px 0 0; line-height:
     <section class="view" id="v-party" hidden></section>
     <section class="view" id="v-map" hidden></section>
   </main>
-  <nav id="tabs">
-    <button data-v="town" class="on"><svg viewBox="0 0 24 24"><path d="M3 20h18M5 20V10l7-6 7 6v10M10 20v-6h4v6"/></svg>정착지</button>
-    <button data-v="party"><svg viewBox="0 0 24 24"><circle cx="8" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M2 20c0-4 3-6 6-6s6 2 6 6M14 20c0-3 1.5-5 4-5s4 2 4 5"/></svg>상단</button>
-    <button data-v="map"><svg viewBox="0 0 24 24"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></svg>지도</button>
-    <button data-v="field"><svg viewBox="0 0 24 24"><path d="M12 3v18M12 3l6 4-6 4M5 21h14"/></svg>필드</button>
-  </nav>
+  <nav id="tabs"><button data-v="field" class="on" style="flex-direction:row;justify-content:center;gap:8px;font-size:15px;padding:12px"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>필드로 돌아가기</button></nav>
   </div>
   <div id="battle" hidden>
     <div class="bhead"><b id="bTitle"></b><small id="bInfo"></small></div>
     <div class="bfield"><canvas id="b3d"></canvas><canvas id="bcv"></canvas><div id="bTip">적을 눌러 집중 공격 · 체력 30% 이하면 포획</div><div id="feed"></div><div id="bSel" hidden><span id="bSelName"></span><span class="bar"><i id="bSelHp"></i></span></div></div>
-    <div class="bfoot" id="ffoot" hidden><button class="btn" id="fLeave">메뉴</button><button class="btn" id="fZoom">크게</button><button class="btn primary" id="fNearest">가까운 무리로</button></div>
-    <div class="bfoot" id="bfoot"><button class="btn" id="bRetreat">후퇴</button><button class="btn primary" id="bCapture">포획</button><button class="btn" id="bZoom">크게</button><button class="btn" id="bSpeed">×1</button></div>
+    <div class="bfoot" id="ffoot" hidden><button class="btn" id="fLeave">상단</button><button class="btn" id="fZoom">지도</button><button class="btn" id="fPot">회복약</button><button class="btn primary" id="fNearest">가까운 무리 사냥</button></div>
+    <div class="bfoot" id="bfoot"><button class="btn" id="bRetreat">후퇴</button><button class="btn primary" id="bCapture">포획</button><button class="btn" id="bPot">회복약</button><button class="btn" id="bZoom" hidden>크게</button><button class="btn" id="bSpeed">×1</button></div>
   </div>
   <div id="toast"></div>
   <div id="modal" hidden><div class="mcard" id="mcard"></div></div>
@@ -417,7 +412,7 @@ function addCargo(g, k) { const room = Math.max(0, capacity() - cargoUsed()); k 
    BATTLE — real-time, up to 12 on our side, formation start, auto with focus fire
    ================================================================ */
 const BW = 360, BH = 600, BSIZE = [BW, BH];
-let B = null, bSpeed = 1, bZoom = window.matchMedia('(orientation: landscape)').matches ? 1.9 : 1.3;
+let B = null, bSpeed = 1, bZoom = window.matchMedia('(orientation: landscape)').matches ? 1.5 : 1.3;
 function unitStats(type, lv, boss) {
   const D = UNITS[type], m = lvMul(lv), bm = boss ? BOSSES[boss] : null;
   return { hp: D.hp * m * (bm ? bm.hp : 1), atk: D.atk * m * (bm ? bm.atk : 1), def: D.def * (1 + 0.05 * (lv - 1)), size: (D.size || 11) * (bm ? bm.size : 1) };
@@ -433,7 +428,7 @@ function startBattle(opt) {
   $('bTitle').textContent = opt.kind === 'ambush' ? '습격!' : opt.boss ? `우두머리 사냥 · ${BOSSES[opt.boss].n}` : opt.kind === 'hunt' ? `${Z.n} · ${HUNT_NAMES[opt.zone][opt.tier]}` : `${Z.n} 사냥터`;
   $('bInfo').textContent = `적 ${opt.foes.length} · 아군 ${ours.length}`;
   for (const f of opt.foes) { S.dex[f.type] = Math.max(S.dex[f.type] || 0, 1); if (UNITS[f.type].rare && !f.boss) setTimeout(() => toast(`희귀종 발견: ${UNITS[f.type].n}!`, 'good'), 900); }
-  $('bfoot').hidden = false; $('ffoot').hidden = true; $('bTip').textContent = '적을 눌러 집중 공격 · 체력 30% 이하면 포획'; updCapture();
+  $('bfoot').hidden = false; $('ffoot').hidden = true; $('bTip').hidden = false; $('bTip').textContent = '적을 눌러 집중 공격 · 체력 30% 이하면 포획'; updCapture();
   SND.mood = 'battle'; SND.step = 0; sfx('drums'); flash(0.3);
 }
 function spawn(side, type, lv, x, y, ref, boss) {
@@ -1138,7 +1133,13 @@ const ZPROPS = {
   swamp: 'grassG grassG grassG grassG grassG plant plant plant bushG willow willow willow willowD willowD3 treeS ruinS1 ruinS2 car1 car2 rockM rockM2 stump log lamp lily lily'.split(' '),
 };
 const TOWN_LAYOUT = [['flag', 0, -96], ['stall', -62, -40], ['stall2', 4, -58], ['stall', 66, -36], ['tent', -100, 34], ['tent2', -58, 84], ['tent', 98, 40], ['tent2', 52, 92], ['fire', 0, 22], ['tower', -112, -66], ['tower', 112, -70], ['crate', 30, -28], ['crate', -34, -22],
-  ['fence', -70, -118], ['fence', 70, -118], ['fence', -136, 0], ['fence', 136, 4], ['fence', -86, 128], ['fence', 86, 128]];
+  ['stall2', 0, 112], ['fence', -70, -118], ['fence', 70, -118], ['fence', -136, 0], ['fence', 136, 4], ['fence', -86, 128], ['fence', 86, 128]];
+const TOWN_SPOTS = [['market', '시장', -62, -40], ['shop', '공방', 4, -58], ['bank', '전장·창고', 66, -36], ['inn', '여관', -100, 34], ['hire', '고용소', 98, 40], ['quest', '의뢰', 0, -96], ['hunt', '사냥 안내', -112, -66], ['store', '잡화점', 0, 112]];
+function openTown(k) { townSec = k; sfx('open'); hideWorld('town'); }
+function spotBadges() {
+  const z = inTown(); if (!z) return {};
+  return { quest: (S.quests[z] || []).some(q => (q.type === 'deliver' ? (S.cargo[q.g] || 0) : q.prog) >= q.n), shop: Object.values(S.out[z] || {}).some(k => k > 0), inn: S.units.some(u => u.ko || u.hp < maxHp(u) * 0.6) || S.food <= 30, store: S.pots < 1 };
+}
 const CELL = 220, CELLS = new Map();
 function cellProps(cx, cy) {
   const k = cx + ',' + cy; let list = CELLS.get(k); if (list) return list; list = [];
@@ -1198,26 +1199,27 @@ const LANDQ = window.matchMedia('(orientation: landscape)'), isLand = () => LAND
 function showWorld() {
   if (!W) initWorld(); syncCrew(); worldOn = true; $('app').classList.add('wo');
   $('battle').hidden = false; $('bfoot').hidden = !B; $('ffoot').hidden = !!B; if (!B) $('bSel').hidden = true;
-  $('bTip').textContent = '땅을 눌러 이동 · 공룡 무리를 눌러 사냥'; resizeBattle(); updField();
+  $('bTip').hidden = !B; resizeBattle(); updField();
 }
-function hideWorld() { if (B) return; worldOn = false; $('app').classList.remove('wo'); $('battle').hidden = true; save(); setView(inTown() ? 'town' : 'party'); resizeBattle(); }
+function hideWorld(v) { if (B) return; worldOn = false; $('app').classList.remove('wo'); $('battle').hidden = true; save(); setView(v || 'party'); resizeBattle(); }
 function walkTo(x, y, label) { if (!W) initWorld(); W.target = null; W.lead.tx = clamp(x, 10, WW - 10); W.lead.ty = clamp(y, 10, WH - 10); W.dest = label ? { x: W.lead.tx, y: W.lead.ty, label } : null; if (label) toast(`${label}(으)로 가는 중 · 땅을 누르면 멈춰요`); }
 function updField() {
   if (!W || B) return; const t = inTown(), L = W.lead, g = groundAt(L.x, L.y), z = zoneAt(L.x, L.y);
-  $('fNearest').textContent = t ? '정착지 들어가기' : '가까운 무리로';
+  $('fNearest').textContent = t ? '사냥터 가기' : '가까운 무리 사냥'; W.badges = spotBadges(); updPots(); autoEat();
   const here = t ? `${ZONES[t].n} 정착지` : g ? `${ZONES[g.z].n} · ${HUNT_NAMES[g.z][g.i]}` : `${ZONES[z].n} · 황무지`;
   if (here !== W.here) {
     W.here = here; $('bTitle').textContent = here;
     if (t) { if (S.zone !== t || W.out) { S.zone = t; toast(`${ZONES[t].n} 정착지에 도착했어요`, 'good'); sfx('arrive'); } W.out = false; }
     else { W.out = true; if (g) { const H = HUNTS[Math.min(3, g.i)], Z = ZONES[g.z]; toast(g.i === 4 ? `${HUNT_NAMES[g.z][4]} · ${BOSSES[Z.boss].n}의 영역이에요` : `${HUNT_NAMES[g.z][g.i]} · 야생 Lv${Z.lv + H.lv[0]}~${Z.lv + H.lv[1]}`, g.i === 4 ? 'warn' : ''); if (g.i === 4) sfx('roar'); } }
   }
-  const lv = party().filter(u => !u.ko).length; $('bInfo').textContent = `대원 ${lv} · 포만감 ${Math.ceil(S.food)} · 짐 ${cargoUsed()}/${capacity()}`;
+  const lv = party().filter(u => !u.ko).length; $('bInfo').textContent = `${fmt(S.money)} 크레딧 · 포만감 ${Math.ceil(S.food)} · 짐 ${cargoUsed()}/${capacity()}`;
 }
 function worldTap(px, py) {
   const x = VO.x + px / PSZ, y = VO.y + py / PSZ, L = W.lead;
   let best = null, bd = 34 * 34;
   for (const p of W.packs) { if (p.dead > 0 || d2(p.cx, p.cy, x, y) > 260 * 260) continue; for (const m of p.mons) { const d = d2(x, y, m.x, m.y - m.len * 0.2); if (d < Math.max(bd, (m.len * 0.5) ** 2) && (!best || d < bd)) { bd = d; best = p; } } }
   W.dest = null;
+  { const tz = nearTown(x, y, TOWN_R + 40); if (tz) for (const [k, n, dx, dy] of TOWN_SPOTS) { const T = TOWNS[tz]; if (d2(x, y, T.x + dx, T.y + dy - 14) < 30 * 30) { if (inTown() === tz) openTown(k); else { walkTo(T.x + dx, T.y + dy + 28, `${ZONES[tz].n} ${n}`); W.dest.open = k; } return; } } }
   for (let i = 0; i < W.npcs.length; i++) { const m = W.npcs[i].mem[0]; if (d2(x, y, m.x, m.y - 10) < 26 * 26) { if (d2(L.x, L.y, m.x, m.y) > 170 * 170) { toast(`${W.npcs[i].name}: 가까이 오면 거래할 수 있어요`); L.tx = m.x; L.ty = m.y + 30; W.target = null; } else npcModal(i); return; } }
   if (best) { W.target = best; sfx('tap'); return; }
   W.target = null; L.tx = clamp(x, 10, WW - 10); L.ty = clamp(y, 10, WH - 10); ringFx(L.tx, L.ty, '#e3a843', 14, 0.4); sfx('tap');
@@ -1249,7 +1251,7 @@ function afterBattle(opt) {
     syncCrew(); for (const c of W.crew) { c.x = L.x; c.y = L.y; } toast(`상단이 쓰러져 ${ZONES[z].n} 정착지로 실려 왔어요${lost ? ` · 가진 돈 ${lost} 크레딧을 잃었어요 (전장에 맡긴 돈은 안전해요)` : ''}`, 'warn'); W.here = '';
   } else { L.x = W.crew[0].x; L.y = W.crew[0].y; L.a = W.crew[0].a; if (!opt.won) { const p = opt.packs[0], a = Math.atan2(L.y - p.cy, L.x - p.cx); L.tx = clamp(L.x + Math.cos(a) * 130, 10, WW - 10); L.ty = clamp(L.y + Math.sin(a) * 130, 10, WH - 10); } }
   L.moving = false; S.pos = { x: L.x, y: L.y };
-  $('bfoot').hidden = true; $('ffoot').hidden = false; $('bSel').hidden = true; W.here = ''; updField(); renderHeader(); save();
+  $('bfoot').hidden = true; $('ffoot').hidden = false; $('bSel').hidden = true; $('bTip').hidden = true; W.here = ''; updField(); renderHeader(); save();
 }
 function stepWalker(o, dt, speed) { o.wait -= dt; if (o.wait <= 0 && !o.moving) { o.tx = o.hx + rand(-o.roam, o.roam); o.ty = o.hy + rand(-o.roam, o.roam); o.wait = rand(4, 10); } const d = Math.hypot(o.tx - o.x, o.ty - o.y); o.moving = d > 3; if (o.moving) { o.a = Math.atan2(o.ty - o.y, o.tx - o.x); o.x += Math.cos(o.a) * speed * dt; o.y += Math.sin(o.a) * speed * dt; } }
 function updWorld(dt) {
@@ -1268,7 +1270,7 @@ function updWorld(dt) {
           else if (p.loot && !(W.looted[p.loot] > W.t) && d2(L.x, L.y, p.x, p.y) < 22 * 22) openCrate(p);
         }
         L.x = clamp(L.x, 10, WW - 10); L.y = clamp(L.y, 10, WH - 10);
-      } else if (W.target) { engage(W.target); return; } else { L.tx = null; if (W.dest) { toast(`${W.dest.label}에 도착했어요`, 'good'); W.dest = null; } }
+      } else if (W.target) { engage(W.target); return; } else { L.tx = null; if (W.dest) { const o = W.dest.open; if (!o) toast(`${W.dest.label}에 도착했어요`, 'good'); W.dest = null; if (o && inTown()) { S.zone = inTown(); openTown(o); } } }
     }
     let px = L.x, py = L.y;
     W.crew.forEach((c, i) => {
@@ -1306,9 +1308,19 @@ function npcModal(i) {   // caravans you meet on the road keep a small stall: on
     <div class="row"><div class="info"><b>${GOODS[o.bg].n} 삽니다</b><small>개당 ${o.bp} 크레딧 · ${o.bn}개까지 · 보유 ${S.cargo[o.bg] || 0}</small></div><button class="btn small primary" data-act="npcSell" data-i="${i}" ${o.bn && S.cargo[o.bg] ? '' : 'disabled'}>팔기</button></div>
   </div><div class="mbtns"><button class="btn" data-act="close">닫기</button></div>`);
 }
+function usePotion() {
+  if (S.pots < 1) { toast('회복약이 없어요 · 정착지 잡화점에서 살 수 있어요', 'warn'); sfx('deny'); return; }
+  if (B) { if (B.over) return; const us = B.units.filter(u => u.side === 0 && u.hp > 0 && !u.turret); if (!us.some(u => u.hp < u.max)) { toast('모두 체력이 가득해요'); return; } for (const u of us) { const h = Math.min(u.max - u.hp, u.max * 0.4); u.hp += h; if (h > 1) num(u, '+' + Math.round(h), '#8fbf6a'); burst(u.x, u.y, 4, 6, '#8fd36a', { spd: 14, up: 55, g: 0, life: 0.7 }); } }
+  else { const us = party(); if (!us.some(u => u.ko || u.hp < maxHp(u))) { toast('모두 체력이 가득해요'); return; } for (const u of us) { const mh = maxHp(u); u.hp = Math.min(mh, Math.round(u.hp + mh * 0.4)); u.ko = false; } syncCrew(); for (const c of W.crew) burst(c.x, c.y, 4, 6, '#8fd36a', { spd: 14, up: 55, g: 0, life: 0.7 }); toast('회복약을 써서 모두 체력을 채웠어요', 'good'); }
+  S.pots--; sfx('heal'); updPots(); save();
+}
+function updPots() { $('fPot').textContent = $('bPot').textContent = `회복약 ${S.pots}`; }
+function autoEat() { if (S.food > 20) return; const g = ['grain', 'meat', 'jerky'].find(g => S.cargo[g] > 0); if (!g) return; S.cargo[g]--; if (!S.cargo[g]) delete S.cargo[g]; S.food = Math.min(100, S.food + FOODS[g]); toast(`배가 고파 ${GOODS[g].n}을(를) 먹었어요 · 포만감 ${Math.ceil(S.food)}`); }
+$('fPot').onclick = usePotion; $('bPot').onclick = usePotion;
 function openCrate(p) {
   W.looted[p.loot] = W.t + 240; const r = Math.random(); sfx('loot'); burst(p.x, p.y, 6, 12, '#ffe9a0', { spd: 40, up: 60, life: 0.8 });
-  if (r < 0.3) { const k = addCargo('parts', Math.round(rand(2, 5))); toast(k ? `버려진 상자에서 기계 부품 ${k}개를 찾았어요` : '상자를 찾았지만 짐칸이 가득해요', 'good'); }
+  if (r < 0.12) { S.pots++; toast('상자에서 회복약 1개를 찾았어요', 'good'); }
+  else if (r < 0.3) { const k = addCargo('parts', Math.round(rand(2, 5))); toast(k ? `버려진 상자에서 기계 부품 ${k}개를 찾았어요` : '상자를 찾았지만 짐칸이 가득해요', 'good'); }
   else if (r < 0.55) { const k = addCargo('water', Math.round(rand(3, 6))); toast(k ? `상자에서 깨끗한 물 ${k}통을 찾았어요` : '상자를 찾았지만 짐칸이 가득해요', 'good'); }
   else if (r < 0.7) { S.darts += 1; toast('상자에서 마취 다트 1개를 찾았어요', 'good'); }
   else { const m = Math.round(rand(20, 70) * ZONES[zoneAt(p.x, p.y)].danger); S.money += m; toast(`낡은 금고에서 ${m} 크레딧을 찾았어요`, 'good'); }
@@ -1368,7 +1380,8 @@ function renderWorld(dt) {
     }
     for (const n of W.npcs) { const m = n.mem[0], s = toScreen(m.x, 30, m.y); if (s.x > -40 && s.x < cw + 40 && s.y > 0 && s.y < ch + 20) tag(n.name, s.x, s.y, '#9fd0ff'); }
     if (W.crew.length) { const s = toScreen(W.lead.x, 31, W.lead.y); tag('나', s.x, s.y, '#8fcf6a'); }
-    for (const z of ZKEYS) { const T2 = TOWNS[z], s = toScreen(T2.x, 150, T2.y); if (s.x > -80 && s.x < cw + 80 && s.y > 20 && s.y < ch) { c.font = '400 16px "Black Han Sans", sans-serif'; c.lineWidth = 4; c.strokeStyle = 'rgba(18,14,10,.8)'; c.strokeText(ZONES[z].n + ' 정착지', s.x, s.y); c.fillStyle = '#ffe9c0'; c.fillText(ZONES[z].n + ' 정착지', s.x, s.y); } }
+    for (const z of ZKEYS) { const T2 = TOWNS[z], s = toScreen(T2.x, 215, T2.y); if (s.x > -200 && s.x < cw + 200 && s.y > -200 && s.y < ch + 200) for (const [k, n, dx, dy] of TOWN_SPOTS) { const q = toScreen(T2.x + dx, k === 'quest' || k === 'hunt' ? 66 : 40, T2.y + dy), bd = W.badges && W.badges[k] && inTown() === z; tag(n + (bd ? ' !' : ''), q.x, q.y, bd ? '#1c120a' : '#ffe9c0', bd ? 'rgba(227,168,67,.95)' : 'rgba(60,34,20,.86)'); }
+      if (s.x > -80 && s.x < cw + 80 && s.y > 20 && s.y < ch) { c.font = '400 16px "Black Han Sans", sans-serif'; c.lineWidth = 4; c.strokeStyle = 'rgba(18,14,10,.8)'; c.strokeText(ZONES[z].n + ' 정착지', s.x, s.y); c.fillStyle = '#ffe9c0'; c.fillText(ZONES[z].n + ' 정착지', s.x, s.y); } }
     if (W.dest || W.lead.tx !== null) {   // long walks: an arrow on the screen edge points at where you are headed
       const s = toScreen(W.lead.tx, 0, W.lead.ty); if (s.x < 0 || s.x > cw || s.y < 0 || s.y > ch) { const a = Math.atan2(s.y - ch / 2, s.x - cw / 2), ex = clamp(cw / 2 + Math.cos(a) * cw, 20, cw - 20), ey = clamp(ch / 2 + Math.sin(a) * ch, 40, ch - 20); c.save(); c.translate(ex, ey); c.rotate(a); c.fillStyle = '#8fcf6a'; c.beginPath(); c.moveTo(12, 0); c.lineTo(-7, -8); c.lineTo(-3, 0); c.lineTo(-7, 8); c.closePath(); c.fill(); c.restore(); if (W.dest) tag(`${W.dest.label} ${Math.round(Math.hypot(W.lead.tx - W.lead.x, W.lead.ty - W.lead.y) / 10)}m`, clamp(ex, 70, cw - 70), ey + (ey < ch / 2 ? 34 : -14), '#8fcf6a'); }
     }
@@ -1383,14 +1396,15 @@ function drawMini(c, cw) {   // corner minimap of the whole world
   if (W.dest) { c.fillStyle = '#8fcf6a'; c.fillRect(x0 + W.dest.x * sx - 1.5, y0 + W.dest.y * sy - 1.5, 3, 3); }
   c.fillStyle = '#fff'; c.beginPath(); c.arc(x0 + W.lead.x * sx, y0 + W.lead.y * sy, 2.6, 0, 7); c.fill(); c.strokeStyle = '#1c120a'; c.stroke();
 }
-$('fLeave').onclick = () => { sfx('open'); hideWorld(); };
-$('fZoom').onclick = () => $('bZoom').click();
+$('fLeave').onclick = () => { sfx('open'); hideWorld('party'); };
+$('fZoom').onclick = () => { sfx('open'); hideWorld('map'); };
 $('fNearest').onclick = () => {
   if (!W || B) return; const L = W.lead;
-  if (inTown()) { sfx('open'); townSec = townSec === 'hunt' ? 'market' : townSec; hideWorld(); return; }
+  if (inTown()) { openTown('hunt'); return; }
   const near = W.packs.filter(p => !(p.dead > 0) && p.mons.length && !p.boss).sort((a, b) => d2(a.cx, a.cy, L.x, L.y) - d2(b.cx, b.cy, L.x, L.y))[0];
   if (near) { W.target = near; W.dest = null; sfx('tap'); }
 };
+$('bcv').addEventListener('wheel', e => { e.preventDefault(); bZoom = clamp(bZoom * (e.deltaY < 0 ? 1.1 : 0.9), 0.9, 3); }, { passive: false });
 function makePortraits() {
   if (!has3D) return;
   const cv = document.createElement('canvas'); cv.width = 260; cv.height = 200;
@@ -1426,7 +1440,7 @@ function updSel() {
   }
 }
 const bPtr = new Map(); let bPinch = null;
-bcv.addEventListener('pointermove', e => { if (!bPtr.has(e.pointerId)) return; bPtr.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (bPtr.size === 2 && bPinch) { const [a, b] = [...bPtr.values()]; bZoom = clamp(bPinch.z * Math.hypot(a.x - b.x, a.y - b.y) / bPinch.d, 0.9, 3); $('bZoom').textContent = '직접'; } });
+bcv.addEventListener('pointermove', e => { if (!bPtr.has(e.pointerId)) return; bPtr.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (bPtr.size === 2 && bPinch) { const [a, b] = [...bPtr.values()]; bZoom = clamp(bPinch.z * Math.hypot(a.x - b.x, a.y - b.y) / bPinch.d, 0.9, 3); } });
 const bUp = e => { bPtr.delete(e.pointerId); if (bPtr.size < 2) bPinch = null; };
 bcv.addEventListener('pointerup', bUp); bcv.addEventListener('pointercancel', bUp);
 bcv.addEventListener('pointerdown', e => {
@@ -1443,7 +1457,7 @@ bcv.addEventListener('pointerdown', e => {
 $('bCapture').onclick = () => B && !B.over && tryCapture();
 $('bRetreat').onclick = () => { if (!B || B.over) return; B.opt.retreat = true; B.loot = {}; endBattle(false); };
 const ZOOMS = [[1, '보통'], [1.3, '크게'], [1.9, '아주 크게']];
-$('bZoom').onclick = () => { const i = (ZOOMS.findIndex(z => z[0] === bZoom) + 1) % ZOOMS.length; bZoom = ZOOMS[i][0]; $('bZoom').textContent = $('fZoom').textContent = ZOOMS[i][1]; };
+$('bZoom').onclick = () => { const i = (ZOOMS.findIndex(z => z[0] === bZoom) + 1) % ZOOMS.length; bZoom = ZOOMS[i][0]; };
 $('bSpeed').onclick = () => { bSpeed = bSpeed === 1 ? 2 : 1; $('bSpeed').textContent = '×' + bSpeed; };
 
 /* ================================================================
@@ -1568,7 +1582,7 @@ function renderTown() {
   const hurt = S.units.filter(u => u.hp < maxHp(u) || u.ko), healCost = Math.round(S.units.reduce((s, u) => s + (maxHp(u) - u.hp), 0) * 0.12) + (hurt.length ? 5 : 0);
   const qReady = (S.quests[z] || []).filter(q => (q.type === 'deliver' ? (S.cargo[q.g] || 0) : q.prog) >= q.n).length;
   const secs = [['hunt', '사냥터'], ['market', '시장'], ['quest', '의뢰', qReady], ['shop', '공방', outs.length ? '!' : 0], ['hire', '고용'], ['bank', '전장'], ['inn', '여관', hurt.length && townSec !== 'inn' ? '!' : 0]];
-  el.innerHTML = `${zoneHead(z)}${chips(secs, townSec, 'tsec')}
+  el.innerHTML = `
     ${townSec === 'hunt' ? `<h2>사냥터<small>여기서 길들일 수 있는 공룡: ${tame}</small></h2>
     <div class="card">${HUNTS.map((H, i) => { const done = i < (S.cleared[z] || 0), G = GROUNDS[z][i], dist = Math.round(Math.hypot(G[0] - S.pos.x, G[1] - S.pos.y) / 10);
       return `<div class="row"><span class="num${done ? ' done' : ''}${H.boss ? ' boss' : ''}">${H.boss ? '★' : i + 1}</span><div class="info"><b>${HUNT_NAMES[z][i]} ${done ? '<span class="tag">정복</span>' : ''}${H.boss ? ' <span class="tag" style="color:var(--bad)">우두머리</span>' : ''}</b><small>${H.boss ? `${BOSSES[Z.boss].n} Lv${Z.lv + 6} · 희귀 이상 장비 확정` : `Lv${Z.lv + H.lv[0]}~${Z.lv + H.lv[1]} · 희귀종 ${Math.round(H.rare * 50)}% · 장비 ${Math.round(H.drop * 100)}%`} · 거리 ${dist}m</small></div>
@@ -1590,12 +1604,18 @@ function renderTown() {
       <div class="card"><div class="row"><div class="info"><b>${head ? '당신이 이 마을의 대방이에요' : `현재 대방: ${RIVALS[z][0]}`}</b><small>내 투자 ${fmt(inv)} · ${head ? `2위 ${RIVALS[z][0]} ${fmt(S.rival[z])}` : `대방까지 ${fmt(S.rival[z] - inv + 1)} 더`} · 대방 혜택: 이 마을에서 5% 싸게 사고 5% 비싸게 팔아요</small></div>${amt('inv', S.money)}</div></div>
       <h2>여각 (창고)<small>짐을 이 정착지에 맡겨 둬요 · 다른 정착지에서는 찾을 수 없어요</small></h2>
       <div class="card">${cg.length ? cg.map(([g, k]) => `<div class="row"><div class="info"><b>${GOODS[g].n} ${k}개</b><small>짐칸에 있어요</small></div><button class="btn small" data-act="stIn" data-g="${g}">맡기기</button></div>`).join('') : ''}${st.map(([g, k]) => `<div class="row"><div class="info"><b>${GOODS[g].n} ${k}개</b><small>창고에 있어요</small></div><button class="btn small primary" data-act="stOut" data-g="${g}">찾기</button></div>`).join('')}${cg.length || st.length ? '' : '<div class="row"><div class="info"><small>맡긴 짐이 없어요</small></div></div>'}</div>`; })() : ''}
-    ${townSec === 'inn' ? `<h2>여관과 상점</h2>
+    ${townSec === 'store' ? `<h2>잡화점<small>필드에서 쓰는 물건을 팔아요</small></h2>
+    <div class="card">
+      <div class="row"><div class="info"><b>회복약</b><small>필드나 전투 중에 쓰면 모두의 체력을 40% 채워요 · 전투 밖에서는 쓰러진 대원도 일어나요 · 보유 ${S.pots}개</small></div><button class="btn small" data-act="pot" data-n="1" ${S.money < 45 ? 'disabled' : ''}>45</button><button class="btn small primary" data-act="pot" data-n="5" ${S.money < 200 ? 'disabled' : ''}>5개 200</button></div>
+      <div class="row"><div class="info"><b>마취 다트</b><small>공룡 포획에 써요 · 보유 ${S.darts}개</small></div><button class="btn small" data-act="dart" data-n="1" ${S.money < 35 ? 'disabled' : ''}>35</button><button class="btn small" data-act="dart" data-n="5" ${S.money < 165 ? 'disabled' : ''}>5개 165</button></div>
+      <div class="row"><div class="info"><b>귀환석</b><small>쓰면 가장 가까운 정착지로 바로 돌아와요 (지도에서 사용) · 보유 ${S.stones}개</small></div><button class="btn small" data-act="stone" ${S.money < 60 ? 'disabled' : ''}>60</button></div>
+      <div class="row"><div class="info"><b>곡물 자루</b><small>먹으면 포만감 +15 · 배가 고프면 짐에서 알아서 꺼내 먹어요</small></div><button class="btn small" data-act="buy" data-g="grain" data-n="5" ${S.money < price(z, 'grain') * 5 ? 'disabled' : ''}>5개</button></div>
+    </div>` : ''}
+    ${townSec === 'inn' ? `<h2>여관</h2>
     <div class="card">
       <div class="row"><div class="info"><b>식사 · 포만감 ${Math.ceil(S.food)}/100</b><div class="bar"><i style="width:${S.food}%;background:${S.food <= 20 ? 'var(--bad)' : 'var(--amber)'}"></i></div><small>필드를 걷고 싸우면 줄어요. 0이 되면 공격력이 30% 줄고 회복이 멈춰요 · 짐의 곡물·고기·육포도 먹을 수 있어요 (상단 탭 → 짐)</small></div><button class="btn small primary" data-act="meal" ${S.food >= 100 || S.money < 20 ? 'disabled' : ''}>20</button></div>
       <div class="row"><div class="info"><b>여관에서 쉬기</b><small>${hurt.length ? `다친 대원 ${hurt.length}명 모두 바로 회복 · 정착지에 있으면 저절로 천천히 회복돼요` : '모두 건강해요'}</small></div><button class="btn small primary" data-act="heal" data-cost="${healCost}" ${!hurt.length || S.money < healCost ? 'disabled' : ''}>${healCost}</button></div>
       ${hurt.length && S.money < healCost ? `<div class="row"><div class="info"><b>구호소 (무료)</b><small>돈이 모자랄 때 · 모두 체력 절반으로 일으켜요</small></div><button class="btn small" data-act="aid">쉬기</button></div>` : ''}
-      <div class="row"><div class="info"><b>마취 다트</b><small>공룡 포획에 써요 · 보유 ${S.darts}개</small></div><button class="btn small" data-act="dart" data-n="1" ${S.money < 35 ? 'disabled' : ''}>35</button><button class="btn small" data-act="dart" data-n="5" ${S.money < 165 ? 'disabled' : ''}>5개 165</button></div>
     </div>` : ''}`;
   el.querySelectorAll('canvas[data-u]').forEach(cv => portrait(cv, cv.dataset.u));
   el.querySelectorAll('canvas[data-shot]').forEach(cv => { try { const T = TOWNS[cv.dataset.shot], g = cv.getContext('2d'); g.imageSmoothingEnabled = false; if (!W) initWorld(); drawScene(g, T.x - 180, T.y - 120, 360, 160, W.folk.filter(f => f.z === cv.dataset.shot).map(f => ({ x: f.x, y: f.y, a: f.a, type: f.type, anim: 'idle', fi: 0 }))); } catch (e) { /* header stays blank */ } });
@@ -1645,7 +1665,7 @@ const nearestTown = () => ZKEYS.map(z => ({ z, d: Math.round(Math.hypot(TOWNS[z]
 function renderMap() {
   const el = $('v-map');
   const rows = ZKEYS.map(z => { const d = Math.round(Math.hypot(TOWNS[z].x - S.pos.x, TOWNS[z].y - S.pos.y) / 10); return `<div class="row"><div class="info"><b>${ZONES[z].n} 정착지</b><small>거리 ${d}m · 야생 Lv${ZONES[z].lv}~${ZONES[z].lv + 6} · <span class="danger">${stars(ZONES[z].danger + 1)}</span></small></div><button class="btn small primary" data-act="walk" data-x="${TOWNS[z].x}" data-y="${TOWNS[z].y + 60}" data-l="${ZONES[z].n} 정착지">걸어가기</button></div>`; }).join('');
-  el.innerHTML = `<canvas id="mapcv" width="720" height="${Math.round(720 * WH / WW)}" style="touch-action:manipulation"></canvas><h2>월드 지도<small>지도를 누르면 그곳으로 걸어가요 · 길 위에서는 더 빨리 걸어요</small></h2><div class="card">${rows}</div>`;
+  el.innerHTML = `<canvas id="mapcv" width="720" height="${Math.round(720 * WH / WW)}" style="touch-action:manipulation"></canvas><h2>월드 지도<small>지도를 누르면 그곳으로 걸어가요 · 길 위에서는 더 빨리 걸어요</small></h2><div class="card">${S.stones ? `<div class="row"><div class="info"><b>귀환석 ${S.stones}개</b><small>가장 가까운 정착지로 바로 돌아가요</small></div><button class="btn small primary" data-act="recall">사용</button></div>` : ''}${rows}</div>`;
   drawMap();
   $('mapcv').onclick = e => { const cv = $('mapcv'), r = cv.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * WW, y = (e.clientY - r.top) / r.height * WH, g = groundAt(x, y), t = nearTown(x, y, 260); if (t) walkTo(TOWNS[t].x, TOWNS[t].y + 60, ZONES[t].n + ' 정착지'); else walkTo(x, y, g ? HUNT_NAMES[g.z][g.i] : '표시한 곳'); showWorld(); };
 }
@@ -1667,7 +1687,7 @@ function renderHeader() {
   $('sub').textContent = `${inTown() ? ZONES[S.zone].n + ' 정착지' : ZONES[zoneAt(S.pos.x, S.pos.y)].n + ' 필드'} · 멸망 후 ${S.day}일차`;
 }
 function renderAll() { renderHeader(); if (view === 'town') renderTown(); if (view === 'party') renderParty(); if (view === 'map') renderMap(); }
-function setView(v) { if (v === 'field') { showWorld(); return; } view = v; document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.v === v)); ['town', 'party', 'map'].forEach(k => $('v-' + k).hidden = k !== v); renderAll(); }
+function setView(v) { if (v === 'field') { showWorld(); return; } view = v; ['town', 'party', 'map'].forEach(k => $('v-' + k).hidden = k !== v); renderAll(); }
 
 function addRare(foes, z, chance) {
   if (Math.random() < chance) foes[foes.length - 1].type = pick(ZONES[z].rare);
@@ -1701,6 +1721,9 @@ document.body.addEventListener('click', e => {
     else { let k = 0, got = 0; while (o.bn > 0 && S.cargo[o.bg] > 0) { S.cargo[o.bg]--; o.bn--; S.money += o.bp; got += o.bp; k++; } if (!S.cargo[o.bg]) delete S.cargo[o.bg]; if (!k) { toast(`${GOODS[o.bg].n}이(가) 없어요`, 'warn'); return; } S.stats.earned += got; gainCxp(got / 12); toast(`${GOODS[o.bg].n} ${k}개를 팔아 ${got} 크레딧`, 'good'); }
     sfx('coin'); S.stats.trades++; save(); renderHeader(); npcModal(+b.dataset.i); return;
   }
+  else if (act === 'pot') { const n = +b.dataset.n, cost = n === 5 ? 200 : 45; if (S.money < cost) return; S.money -= cost; S.pots += n; sfx('coin'); }
+  else if (act === 'stone') { if (S.money < 60) return; S.money -= 60; S.stones++; sfx('coin'); }
+  else if (act === 'recall') { if (S.stones < 1 || B) return; S.stones--; const near = nearestTown(), T = TOWNS[near.z]; W.lead.x = T.x; W.lead.y = T.y + 60; W.lead.tx = null; W.dest = null; W.target = null; for (const c of W.crew) { c.x = T.x; c.y = T.y + 60; } W.cam.x = T.x; W.cam.y = T.y; S.pos = { x: T.x, y: T.y + 60 }; flash(0.8); sfx('arrive'); showWorld(); return; }
   else if (act === 'dart') { const n = +b.dataset.n, cost = n === 5 ? 165 : 35; if (S.money < cost) return; S.money -= cost; S.darts += n; sfx('coin'); }
   else if (act === 'walk') { walkTo(+b.dataset.x, +b.dataset.y, b.dataset.l); showWorld(); return; }
   else if (act === 'toggle') { const u = S.units.find(x => x.id === +b.dataset.id); if (!u) return; if (!u.inParty && party().length >= partyCap()) { toast(`지금은 대장 포함 ${partyCap()}명까지예요. 상단 레벨을 올리면 늘어나요 (최대 12명)`); return; } u.inParty = !u.inParty; if (cargoUsed() > capacity()) toast('짐칸이 모자라요. 출발 전에 짐을 줄이세요', 'warn'); }
@@ -1747,7 +1770,7 @@ document.body.addEventListener('click', e => {
   else if (act === 'snd') { sndInit(); S.snd = (S.snd + 2) % 3; applySnd(); }
   save(); renderAll();
 });
-$('tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { sfx('tap'); setView(b.dataset.v); } });
+$('tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { sfx('tap'); showWorld(); } });
 document.addEventListener('pointerdown', sndInit);
 $('modal').addEventListener('click', e => { if (e.target.id === 'modal' && !$('mcard').querySelector('[data-act="closeBattle"]')) closeModal(); });
 window.addEventListener('resize', () => { if (worldLive()) resizeBattle(); });
@@ -1770,7 +1793,7 @@ function frame(now) {
 S = load() || freshState();
 if (!S.units || !S.units.length) freshState();
 for (const u of S.units) { if (u.type === 'pachy') u.type = 'para'; if (u.type === 'sarco') u.type = 'stego'; }
-S.items = S.items || []; S.cleared = S.cleared || {}; if (S.food === undefined) S.food = 100; S.bank = S.bank || 0; S.invest = S.invest || {}; S.store = S.store || {}; S.form = S.form || 'bal'; S.rival = S.rival || Object.fromEntries(Object.entries(RIVALS).map(([z, r]) => [z, r[1]])); if (!S.pos) { const T0 = TOWNS[S.zone] || TOWNS.plain; S.pos = { x: T0.x, y: T0.y + 70 }; }
+S.items = S.items || []; S.cleared = S.cleared || {}; if (S.food === undefined) S.food = 100; if (S.pots === undefined) S.pots = 2; S.stones = S.stones || 0; S.bank = S.bank || 0; S.invest = S.invest || {}; S.store = S.store || {}; S.form = S.form || 'bal'; S.rival = S.rival || Object.fromEntries(Object.entries(RIVALS).map(([z, r]) => [z, r[1]])); if (!S.pos) { const T0 = TOWNS[S.zone] || TOWNS.plain; S.pos = { x: T0.x, y: T0.y + 70 }; }
 S.clv = S.clv || 1; S.cxp = S.cxp || 0; S.sp = S.sp || 0; S.skills = S.skills || {}; S.jobs = S.jobs || {}; S.out = S.out || {}; S.quests = S.quests || {};
 for (const z of Object.keys(ZONES)) for (const g of Object.keys(GOODS)) { if (S.drift[z][g] === undefined) S.drift[z][g] = 1; if (S.press[z][g] === undefined) S.press[z][g] = 1; }
 ensureQuests();
@@ -1780,9 +1803,9 @@ loadModels((n, t) => { const el = $('loadTxt'); if (el) el.textContent = `공룡
   USE3D = ok;
   if (ok) { try { makePortraits(); } catch (e) { USE3D = false; } }
   const el = $('loadTxt'); if (el) el.textContent = '픽셀 월드 그리는 중…';
-  setTimeout(() => { view = inTown() ? 'town' : 'party'; setView(view); showWorld(); if (S.stats.battles === 0) toast('땅을 눌러 걸어 다니세요 · 정착지에서 곡물을 싸게 사서 다른 정착지에 팔아 보세요'); }, 60);
+  setTimeout(() => { setView('party'); showWorld(); if (S.stats.battles === 0) toast('땅을 눌러 걷고, 건물을 누르면 시장·여관을 쓸 수 있어요'); }, 60);
 });
-window.__dino = { get S() { return S; }, get B() { return B; }, get W() { return W; }, walkTo, TOWNS, GROUNDS, SPR };
+window.__dino = { get S() { return S; }, get B() { return B; }, get W() { return W; }, VO: () => VO, walkTo, TOWNS, GROUNDS, SPR };
 requestAnimationFrame(frame);
 })();
 </script>
