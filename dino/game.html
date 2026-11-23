@@ -226,6 +226,11 @@ function tick(dt) {
   if (S.t >= S.day * DAY_LEN) newDay();
   for (const z of Object.keys(ZONES)) for (const g of Object.keys(GOODS)) S.press[z][g] += (1 - S.press[z][g]) * Math.min(1, dt * 0.02);
   if (S.travel && !B) travelStep(dt);
+  if (!B) for (const u of S.units) {
+    const mh = maxHp(u); if (u.hp >= mh) continue;
+    u.hp = Math.min(mh, u.hp + mh * (S.travel ? 0.003 : 0.01) * dt);
+    if (u.ko && u.hp >= mh * 0.3) { u.ko = false; if (view === 'town') toast(`${unitName(u)}가 기운을 차렸어요`); }
+  }
 }
 
 /* ================================================================
@@ -987,7 +992,8 @@ function renderTown() {
     <div class="card">${recruit}</div>
     <h2>여관과 상점</h2>
     <div class="card">
-      <div class="row"><div class="info"><b>여관에서 쉬기</b><small>${hurt.length ? `다친 대원 ${hurt.length}명 모두 회복` : '모두 건강해요'}</small></div><button class="btn small primary" data-act="heal" ${!hurt.length || S.money < healCost ? 'disabled' : ''}>${healCost}</button></div>
+      <div class="row"><div class="info"><b>여관에서 쉬기</b><small>${hurt.length ? `다친 대원 ${hurt.length}명 모두 바로 회복 · 정착지에 있으면 저절로 천천히 회복돼요` : '모두 건강해요'}</small></div><button class="btn small primary" data-act="heal" data-cost="${healCost}" ${!hurt.length || S.money < healCost ? 'disabled' : ''}>${healCost}</button></div>
+      ${hurt.length && S.money < healCost ? `<div class="row"><div class="info"><b>구호소 (무료)</b><small>돈이 모자랄 때 · 모두 체력 절반으로 일으켜요</small></div><button class="btn small" data-act="aid">쉬기</button></div>` : ''}
       <div class="row"><div class="info"><b>마취 다트</b><small>공룡 포획에 써요 · 보유 ${S.darts}개</small></div><button class="btn small" data-act="dart" data-n="1" ${S.money < 35 ? 'disabled' : ''}>35</button><button class="btn small" data-act="dart" data-n="5" ${S.money < 165 ? 'disabled' : ''}>5개 165</button></div>
     </div>`;
   el.querySelectorAll('canvas[data-u]').forEach(cv => portrait(cv, cv.dataset.u));
@@ -1058,7 +1064,8 @@ document.body.addEventListener('click', e => {
   if (act === 'buy') { const g = b.dataset.g; let n = +b.dataset.n, spent = 0; while (n-- > 0 && S.money >= price(z, g) && cargoUsed() < capacity()) { const p = price(z, g); S.money -= p; spent += p; S.cargo[g] = (S.cargo[g] || 0) + 1; S.press[z][g] += 0.025; } if (spent) { sfx('coin'); S.stats.trades++; } }
   else if (act === 'sell') { const g = b.dataset.g; let got = 0; while (S.cargo[g] > 0) { const p = sellPrice(z, g); S.money += p; got += p; S.cargo[g]--; S.press[z][g] = Math.max(0.4, S.press[z][g] - 0.022); } delete S.cargo[g]; S.stats.earned += got; sfx('coin'); toast(`${GOODS[g].n}을 팔아 ${got} 크레딧`, 'good'); }
   else if (act === 'hire') { const t = b.dataset.t, D = UNITS[t]; if (S.money < D.cost) return; S.money -= D.cost; const u = addUnit(t, Math.max(1, ZONES[z].lv - 1), party().length < 12); sfx('coin'); toast(`${D.n}을 고용했어요${u.inParty ? '' : ' (상단이 가득 차 대기)'}`, 'good'); }
-  else if (act === 'heal') { const cost = +b.textContent; if (S.money < cost) return; S.money -= cost; for (const u of S.units) { u.hp = maxHp(u); u.ko = false; } toast('모두 푹 쉬었어요', 'good'); sfx('arrive'); }
+  else if (act === 'aid') { for (const u of S.units) { const mh = maxHp(u); u.hp = Math.max(u.hp, Math.round(mh * 0.5)); u.ko = false; } toast('구호소에서 쉬고 모두 일어났어요', 'good'); sfx('arrive'); }
+  else if (act === 'heal') { const cost = +b.dataset.cost; if (S.money < cost) return; S.money -= cost; for (const u of S.units) { u.hp = maxHp(u); u.ko = false; } toast('모두 푹 쉬었어요', 'good'); sfx('arrive'); }
   else if (act === 'dart') { const n = +b.dataset.n, cost = n === 5 ? 165 : 35; if (S.money < cost) return; S.money -= cost; S.darts += n; sfx('coin'); }
   else if (act === 'hunt') {
     const tier = +b.dataset.tier;
