@@ -658,7 +658,7 @@ function tryCapture() {
   }, 320);
 }
 function endBattle(win) {
-  if (B.over) return; B.over = true; S.stats.battles++; S.food = Math.max(0, S.food - 4); B.opt.won = win; B.opt.endPos = B.units.filter(u => u.ref && u.hp > 0).map(u => [u.ref.id, { x: u.x, y: u.y, a: u.a }]);
+  if (B.over) return; B.over = true; S.stats.battles++; S.food = Math.max(0, S.food - 1.5); B.opt.won = win; B.opt.endPos = B.units.filter(u => u.ref && u.hp > 0).map(u => [u.ref.id, { x: u.x, y: u.y, a: u.a }]);
   const opt = B.opt;
   for (const bu of B.units) if (bu.ref) { bu.ref.hp = Math.max(0, Math.round(bu.hp)); bu.ref.ko = bu.hp <= 0; }
   const lines = []; let lvUp = false, gotItem = false;
@@ -1369,7 +1369,7 @@ function updWorld(dt) {
       px = c.x; py = c.y;
     });
     S.pos.x = L.x; S.pos.y = L.y;
-    if (L.moving && !inTown()) { const was = S.food; S.food = Math.max(0, S.food - dt * 0.16); if (was > 20 && S.food <= 20) toast('포만감이 떨어져 가요. 곡물·고기·육포를 먹거나 여관에서 식사하세요', 'warn'); if (was > 0 && S.food <= 0) { toast('배가 고파 힘이 빠졌어요 · 공격력이 줄고 회복이 멈춰요', 'warn'); sfx('deny'); } }
+    if (L.moving && !inTown()) { const was = S.food; S.food = Math.max(0, S.food - dt * 0.05); if (was > 20 && S.food <= 20) toast('포만감이 떨어져 가요. 곡물·고기·육포를 먹거나 여관에서 식사하세요', 'warn'); if (was > 0 && S.food <= 0) { toast('배가 고파 힘이 빠졌어요 · 공격력이 줄고 회복이 멈춰요', 'warn'); sfx('deny'); } }
     if (L.moving) { W.stepT -= dt; if (W.stepT <= 0) { W.stepT = 0.32; sfx('step'); const c = W.crew[W.crew.length - 1] || L; burst(c.x, c.y, 1, 2, 'rgba(200,180,140,.8)', { spd: 10, up: 14, g: 30, life: 0.5, r: 2.4 }); } }
     if (S.auto.hunt && !W.target && L.tx === null && !inTown() && W.crew.length) {   // auto hunt: keep taking the nearest herd you can handle
       const us = party(), hp = us.reduce((s, u) => s + (u.ko ? 0 : u.hp / maxHp(u)), 0) / Math.max(1, us.length), top = Math.max(...us.map(u => u.lv));
