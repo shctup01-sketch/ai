@@ -322,14 +322,14 @@ const ROUTES = { 'plain|city': { t: 26, danger: 1.3 }, 'city|swamp': { t: 32, da
 const routeOf = (a, b) => ROUTES[a + '|' + b] || ROUTES[b + '|' + a];
 // Units: people for hire and dinosaurs to tame. carry = cargo slots the unit adds.
 const UNITS = {
-  leader:  { n: '상단 대장', cls: 'human', role: '원거리', hp: 130, atk: 14, def: 6, spd: 40, range: 120, as: 1.0, carry: 10, gun: true, ds: '상단을 이끄는 당신. 소총을 써요.' },
-  hunter:  { n: '사냥꾼', cls: 'human', role: '원거리', hp: 80, atk: 11, def: 3, spd: 42, range: 125, as: 1.1, carry: 3, cost: 120, bow: true, ds: '활로 멀리서 꾸준히 공격해요.' },
-  spear:   { n: '창잡이', cls: 'human', role: '탱커', hp: 160, atk: 9, def: 11, spd: 36, range: 20, as: 0.9, carry: 3, cost: 150, taunt: true, ds: '앞줄에서 적을 붙잡아 둬요.' },
-  sniper:  { n: '저격수', cls: 'human', role: '원거리', hp: 70, atk: 34, def: 2, spd: 34, range: 210, as: 0.42, carry: 2, cost: 340, gun: true, ds: '아주 멀리서 강한 한 발을 쏴요.' },
-  mechanic:{ n: '정비공', cls: 'human', role: '지원', hp: 100, atk: 8, def: 6, spd: 36, range: 100, as: 1, carry: 4, cost: 300, turret: true, ds: '전투가 시작되면 자동 포탑을 설치해요.' },
-  medic:   { n: '의사', cls: 'human', role: '회복', hp: 90, atk: 4, def: 4, spd: 38, range: 110, as: 1, carry: 3, cost: 260, heal: 16, ds: '공격은 약하지만 다친 동료를 계속 치료하고, 스킬로 모두를 한꺼번에 회복시켜요.' },
+  leader:  { n: '상단 대장', cls: 'human', role: '원거리', hp: 130, atk: 14, def: 6, spd: 40, range: 120, as: 1.0, carry: 20, gun: true, ds: '상단을 이끄는 당신. 소총을 써요.' },
+  hunter:  { n: '사냥꾼', cls: 'human', role: '원거리', hp: 80, atk: 11, def: 3, spd: 42, range: 125, as: 1.1, carry: 6, cost: 120, bow: true, ds: '활로 멀리서 꾸준히 공격해요.' },
+  spear:   { n: '창잡이', cls: 'human', role: '탱커', hp: 160, atk: 9, def: 11, spd: 36, range: 20, as: 0.9, carry: 6, cost: 150, taunt: true, ds: '앞줄에서 적을 붙잡아 둬요.' },
+  sniper:  { n: '저격수', cls: 'human', role: '원거리', hp: 70, atk: 34, def: 2, spd: 34, range: 210, as: 0.42, carry: 6, cost: 340, gun: true, ds: '아주 멀리서 강한 한 발을 쏴요.' },
+  mechanic:{ n: '정비공', cls: 'human', role: '지원', hp: 100, atk: 8, def: 6, spd: 36, range: 100, as: 1, carry: 8, cost: 300, turret: true, ds: '전투가 시작되면 자동 포탑을 설치해요.' },
+  medic:   { n: '의사', cls: 'human', role: '회복', hp: 90, atk: 4, def: 4, spd: 38, range: 110, as: 1, carry: 6, cost: 260, heal: 16, ds: '공격은 약하지만 다친 동료를 계속 치료하고, 스킬로 모두를 한꺼번에 회복시켜요.' },
   porter:  { n: '짐꾼', cls: 'human', role: '짐꾼', hp: 120, atk: 4, def: 6, spd: 38, range: 20, as: 0.8, carry: 25, cost: 180, ds: '싸움은 못하지만 짐을 25칸 져요. 레벨이 오를 때마다 2칸씩 늘고, 전직하면 훨씬 많이 져요.' },
-  venomer: { n: '독침술사', cls: 'human', role: '약화', hp: 85, atk: 7, def: 3, spd: 40, range: 115, as: 0.9, carry: 3, cost: 360, shred: 4, ds: '독침으로 적의 장갑을 녹여 모두의 피해를 늘려요.' },
+  venomer: { n: '독침술사', cls: 'human', role: '약화', hp: 85, atk: 7, def: 3, spd: 40, range: 115, as: 0.9, carry: 6, cost: 360, shred: 4, ds: '독침으로 적의 장갑을 녹여 모두의 피해를 늘려요.' },
   trike:   { n: '트리케라톱스', cls: 'dino', role: '탱커', hp: 440, atk: 22, def: 16, spd: 27, range: 24, as: 0.7, carry: 40, size: 30, taunt: true, ds: '짐을 40칸 지는 단단한 방패. 상단의 기둥이에요.' },
   para:    { n: '파라사우롤로푸스', cls: 'dino', role: '기절', hp: 230, atk: 16, def: 9, spd: 46, range: 20, as: 0.8, carry: 10, size: 22, stun: 1.2, ds: '볏을 울려 내는 굉음으로 적을 기절시켜요. 큰 적에게는 안 통해요.' },
   apato:   { n: '아파토사우루스', cls: 'dino', role: '짐꾼', hp: 700, atk: 14, def: 12, spd: 20, range: 26, as: 0.5, carry: 120, size: 42, taunt: true, ds: '걸어 다니는 창고. 짐을 120칸이나 져요. 느리지만 단단해요.' },
@@ -636,8 +636,9 @@ function onKill(u, t) {
     if (t.side === 0) { flash(0.25, '212,87,60'); sfx('down', 300); } }
   if (t.side === 1) {
     B.xp += 12 * t.lv * (t.boss ? 6 : 1);
-    if (B.opt.kind !== 'escort') for (const [g, k] of Object.entries(ZONES[B.opt.zone].loot)) { const n = Math.max(0, Math.round(k * (t.size / 20) * rand(0.6, 1.3) * (1 + 0.15 * sk('loot'))) * (t.boss ? 3 : 1)); if (n) B.loot[g] = (B.loot[g] || 0) + n; }
-    { const TL = TYPE_LOOT[MODEL_FILES[t.type]] || {}, own = t.type === 'compy' ? { meat: 1 } : t.type === 'dilo' ? { venom: 1, meat: 1 } : TL; for (const [g, k] of Object.entries(own)) if (Math.random() < 0.6) B.loot[g] = (B.loot[g] || 0) + k; }
+    if (B.opt.kind !== 'escort') for (const [g, k] of Object.entries(ZONES[B.opt.zone].loot)) { const x = k * (t.size / 20) * rand(0.6, 1.3) * (1 + 0.15 * sk('loot')) * 0.24 * (t.boss ? 4 : 1), n = Math.floor(x) + (Math.random() < x % 1 ? 1 : 0); if (n) B.loot[g] = (B.loot[g] || 0) + n; }
+    B.money = (B.money || 0) + Math.round((t.size * 1.6 + t.lv * 3) * (t.boss ? 6 : 1) * rand(0.8, 1.2) * (1 + 0.1 * sk('loot')));
+    { const TL = TYPE_LOOT[MODEL_FILES[t.type]] || {}, own = t.type === 'compy' ? { meat: 1 } : t.type === 'dilo' ? { venom: 1, meat: 1 } : TL; for (const [g] of Object.entries(own)) if (Math.random() < 0.22) B.loot[g] = (B.loot[g] || 0) + 1; }
     if (t.type === 'dilo' || t.type === 'sarco') B.loot.venom = (B.loot.venom || 0) + (t.type === 'dilo' ? 1 : 0);
   } else if (t.ref) { t.ref.hp = 0; t.ref.ko = true; toast(`${unitName(t.ref)}가 쓰러졌어요`, 'warn'); }
   if (B.sel === t) B.sel = null;
@@ -688,9 +689,10 @@ function endBattle(win) {
       if (!u.ko) { const m0 = mastery(u); u.wins = (u.wins || 0) + 1; if (mastery(u) > m0) lines.push(`${unitName(u)}의 ${UNITS[u.type].cls === 'dino' ? '친밀도' : '숙련도'}가 '${MAST_N[mastery(u)]}'(으)로 올랐어요 · 공격 +3%, 체력 +2%`); }
       while (u.xp >= xpNeed(u.lv) && u.lv < 40) { u.xp -= xpNeed(u.lv); u.lv++; u.hp = Math.min(maxHp(u), u.hp + Math.round(maxHp(u) * 0.3)); u.pts = (u.pts || 0) + 3; { const pk = PERKS.find(p => p[0] === u.lv); lines.push(`${unitName(u)} Lv${u.lv} 달성 · 능력치 포인트 +3${pk ? ` · <b style="color:var(--amber)">${pk[1]}</b>` : ''}`); } lvUp = true; if (PROMO[u.tier || 0] && u.lv === PROMO[u.tier || 0].lv) lines.push(`<b style="color:var(--amber)">${unitName(u)}: ${UNITS[u.type].cls === 'dino' ? '진화' : '전직'}할 수 있어요</b> (상단 창에서)`); }
     }
-    for (const [g, k] of Object.entries(B.loot)) { const got = addCargo(g, k); lines.unshift(`${GOODS[g].n} +${got}${got < k ? ` (짐칸 부족으로 ${k - got}개 버림)` : ''}`); }
+    let sold = 0; for (const [g, k] of Object.entries(B.loot)) { const got = addCargo(g, k); if (got < k) sold += Math.round((k - got) * GOODS[g].base * 0.5); lines.unshift(`${GOODS[g].n} +${got}${got < k ? ` (${k - got}개는 짐칸이 없어 그 자리에서 처분)` : ''}`); }
+    { const m = (B.money || 0) + sold; if (m) { S.money += m; S.stats.earned += m; lines.unshift(`<b style="color:var(--amber)">크레딧 +${m}</b>${sold ? ` (넘친 전리품 처분 ${sold} 포함)` : ''}`); } }
     for (const c of B.captured) { const inP = party().length < partyCap(); const u = addUnit(c.type, c.lv, inP); u.hp = Math.round(maxHp(u) * 0.4); lines.push(`${UNITS[c.type].n} Lv${c.lv}이(가) 상단에 합류했어요${inP ? '' : ' (대기)'}`); S.stats.captures++; }
-    lines.splice(Object.keys(B.loot).length, 0, `경험치 +${share} (참전 대원 모두)`);
+    lines.splice(Object.keys(B.loot).length + (B.money ? 1 : 0), 0, `경험치 +${share} (참전 대원 모두)`);
   } else {
     if (opt.kind === 'ambush') { const lost = loseCargo(0.35); lines.push(lost ? `짐 ${lost}개를 잃었어요` : '잃은 짐은 없어요'); }
     lines.push('쓰러진 대원은 여관에서 회복할 수 있어요');
