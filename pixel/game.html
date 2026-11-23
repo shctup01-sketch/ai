@@ -1,0 +1,1788 @@
+<title>공룡 상단 픽셀</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;600&display=swap">
+<style>
+/* Layout: caravan ledger — header with money/cargo, three tabs (town, caravan, map), full-screen battle overlay.
+   Single post-apocalyptic look: dust, rust and ash. */
+:root {
+  --bg: #1c1711; --panel: #26201a; --panel-2: #312921; --line: #463a2d;
+  --text: #ece3d4; --muted: #a89a86; --rust: #d0743a; --amber: #e3a843; --good: #8fbf6a; --bad: #d4573c; --steel: #8fa3b0;
+  --f-display: "Black Han Sans", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --f-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html { height: 100%; box-sizing: border-box; background: var(--bg); }
+body { height: 100%; margin: 0; background: var(--bg); color: var(--text); font-family: var(--f-body); font-size: 13px; overflow: hidden; user-select: none; -webkit-user-select: none; }
+button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; touch-action: manipulation; }
+button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+button[disabled] { opacity: .4; pointer-events: none; }
+#app { height: 100%; max-width: 620px; margin: 0 auto; display: flex; flex-direction: column; position: relative; }
+header { padding-block: 8px; padding-left: max(14px, env(safe-area-inset-left, 0px)); padding-right: max(14px, env(safe-area-inset-right, 0px)); display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--line); background: linear-gradient(#2a221a, var(--bg)); }
+.brand { flex: 1; min-width: 0; }
+.brand h1 { font-family: var(--f-display); font-weight: 400; font-size: 21px; margin: 0; letter-spacing: .02em; color: var(--rust); }
+.brand small { display: block; color: var(--muted); font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.res { display: flex; gap: 5px; }
+.rc { display: flex; flex-direction: column; align-items: flex-end; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 2px 7px; min-width: 52px; }
+.rc em { font-style: normal; font-size: 9px; color: var(--muted); }
+.rc b { font-size: 13px; font-variant-numeric: tabular-nums; }
+.rc.money b { color: var(--amber); }
+main { flex: 1; min-height: 0; position: relative; }
+.view { position: absolute; inset: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-block: 12px 20px; padding-left: max(14px, env(safe-area-inset-left, 0px)); padding-right: max(14px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 12px; }
+h2 { font-family: var(--f-display); font-weight: 400; font-size: 17px; margin: 0; letter-spacing: .02em; }
+h2 small { font-family: var(--f-body); font-size: 11px; color: var(--muted); margin-left: 6px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 11px; display: flex; flex-direction: column; gap: 9px; }
+.row { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.row + .row { border-top: 1px dashed var(--line); padding-top: 9px; }
+.row .info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.row .info b { font-weight: 600; font-size: 13px; }
+.row .info small { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.row canvas { flex: none; width: 52px; height: 40px; }
+.btn { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 11px; font-weight: 600; font-size: 12px; flex: none; }
+.btn:active { transform: translateY(1px); }
+.btn.primary { background: var(--rust); color: #1c120a; border-color: #8f4a1e; }
+.btn.big { width: 100%; padding: 13px; font-family: var(--f-display); font-weight: 400; font-size: 17px; }
+.btn.small { padding: 6px 8px; font-size: 11px; }
+.up { color: var(--good); } .down { color: var(--bad); }
+.zonehead { position: relative; border-radius: 12px; overflow: hidden; min-height: 116px; display: flex; align-items: flex-end; border: 1px solid var(--line); }
+.zonehead canvas, .zonehead img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.zonehead { min-height: 170px; }
+.zonehead .zt { position: relative; padding: 12px; background: linear-gradient(transparent, rgba(20,15,10,.92)); width: 100%; }
+.zonehead .zt b { font-family: var(--f-display); font-weight: 400; font-size: 22px; display: block; }
+.zonehead .zt small { color: #d8cdb9; font-size: 11px; }
+.danger { color: var(--bad); letter-spacing: 1px; }
+.hunts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.hunts .btn { display: flex; flex-direction: column; gap: 2px; align-items: center; padding: 9px 4px; }
+.hunts .btn small { font-weight: 400; font-size: 10px; color: var(--muted); }
+.hunts .btn.boss { border-color: var(--bad); }
+.bar { height: 5px; background: #3a2e22; border-radius: 3px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--good); }
+.tag { font-size: 10px; padding: 1px 6px; border-radius: 5px; background: var(--panel-2); border: 1px solid var(--line); color: var(--muted); }
+.tag.on { background: var(--rust); color: #1c120a; border-color: var(--rust); }
+#mapHost { width: 100%; aspect-ratio: 1 / 1.08; border-radius: 12px; border: 1px solid var(--line); overflow: hidden; background: #2a231b; }
+#map3d { width: 100%; height: 100%; display: block; }
+#mapcv { width: 100%; aspect-ratio: 360 / 300; max-width: 100%; border-radius: 12px; border: 1px solid var(--line); display: block; }
+.travel { display: flex; flex-direction: column; gap: 6px; }
+.travel .bar { height: 8px; } .travel .bar i { background: var(--amber); }
+#tabs { display: flex; background: var(--panel); border-top: 1px solid var(--line); padding: 5px max(8px, env(safe-area-inset-right, 0px)) 6px max(8px, env(safe-area-inset-left, 0px)); gap: 4px; }
+#tabs button { flex: 1; border-radius: 8px; padding: 8px 2px; font-family: var(--f-display); font-size: 15px; color: var(--muted); }
+#tabs button.on { background: var(--panel-2); color: var(--text); box-shadow: inset 0 -2px 0 var(--rust); }
+#battle { position: absolute; inset: 0; z-index: 20; background: #120e0a; display: flex; flex-direction: column; }
+.bhead { display: flex; align-items: center; gap: 8px; padding: 7px max(12px, env(safe-area-inset-right, 0px)) 7px max(12px, env(safe-area-inset-left, 0px)); }
+.bhead b { font-family: var(--f-display); font-weight: 400; font-size: 16px; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bhead small { color: var(--muted); font-size: 11px; }
+.bfield { flex: 1; min-height: 0; position: relative; }
+#b3d { image-rendering: pixelated; image-rendering: crisp-edges; }
+#feed { position: absolute; left: 8px; top: 34px; max-width: 62%; font-size: 12px; line-height: 1.5; color: #ece3d4; text-shadow: 0 1px 2px #000, 0 0 3px #000; pointer-events: none; opacity: 0; }
+#feed.show { animation: feedfade 6s forwards; }
+@keyframes feedfade { 0% { opacity: 0; transform: translateY(6px); } 6% { opacity: 1; transform: none; } 80% { opacity: 1; } 100% { opacity: 0; } }
+#bcv, #b3d { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+.dexg { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.dexc { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 4px 3px 6px; text-align: center; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.dexc canvas { width: 100%; height: 44px; }
+.dexc b { font-size: 10px; font-weight: 600; overflow-wrap: anywhere; line-height: 1.25; }
+.dexc small { font-size: 9px; color: var(--muted); }
+.dexc.unk canvas { filter: brightness(0) opacity(.45); }
+.dexc.own { border-color: var(--amber); }
+.chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; position: sticky; top: -12px; z-index: 5; background: var(--bg); padding: 8px 0; margin: -4px 0; }
+.chips::-webkit-scrollbar { display: none; }
+.chip { flex: none; height: 36px; padding: 0 14px; border-radius: 18px; background: var(--panel); border: 1px solid var(--line); font-weight: 600; font-size: 13px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
+.chip.on { background: var(--rust); border-color: var(--rust); color: #1c120a; }
+.chip i { font-style: normal; min-width: 18px; height: 18px; border-radius: 9px; background: var(--bad); color: #fff; font-size: 11px; display: grid; place-items: center; padding: 0 5px; }
+.chip.on i { background: #1c120a; color: var(--amber); }
+.num { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-family: var(--f-display); font-size: 15px; background: var(--panel-2); border: 1px solid var(--line); color: var(--muted); }
+.num.done { border-color: var(--good); color: var(--good); } .num.boss { border-color: var(--bad); color: var(--bad); }
+.cargobar { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.cargobar span { flex: none; } .cargobar .bar { flex: 1; height: 7px; }
+#loading { display: flex; flex-direction: column; gap: 8px; align-items: center; justify-content: center; min-height: 60%; color: var(--muted); }
+#bTip { animation: tipfade 6s forwards; position: absolute; left: 50%; top: 8px; transform: translateX(-50%); font-size: 11px; color: #d8cdb9; background: rgba(18,14,10,.7); padding: 3px 9px; border-radius: 10px; pointer-events: none; white-space: nowrap; }
+#bSel { position: absolute; left: 8px; right: 8px; bottom: 8px; background: rgba(18,14,10,.86); border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; font-size: 12px; display: flex; gap: 8px; align-items: center; pointer-events: none; }
+#bSel .bar { flex: 1; } #bSel .bar i { background: var(--bad); }
+.bfoot { display: flex; gap: 6px; padding: 7px max(12px, env(safe-area-inset-right, 0px)) 9px max(12px, env(safe-area-inset-left, 0px)); }
+.bfoot .btn { flex: 1; padding: 11px 4px; font-size: 13px; }
+#modal { position: absolute; inset: 0; z-index: 40; background: rgba(8,6,4,.72); display: grid; place-items: center; padding: 20px max(16px, env(safe-area-inset-right, 0px)) 20px max(16px, env(safe-area-inset-left, 0px)); }
+.mcard { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px 16px; width: 100%; max-width: 360px; max-height: 100%; overflow-y: auto; display: flex; flex-direction: column; gap: 11px; animation: pop .22s ease-out; }
+.mcard h3 { font-family: var(--f-display); font-weight: 400; font-size: 24px; margin: 0; text-align: center; }
+.mcard .sub { text-align: center; color: var(--muted); font-size: 12px; margin-top: -5px; line-height: 1.5; }
+.mbtns { display: flex; gap: 8px; } .mbtns .btn { flex: 1; padding: 11px; }
+@keyframes tipfade { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes pop { from { transform: scale(.92); opacity: 0; } to { transform: none; opacity: 1; } }
+#toast { position: absolute; left: 50%; top: 56px; transform: translate(-50%, -6px); background: rgba(28,23,17,.95); border: 1px solid var(--line); padding: 7px 14px; border-radius: 16px; font-size: 12px; opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; z-index: 50; max-width: calc(100% - 24px); text-align: center; }
+#toast.show { opacity: 1; transform: translate(-50%, 0); }
+#toast.warn { border-color: var(--bad); } #toast.good { border-color: var(--amber); }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+/* interface polish */
+.view > * { flex-shrink: 0; }
+h2 { margin-top: 2px; } h2 small { display: block; margin: 3px 0 0; line-height: 1.45; }
+.card { border-radius: 14px; padding: 12px 13px; gap: 11px; background: linear-gradient(#2a231c, #241e18); }
+.row + .row { padding-top: 11px; }
+.row .info b { font-size: 14px; } .row .info small { font-size: 11.5px; line-height: 1.45; }
+.row canvas { width: 58px; height: 46px; border-radius: 10px; background: #1a1510; border: 1px solid var(--line); }
+.btn { min-height: 40px; border-radius: 10px; padding: 8px 13px; font-size: 13px; }
+.btn.small { min-height: 36px; padding: 6px 11px; font-size: 12.5px; }
+.btn.primary { box-shadow: inset 0 -2px 0 rgba(0,0,0,.25); }
+.tag { border-radius: 6px; padding: 2px 7px; }
+.zonehead { min-height: 150px; border-radius: 14px; } .zonehead .zt { padding: 14px; } .zonehead .zt b { font-size: 24px; }
+.rc { border-radius: 9px; padding: 4px 9px; min-width: 58px; } .rc b { font-size: 14px; } .rc em { font-size: 10px; }
+#tabs { padding-top: 6px; }
+#tabs button { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 13px; padding: 6px 2px 5px; }
+#tabs svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+#tabs button.on { color: var(--rust); background: none; box-shadow: none; }
+/* sheets slide up from the bottom, within thumb reach */
+#modal { place-items: end center; padding: 0; }
+.mcard { max-width: 620px; border-radius: 20px 20px 0 0; border-bottom: 0; max-height: 88%; padding: 10px 16px calc(18px + env(safe-area-inset-bottom, 0px)); animation: sheet .24s ease-out; }
+.mcard::before { content: ""; width: 44px; height: 4px; border-radius: 2px; background: var(--line); margin: 0 auto 6px; flex: none; }
+@keyframes sheet { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+#toast { top: 62px; border-radius: 12px; padding: 9px 14px; font-size: 13px; box-shadow: 0 6px 20px rgba(0,0,0,.4); }
+.bfoot .btn { min-height: 46px; } #bCapture { flex: 1.6; font-size: 14px; }
+.dexg { gap: 8px; } .dexc { border-radius: 10px; }
+#menu { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+/* landscape: the world fills the screen and the menus slide in as a side panel */
+@media (orientation: landscape) {
+  #app { max-width: none; --pw: min(46%, 440px); }
+  #battle, #battle[hidden] { display: flex !important; right: 0; }
+  #app:not(.wo) #battle { right: var(--pw); }
+  #menu { position: absolute; right: 0; top: 0; bottom: 0; width: var(--pw); z-index: 30; background: var(--bg); border-left: 1px solid var(--line); flex: none; }
+  #app.wo #menu { display: none; }
+  .bfield { position: absolute; inset: 0; }
+  .bhead { position: absolute; left: 0; right: 0; top: 0; z-index: 2; background: linear-gradient(rgba(18,14,10,.85), rgba(18,14,10,0)); pointer-events: none; padding-bottom: 14px; }
+  .bhead small { margin-right: 84px; }
+  .bfoot { position: absolute; right: 0; bottom: 0; z-index: 3; width: min(360px, 60%); padding-bottom: max(8px, env(safe-area-inset-bottom, 0px)); }
+  .bfoot .btn { min-height: 42px; } .bfoot .btn:not(.primary) { background-color: rgba(42,34,26,.92); }
+  #bTip { top: 34px; } #feed { top: 40px; } #bSel { right: auto; width: min(300px, 40%); }
+  .mcard { max-width: 520px; max-height: 94%; }
+  #modal { place-items: center; } .mcard { border-radius: 16px; border-bottom: 1px solid var(--line); }
+}
+</style>
+
+<div id="app">
+  <div id="menu">
+  <header>
+    <div class="brand"><h1>공룡 상단</h1><small id="sub"></small></div>
+    <div class="res">
+      <span class="rc money"><em>크레딧</em><b id="rMoney">0</b></span>
+      <span class="rc"><em>짐칸</em><b id="rCargo">0/0</b></span>
+      <span class="rc"><em>날짜</em><b id="rDay">1</b></span>
+    </div>
+  </header>
+  <main>
+    <section class="view" id="v-town"></section>
+    <section class="view" id="v-party" hidden></section>
+    <section class="view" id="v-map" hidden></section>
+  </main>
+  <nav id="tabs">
+    <button data-v="town" class="on"><svg viewBox="0 0 24 24"><path d="M3 20h18M5 20V10l7-6 7 6v10M10 20v-6h4v6"/></svg>정착지</button>
+    <button data-v="party"><svg viewBox="0 0 24 24"><circle cx="8" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M2 20c0-4 3-6 6-6s6 2 6 6M14 20c0-3 1.5-5 4-5s4 2 4 5"/></svg>상단</button>
+    <button data-v="map"><svg viewBox="0 0 24 24"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></svg>지도</button>
+    <button data-v="field"><svg viewBox="0 0 24 24"><path d="M12 3v18M12 3l6 4-6 4M5 21h14"/></svg>필드</button>
+  </nav>
+  </div>
+  <div id="battle" hidden>
+    <div class="bhead"><b id="bTitle"></b><small id="bInfo"></small></div>
+    <div class="bfield"><canvas id="b3d"></canvas><canvas id="bcv"></canvas><div id="bTip">적을 눌러 집중 공격 · 체력 30% 이하면 포획</div><div id="feed"></div><div id="bSel" hidden><span id="bSelName"></span><span class="bar"><i id="bSelHp"></i></span></div></div>
+    <div class="bfoot" id="ffoot" hidden><button class="btn" id="fLeave">메뉴</button><button class="btn" id="fZoom">크게</button><button class="btn primary" id="fNearest">가까운 무리로</button></div>
+    <div class="bfoot" id="bfoot"><button class="btn" id="bRetreat">후퇴</button><button class="btn primary" id="bCapture">포획</button><button class="btn" id="bZoom">크게</button><button class="btn" id="bSpeed">×1</button></div>
+  </div>
+  <div id="toast"></div>
+  <div id="modal" hidden><div class="mcard" id="mcard"></div></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/fflate.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FBXLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/SkeletonUtils.js"></script>
+<script>
+(() => {
+'use strict';
+const $ = id => document.getElementById(id);
+const rand = (a, b) => a + Math.random() * (b - a);
+const pick = a => a[Math.random() * a.length | 0];
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const d2 = (ax, ay, bx, by) => { const dx = ax - bx, dy = ay - by; return dx * dx + dy * dy; };
+const fmt = n => Math.floor(n).toLocaleString('ko-KR');
+
+/* ================================================================
+   WORLD DATA — three zones instead of nations; no elements
+   ================================================================ */
+const GOODS = {
+  grain: { n: '곡물', base: 9 }, meat: { n: '고기', base: 14 }, hide: { n: '가죽', base: 20 }, bone: { n: '뼈', base: 12 },
+  water: { n: '깨끗한 물', base: 16 }, ammo: { n: '탄약', base: 28 }, parts: { n: '기계 부품', base: 42 },
+  herb: { n: '약초', base: 24 }, venom: { n: '독샘', base: 50 },
+  // made in workshops, never sold by markets
+  jerky: { n: '육포', base: 36, made: true, zp: { plain: 0.9, city: 1.4, swamp: 1.25 } },
+  armor: { n: '가죽 갑옷', base: 125, made: true, zp: { plain: 0.9, city: 1.3, swamp: 1.3 } },
+  weapon: { n: '강철 무기', base: 165, made: true, zp: { plain: 1.3, city: 0.9, swamp: 1.35 } },
+  medicine: { n: '치료약', base: 96, made: true, zp: { plain: 1.3, city: 1.4, swamp: 0.9 } },
+};
+const ZONES = {
+  plain: { n: '잿빛 평원', lv: 1, danger: 1, ground: 'plain', mx: 0.24, my: 0.72,
+    ds: '재가 날리는 마른 초원. 초식 공룡 떼가 지나가고, 살아남은 농부들이 곡물을 키워요.',
+    recruit: ['hunter', 'spear'], tame: ['trike', 'para', 'apato'], rare: ['trikeIron', 'trikeRed', 'paraGold'], wild: ['para', 'para', 'trike', 'para', 'trike', 'apato'], boss: 'trikeKing',
+    loot: { meat: 3, hide: 2, bone: 1 }, price: { grain: .55, hide: .8, meat: .85, bone: .9, water: 1.05, ammo: 1.45, parts: 1.35, herb: 1.35, venom: 1.4 } },
+  city: { n: '무너진 도시', lv: 5, danger: 2, ground: 'city', mx: 0.74, my: 0.42,
+    ds: '공룡에게 짓밟힌 옛 도시. 폐허에서 부품과 탄약을 캐지만 먹을 것과 물이 귀해요. 랩터 무리가 골목을 지배해요.',
+    recruit: ['sniper', 'mechanic'], tame: ['raptor', 'compy'], rare: ['raptorShadow', 'stegoRust'], wild: ['compy', 'compy', 'raptor', 'raptor'], boss: 'oneEye',
+    loot: { parts: 2, ammo: 1, meat: 1, hide: 1 }, price: { parts: .55, ammo: .65, meat: 1.5, grain: 1.45, water: 1.6, herb: 1.2, hide: 1.1, bone: 1.15, venom: 1.25 } },
+  swamp: { n: '썩은 늪지', lv: 9, danger: 3, ground: 'swamp', mx: 0.3, my: 0.24,
+    ds: '독이 고인 늪. 약초와 독샘이 나지만 거대 악어와 산성 침을 뱉는 공룡이 숨어 있어요.',
+    recruit: ['medic', 'venomer'], tame: ['dilo', 'stego'], rare: ['raptorVenom', 'apatoMoss', 'trexYoung'], wild: ['dilo', 'dilo', 'stego', 'compy'], boss: 'swampKing',
+    loot: { herb: 2, venom: 1, meat: 2, hide: 1 }, price: { herb: .55, venom: .6, water: .85, parts: 1.6, ammo: 1.35, grain: 1.25, meat: 1.1, hide: 1.2, bone: 1.1 } },
+};
+// Workshops: each settlement turns raw goods into products over time, even while the caravan is away.
+const RECIPES = {
+  jerky:    { zone: 'plain', n: '육포 만들기', in: { meat: 2, grain: 1 }, out: 'jerky', qty: 2, t: 18, fee: 4 },
+  armor:    { zone: 'plain', n: '가죽 갑옷 짓기', in: { hide: 4 }, out: 'armor', qty: 1, t: 40, fee: 12 },
+  ammo:     { zone: 'city', n: '탄약 재생', in: { parts: 1, bone: 1 }, out: 'ammo', qty: 3, t: 22, fee: 6 },
+  weapon:   { zone: 'city', n: '강철 무기 벼리기', in: { parts: 2, bone: 2 }, out: 'weapon', qty: 1, t: 45, fee: 15 },
+  medicine: { zone: 'swamp', n: '치료약 달이기', in: { herb: 2, water: 1 }, out: 'medicine', qty: 1, t: 28, fee: 8 },
+  dart:     { zone: 'swamp', n: '마취 다트 만들기', in: { venom: 1, bone: 1 }, out: 'dart', qty: 2, t: 20, fee: 5 },
+};
+const SKILLS = {
+  trade: { n: '거래달인', ds: lv => `살 때 -${lv * 3}%, 팔 때 +${lv * 3}%` },
+  speed: { n: '질주', ds: lv => `이동 시간 -${lv * 8}%` },
+  loot:  { n: '수집숙련', ds: lv => `사냥 전리품 +${lv * 15}%` },
+  tame:  { n: '조련술', ds: lv => `포획 확률 +${lv * 5}%p` },
+  craft: { n: '생산숙련', ds: lv => `공방 작업 시간 -${lv * 12}%` },
+};
+const SKILL_MAX = 5;
+const sk = k => (S.skills && S.skills[k]) || 0;
+const cxpNeed = lv => Math.round(120 * Math.pow(lv, 1.5));
+const partyCap = () => Math.min(12, 5 + S.clv);
+const TIER_HUMAN = ['', '숙련 ', '정예 '], TIER_DINO = ['', '성체 ', '우두머리 '];
+const PROMO = [{ lv: 10, clv: 3, cost: 400 }, { lv: 20, clv: 6, cost: 1500 }];
+const gearMul = u => {
+  const t = 1 + 0.3 * (u.tier || 0), b = { atk: 0, hp: 0, def: 0 };
+  for (const it of Object.values(u.eq || {})) if (it) { const s = itemStat(it); for (const k in s) b[k] += s[k]; }
+  return { hp: t * (1 + 0.1 * (u.ga || 0)) * (1 + b.hp), atk: t * (1 + 0.15 * (u.gw || 0)) * (1 + b.atk), def: (1 + 0.25 * (u.ga || 0)) * (1 + b.def) };
+};
+function gainCxp(n) {
+  S.cxp += Math.round(n);
+  while (S.cxp >= cxpNeed(S.clv)) { S.cxp -= cxpNeed(S.clv); S.clv++; S.sp++; toast(`상단 레벨 ${S.clv}! 스킬 포인트 +1${partyCap() > Math.min(12, 4 + S.clv) ? ` · 상단 인원 ${partyCap()}명` : ''}`, 'good'); sfx('capture'); }
+}
+// Five hunting grounds per zone, each deeper one opens after winning the one before.
+const HUNT_NAMES = {
+  plain: ['마른 강바닥', '버려진 농장', '무너진 풍차 언덕', '공룡 뼈 무덤', '우두머리의 둥지'],
+  city: ['주차장 폐허', '무너진 백화점', '지하철 입구', '고층 빌딩 숲', '외눈 랩터의 영역'],
+  swamp: ['잠긴 주택가', '썩은 수로', '안개 낀 늪', '폭군의 사냥길', '폭군의 둥지'],
+};
+const HUNTS = [
+  { lv: [0, 1], n: [2, 2], rare: 0.08, drop: 0.14 },
+  { lv: [2, 3], n: [3, 3], rare: 0.2, drop: 0.2 },
+  { lv: [3, 5], n: [3, 4], rare: 0.3, drop: 0.27 },
+  { lv: [5, 6], n: [4, 5], rare: 0.45, drop: 0.36 },
+  { boss: true, lv: [6, 6], drop: 1 },
+];
+// Loot: equipment drops with five rarities. Anyone in the caravan, human or dinosaur, can wear it.
+const RAR = [{ n: '일반', c: '#d8cdb9', m: 1, w: 60 }, { n: '고급', c: '#8fbf6a', m: 1.6, w: 26 }, { n: '희귀', c: '#79b4e4', m: 2.4, w: 10 }, { n: '영웅', c: '#c58be6', m: 3.4, w: 3.2 }, { n: '전설', c: '#f0b94a', m: 5, w: 0.8 }];
+const SLOTS = { weapon: '무기', armor: '방어구', charm: '장신구' };
+const ITEM_NAMES = {
+  weapon: ['뼈 창날', '랩터 발톱 단검', '녹슨 마체테', '개조 소총 부품', '폭군의 이빨 검'],
+  armor: ['누더기 가죽 조끼', '폐타이어 갑옷', '골판 방패', '스테고 골판 갑주', '폭군 가죽 망토'],
+  charm: ['공룡 이빨 목걸이', '깃털 부적', '낡은 나침반', '호박 속 모기', '티라노 발톱 장식'],
+};
+const BAG_MAX = 40;
+function itemStat(it) { const m = RAR[it.r].m * (1 + it.lv * 0.03); return it.slot === 'weapon' ? { atk: 0.06 * m } : it.slot === 'armor' ? { hp: 0.05 * m, def: 0.08 * m } : { atk: 0.03 * m, hp: 0.03 * m }; }
+const itemPrice = it => Math.round(18 * RAR[it.r].m * RAR[it.r].m * (1 + it.lv * 0.1));
+const itemText = it => { const s = itemStat(it), parts = []; if (s.atk) parts.push(`공격 +${Math.round(s.atk * 100)}%`); if (s.hp) parts.push(`체력 +${Math.round(s.hp * 100)}%`); if (s.def) parts.push(`방어 +${Math.round(s.def * 100)}%`); return parts.join(' · '); };
+const itemName = it => `<span style="color:${RAR[it.r].c}">[${RAR[it.r].n}] ${it.n}</span>`;
+function rollItem(lv, luck, minR = 0) {
+  const w = RAR.map((R, i) => i < minR ? 0 : R.w * Math.pow(1 + luck, i)); let r = Math.random() * w.reduce((a, b) => a + b, 0), ri = minR;
+  for (let i = 0; i < w.length; i++) { r -= w[i]; if (r <= 0) { ri = i; break; } }
+  const slot = pick(Object.keys(SLOTS));
+  return { id: S.itemSeq = (S.itemSeq || 0) + 1, slot, r: ri, lv, n: ITEM_NAMES[slot][ri] };
+}
+const ROUTES = { 'plain|city': { t: 26, danger: 1.3 }, 'city|swamp': { t: 32, danger: 2.3 }, 'plain|swamp': { t: 38, danger: 2.7 } };
+const routeOf = (a, b) => ROUTES[a + '|' + b] || ROUTES[b + '|' + a];
+// Units: people for hire and dinosaurs to tame. carry = cargo slots the unit adds.
+const UNITS = {
+  leader:  { n: '상단 대장', cls: 'human', role: '원거리', hp: 130, atk: 14, def: 6, spd: 40, range: 120, as: 1.0, carry: 10, gun: true, ds: '상단을 이끄는 당신. 소총을 써요.' },
+  hunter:  { n: '사냥꾼', cls: 'human', role: '원거리', hp: 80, atk: 11, def: 3, spd: 42, range: 125, as: 1.1, carry: 3, cost: 120, bow: true, ds: '활로 멀리서 꾸준히 공격해요.' },
+  spear:   { n: '창잡이', cls: 'human', role: '탱커', hp: 160, atk: 9, def: 11, spd: 36, range: 20, as: 0.9, carry: 3, cost: 150, taunt: true, ds: '앞줄에서 적을 붙잡아 둬요.' },
+  sniper:  { n: '저격수', cls: 'human', role: '원거리', hp: 70, atk: 34, def: 2, spd: 34, range: 210, as: 0.42, carry: 2, cost: 340, gun: true, ds: '아주 멀리서 강한 한 발을 쏴요.' },
+  mechanic:{ n: '정비공', cls: 'human', role: '지원', hp: 100, atk: 8, def: 6, spd: 36, range: 100, as: 1, carry: 4, cost: 300, turret: true, ds: '전투가 시작되면 자동 포탑을 설치해요.' },
+  medic:   { n: '의무병', cls: 'human', role: '회복', hp: 90, atk: 5, def: 4, spd: 38, range: 110, as: 1, carry: 3, cost: 320, heal: 14, ds: '가장 다친 동료를 치료해요.' },
+  venomer: { n: '독침술사', cls: 'human', role: '약화', hp: 85, atk: 7, def: 3, spd: 40, range: 115, as: 0.9, carry: 3, cost: 360, shred: 4, ds: '독침으로 적의 장갑을 녹여 모두의 피해를 늘려요.' },
+  trike:   { n: '트리케라톱스', cls: 'dino', role: '탱커', hp: 440, atk: 22, def: 16, spd: 27, range: 24, as: 0.7, carry: 40, size: 30, taunt: true, ds: '짐을 40칸 지는 단단한 방패. 상단의 기둥이에요.' },
+  para:    { n: '파라사우롤로푸스', cls: 'dino', role: '기절', hp: 230, atk: 16, def: 9, spd: 46, range: 20, as: 0.8, carry: 10, size: 22, stun: 1.2, ds: '볏을 울려 내는 굉음으로 적을 기절시켜요. 큰 적에게는 안 통해요.' },
+  apato:   { n: '아파토사우루스', cls: 'dino', role: '짐꾼', hp: 700, atk: 14, def: 12, spd: 20, range: 26, as: 0.5, carry: 120, size: 42, taunt: true, ds: '걸어 다니는 창고. 짐을 120칸이나 져요. 느리지만 단단해요.' },
+  raptor:  { n: '벨로키랍토르', cls: 'dino', role: '돌격', hp: 140, atk: 16, def: 4, spd: 72, range: 15, as: 1.6, carry: 4, size: 17, pack: true, ds: '빠른 사냥꾼. 같은 랩터가 가까이 있으면 더 강해져요.' },
+  compy:   { n: '콤프소그나투스', cls: 'dino', role: '떼', hp: 50, atk: 7, def: 1, spd: 66, range: 11, as: 1.9, carry: 1, size: 10, ds: '작지만 빠르고 많아요.' },
+  dilo:    { n: '딜로포사우루스', cls: 'dino', role: '약화', hp: 190, atk: 12, def: 5, spd: 46, range: 75, as: 0.9, carry: 6, size: 21, shred: 6, acid: true, ds: '산성 침으로 적의 장갑을 녹여요.' },
+  stego:   { n: '스테고사우루스', cls: 'dino', role: '파괴', hp: 420, atk: 34, def: 15, spd: 24, range: 24, as: 0.6, carry: 20, size: 34, ds: '가시 꼬리를 휘둘러 큰 피해를 줘요.' },
+  trex:    { n: '티라노사우루스', cls: 'dino', role: '포식자', hp: 620, atk: 40, def: 14, spd: 40, range: 26, as: 0.7, carry: 30, size: 40, ds: '늪을 지배하는 폭군. 아직 길들인 사람이 없어요.' },
+  trikeIron:    { n: '철갑 트리케라톱스', cls: 'dino', role: '탱커', rare: true, hp: 540, atk: 20, def: 26, spd: 24, range: 24, as: 0.7, carry: 45, size: 33, taunt: true, ds: '희귀종. 쇳빛 피부가 유난히 두꺼워 웬만한 공격은 튕겨 내요.' },
+  trikeRed:     { n: '붉은뿔 트리케라톱스', cls: 'dino', role: '돌격', rare: true, hp: 400, atk: 36, def: 12, spd: 38, range: 24, as: 0.8, carry: 30, size: 29, ds: '희귀종. 성질이 사나워 방패보다 창에 가까워요.' },
+  paraGold:     { n: '황금볏 파라사우롤로푸스', cls: 'dino', role: '회복', rare: true, hp: 260, atk: 12, def: 9, spd: 46, range: 90, as: 0.8, carry: 10, size: 22, heal: 16, ds: '희귀종. 낮은 울음소리가 무리를 진정시켜 다친 동료를 회복시켜요.' },
+  apatoMoss:    { n: '이끼등 아파토사우루스', cls: 'dino', role: '짐꾼', rare: true, hp: 760, atk: 14, def: 13, spd: 20, range: 26, as: 0.5, carry: 110, size: 42, taunt: true, regen: 10, ds: '희귀종. 등에 이끼가 자라요. 싸우는 중에도 상처가 스스로 아물어요.' },
+  raptorShadow: { n: '그림자 랩터', cls: 'dino', role: '암살', rare: true, hp: 150, atk: 18, def: 4, spd: 84, range: 15, as: 1.7, carry: 4, size: 17, pack: true, crit: 0.32, ds: '희귀종. 폐허의 어둠에 숨어 급소를 노려요. 치명타가 자주 터져요.' },
+  raptorVenom:  { n: '독니 랩터', cls: 'dino', role: '약화', rare: true, hp: 150, atk: 15, def: 4, spd: 72, range: 15, as: 1.6, carry: 4, size: 17, pack: true, shred: 3, ds: '희귀종. 물린 자리가 썩어 들어가 장갑이 약해져요.' },
+  stegoRust:    { n: '녹슨등 스테고사우루스', cls: 'dino', role: '가시', rare: true, hp: 460, atk: 28, def: 17, spd: 24, range: 24, as: 0.6, carry: 20, size: 34, taunt: true, thorns: 0.35, ds: '희귀종. 고철 더미에서 자라 골판이 쇠처럼 날카로워요. 물어뜯는 적이 다쳐요.' },
+  trexYoung:    { n: '어린 티라노사우루스', cls: 'dino', role: '포식자', rare: true, hp: 380, atk: 32, def: 10, spd: 52, range: 22, as: 0.9, carry: 15, size: 28, ds: '희귀종. 어미를 잃은 어린 폭군. 길들일 수 있는 유일한 티라노예요.' },
+};
+const BOSSES = {
+  trikeKing: { base: 'trike', n: '늙은 우두머리 트리케라톱스', hp: 4.5, atk: 1.6, size: 1.35 },
+  oneEye:    { base: 'raptor', n: '외눈 랩터', hp: 5, atk: 2.1, size: 1.35 },
+  swampKing: { base: 'trex', n: '늪의 폭군 티라노사우루스', hp: 2.6, atk: 1.3, size: 1.25 },
+};
+const lvMul = lv => 1 + 0.12 * (lv - 1);
+const xpNeed = lv => Math.round(22 * Math.pow(lv, 1.45));
+const STUN_HP_LIMIT = 700;   // like monster grades: big creatures shrug off stuns
+const DAY_LEN = 90;
+
+/* ================================================================
+   STATE
+   ================================================================ */
+const SAVE = 'dino-pixel-v1';
+// Systems in the spirit of classic merchant RPGs: hunger, a bank, a warehouse, town investment with dividends, battle formations
+const FOODS = { grain: 15, meat: 25, jerky: 45 };
+const FORMS = { bal: { n: '균형진', ds: '기본 대형', atk: 1, def: 1 }, atk: { n: '돌격진', ds: '공격 +15% · 방어 -12%', atk: 1.15, def: 0.88 }, def: { n: '방어진', ds: '방어 +25% · 공격 -8%', atk: 0.92, def: 1.25 } };
+const RIVALS = { plain: ['곡물상 하르', 900], city: ['고철왕 베크', 2600], swamp: ['약초꾼 모리', 4200] };
+const isHead = z => (S.invest[z] || 0) > S.rival[z];
+const hungry = () => S.food <= 0;
+let S;
+function freshState() {
+  const s = { money: 300, t: 0, day: 1, zone: 'plain', travel: null, cargo: {}, darts: 3, idSeq: 1, units: [], drift: {}, press: {}, stats: { battles: 0, captures: 0, trades: 0, earned: 0 }, snd: 2, dex: {}, clv: 1, cxp: 0, sp: 0, skills: {}, jobs: {}, out: {}, quests: {}, qday: 0, items: [], cleared: {}, itemSeq: 0 };
+  for (const z of Object.keys(ZONES)) { s.drift[z] = {}; s.press[z] = {}; for (const g of Object.keys(GOODS)) { s.drift[z][g] = 1; s.press[z][g] = 1; } }
+  S = s;
+  addUnit('leader', 1, true); addUnit('hunter', 1, true); addUnit('spear', 1, true);
+  const t = addUnit('trike', 2, true); t.name = '돌덩이';
+  return s;
+}
+function addUnit(type, lv, inParty) {
+  const u = { id: S.idSeq++, type, lv, xp: 0, hp: 0, ko: false, inParty: !!inParty };
+  u.hp = maxHp(u); S.units.push(u); if (UNITS[type].cls === 'dino') S.dex[type] = 2; return u;
+}
+const maxHp = u => Math.round(UNITS[u.type].hp * lvMul(u.lv) * gearMul(u).hp);
+const party = () => S.units.filter(u => u.inParty);
+const capacity = () => party().reduce((s, u) => s + UNITS[u.type].carry, 0);
+const cargoUsed = () => Object.values(S.cargo).reduce((a, b) => a + b, 0);
+function load() { try { const r = localStorage.getItem(SAVE); return r ? JSON.parse(r) : null; } catch (e) { return null; } }
+function save() { try { localStorage.setItem(SAVE, JSON.stringify(S)); } catch (e) { /* storage unavailable */ } }
+
+/* market: zone price × daily drift × buying/selling pressure */
+const zp = (z, g) => ZONES[z].price[g] ?? (GOODS[g].zp ? GOODS[g].zp[z] : 1);
+const rawPrice = (z, g) => GOODS[g].base * zp(z, g) * S.drift[z][g] * S.press[z][g];
+const price = (z, g) => Math.max(1, Math.round(rawPrice(z, g) * (1 - 0.03 * sk('trade')) * (isHead(z) ? 0.95 : 1)));
+const sellPrice = (z, g) => Math.max(1, Math.round(rawPrice(z, g) * 0.9 * (1 + 0.03 * sk('trade')) * (isHead(z) ? 1.05 : 1)));
+function ensureQuests() {
+  if (S.qday === S.day && Object.keys(S.quests).length) return;
+  S.qday = S.day;
+  for (const z of Object.keys(ZONES)) {
+    const keep = (S.quests[z] || []).filter(q => q.prog > 0 && !q.done), list = [...keep];
+    const wanted = Object.keys(GOODS).filter(g => zp(z, g) >= 1.2);
+    while (list.length < 3) {
+      if (list.filter(q => q.type === 'hunt').length < 1) { const n = 2 + (Math.random() * 3 | 0); list.push({ id: Math.random(), type: 'hunt', n, prog: 0, money: 40 * n * ZONES[z].danger, xp: 25 * n }); }
+      else { const g = pick(wanted), n = GOODS[g].made ? 2 + (Math.random() * 3 | 0) : 6 + (Math.random() * 10 | 0); if (list.some(q => q.g === g)) continue; list.push({ id: Math.random(), type: 'deliver', g, n, prog: 0, money: Math.round(GOODS[g].base * zp(z, g) * n * 1.7), xp: Math.round(GOODS[g].base * n / 8) + 15 }); }
+    }
+    S.quests[z] = list;
+  }
+}
+function newDay() {
+  S.day++; ensureQuests();
+  { const int = Math.floor(S.bank * 0.01); let div = 0; for (const z of Object.keys(ZONES)) { div += Math.floor((S.invest[z] || 0) * 0.03); if (Math.random() < 0.5) S.rival[z] += Math.round(rand(20, 90) * ZONES[z].danger); }
+    S.bank += int; S.money += div; if (int || div) setTimeout(() => toast(`[${S.day}일차] ${int ? `전장 이자 +${int}` : ''}${int && div ? ' · ' : ''}${div ? `마을 투자 배당 +${div}` : ''}`, 'good'), 3000); }
+  for (const z of Object.keys(ZONES)) for (const g of Object.keys(GOODS)) S.drift[z][g] = clamp(S.drift[z][g] * rand(0.88, 1.14) + (1 - S.drift[z][g]) * 0.25, 0.6, 1.6);
+  // a market event now and then shakes one price hard
+  if (Math.random() < 0.5) {
+    const z = pick(Object.keys(ZONES)), g = pick(Object.keys(GOODS)), up = Math.random() < 0.5;
+    S.drift[z][g] = up ? rand(1.5, 1.9) : rand(0.45, 0.6);
+    const why = up ? pick(['랩터 떼가 창고를 습격해', '가뭄이 들어', '수송대가 끊겨']) : pick(['대형 상단이 물건을 풀어', '풍년이 들어', '버려진 창고가 발견되어']);
+    toast(`[${S.day}일차 소식] ${ZONES[z].n}: ${why} ${GOODS[g].n} 값이 ${up ? '치솟았어요' : '폭락했어요'}`, up ? 'good' : '');
+  }
+}
+function tick(dt) {
+  S.t += dt;
+  if (S.t >= S.day * DAY_LEN) newDay();
+  for (const z of Object.keys(ZONES)) for (const g of Object.keys(GOODS)) S.press[z][g] += (1 - S.press[z][g]) * Math.min(1, dt * 0.02);
+  for (const [z, j] of Object.entries(S.jobs)) {   // workshops keep working wherever the caravan is
+    if (!j) continue; const R = RECIPES[j.r]; j.t += dt;
+    const per = R.t * (1 - 0.12 * sk('craft'));
+    while (j.t >= per && j.left > 0) { j.t -= per; j.left--; S.out[z] = S.out[z] || {}; S.out[z][R.out] = (S.out[z][R.out] || 0) + R.qty; }
+    if (j.left <= 0) { S.jobs[z] = null; toast(`${ZONES[z].n} 공방: ${R.n} 완료 · 찾으러 가세요`, 'good'); if (view === 'town') renderTown(); }
+  }
+  if (!B) for (const u of S.units) {
+    const mh = maxHp(u); if (u.hp >= mh || (hungry() && !inTown())) continue;
+    u.hp = Math.min(mh, u.hp + mh * (inTown() ? 0.012 : 0.004) * dt);
+    if (u.ko && u.hp >= mh * 0.3) { u.ko = false; if (view === 'town') toast(`${unitName(u)}가 기운을 차렸어요`); }
+  }
+}
+
+/* ================================================================
+   TRAVEL
+   ================================================================ */
+function addCargo(g, k) { const room = Math.max(0, capacity() - cargoUsed()); k = Math.min(k, room); if (k > 0) S.cargo[g] = (S.cargo[g] || 0) + k; return k; }
+
+/* ================================================================
+   BATTLE — real-time, up to 12 on our side, formation start, auto with focus fire
+   ================================================================ */
+const BW = 360, BH = 600, BSIZE = [BW, BH];
+let B = null, bSpeed = 1, bZoom = window.matchMedia('(orientation: landscape)').matches ? 1.9 : 1.3;
+function unitStats(type, lv, boss) {
+  const D = UNITS[type], m = lvMul(lv), bm = boss ? BOSSES[boss] : null;
+  return { hp: D.hp * m * (bm ? bm.hp : 1), atk: D.atk * m * (bm ? bm.atk : 1), def: D.def * (1 + 0.05 * (lv - 1)), size: (D.size || 11) * (bm ? bm.size : 1) };
+}
+function startBattle(opt) {
+  const Z = ZONES[opt.zone];
+  B = { opt, t: 0, units: [], fx: [], nums: [], over: false, focus: null, sel: null, loot: {}, xp: 0, captured: [], idSeq: 1, ground: groundTex(Z.ground) };
+  // the fight starts right where everyone is standing: your caravan in its marching line, the herd where it was grazing
+  if (!worldOn) showWorld(); syncCrew(); const ours = W.crew.map(c => c.u);
+  for (const c of W.crew) { const u = spawn(0, c.u.type, c.u.lv, c.x, c.y, c.u); u.a = c.a; }
+  for (const u of B.units.filter(u => u.side === 0 && UNITS[u.type].turret)) spawnTurret(u);
+  opt.mons.forEach(m => { const u = spawn(1, m.f.type, m.f.lv, m.x, m.y, null, m.f.boss); u.a = m.a; });
+  $('bTitle').textContent = opt.kind === 'ambush' ? '습격!' : opt.boss ? `우두머리 사냥 · ${BOSSES[opt.boss].n}` : opt.kind === 'hunt' ? `${Z.n} · ${HUNT_NAMES[opt.zone][opt.tier]}` : `${Z.n} 사냥터`;
+  $('bInfo').textContent = `적 ${opt.foes.length} · 아군 ${ours.length}`;
+  for (const f of opt.foes) { S.dex[f.type] = Math.max(S.dex[f.type] || 0, 1); if (UNITS[f.type].rare && !f.boss) setTimeout(() => toast(`희귀종 발견: ${UNITS[f.type].n}!`, 'good'), 900); }
+  $('bfoot').hidden = false; $('ffoot').hidden = true; $('bTip').textContent = '적을 눌러 집중 공격 · 체력 30% 이하면 포획'; updCapture();
+  SND.mood = 'battle'; SND.step = 0; sfx('drums'); flash(0.3);
+}
+function spawn(side, type, lv, x, y, ref, boss) {
+  const D = UNITS[type], st = unitStats(type, lv, boss);
+  if (ref) { const fm = FORMS[S.form] || FORMS.bal; st.atk *= fm.atk * (hungry() ? 0.7 : 1); st.def *= fm.def; }
+  if (ref) { const gm = gearMul(ref); st.hp *= gm.hp; st.atk *= gm.atk; st.def *= gm.def; st.size *= 1 + 0.07 * (ref.tier || 0); }
+  const u = { id: B.idSeq++, side, type, lv, ref, boss, x, y, a: side ? Math.PI / 2 : -Math.PI / 2, hp: ref ? Math.min(ref.hp, st.hp) : st.hp, max: st.hp, atk: st.atk, def: st.def, size: st.size,
+              range: D.range, as: D.as, spd: D.spd, cd: rand(0, 0.6), stun: 0, shred: 0, shredT: 0, leg: rand(0, 6), moving: false, hitT: 0 };
+  B.units.push(u); return u;
+}
+function spawnTurret(owner) {
+  const u = { id: B.idSeq++, side: 0, type: 'turret', lv: owner.lv, x: owner.x + 22, y: owner.y - 30, a: -Math.PI / 2, hp: 70 * lvMul(owner.lv), max: 70 * lvMul(owner.lv), atk: 9 * lvMul(owner.lv), def: 8, size: 10,
+              range: 140, as: 2.2, spd: 0, cd: 0, stun: 0, shred: 0, shredT: 0, leg: 0, turret: true };
+  B.units.push(u);
+}
+const alive = side => B.units.filter(u => u.side === side && u.hp > 0);
+function bStep(dt) {
+  B.t += dt;
+  const us = B.units;
+  for (const u of us) {
+    if (u.hp <= 0) continue;
+    u.hitT = Math.max(0, u.hitT - dt); u.atkT = Math.max(0, (u.atkT || 0) - dt);
+    if (u.shredT > 0) { u.shredT -= dt; if (u.shredT <= 0) u.shred = 0; }
+    if (UNITS[u.type] && UNITS[u.type].regen) u.hp = Math.min(u.max, u.hp + UNITS[u.type].regen * lvMul(u.lv) * dt);
+    if (u.stun > 0) { u.stun -= dt; u.moving = false; continue; }
+    const D = UNITS[u.type] || {};
+    // medics heal instead of attacking when someone is hurt
+    if (D.heal) {
+      const hurt = alive(u.side).filter(o => o !== u && o.hp < o.max * 0.85).sort((a, b) => a.hp / a.max - b.hp / b.max)[0];
+      if (hurt) { moveToward(u, hurt, D.range * 0.8, dt); u.cd -= dt; if (u.cd <= 0 && d2(u.x, u.y, hurt.x, hurt.y) < (D.range + 10) ** 2) { u.cd = 1 / u.as; const h = D.heal * lvMul(u.lv); hurt.hp = Math.min(hurt.max, hurt.hp + h); B.fx.push({ t: 0.5, kind: 'heal', x: hurt.x, y: hurt.y }); burst(hurt.x, hurt.y, 4, 6, '#8fd36a', { spd: 14, up: 55, g: 0, life: 0.7 }); sfx('heal', 150); num(hurt, '+' + Math.round(h), '#8fbf6a'); } continue; }
+    }
+    const tgt = chooseTarget(u);
+    if (!tgt) { u.moving = false; continue; }
+    u.target = tgt;
+    const reach = u.range + (u.size + tgt.size) * 0.45;
+    const dd = d2(u.x, u.y, tgt.x, tgt.y);
+    if (dd > reach * reach) { if (u.spd) moveToward(u, tgt, reach * 0.9, dt); }
+    else {
+      u.moving = false; u.a = Math.atan2(tgt.y - u.y, tgt.x - u.x);
+      u.cd -= dt;
+      if (u.cd <= 0) { u.cd = 1 / u.as * rand(0.9, 1.1); attack(u, tgt); }
+    }
+  }
+  // keep bodies from stacking
+  for (let i = 0; i < us.length; i++) for (let j = i + 1; j < us.length; j++) {
+    const a = us[i], b = us[j]; if (a.hp <= 0 || b.hp <= 0) continue;
+    const dx = b.x - a.x, dy = b.y - a.y, min = (a.size + b.size) * 0.5, dd = dx * dx + dy * dy;
+    if (dd < min * min && dd > 0.01) { const d = Math.sqrt(dd), p = (min - d) * 0.5, wa = a.spd ? 1 : 0, wb = b.spd ? 1 : 0; a.x -= dx / d * p * wa; a.y -= dy / d * p * wa; b.x += dx / d * p * wb; b.y += dy / d * p * wb; }
+  }
+  for (const u of us) { u.x = clamp(u.x, 10, WW - 10); u.y = clamp(u.y, 10, WH - 10); }
+  for (const f of B.fx) f.t -= dt; B.fx = B.fx.filter(f => f.t > 0);
+  for (const n of B.nums) { n.t -= dt; n.y -= dt * 22; } B.nums = B.nums.filter(n => n.t > 0);
+  if (B.focus && B.focus.hp <= 0) B.focus = null;
+  if (!alive(1).length) endBattle(true);
+  else if (!alive(0).filter(u => !u.turret).length) endBattle(false);
+}
+function chooseTarget(u) {
+  const foes = alive(1 - u.side); if (!foes.length) return null;
+  if (u.side === 0 && B.focus && B.focus.hp > 0) return B.focus;
+  if (u.side === 1) {   // enemies are drawn to taunting tanks nearby
+    const tank = foes.filter(f => UNITS[f.type] && UNITS[f.type].taunt && d2(f.x, f.y, u.x, u.y) < 160 * 160).sort((a, b) => d2(a.x, a.y, u.x, u.y) - d2(b.x, b.y, u.x, u.y))[0];
+    if (tank) return tank;
+  }
+  if (u.target && u.target.hp > 0 && Math.random() > 0.01) return u.target;
+  return foes.sort((a, b) => d2(a.x, a.y, u.x, u.y) - d2(b.x, b.y, u.x, u.y))[0];
+}
+function moveToward(u, t, stopAt, dt) {
+  const d = Math.sqrt(d2(u.x, u.y, t.x, t.y)); if (d <= stopAt) { u.moving = false; return; }
+  u.a = Math.atan2(t.y - u.y, t.x - u.x); u.x += Math.cos(u.a) * u.spd * dt; u.y += Math.sin(u.a) * u.spd * dt; u.leg += u.spd * dt * 0.12; u.moving = true;
+}
+function attack(u, t) {
+  const D = UNITS[u.type] || {};
+  u.atkT = 0.5;
+  const acc = 85 + u.lv * 2, eva = (UNITS[t.type] ? UNITS[t.type].spd : 0) * 0.25;
+  if (Math.random() > acc / (acc + eva)) { num(t, '빗나감', '#a89a86'); sfx('miss', 120); return; }
+  let atk = u.atk;
+  if (D.pack) atk *= 1 + 0.15 * Math.min(3, alive(u.side).filter(o => o !== u && o.type === u.type && d2(o.x, o.y, u.x, u.y) < 90 * 90).length);
+  const def = Math.max(0, t.def - t.shred * 2.5);
+  let dmg = atk * rand(0.85, 1.15) * 40 / (40 + def), crit = Math.random() < (D.crit || 0.08);
+  if (crit) dmg *= 1.8;
+  const ranged = u.range > 40;
+  B.fx.push({ t: ranged ? 0.25 : 0.15, kind: D.acid ? 'acid' : u.turret || D.gun ? 'bullet' : D.bow ? 'arrow' : ranged ? 'dart' : 'bite', x: u.x, y: u.y, x2: t.x, y2: t.y });
+  const TD = UNITS[t.type];
+  if (TD && TD.thorns && u.range <= 40 && !u.turret) { const back = dmg * TD.thorns; u.hp -= back; num(u, Math.round(back), '#c0601c'); if (u.hp <= 0) onKill(t, u); }
+  { const gun = u.turret || D.gun, big = t.size > 25;
+    if (gun) burst(u.x, u.y, 12, 3, '#ffe9a0', { spd: 25, life: 0.12, up: 10, r: 2.6 });
+    burst(t.x, t.y, big ? 16 : 9, crit ? 9 : 4, D.acid ? '#c0e040' : gun ? '#ffd870' : '#e0452e', { spd: crit ? 70 : 45, life: 0.4, r: crit ? 2.8 : 2 });
+    if (crit) { ringFx(t.x, t.y, '#ffd870', 20, 0.3); SHAKE = Math.max(SHAKE, u.side === 0 ? 0.35 : 0.5); sfx('crit', 90); }
+    else if (u.side === 1 && u.boss) SHAKE = Math.max(SHAKE, 0.45); }
+  t.hp -= dmg; t.hitT = 0.15; num(t, Math.round(dmg) + (crit ? '!' : ''), crit ? '#e3a843' : t.side ? '#ece3d4' : '#d4573c');
+  if (D.shred) { t.shred = Math.min(5, t.shred + 1); t.shredT = 5; }
+  if (D.stun && t.max <= STUN_HP_LIMIT && !t.boss) { t.stun = D.stun; B.fx.push({ t: 0.6, kind: 'stun', x: t.x, y: t.y }); sfx('stun', 200); ringFx(t.x, t.y, '#f8e88a', 18, 0.4); }
+  sfx(u.turret || D.gun ? 'shot' : D.bow ? 'bow' : ranged ? 'spit' : 'bite', 70);
+  if (t.hp <= 0) onKill(u, t);
+}
+/* ---------------- Effects: world-space particles drawn on the overlay, screen flash and camera shake ---------------- */
+const PX = []; let FLASH = 0, FLASHC = '255,240,210', SHAKE = 0;
+function burst(x, y, h, n, col, o = {}) {
+  if (PX.length > 260) return;
+  for (let i = 0; i < n; i++) { const a = rand(0, 6.283), sp = rand(0.3, 1) * (o.spd || 40), life = rand(0.6, 1) * (o.life || 0.45); PX.push({ x, y, h, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vh: rand(0.2, 1) * (o.up ?? 40), g: o.g ?? 120, t: life, life, col, r: rand(0.6, 1) * (o.r || 2.2), ring: 0 }); }
+}
+function ringFx(x, y, col, size = 22, life = 0.45) { PX.push({ x, y, h: 1, vx: 0, vy: 0, vh: 0, g: 0, t: life, life, col, r: size, ring: 1 }); }
+function flash(a = 0.5, col = '255,240,210') { FLASH = a; FLASHC = col; }
+function updPX(dt) {
+  for (const p of PX) { p.t -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.h += p.vh * dt; p.vh -= p.g * dt; if (p.h < 0) { p.h = 0; p.vh = 0; p.vx *= 0.6; p.vy *= 0.6; } }
+  for (let i = PX.length - 1; i >= 0; i--) if (PX[i].t <= 0) PX.splice(i, 1);
+  FLASH = Math.max(0, FLASH - dt * 1.8); SHAKE = Math.max(0, SHAKE - dt * 3);
+}
+function drawPX(c) {
+  for (const p of PX) {
+    const s = toScreen(p.x, p.h, p.y); if (!s.vis) continue; const k = p.t / p.life;
+    c.globalAlpha = Math.min(1, k * 1.6);
+    if (p.ring) { c.strokeStyle = p.col; c.lineWidth = 2.5 * k + 0.5; c.beginPath(); c.ellipse(s.x, s.y, p.r * (1.3 - k), p.r * (1.3 - k) * 0.55, 0, 0, 7); c.stroke(); }
+    else { c.fillStyle = p.col; c.beginPath(); c.arc(s.x, s.y, p.r * (0.5 + k * 0.5), 0, 7); c.fill(); }
+  }
+  c.globalAlpha = 1;
+  if (FLASH > 0.01) { c.fillStyle = `rgba(${FLASHC},${FLASH})`; c.fillRect(0, 0, bcv.width, bcv.height); }
+}
+function shakeCam(cam) { if (SHAKE > 0.01) { cam.position.x += (Math.random() - 0.5) * SHAKE * 9; cam.position.y += (Math.random() - 0.5) * SHAKE * 6; } }
+function num(t, s, col) { B.nums.push({ x: t.x + rand(-6, 6), y: t.y - t.size * 0.6, y0: t.y, s, col, t: 0.8 }); }
+function onKill(u, t) {
+  t.hp = 0; sfx(t.size > 25 ? 'crunchBig' : 'crunch', 60);
+  { const big = t.size > 25; burst(t.x, t.y, 2, big ? 22 : 12, '#c9b48a', { spd: big ? 75 : 50, up: 30, life: 0.8, r: big ? 4.5 : 3.2, g: 60 }); ringFx(t.x, t.y, 'rgba(210,190,150,.9)', big ? 46 : 26, 0.55);
+    if (t.side === 1 && UNITS[t.type] && UNITS[t.type].cls === 'dino') sfx(big ? 'cryBig' : 'cry', 250);
+    if (t.boss) { SHAKE = 1; flash(0.55); } else if (big) SHAKE = Math.max(SHAKE, 0.6);
+    if (t.side === 0) { flash(0.25, '212,87,60'); sfx('down', 300); } }
+  if (t.side === 1) {
+    B.xp += 12 * t.lv * (t.boss ? 6 : 1);
+    if (B.opt.kind !== 'escort') for (const [g, k] of Object.entries(ZONES[B.opt.zone].loot)) { const n = Math.max(0, Math.round(k * (t.size / 20) * rand(0.6, 1.3) * (1 + 0.15 * sk('loot'))) * (t.boss ? 3 : 1)); if (n) B.loot[g] = (B.loot[g] || 0) + n; }
+    { const TL = TYPE_LOOT[MODEL_FILES[t.type]] || {}, own = t.type === 'compy' ? { meat: 1 } : t.type === 'dilo' ? { venom: 1, meat: 1 } : TL; for (const [g, k] of Object.entries(own)) if (Math.random() < 0.6) B.loot[g] = (B.loot[g] || 0) + k; }
+    if (t.type === 'dilo' || t.type === 'sarco') B.loot.venom = (B.loot.venom || 0) + (t.type === 'dilo' ? 1 : 0);
+  } else if (t.ref) { t.ref.hp = 0; t.ref.ko = true; toast(`${unitName(t.ref)}가 쓰러졌어요`, 'warn'); }
+  if (B.sel === t) B.sel = null;
+}
+function tryCapture() {
+  let t = B.sel;
+  if (!t || t.side !== 1 || t.hp <= 0) {   // one tap: pick the weakest dinosaur that can be captured right now
+    t = B.units.filter(u => u.side === 1 && u.hp > 0 && !u.boss && u.hp <= u.max * 0.3).sort((a, b) => a.hp / a.max - b.hp / b.max)[0];
+    if (!t) { toast('체력이 30% 이하인 공룡이 없어요. 조금 더 깎아 주세요'); return; }
+    B.sel = t;
+  }
+  if (t.boss) { toast('우두머리는 포획할 수 없어요'); return; }
+  if (!UNITS[t.type] || UNITS[t.type].cls !== 'dino') return;
+  if (t.hp > t.max * 0.3) { toast('체력을 30% 이하로 깎아야 마취가 통해요'); return; }
+  if (S.darts <= 0) { toast('마취 다트가 없어요. 정착지 상점에서 사세요', 'warn'); return; }
+  S.darts--; sfx('dart');
+  const leader = party().find(u => u.type === 'leader');
+  const chance = clamp(0.55 + (1 - t.hp / (t.max * 0.3)) * 0.4 - Math.max(0, t.lv - leader.lv) * 0.04 - (UNITS[t.type].rare ? 0.15 : 0) + 0.05 * sk('tame'), 0.15, 0.95);
+  B.fx.push({ t: 0.3, kind: 'dart', x: W.lead.x, y: W.lead.y, x2: t.x, y2: t.y });
+  setTimeout(() => {
+    if (!B || t.hp <= 0) return;
+    if (Math.random() < chance) {
+      t.hp = 0; B.captured.push({ type: t.type, lv: t.lv }); B.xp += 15 * t.lv; B.sel = null; sfx('capture'); for (let k = 0; k < 3; k++) ringFx(t.x, t.y, '#90d0f0', 20 + k * 14, 0.5 + k * 0.15); burst(t.x, t.y, 10, 16, '#bfe6ff', { spd: 55, up: 70, life: 0.9 });
+      toast(`포획 성공! ${UNITS[t.type].n} Lv${t.lv}`, 'good');
+    } else { t.atk *= 1.1; toast(`포획 실패 (성공 확률 ${Math.round(chance * 100)}%) · 공룡이 성났어요`, 'warn'); sfx('roar'); }
+    updCapture();
+  }, 320);
+}
+function endBattle(win) {
+  if (B.over) return; B.over = true; S.stats.battles++; S.food = Math.max(0, S.food - 4); B.opt.won = win; B.opt.endPos = B.units.filter(u => u.ref && u.hp > 0).map(u => [u.ref.id, { x: u.x, y: u.y, a: u.a }]);
+  const opt = B.opt;
+  for (const bu of B.units) if (bu.ref) { bu.ref.hp = Math.max(0, Math.round(bu.hp)); bu.ref.ko = bu.hp <= 0; }
+  const lines = []; let lvUp = false, gotItem = false;
+  if (win) {
+    gainCxp(B.xp / 6 + B.captured.length * 15);
+    if (opt.kind === 'hunt') S.cleared[opt.zone] = Math.max(S.cleared[opt.zone] || 0, opt.tier + 1);
+    {   // loot roll: deeper grounds, rare dinosaurs and bosses drop better gear
+      const H0 = opt.kind === 'hunt' ? HUNTS[opt.tier] : { drop: 0.1 }, Hb = opt.boss ? H0 : H0.boss ? HUNTS[3] : H0, H = { boss: !!opt.boss, drop: Hb.drop + Math.max(0, opt.foes.length - 3) * 0.04 }, rares = opt.foes.filter(f => UNITS[f.type].rare && !f.boss).length;
+      const lv = Math.max(...opt.foes.map(f => f.lv)), luck = (opt.tier || 0) * 0.35 + rares * 0.3;
+      const drops = []; if (Math.random() < H.drop + rares * 0.15) drops.push(rollItem(lv, luck, H.boss ? 2 : 0)); if (H.boss && Math.random() < 0.5) drops.push(rollItem(lv, luck, 1));
+      for (const it of drops) { if (S.items.length >= BAG_MAX) { const pr = itemPrice(it); S.money += pr; lines.push(`가방이 가득 차서 ${itemName(it)}을(를) ${pr} 크레딧에 팔았어요`); } else { S.items.push(it); lines.push(`<b style="color:var(--amber)">득템!</b> ${itemName(it)} <span style="color:var(--muted)">${SLOTS[it.slot]} · ${itemText(it)}</span>`); gotItem = true; } }
+    }
+    if (opt.kind === 'hunt') for (const q of S.quests[opt.zone] || []) if (q.type === 'hunt' && !q.done && q.prog < q.n) q.prog++;
+    const ours = party();
+    const share = Math.round(B.xp / Math.max(1, Math.sqrt(ours.length)));
+    for (const u of ours) {
+      u.xp += u.ko ? Math.round(share * 0.3) : share;
+      while (u.xp >= xpNeed(u.lv) && u.lv < 40) { u.xp -= xpNeed(u.lv); u.lv++; u.hp = Math.min(maxHp(u), u.hp + Math.round(maxHp(u) * 0.3)); lines.push(`${unitName(u)} Lv${u.lv} 달성`); lvUp = true; }
+    }
+    for (const [g, k] of Object.entries(B.loot)) { const got = addCargo(g, k); lines.unshift(`${GOODS[g].n} +${got}${got < k ? ` (짐칸 부족으로 ${k - got}개 버림)` : ''}`); }
+    for (const c of B.captured) { const inP = party().length < partyCap(); const u = addUnit(c.type, c.lv, inP); u.hp = Math.round(maxHp(u) * 0.4); lines.push(`${UNITS[c.type].n} Lv${c.lv}이(가) 상단에 합류했어요${inP ? '' : ' (대기)'}`); S.stats.captures++; }
+    lines.splice(Object.keys(B.loot).length, 0, `경험치 +${share} (참전 대원 모두)`);
+  } else {
+    if (opt.kind === 'ambush') { const lost = loseCargo(0.35); lines.push(lost ? `짐 ${lost}개를 잃었어요` : '잃은 짐은 없어요'); }
+    lines.push('쓰러진 대원은 여관에서 회복할 수 있어요');
+  }
+  sfx(win ? 'win' : 'lose'); if (win) flash(0.35);
+  setTimeout(() => {
+    if (gotItem) sfx('loot'); else if (lvUp) sfx('levelup');
+    if (win) { feed(lines); closeBattle(); return; }   // no result screen for a win: loot scrolls by and you keep walking
+    showModal(`<h3>${win ? '승리' : opt.retreat ? '후퇴' : '패배'}</h3><div class="sub">${$('bTitle').textContent}</div>
+      <div class="card">${lines.map(l => `<div class="row"><div class="info"><small style="color:var(--text)">${l}</small></div></div>`).join('') || '<div class="row"><div class="info"><small>얻은 것이 없어요</small></div></div>'}</div>
+      <div class="mbtns"><button class="btn primary" data-act="closeBattle">확인</button></div>`);
+  }, 700);
+  save();
+}
+function loseCargo(frac) { let lost = 0; for (const g of Object.keys(S.cargo)) { const k = Math.floor(S.cargo[g] * frac); S.cargo[g] -= k; lost += k; if (!S.cargo[g]) delete S.cargo[g]; } return lost; }
+function closeBattle() {
+  const opt = B.opt; B = null; SND.mood = 'town'; SND.step = 0; closeModal();
+  afterBattle(opt);
+}
+function updCapture() { $('bCapture').textContent = `포획 · 다트 ${S.darts}`; }
+
+/* ================================================================
+   DRAWING — top-down creatures with a light from the upper left
+   ================================================================ */
+function glossy(g, x, y, rx, ry, base, dark, light, rot = 0, spec = 0.2) {
+  const gr = g.createRadialGradient(x - rx * 0.35, y - ry * 0.4, Math.min(rx, ry) * 0.1, x, y, Math.max(rx, ry) * 1.05);
+  gr.addColorStop(0, light); gr.addColorStop(0.5, base); gr.addColorStop(1, dark);
+  g.fillStyle = gr; g.beginPath(); g.ellipse(x, y, rx, ry, rot, 0, 7); g.fill();
+  if (spec) { g.fillStyle = `rgba(255,248,236,${spec})`; g.beginPath(); g.ellipse(x - rx * 0.3, y - ry * 0.4, rx * 0.3, ry * 0.15, rot, 0, 7); g.fill(); }
+}
+const shade = (h, t) => { const n = parseInt(h.slice(1), 16), c = [n >> 16, n >> 8 & 255, n & 255].map(v => Math.round(t < 0 ? v * (1 + t) : v + (255 - v) * t)); return `rgb(${c})`; };
+const DINO_LOOK = {
+  trike:  { col: '#7d6c4c', stripe: '#5a4a32', quad: true,  body: [0.34, 0.2], head: [0.13, 0.11], neck: 0.36, tail: 0.42 },
+  pachy:  { col: '#8a6a48', stripe: '#6a4a30', quad: false, body: [0.26, 0.14], head: [0.1, 0.09], neck: 0.32, tail: 0.5 },
+  raptor: { col: '#9a7a4c', stripe: '#4a3a22', quad: false, body: [0.22, 0.1], head: [0.1, 0.06], neck: 0.32, tail: 0.6 },
+  compy:  { col: '#7a8a4c', stripe: '#4a5a2a', quad: false, body: [0.22, 0.11], head: [0.09, 0.06], neck: 0.32, tail: 0.6 },
+  dilo:   { col: '#6c7a40', stripe: '#3a4a22', quad: false, body: [0.25, 0.12], head: [0.11, 0.07], neck: 0.36, tail: 0.55 },
+  sarco:  { col: '#4c4c34', stripe: '#33331f', quad: true,  body: [0.3, 0.14], head: [0.2, 0.06], neck: 0.36, tail: 0.5 },
+};
+function drawDino(c, type, x, y, a, L, ph, o = {}) {
+  type = ({ para: 'pachy', stego: 'sarco', apato: 'trike', trex: 'raptor', trikeIron: 'trike', trikeRed: 'trike', paraGold: 'pachy', apatoMoss: 'trike', raptorShadow: 'raptor', raptorVenom: 'raptor', stegoRust: 'sarco', trexYoung: 'raptor' })[type] || type;
+  const K = DINO_LOOK[type], base = o.tint || K.col, dk = shade(base, -0.45), lt = shade(base, 0.35);
+  c.save(); c.translate(x + L * 0.06, y + L * 0.09); c.rotate(a);
+  c.fillStyle = 'rgba(8,5,2,.3)'; c.beginPath(); c.ellipse(-L * 0.05, 0, L * 0.5, L * (K.body[1] + 0.08), 0, 0, 7); c.fill(); c.restore();
+  c.save(); c.translate(x, y); c.rotate(a); c.lineCap = 'round'; c.lineJoin = 'round';
+  const sw = o.still ? 0 : Math.sin(ph * 2) * 0.18;
+  // tail: tapering, swaying
+  const tl = L * K.tail, bx = -L * K.body[0] * 0.9;
+  c.fillStyle = base; c.beginPath(); c.moveTo(bx + L * 0.05, -L * K.body[1] * 0.6);
+  c.quadraticCurveTo(bx - tl * 0.5, Math.sin(sw) * tl * 0.3, bx - tl, Math.sin(sw * 1.6) * tl * 0.45);
+  c.quadraticCurveTo(bx - tl * 0.5, Math.sin(sw) * tl * 0.3 + L * 0.02, bx + L * 0.05, L * K.body[1] * 0.6); c.fill();
+  // legs
+  c.fillStyle = dk;
+  const step = o.still ? 0 : Math.sin(ph * 4) * L * 0.06;
+  const legs = K.quad ? [[L * 0.2, 1], [-L * 0.2, -1]] : [[-L * 0.05, 1]];
+  for (const [lx, phs] of legs) for (const sd of [-1, 1]) { const s = step * phs * sd; c.beginPath(); c.ellipse(lx + s, sd * L * (K.body[1] + 0.03), L * (K.quad ? 0.07 : 0.09), L * 0.045, 0, 0, 7); c.fill(); }
+  if (!K.quad) for (const sd of [-1, 1]) { c.strokeStyle = dk; c.lineWidth = L * 0.025; c.beginPath(); c.moveTo(L * 0.14, sd * L * 0.06); c.lineTo(L * 0.22, sd * L * 0.1); c.stroke(); }
+  // body with back stripes
+  glossy(c, 0, 0, L * K.body[0], L * K.body[1], base, dk, lt, 0, 0.15);
+  c.save(); c.beginPath(); c.ellipse(0, 0, L * K.body[0], L * K.body[1], 0, 0, 7); c.clip();
+  c.fillStyle = K.stripe; c.globalAlpha = 0.35;
+  for (let k = 0; k < 14; k++) { const sx = Math.sin(k * 7.7) * L * K.body[0] * 0.8, sy = Math.cos(k * 3.3) * L * K.body[1] * 0.7; c.beginPath(); c.ellipse(sx, sy, L * 0.03, L * 0.02, k, 0, 7); c.fill(); }
+  if (type === 'raptor' || type === 'compy') { c.strokeStyle = K.stripe; c.globalAlpha = 0.5; c.lineWidth = L * 0.012; for (let k = -2; k <= 2; k++) { c.beginPath(); c.moveTo(k * L * 0.06, -L * K.body[1]); c.lineTo(k * L * 0.06 - L * 0.02, -L * K.body[1] * 0.2); c.moveTo(k * L * 0.06, L * K.body[1]); c.lineTo(k * L * 0.06 - L * 0.02, L * K.body[1] * 0.2); c.stroke(); } }
+  c.globalAlpha = 1;
+  c.strokeStyle = shade(base, -0.35); c.lineWidth = L * 0.03; c.beginPath(); c.moveTo(-L * K.body[0], 0); c.lineTo(L * K.body[0] * 0.9, 0); c.stroke();
+  c.restore();
+  if (type === 'sarco') { c.fillStyle = shade(base, -0.3); for (let k = -4; k <= 4; k++) for (const sd of [-1, 1]) c.fillRect(k * L * 0.06 - L * 0.015, sd * L * 0.04 - L * 0.012, L * 0.03, L * 0.024); }
+  if (type === 'raptor') { c.strokeStyle = 'rgba(60,40,20,.6)'; c.lineWidth = L * 0.012; for (let k = 0; k < 6; k++) { c.beginPath(); c.moveTo(bx - tl * (0.5 + k * 0.08), -L * 0.03); c.lineTo(bx - tl * (0.55 + k * 0.08), -L * 0.08); c.stroke(); } }
+  // neck and head
+  const nx = L * K.body[0] * 0.8, hx = L * K.neck + (type === 'sarco' ? L * 0.08 : 0), look = o.still ? 0 : Math.sin(ph * 1.3) * 0.12;
+  c.save(); c.rotate(look);
+  c.fillStyle = base; c.beginPath(); c.moveTo(nx - L * 0.02, -L * K.body[1] * 0.55); c.lineTo(hx - L * K.head[0] * 0.5, -L * K.head[1] * 0.7); c.lineTo(hx - L * K.head[0] * 0.5, L * K.head[1] * 0.7); c.lineTo(nx - L * 0.02, L * K.body[1] * 0.55); c.fill();
+  if (type === 'trike') {   // bony frill and three horns
+    glossy(c, hx - L * 0.11, 0, L * 0.08, L * 0.2, shade(base, 0.1), dk, lt, 0, 0.15);
+    c.strokeStyle = shade(base, -0.3); c.lineWidth = L * 0.012; c.beginPath(); c.ellipse(hx - L * 0.11, 0, L * 0.07, L * 0.18, 0, -1.4, 1.4); c.stroke();
+  }
+  glossy(c, hx, 0, L * K.head[0], L * K.head[1], base, dk, lt, 0, 0.2);
+  if (type === 'trike') { c.fillStyle = '#e8dcc0'; for (const sd of [-1, 1]) { c.beginPath(); c.moveTo(hx, sd * L * 0.05); c.lineTo(hx + L * 0.2, sd * L * 0.08); c.lineTo(hx + L * 0.02, sd * L * 0.08); c.fill(); } c.beginPath(); c.moveTo(hx + L * 0.1, -L * 0.02); c.lineTo(hx + L * 0.17, 0); c.lineTo(hx + L * 0.1, L * 0.02); c.fill(); }
+  if (type === 'pachy') glossy(c, hx - L * 0.01, 0, L * 0.08, L * 0.075, '#c8b090', '#6a5030', '#fff4dc', 0, 0.35);
+  if (type === 'dilo') { c.strokeStyle = '#d8a830'; c.lineWidth = L * 0.025; for (const sd of [-1, 1]) { c.beginPath(); c.moveTo(hx - L * 0.08, sd * L * 0.025); c.quadraticCurveTo(hx, sd * L * 0.06, hx + L * 0.06, sd * L * 0.02); c.stroke(); } }
+  c.fillStyle = '#120a04'; for (const sd of [-1, 1]) { c.beginPath(); c.arc(hx + L * K.head[0] * 0.15, sd * L * K.head[1] * 0.6, L * 0.014, 0, 7); c.fill(); }
+  if (o.bite) { c.strokeStyle = '#efe6d6'; c.lineWidth = L * 0.01; c.beginPath(); c.moveTo(hx + L * K.head[0] * 0.6, -L * 0.015); c.lineTo(hx + L * K.head[0] * 1.05, 0); c.lineTo(hx + L * K.head[0] * 0.6, L * 0.015); c.stroke(); }
+  c.restore();
+  if (o.hit) { c.fillStyle = 'rgba(255,90,60,.35)'; c.beginPath(); c.ellipse(0, 0, L * K.body[0], L * K.body[1], 0, 0, 7); c.fill(); }
+  c.restore();
+}
+const HUMAN_LOOK = {
+  leader:   { col: '#6a5a44', hood: '#3a2e22', scarf: '#b03a24' }, hunter: { col: '#5a6040', hood: '#3c4028' }, spear: { col: '#6c5c4a', hood: '#7a7a72' },
+  sniper:   { col: '#4a4e52', hood: '#2e3236' }, mechanic: { col: '#7a5a30', hood: '#c8a040' }, medic: { col: '#d8d0c0', hood: '#e8e4da', cross: true }, venomer: { col: '#4e5a3a', hood: '#2e3a22' },
+};
+function drawHuman(c, type, x, y, a, L, ph, o = {}) {
+  const K = HUMAN_LOOK[type];
+  c.save(); c.translate(x + 2, y + 3); c.fillStyle = 'rgba(8,5,2,.3)'; c.beginPath(); c.ellipse(0, 0, L * 0.38, L * 0.3, a, 0, 7); c.fill(); c.restore();
+  c.save(); c.translate(x, y); c.rotate(a); c.lineCap = 'round';
+  const st = o.still ? 0 : Math.sin(ph * 5) * L * 0.12;
+  c.fillStyle = '#2a2018'; for (const sd of [-1, 1]) { c.beginPath(); c.ellipse(st * sd, sd * L * 0.12, L * 0.12, L * 0.07, 0, 0, 7); c.fill(); }
+  c.fillStyle = '#4a3a28'; c.fillRect(-L * 0.32, -L * 0.16, L * 0.16, L * 0.32);   // backpack
+  glossy(c, 0, 0, L * 0.2, L * 0.3, K.col, shade(K.col, -0.5), shade(K.col, 0.4), 0, 0.12);
+  if (K.cross) { c.fillStyle = '#c03028'; c.fillRect(-L * 0.12, -L * 0.03, L * 0.12, L * 0.06); c.fillRect(-L * 0.09, -L * 0.06, L * 0.06, L * 0.12); }
+  if (K.scarf) { c.strokeStyle = K.scarf; c.lineWidth = L * 0.07; c.beginPath(); c.moveTo(-L * 0.05, -L * 0.18); c.quadraticCurveTo(-L * 0.25, -L * 0.1, -L * 0.42, -L * 0.18 + Math.sin(ph * 3) * L * 0.05); c.stroke(); }
+  c.strokeStyle = '#2a2218'; c.lineWidth = L * 0.06;
+  if (type === 'spear') { c.beginPath(); c.moveTo(-L * 0.2, L * 0.18); c.lineTo(L * 0.75, L * 0.18); c.stroke(); c.fillStyle = '#b8b0a0'; c.beginPath(); c.moveTo(L * 0.75, L * 0.13); c.lineTo(L * 0.92, L * 0.18); c.lineTo(L * 0.75, L * 0.23); c.fill(); }
+  else if (type === 'hunter') { c.strokeStyle = '#6a4a28'; c.lineWidth = L * 0.04; c.beginPath(); c.arc(L * 0.22, 0, L * 0.3, -1.2, 1.2); c.stroke(); c.strokeStyle = 'rgba(230,220,200,.6)'; c.lineWidth = L * 0.01; c.beginPath(); c.moveTo(L * 0.33, -L * 0.28); c.lineTo(L * 0.33, L * 0.28); c.stroke(); }
+  else if (type === 'mechanic') { c.beginPath(); c.moveTo(L * 0.1, L * 0.2); c.lineTo(L * 0.45, L * 0.25); c.stroke(); }
+  else if (type === 'venomer') { c.strokeStyle = '#7a6a40'; c.lineWidth = L * 0.035; c.beginPath(); c.moveTo(L * 0.1, 0); c.lineTo(L * 0.6, 0); c.stroke(); }
+  else if (type === 'medic') { c.fillStyle = '#e8e4da'; c.fillRect(L * 0.1, L * 0.12, L * 0.16, L * 0.12); }
+  else { c.beginPath(); c.moveTo(L * 0.05, L * 0.1); c.lineTo(type === 'sniper' ? L * 0.95 : L * 0.62, L * 0.06); c.stroke(); }
+  glossy(c, L * 0.04, 0, L * 0.14, L * 0.14, K.hood, shade(K.hood, -0.5), shade(K.hood, 0.4), 0, 0.2);
+  c.restore();
+}
+function drawTurret(c, u) {
+  c.save(); c.translate(u.x, u.y); c.strokeStyle = '#3a3a38'; c.lineWidth = 2;
+  for (let k = 0; k < 3; k++) { const t = k * 2.1; c.beginPath(); c.moveTo(0, 0); c.lineTo(Math.cos(t) * 9, Math.sin(t) * 9); c.stroke(); }
+  c.rotate(u.a); glossy(c, 0, 0, 6, 5, '#6a6a62', '#2a2a28', '#c0c0b8', 0, 0.3);
+  c.lineWidth = 2.4; c.beginPath(); c.moveTo(2, 0); c.lineTo(14, 0); c.stroke(); c.restore();
+}
+function drawUnit(c, u, L, ph, o) {
+  if (u.turret) return drawTurret(c, u);
+  if (UNITS[u.type].cls === 'dino') drawDino(c, u.type, u.x, u.y, u.a, L, ph, o);
+  else drawHuman(c, u.type, u.x, u.y, u.a, L, ph, o);
+}
+function portrait(cv, type, tint) {
+  const g = cv.getContext('2d'), w = cv.width, h = cv.height; g.clearRect(0, 0, w, h);
+  const P = PORTRAIT[type];
+  if (P && P.complete && P.naturalWidth) { const gr = g.createRadialGradient(w / 2, h * 0.55, 0, w / 2, h * 0.55, h * 0.7); gr.addColorStop(0, 'rgba(210,190,150,.32)'); gr.addColorStop(1, 'rgba(210,190,150,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h); g.drawImage(P, 0, 0, w, h); return; }
+  const gr = g.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, h * 0.6); gr.addColorStop(0, 'rgba(210,190,150,.35)'); gr.addColorStop(1, 'rgba(210,190,150,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
+  if (UNITS[type].cls === 'dino') drawDino(g, type, w * 0.55, h * 0.52, -0.2, Math.min(w * 0.6, h * 1.1), 0.6, { still: true, tint });
+  else drawHuman(g, type, w * 0.5, h * 0.5, -0.4, h * 0.7, 0, { still: true });
+}
+const TEX = {};
+function groundTex(kind) {
+  if (TEX[kind]) return TEX[kind];
+  const s = 2, cv = document.createElement('canvas'); cv.width = BW * s; cv.height = BH * s;
+  const g = cv.getContext('2d'); g.scale(s, s);
+  const blobs = (n, r0, r1, cols) => { for (let i = 0; i < n; i++) { g.fillStyle = pick(cols); g.beginPath(); g.ellipse(rand(0, BW), rand(0, BH), rand(r0, r1), rand(r0, r1) * 0.7, rand(0, 3), 0, 7); g.fill(); } };
+  if (kind === 'plain') {
+    g.fillStyle = '#7d6c4c'; g.fillRect(0, 0, BW, BH);
+    blobs(500, 8, 40, ['rgba(60,48,30,.18)', 'rgba(150,130,90,.16)', 'rgba(110,95,60,.2)']);
+    blobs(5000, 0.3, 1, ['rgba(30,22,14,.5)', 'rgba(190,170,130,.4)', 'rgba(120,110,80,.5)']);
+    for (let i = 0; i < 260; i++) { const x = rand(0, BW), y = rand(0, BH); for (let k = 0; k < 6; k++) { g.strokeStyle = pick(['#a89a5a', '#8a7c44', '#b8a868', '#6a6a3a']); g.lineWidth = 0.8; const t = rand(0, 6.28), l = rand(4, 10); g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(t) * l, y + Math.sin(t) * l); g.stroke(); } }
+    for (let i = 0; i < 2; i++) { const x = rand(30, BW - 30), y = rand(180, 360), a = rand(0, 6.28); g.save(); g.translate(x, y); g.rotate(a); g.strokeStyle = 'rgba(214,204,182,.55)'; g.lineWidth = 1.6; g.beginPath(); g.moveTo(-18, 0); g.lineTo(18, 0); g.stroke(); for (let k = -3; k <= 3; k++) { g.beginPath(); g.moveTo(k * 4, 0); g.quadraticCurveTo(k * 4 + 3, 6, k * 4 + 1, 11); g.stroke(); } g.restore(); }
+  } else if (kind === 'city') {
+    g.fillStyle = '#55585a'; g.fillRect(0, 0, BW, BH);
+    blobs(400, 10, 50, ['rgba(30,30,30,.18)', 'rgba(120,120,115,.12)', 'rgba(90,70,50,.15)']);
+    blobs(6000, 0.3, 1, ['rgba(20,20,20,.5)', 'rgba(170,170,165,.35)']);
+    g.strokeStyle = 'rgba(220,200,120,.4)'; g.lineWidth = 3; g.setLineDash([22, 18]); g.beginPath(); g.moveTo(BW / 2, 0); g.lineTo(BW / 2, BH); g.stroke(); g.setLineDash([]);
+    for (let i = 0; i < 40; i++) { let x = rand(0, BW), y = rand(0, BH); g.strokeStyle = 'rgba(15,15,15,.6)'; g.lineWidth = 0.8; g.beginPath(); g.moveTo(x, y); for (let k = 0; k < 6; k++) { x += rand(-14, 14); y += rand(-14, 14); g.lineTo(x, y); } g.stroke(); }
+    for (let i = 0; i < 9; i++) { const x = rand(10, BW - 50), y = rand(170, 380), w = rand(20, 46), h = rand(12, 26), a = rand(-0.4, 0.4); g.save(); g.translate(x, y); g.rotate(a); g.fillStyle = 'rgba(0,0,0,.3)'; g.fillRect(3, 4, w, h); g.fillStyle = pick(['#8a8a84', '#7a7670', '#9a968e']); g.fillRect(0, 0, w, h); g.strokeStyle = '#5a4030'; g.lineWidth = 1; g.beginPath(); g.moveTo(w * 0.2, 0); g.lineTo(w * 0.3, -6); g.moveTo(w * 0.7, h); g.lineTo(w * 0.8, h + 5); g.stroke(); g.restore(); }
+    for (let i = 0; i < 2; i++) { const x = rand(20, BW - 90), y = rand(200, 330); g.save(); g.translate(x, y); g.rotate(rand(-0.5, 0.5)); g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(4, 5, 70, 32); g.fillStyle = '#7a4a2a'; g.fillRect(0, 0, 70, 32); g.fillStyle = '#3a2a20'; g.fillRect(12, 5, 18, 22); g.fillRect(40, 5, 18, 22); g.restore(); }
+    blobs(120, 2, 6, ['rgba(90,110,50,.5)', 'rgba(70,90,40,.5)']);
+  } else {
+    g.fillStyle = '#4a4a30'; g.fillRect(0, 0, BW, BH);
+    blobs(500, 8, 40, ['rgba(30,34,18,.25)', 'rgba(100,96,60,.18)']);
+    for (let i = 0; i < 14; i++) { const x = rand(0, BW), y = rand(150, 400), rx = rand(20, 60), ry = rx * rand(0.4, 0.7); const gr = g.createRadialGradient(x, y, 0, x, y, rx); gr.addColorStop(0, '#2a3a2e'); gr.addColorStop(0.85, '#344430'); gr.addColorStop(1, 'rgba(52,68,48,0)'); g.fillStyle = gr; g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, 7); g.fill(); g.fillStyle = 'rgba(200,220,200,.12)'; g.beginPath(); g.ellipse(x - rx * 0.3, y - ry * 0.3, rx * 0.3, ry * 0.12, 0, 0, 7); g.fill(); for (let k = 0; k < 3; k++) { g.fillStyle = '#5a7a3a'; g.beginPath(); g.arc(x + rand(-rx, rx) * 0.6, y + rand(-ry, ry) * 0.6, rand(2, 4), 0.3, 6); g.fill(); } }
+    blobs(5000, 0.3, 1, ['rgba(20,20,10,.5)', 'rgba(140,140,90,.35)']);
+    for (let i = 0; i < 200; i++) { const x = rand(0, BW), y = rand(0, BH); g.strokeStyle = pick(['#6a7a3a', '#8a8a4a', '#4a5a2a']); g.lineWidth = 1; for (let k = 0; k < 4; k++) { g.beginPath(); g.moveTo(x, y); g.lineTo(x + rand(-3, 3), y - rand(6, 14)); g.stroke(); } }
+  }
+  const v = g.createRadialGradient(BW / 2, BH / 2, BW * 0.3, BW / 2, BH / 2, BH * 0.75); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,.45)'); g.fillStyle = v; g.fillRect(0, 0, BW, BH);
+  TEX[kind] = cv; return cv;
+}
+
+/* ================================================================
+   3D — low-poly CC0 dinosaurs (Quaternius) rendered with three.js.
+   The battle simulation stays 2D (x, y on the field); here x→X, y→Z.
+   ================================================================ */
+const MODEL_FILES = { trike: 'Triceratops', para: 'Parasaurolophus', raptor: 'Velociraptor', compy: 'Velociraptor', dilo: 'Trex', stego: 'Stegosaurus', apato: 'Apatosaurus', trex: 'Trex',
+  trikeIron: 'Triceratops', trikeRed: 'Triceratops', paraGold: 'Parasaurolophus', apatoMoss: 'Apatosaurus', raptorShadow: 'Velociraptor', raptorVenom: 'Velociraptor', stegoRust: 'Stegosaurus', trexYoung: 'Trex' };
+const MODEL_TINT = { compy: [0x8a9a50, 0.5], dilo: [0x9aa040, 0.4], trikeIron: [0x7a8694, 0.6], trikeRed: [0xb04428, 0.5], paraGold: [0xe0b030, 0.55], apatoMoss: [0x5a8a40, 0.5],
+  raptorShadow: [0x141c30, 0.7], raptorVenom: [0x8a3a9a, 0.5], stegoRust: [0xc0601c, 0.55], trexYoung: [0xd0c8b0, 0.45] };
+const MODELS = {}, PORTRAIT = {}, PROPS = {}, ZONESHOT = {};
+let G3 = null;
+const has3D = (() => { try { const c = document.createElement('canvas'); return !!(window.THREE && THREE.FBXLoader && THREE.SkeletonUtils && (c.getContext('webgl') || c.getContext('experimental-webgl'))); } catch (e) { return false; } })();
+function lambertize(o) {
+  o.traverse(c => {
+    if (!c.isMesh) return;
+    c.castShadow = true;
+    const conv = m => new THREE.MeshLambertMaterial({ color: m.color ? m.color.clone().multiplyScalar(1.5) : new THREE.Color(0x888888), skinning: !!c.isSkinnedMesh, flatShading: true, name: m.name });
+    c.material = Array.isArray(c.material) ? c.material.map(conv) : conv(c.material);
+  });
+}
+function loadModels(onProgress) {
+  return new Promise(res => {
+    if (!has3D) return res(false);
+    const files = [...new Set(Object.values(MODEL_FILES))]; let n = 0, ok = true;
+    const L = new THREE.FBXLoader();
+    const total = files.length + 1;
+    const fin = () => { onProgress(++n, total); if (n === total) res(ok); };
+    // scenery props (trees, rocks, wrecked cars): one JSON of base64 FBX files; optional, the game works without them
+    fetch('models/props.json').then(r => r.json()).then(js => {
+      for (const [name, b64] of Object.entries(js)) {
+        try {
+          const bin = atob(b64), buf = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+          const o = L.parse(buf.buffer, 'models/'); lambertize(o);
+          const box = new THREE.Box3().setFromObject(o), sz = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
+          o.position.x -= c.x; o.position.z -= c.z; o.position.y -= box.min.y;
+          const holder = new THREE.Group(); holder.add(o); holder.scale.setScalar(1 / Math.max(0.001, sz.y));
+          PROPS[name] = { obj: holder, aspect: Math.max(sz.x, sz.z) / sz.y };
+        } catch (e) { /* skip a prop that fails to parse */ }
+      }
+    }).catch(() => {}).then(fin);
+    // models ship as base64 text (the host serves text, not .fbx), decoded back to the binary FBX here
+    const loadOne = f => fetch('models/' + f + '.b64.txt').then(r => { if (!r.ok) throw new Error(r.status); return r.text(); }).then(t => {
+      const bin = atob(t.trim()), buf = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+      return L.parse(buf.buffer, 'models/');
+    });
+    files.forEach(f => loadOne(f).then(o => {
+      lambertize(o);
+      const clips = {}; for (const a of o.animations) clips[a.name.split('_').pop().toLowerCase()] = a;
+      const sz = new THREE.Box3().setFromObject(o).getSize(new THREE.Vector3());
+      MODELS[f] = { obj: o, clips, len: Math.max(sz.x, sz.z) };
+      fin();
+    }).catch(() => { ok = false; fin(); }));
+  });
+}
+const srgb = c => new THREE.Color(c).convertSRGBToLinear();
+const lam = (col, extra = {}) => new THREE.MeshLambertMaterial(Object.assign({ color: srgb(col), flatShading: true }, extra));
+// people for hire, built from simple low-poly shapes to match the dinosaurs
+const HUMAN3 = { leader: [0x7a6448, 0x3a2e22], hunter: [0x56633a, 0x3a3020], spear: [0x6c5c4a, 0x3a3026], sniper: [0x444a44, 0x2a2e2a],
+                 mechanic: [0xc06a20, 0x34405a], medic: [0xe2ddd0, 0x6a6a70], venomer: [0x3e4a34, 0x24281c] };
+function makeHuman3(type) {
+  const [body, pants] = HUMAN3[type], g = new THREE.Group(), s = new THREE.Group(); g.add(s);
+  const M = (geo, col, x, y, z, parent = s) => { const m = new THREE.Mesh(geo, typeof col === 'number' ? lam(col) : col); m.position.set(x, y, z); m.castShadow = true; parent.add(m); return m; };
+  const B = (w, h, d) => new THREE.BoxGeometry(w, h, d), skin = lam(0xd9a47c), legs = [];
+  for (const sd of [-1, 1]) { const geo = B(2.5, 7, 2.7); geo.translate(0, -3.5, 0); const l = M(geo, pants, sd * 1.7, 7, 0); M(B(2.7, 1.6, 3.6), 0x241a12, 0, -6.4, 0.5, l); legs.push(l); }
+  M(B(6.6, 7.4, 3.8), body, 0, 10.7, 0); M(B(6.8, 1, 4), 0x2a2018, 0, 7.6, 0);
+  M(B(4.8, 5.4, 2.6), 0x4a3a28, 0, 11.4, -3.1);   // backpack
+  const head = M(new THREE.IcosahedronGeometry(2.5, 1), skin, 0, 16.9, 0);
+  // arms: the right one reaches forward to hold the weapon, the left one hangs or carries
+  const armGeo = () => { const a = B(1.9, 6.6, 1.9); a.translate(0, -3.3, 0); return a; };
+  const la = M(armGeo(), body, -4.2, 14, 0), ra = M(armGeo(), body, 4.2, 14, 0); la.rotation.x = -0.35; ra.rotation.x = -1.15;
+  M(B(1.7, 1.7, 1.7), skin, 0, -6.6, 0, la); M(B(1.7, 1.7, 1.7), skin, 0, -6.6, 0, ra);
+  const arm = new THREE.Group(); arm.position.set(4.2, 11.2, 5.6); s.add(arm);
+  const W = (geo, col, x, y, z, rx = 0) => { const m = M(geo, col, x, y, z, arm); m.rotation.x = rx; return m; };
+  const cyl = (r0, r1, h, n = 6) => new THREE.CylinderGeometry(r0, r1, h, n);
+  if (type === 'leader') {
+    M(cyl(4.4, 4.4, 0.5, 10), 0x5a4028, 0, 18.6, 0); M(cyl(2.3, 2.7, 2.6, 8), 0x5a4028, 0, 19.9, 0); M(cyl(2.75, 2.75, 0.6, 8), 0x2a1c10, 0, 19, 0);
+    M(B(6.2, 1.5, 4.4), 0xb03a24, 0, 14.6, 0.2); M(B(1.6, 5, 0.6), 0xb03a24, -1.6, 12.2, -2.1);
+    W(B(1.1, 1.5, 13), 0x2a2218, 0, 0, 3); W(B(1.3, 2.6, 4), 0x5a3a20, 0, -0.6, -4);
+  } else if (type === 'hunter') {
+    const hood = M(new THREE.ConeGeometry(3.3, 4.6, 6), 0x48552e, 0, 18.6, -0.3); hood.rotation.x = -0.15; M(B(6.8, 9, 0.8), 0x48552e, 0, 10.4, -4.5);
+    M(cyl(1, 1, 6, 6), 0x6a4a28, -2.4, 13, -4.4).rotation.z = 0.4;   // quiver
+    const bow = W(new THREE.TorusGeometry(6.4, 0.42, 4, 12, Math.PI), 0x7a5430, 0, 0, 2); bow.rotation.set(0, Math.PI / 2, Math.PI / 2);
+    W(B(0.12, 12.8, 0.12), 0xe8e0d0, 0, 0, 2);
+  } else if (type === 'spear') {
+    M(new THREE.SphereGeometry(2.9, 7, 4, 0, 6.3, 0, 1.7), 0x8a8a86, 0, 17.2, 0); M(B(6.9, 3.2, 4.1), 0x7a7a74, 0, 12.4, 0);
+    const sh = M(cyl(4.6, 4.6, 0.9, 8), 0x6a5236, -5.4, 10.6, 2.4); sh.rotation.x = Math.PI / 2; M(new THREE.SphereGeometry(1.2, 6, 4), 0x9a9a94, -5.4, 10.6, 3.1);
+    W(cyl(0.42, 0.42, 30, 5), 0x6a4a28, 0, 0, 8, Math.PI / 2); W(new THREE.ConeGeometry(1.1, 4.2, 4), 0xc8c0b0, 0, 0, 24.5, Math.PI / 2);
+  } else if (type === 'sniper') {
+    M(B(5, 1.6, 5.4), 0x2e342e, 0, 19, 0.3); M(B(4.6, 0.5, 2.4), 0x2e342e, 0, 18.4, 3.4); M(B(7.4, 10, 1), 0x363c30, 0, 9.8, -4.6);
+    W(B(1, 1.3, 24), 0x1e1e1c, 0, 0, 7); W(cyl(0.7, 0.7, 5, 6), 0x1e1e1c, 0, 1.4, 4, Math.PI / 2); W(B(1.2, 2.8, 4.4), 0x4a3422, 0, -0.7, -5.5);
+  } else if (type === 'mechanic') {
+    M(new THREE.SphereGeometry(2.9, 8, 4, 0, 6.3, 0, 1.6), 0xe0b020, 0, 17.3, 0); M(cyl(3.3, 3.3, 0.4, 10), 0xe0b020, 0, 17.6, 0.6);
+    M(B(4.2, 1.1, 0.8), 0x2a2a2a, 0, 17, 2.4); M(B(6.9, 2, 4.1), 0x34405a, 0, 8.8, 0);
+    W(B(0.9, 0.9, 9), 0x9a9a96, 0, 0, 2); W(B(2.6, 0.9, 2), 0x9a9a96, 0, 0, 7);
+    M(B(4.4, 3, 3.4), 0xa02a20, -5, 6.6, 1);   // toolbox
+  } else if (type === 'medic') {
+    M(B(5, 1.7, 5), 0xf0ece0, 0, 19, 0); M(B(1.6, 0.5, 0.6), 0xc03028, 0, 19.2, 2.6); M(B(0.6, 1.5, 0.6), 0xc03028, 0, 19.2, 2.6);
+    M(B(5, 5.6, 0.5), 0xf0ece0, 0, 11.4, -4.5); M(B(3, 1, 0.5), 0xc03028, 0, 11.4, -4.8); M(B(1, 3, 0.5), 0xc03028, 0, 11.4, -4.8);
+    W(B(4.4, 3.4, 3), 0xf0ece0, 0, -1.5, 0); W(B(1.8, 0.7, 0.4), 0xc03028, 0, -1.5, 1.6); W(B(0.7, 1.8, 0.4), 0xc03028, 0, -1.5, 1.6);
+  } else {
+    const hood = M(new THREE.ConeGeometry(3.4, 5, 6), 0x2c3624, 0, 18.7, -0.3); hood.rotation.x = -0.15; M(B(3.4, 2.4, 1.4), 0x1e1e1c, 0, 16.2, 2.2); M(cyl(0.8, 0.8, 1.2, 6), 0x7a7a74, 0, 15.8, 3.2).rotation.x = Math.PI / 2;
+    M(cyl(1.5, 1.5, 6, 8), 0x7ab030, 2, 11.6, -4.9); M(cyl(1.5, 1.5, 6, 8), 0x5a9024, -2, 11.6, -4.9);
+    W(cyl(0.5, 0.5, 15, 6), 0x8a7a4a, 0, 0, 5, Math.PI / 2);
+  }
+  return { root: g, spin: s, legs, arm, human: true };
+}
+function makeTurret3() {
+  const g = new THREE.Group(), m = lam(0x5a5a54);
+  for (let k = 0; k < 3; k++) { const l = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 10, 4), m); const t = k * 2.1; l.position.set(Math.cos(t) * 3, 4, Math.sin(t) * 3); l.rotation.set(Math.sin(t) * 0.5, 0, -Math.cos(t) * 0.5); g.add(l); }
+  const head = new THREE.Group(); head.position.y = 9; g.add(head);
+  const box = new THREE.Mesh(new THREE.BoxGeometry(5, 4, 6), lam(0x6a6a62)); box.castShadow = true; head.add(box);
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 10, 6), lam(0x2a2a28)); barrel.rotation.x = Math.PI / 2; barrel.position.z = 6; head.add(barrel);
+  return { root: g, spin: head, turret: true };
+}
+function makeDino3(type, len) {
+  const M = MODELS[MODEL_FILES[type]], inst = THREE.SkeletonUtils.clone(M.obj);
+  if (MODEL_TINT[type]) { const [col, t] = MODEL_TINT[type], tc = srgb(col); inst.traverse(c => { if (c.isMesh) { const tint = m => { const k = m.clone(); k.color.lerp(tc, t); return k; }; c.material = Array.isArray(c.material) ? c.material.map(tint) : tint(c.material); } }); }
+  inst.scale.setScalar(len / M.len);
+  const g = new THREE.Group(), s = new THREE.Group(); s.add(inst); g.add(s);
+  const mixer = new THREE.AnimationMixer(inst), acts = {};
+  for (const [k, clip] of Object.entries(M.clips)) acts[k] = mixer.clipAction(clip);
+  return { root: g, spin: s, mixer, acts, cur: null };
+}
+function playAnim(r, name, once) {
+  if (!r.acts) return;
+  const a = r.acts[name] || r.acts.idle; if (!a || r.cur === a) return;
+  a.reset(); a.setLoop(once ? THREE.LoopOnce : THREE.LoopRepeat); a.clampWhenFinished = !!once; a.play();
+  if (r.cur) r.cur.crossFadeTo(a, 0.18, false);
+  r.cur = a;
+}
+const RUIN_TEX = {};
+function ruinTex(style) {   // one wall tile = 2 windows x 2 floors: stained concrete or brick, broken and boarded windows
+  if (RUIN_TEX[style]) return RUIN_TEX[style];
+  const cv = document.createElement('canvas'); cv.width = cv.height = 128; const g = cv.getContext('2d');
+  const base = { concrete: '#8f8f88', brick: '#8a5a44', pale: '#b0a890', glass: '#3a5a66' }[style];
+  g.fillStyle = base; g.fillRect(0, 0, 128, 128);
+  for (let i = 0; i < 500; i++) { g.fillStyle = Math.random() < 0.5 ? 'rgba(0,0,0,.08)' : 'rgba(255,255,255,.06)'; g.fillRect(Math.random() * 128, Math.random() * 128, 1 + Math.random() * 3, 1 + Math.random() * 2); }
+  if (style === 'brick') { g.strokeStyle = 'rgba(40,20,14,.35)'; g.lineWidth = 1; for (let y = 0; y < 128; y += 8) { g.beginPath(); g.moveTo(0, y); g.lineTo(128, y); g.stroke(); for (let x = (y / 8 % 2) * 8; x < 128; x += 16) { g.beginPath(); g.moveTo(x, y); g.lineTo(x, y + 8); g.stroke(); } } }
+  if (style === 'glass') {   // curtain wall: a grid of panes, some shattered, some still catching the sky
+    for (let py = 0; py < 4; py++) for (let px = 0; px < 4; px++) { const r = Math.random(), x = px * 32, y = py * 32; g.fillStyle = r < 0.22 ? '#0e1214' : r < 0.5 ? '#4f7480' : r < 0.6 ? '#86a8b0' : '#3a5a66'; g.fillRect(x + 1, y + 1, 30, 30); if (r > 0.9) { g.fillStyle = 'rgba(60,90,40,.6)'; g.fillRect(x + 4, y + 1, 8, 20 + Math.random() * 10); } }
+    g.strokeStyle = '#9aa0a0'; g.lineWidth = 2; for (let k = 0; k <= 128; k += 32) { g.beginPath(); g.moveTo(k, 0); g.lineTo(k, 128); g.moveTo(0, k); g.lineTo(128, k); g.stroke(); }
+  } else for (let fy = 0; fy < 2; fy++) for (let fx = 0; fx < 2; fx++) {
+    const x = fx * 64 + 16, y = fy * 64 + 14, r = Math.random();
+    g.fillStyle = '#14120f'; g.fillRect(x, y, 32, 36);
+    if (r < 0.3) { g.fillStyle = '#5a4630'; g.fillRect(x, y + 8, 32, 6); g.fillRect(x, y + 22, 32, 6); }           // boarded up
+    else if (r < 0.55) { g.fillStyle = 'rgba(150,180,190,.35)'; g.beginPath(); g.moveTo(x, y); g.lineTo(x + 20, y); g.lineTo(x + 8, y + 22); g.lineTo(x, y + 14); g.fill(); }   // shard of glass
+    g.fillStyle = 'rgba(20,16,12,.35)'; g.fillRect(x - 1, y + 36, 34, 14);                                          // rain stain under the sill
+    g.fillStyle = 'rgba(60,90,40,.55)'; for (let k = 0; k < 5; k++) g.fillRect(x + Math.random() * 30, y + 34 + Math.random() * 4, 3, 4 + Math.random() * 12);   // moss dripping from the sill
+  }
+  g.strokeStyle = 'rgba(15,12,10,.6)'; g.lineWidth = 1; for (let i = 0; i < 3; i++) { let x = Math.random() * 128, y = Math.random() * 128; g.beginPath(); g.moveTo(x, y); for (let k = 0; k < 6; k++) { x += Math.random() * 20 - 10; y += Math.random() * 16; g.lineTo(x, y); } g.stroke(); }
+  const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.encoding = THREE.sRGBEncoding; t.magFilter = THREE.NearestFilter;
+  return RUIN_TEX[style] = t;
+}
+function makeRuin(R, w, floors, d, o = {}) {
+  const rr = (a, b) => a + R() * (b - a), g = new THREE.Group(), h = floors * 13, style = o.style || ['concrete', 'concrete', 'brick', 'pale'][(R() * 4) | 0];
+  const side = rep => { const t = ruinTex(style).clone(); t.needsUpdate = true; t.repeat.set(Math.max(1, Math.round(rep / 26)), Math.max(1, floors / 2)); return new THREE.MeshLambertMaterial({ map: t }); };
+  const roof = lam(0x55554e), sx = side(d), sz = side(w);
+  const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), [sx, sx, roof, roof, sz, sz]); body.position.y = h / 2; body.castShadow = body.receiveShadow = true; g.add(body);
+  // the top floor has partly collapsed: jagged wall stubs and bent rebar
+  const wallM = lam({ concrete: 0x86867e, brick: 0x7e5240, pale: 0xa49c86, glass: 0x5a6a70 }[style]);
+  for (let i = 0; i < 3 + floors; i++) { const ww = rr(4, w * 0.45), hh = rr(3, 12), onX = R() < 0.5, m = new THREE.Mesh(new THREE.BoxGeometry(onX ? ww : 2.2, hh, onX ? 2.2 : Math.min(ww, d * 0.8)), wallM); m.position.set(onX ? rr(-w / 2 + ww / 2, w / 2 - ww / 2) : (R() < 0.5 ? -1 : 1) * (w / 2 - 1.1), h + hh / 2, onX ? (R() < 0.5 ? -1 : 1) * (d / 2 - 1.1) : rr(-d / 4, d / 4)); m.castShadow = true; g.add(m); }
+  for (let i = 0; i < 4; i++) { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, rr(6, 13), 4), lam(0x6a3a22)); m.position.set(rr(-w / 2, w / 2), h + 5, rr(-d / 2, d / 2)); m.rotation.set(rr(-0.5, 0.5), 0, rr(-0.5, 0.5)); g.add(m); }
+  // nature taking it back: vines down the walls, moss and bushes on the roof, sometimes a tree growing through
+  const veg = o.veg ?? 1, greens = [0x4a7a34, 0x5a8a3a, 0x3e6a2c, 0x6a9442];
+  for (let i = 0; i < Math.round((4 + floors * 2) * veg); i++) {
+    const len = rr(h * 0.15, h * 0.85), vw = rr(2.5, 8), f = (R() * 4) | 0, m = new THREE.Mesh(new THREE.BoxGeometry(f < 2 ? vw : 0.7, len, f < 2 ? 0.7 : vw), lam(greens[(R() * 4) | 0]));
+    m.position.set(f < 2 ? rr(-w / 2 + vw, w / 2 - vw) : (f === 2 ? -1 : 1) * (w / 2 + 0.35), h - len / 2 + 1, f < 2 ? (f ? -1 : 1) * (d / 2 + 0.35) : rr(-d / 2 + vw, d / 2 - vw)); g.add(m);
+  }
+  for (let i = 0; i < Math.round(3 * veg); i++) { const m = new THREE.Mesh(new THREE.IcosahedronGeometry(rr(3, 7), 0), lam(greens[(R() * 4) | 0])); m.scale.y = 0.45; m.position.set(rr(-w / 2.5, w / 2.5), h + 1.5, rr(-d / 2.5, d / 2.5)); m.castShadow = true; g.add(m); }
+  if (veg > 0.5 && R() < 0.6 && PROPS.CommonTree_1) { const P = PROPS[R() < 0.5 ? 'CommonTree_1' : 'BirchTree_1'] || PROPS.CommonTree_1, t = P.obj.clone(true); t.scale.multiplyScalar(rr(24, 44)); t.position.set(rr(-w / 4, w / 4), h - 2, rr(-d / 4, d / 4)); t.traverse(c => { if (c.isMesh) c.castShadow = true; }); g.add(t); }
+  return g;
+}
+function seeded(seed) { let s = seed >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }
+// overlay: health bars, damage numbers and projectiles drawn in screen space on top of the 3D view
+function renderOverlay() {
+  const c = bc, w = bcv.width, h = bcv.height;
+  c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, w, h); c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const unitH = u => u.turret ? 14 : UNITS[u.type].cls === 'dino' ? u.size * 1.5 : u.size * 1.9;
+  for (const u of B.units) {
+    if (u.hp <= 0) continue;
+    const p = toScreen(u.x, unitH(u), u.y); if (!p.vis) continue;
+    const bw = Math.max(22, u.size * 1.6), by = p.y - 8;
+    c.fillStyle = 'rgba(0,0,0,.6)'; c.fillRect(p.x - bw / 2, by, bw, 3.4);
+    c.fillStyle = u.side ? '#e0573c' : '#8fcf6a'; c.fillRect(p.x - bw / 2, by, bw * Math.max(0, u.hp / u.max), 3.4);
+    if (u.shred) { c.fillStyle = '#c8e040'; for (let k = 0; k < u.shred; k++) c.fillRect(p.x - bw / 2 + k * 4, by - 4.5, 3, 2.6); }
+    if (u.stun > 0) { c.fillStyle = '#f8e88a'; for (let k = 0; k < 3; k++) { const t = B.t * 5 + k * 2.1; c.beginPath(); c.arc(p.x + Math.cos(t) * 9, by - 8 + Math.sin(t) * 2.5, 2, 0, 7); c.fill(); } }
+  }
+  for (const f of B.fx) {
+    const pr = 1 - f.t / 0.3, a = toScreen(f.x, 10, f.y), b = f.x2 !== undefined ? toScreen(f.x2, 10, f.y2) : a;
+    if (f.kind === 'bullet') { c.strokeStyle = `rgba(255,236,170,${f.t * 4})`; c.lineWidth = 1.4; c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.stroke(); }
+    else if (f.kind === 'arrow' || f.kind === 'dart') { const t = clamp(pr, 0, 1), x = a.x + (b.x - a.x) * t, y = a.y + (b.y - a.y) * t; c.strokeStyle = f.kind === 'dart' ? '#90d0f0' : '#e8d8b0'; c.lineWidth = 1.8; c.beginPath(); c.moveTo(x, y); c.lineTo(x - (b.x - a.x) * 0.08, y - (b.y - a.y) * 0.08); c.stroke(); }
+    else if (f.kind === 'acid') { const t = clamp(pr, 0, 1); c.fillStyle = '#c0e040'; c.beginPath(); c.arc(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t - Math.sin(t * Math.PI) * 14, 3, 0, 7); c.fill(); }
+    else if (f.kind === 'heal') { c.strokeStyle = `rgba(143,211,106,${f.t * 2})`; c.lineWidth = 2; c.beginPath(); c.arc(a.x, a.y - 6, 18 - f.t * 12, 0, 7); c.stroke(); }
+    else if (f.kind === 'bite') { c.strokeStyle = `rgba(255,240,220,${f.t * 5})`; c.lineWidth = 2; c.beginPath(); c.arc(b.x, b.y - 6, 8, 0.5, 2.6); c.stroke(); c.beginPath(); c.arc(b.x, b.y - 6, 8, 3.6, 5.8); c.stroke(); }
+  }
+  c.font = '700 13px "IBM Plex Sans KR", sans-serif'; c.textAlign = 'center';
+  drawPX(c);
+  for (const n of B.nums) { const p = toScreen(n.x, 22 + (0.8 - n.t) * 30, n.y0 ?? n.y); c.globalAlpha = Math.min(1, n.t * 2); c.fillStyle = 'rgba(0,0,0,.7)'; c.fillText(n.s, p.x + 1, p.y + 1); c.fillStyle = n.col; c.fillText(n.s, p.x, p.y); c.globalAlpha = 1; }
+}
+/* ================================================================
+   PIXEL WORLD — one continuous map you walk across, MMORPG style.
+   3D models are baked once into small pixel sprites; everything on screen is then drawn in 2D.
+   ================================================================ */
+const WW = 4400, WH = 6000, GR = 300, TOWN_R = 150;
+const TOWNS = { plain: { x: 1000, y: 5100 }, city: { x: 3300, y: 3100 }, swamp: { x: 1100, y: 1200 } };
+const GROUNDS = {
+  plain: [[1500, 4700], [500, 4400], [2000, 5300], [700, 3800], [1500, 3500]],
+  city: [[3800, 3700], [3900, 2700], [2500, 3300], [3900, 1900], [3000, 1300]],
+  swamp: [[600, 1700], [1700, 700], [400, 700], [2100, 500], [500, 2400]],
+};
+const ROADS = [['plain', 'city'], ['city', 'swamp'], ['plain', 'swamp']];
+const ZKEYS = Object.keys(TOWNS);
+const hash2 = (x, y) => { let h = Math.imul(x | 0, 374761393) + Math.imul(y | 0, 668265263); h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+function vnoise(x, y) { const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy, sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy); const a = hash2(ix, iy), b = hash2(ix + 1, iy), c = hash2(ix, iy + 1), d = hash2(ix + 1, iy + 1); return a + (b - a) * sx + (c - a) * sy + (a - b - c + d) * sx * sy; }
+function zoneAt(x, y) { let best = 'plain', bd = 1e9; for (let i = 0; i < 3; i++) { const T = TOWNS[ZKEYS[i]], d = Math.hypot(x - T.x, y - T.y) + (vnoise(x / 260 + i * 7.3, y / 260) - 0.5) * 420; if (d < bd) { bd = d; best = ZKEYS[i]; } } return best; }
+function segDist(px, py, a, b) { const dx = b.x - a.x, dy = b.y - a.y, t = clamp(((px - a.x) * dx + (py - a.y) * dy) / (dx * dx + dy * dy), 0, 1); return Math.hypot(px - a.x - dx * t, py - a.y - dy * t); }
+function roadDist(x, y) { const wx = x + Math.sin(y / 170) * 34, wy = y + Math.sin(x / 190) * 34; let d = 1e9; for (const [a, b] of ROADS) d = Math.min(d, segDist(wx, wy, TOWNS[a], TOWNS[b])); return d; }
+const cityCore = (x, y) => Math.hypot(x - TOWNS.city.x, y - TOWNS.city.y) < 1250;
+const onStreet = (x, y) => cityCore(x, y) && (((x + 4000) % 430) < 38 || ((y + 4000) % 390) < 38);
+const nearTown = (x, y, r) => ZKEYS.find(z => d2(x, y, TOWNS[z].x, TOWNS[z].y) < r * r);
+function groundAt(x, y) { for (const z of ZKEYS) for (let i = 0; i < 5; i++) { const g = GROUNDS[z][i]; if (d2(x, y, g[0], g[1]) < GR * GR) return { z, i }; } return null; }
+const inTown = () => S.pos && nearTown(S.pos.x, S.pos.y, TOWN_R);
+
+/* ---------- ground: generated chunk by chunk, pixel by pixel, from a small palette ---------- */
+const CH = 256, CHUNKS = new Map();
+const hex = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+const PAL = {
+  plain: ['#7a6844', '#857248', '#8f7c50', '#9a8658', '#6e5c3c'].map(hex), city: ['#4c4e50', '#565858', '#5e605c', '#686a62', '#44464a'].map(hex), swamp: ['#3e4628', '#464e2e', '#4e5634', '#5a6238', '#364024'].map(hex),
+  water: ['#1e3032', '#24383a', '#2c4446'].map(hex), road: ['#3e3a36', '#46423c', '#4c4842'].map(hex), street: ['#333336', '#3a3a3e', '#404044'].map(hex), plaza: ['#8a7a5c', '#94846a', '#9e8e72'].map(hex),
+  dash: hex('#b8a458'), moss: hex('#56743a'), crack: hex('#26262a'), tuft: { plain: hex('#a89858'), city: hex('#5a7a3c'), swamp: hex('#6a7a3a') },
+};
+const isWater = (x, y) => vnoise(x / 150 + 31, y / 150 + 17) > 0.64 && zoneAt(x, y) === 'swamp' && roadDist(x, y) > 40 && !nearTown(x, y, TOWN_R + 40);
+function makeChunk(cx, cy) {
+  const cv = document.createElement('canvas'); cv.width = cv.height = CH; const g = cv.getContext('2d'), im = g.createImageData(CH, CH), d = im.data, x0 = cx * CH, y0 = cy * CH;
+  const zg = []; for (let j = 0; j <= 16; j++) for (let i = 0; i <= 16; i++) zg.push(zoneAt(x0 + i * 16, y0 + j * 16));
+  for (let py = 0; py < CH; py++) for (let px = 0; px < CH; px++) {
+    const x = x0 + px, y = y0 + py, h = hash2(x, y), h2 = hash2(x + 911, y - 37);
+    const z = zg[Math.min(16, Math.max(0, Math.round((px + (h - 0.5) * 22) / 16))) + 17 * Math.min(16, Math.max(0, Math.round((py + (h2 - 0.5) * 22) / 16)))];
+    const n = vnoise(x / 70, y / 70) * 0.65 + vnoise(x / 17, y / 17) * 0.35;
+    let c = PAL[z][Math.min(3, Math.floor(n * 4 + (h - 0.5) * 0.7))] || PAL[z][0];
+    if (h2 < 0.035) c = PAL[z][4]; else if (h2 > 0.975) c = PAL.tuft[z];
+    const rd = roadDist(x, y), tn = nearTown(x, y, TOWN_R);
+    if (z === 'swamp') { const w = vnoise(x / 150 + 31, y / 150 + 17); if (w > 0.64 && rd > 40 && !nearTown(x, y, TOWN_R + 40)) c = PAL.water[w > 0.72 ? 0 : (h < 0.5 ? 1 : 2)]; else if (w > 0.61) c = PAL.swamp[4]; }
+    if (tn) { const T = TOWNS[tn], dd = Math.hypot(x - T.x, y - T.y); if (dd < TOWN_R - 14 + n * 20) c = PAL.plaza[(h * 3) | 0]; }
+    else if (rd < 15 + n * 5) {
+      c = PAL.road[(h * 3) | 0];
+      if (rd < 1.6 && ((x + y) >> 4) % 2 === 0) c = PAL.dash; else if (vnoise(x / 9, y / 9) > 0.8) c = PAL[z][1]; else if (h2 > 0.93) c = PAL.moss;
+    } else if (z === 'city' && onStreet(x, y)) { c = PAL.street[(h * 3) | 0]; if (vnoise(x / 6, y / 6) > 0.83) c = PAL.crack; else if (h2 > 0.95) c = PAL.moss; const mx = (x + 4000) % 430, my = (y + 4000) % 390; if ((mx > 17 && mx < 20 && ((y >> 4) & 1) && my >= 38) || (my > 17 && my < 20 && ((x >> 4) & 1) && mx >= 38)) c = PAL.dash; }
+    const k = (py * CH + px) * 4; d[k] = c[0]; d[k + 1] = c[1]; d[k + 2] = c[2]; d[k + 3] = 255;
+  }
+  g.putImageData(im, 0, 0); return cv;
+}
+function chunk(cx, cy) { const k = cx + ',' + cy; let c = CHUNKS.get(k); if (!c) { if (CHUNKS.size > 48) CHUNKS.delete(CHUNKS.keys().next().value); c = makeChunk(cx, cy); CHUNKS.set(k, c); } return c; }
+
+/* ---------- sprite baking: render a 3D model small with an orthographic camera, then harden it into pixel art ---------- */
+const PITCH = 0.84, SPR = {}, BD = [6, 7, 0, 1, 2], DIRROW = { 6: 0, 7: 1, 0: 2, 1: 3, 2: 4 }, MIR = { 3: 1, 4: 0, 5: 7 };
+let BK = null;
+function baker() {
+  if (BK) return BK;
+  const cv = document.createElement('canvas'), r = new THREE.WebGLRenderer({ canvas: cv, antialias: false, alpha: true, preserveDrawingBuffer: true }); r.outputEncoding = THREE.sRGBEncoding; r.setPixelRatio(1);
+  const sc = new THREE.Scene(); sc.add(new THREE.HemisphereLight(0xfff2dc, 0x5a4a38, 0.9)); const sun = new THREE.DirectionalLight(0xfff4e0, 0.85); sun.position.set(-70, 120, 90); sc.add(sun);
+  return BK = { cv, r, sc, cam: new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 3000) };
+}
+function bakeSetup(fw, fh, cy) {
+  const b = baker(), c = b.cam; b.r.setSize(fw, fh, false);
+  c.left = -fw / 2; c.right = fw / 2; c.top = fh / 2; c.bottom = -fh / 2; c.position.set(0, cy + Math.sin(PITCH) * 900, Math.cos(PITCH) * 900); c.lookAt(0, cy, 0); c.updateProjectionMatrix(); c.updateMatrixWorld(true);
+  const v = new THREE.Vector3(0, 0, 0).project(c); return { ax: Math.round((v.x * 0.5 + 0.5) * fw), ay: Math.round((-v.y * 0.5 + 0.5) * fh) };
+}
+function snap(g, dx, dy) { const b = baker(); b.r.setClearColor(0x000000, 0); b.r.clear(); b.r.render(b.sc, b.cam); g.drawImage(b.cv, dx, dy); }
+function pixelize(cv) {   // hard alpha, a reduced palette and a dark one-pixel outline
+  const g = cv.getContext('2d'), w = cv.width, h = cv.height, im = g.getImageData(0, 0, w, h), d = im.data, n = w * h, op = new Uint8Array(n);
+  for (let i = 0; i < n; i++) { const k = i * 4; if (d[k + 3] > 100) { op[i] = 1; d[k] = Math.min(255, Math.round(d[k] / 18) * 18); d[k + 1] = Math.min(255, Math.round(d[k + 1] / 18) * 18); d[k + 2] = Math.min(255, Math.round(d[k + 2] / 18) * 18); d[k + 3] = 255; } else d[k + 3] = 0; }
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const i = y * w + x; if (op[i]) continue; if ((x > 0 && op[i - 1]) || (x < w - 1 && op[i + 1]) || (y > 0 && op[i - w]) || (y < h - 1 && op[i + w])) { const k = i * 4; d[k] = 26; d[k + 1] = 20; d[k + 2] = 16; d[k + 3] = 255; } }
+  g.putImageData(im, 0, 0); return cv;
+}
+const ANIMS = { dino: [['idle', 3], ['walk', 6], ['attack', 5], ['death', 5]], human: [['idle', 1], ['walk', 4], ['attack', 2], ['death', 2]], turret: [['idle', 1]] };
+function unitSprite(type, len) {
+  const D = UNITS[type], kind = type === 'turret' ? 'turret' : D.cls === 'dino' ? 'dino' : 'human'; len = Math.round(kind === 'dino' ? len : 22);
+  const key = type + '|' + len; if (SPR[key]) return SPR[key];
+  const fw = kind === 'dino' ? Math.ceil(len * 1.5) + 8 : kind === 'human' ? 56 : 30, fh = fw, spr = { fw, fh, an: {}, kind };
+  if (!USE3D) {   // no WebGL: fall back to the hand-drawn shapes
+    spr.ax = fw >> 1; spr.ay = fh >> 1;
+    for (const [name, n] of ANIMS[kind]) { const cv = document.createElement('canvas'); cv.width = fw * n; cv.height = fh * 5; const g = cv.getContext('2d'); BD.forEach((k, row) => { for (let f = 0; f < n; f++) { const x = f * fw + fw / 2, y = row * fh + fh / 2, a = k * Math.PI / 4; if (kind === 'dino') drawDino(g, type, x, y, a, len, f * 1.1, { still: name !== 'walk', dead: name === 'death' }); else if (kind === 'human') drawHuman(g, type, x, y, a, 11, f * 1.6, { still: name !== 'walk' }); else { g.fillStyle = '#6a6a62'; g.fillRect(x - 5, y - 5, 10, 10); } } }); spr.an[name] = { cv, n }; }
+    return SPR[key] = spr;
+  }
+  const b = baker(), obj = kind === 'dino' ? makeDino3(type, len) : kind === 'human' ? makeHuman3(type) : makeTurret3();
+  obj.root.traverse(o => { o.frustumCulled = false; }); b.sc.add(obj.root);
+  Object.assign(spr, bakeSetup(fw, fh, kind === 'dino' ? len * 0.2 : 9));
+  for (const [name, n] of ANIMS[kind]) {
+    const cv = document.createElement('canvas'); cv.width = fw * n; cv.height = fh * 5; const g = cv.getContext('2d');
+    let clip = null; if (kind === 'dino') { obj.mixer.stopAllAction(); const a = obj.acts[name] || obj.acts.idle; if (a) { a.reset(); a.setLoop(THREE.LoopRepeat); a.play(); clip = a.getClip(); } }
+    for (let f = 0; f < n; f++) {
+      if (kind === 'dino' && clip) obj.mixer.setTime(name === 'death' ? clip.duration * Math.min(0.995, (f + 1) / n) : clip.duration * (f / n));
+      if (kind === 'human') {
+        obj.legs.forEach((l, i) => l.rotation.x = name === 'walk' ? Math.sin(f / n * Math.PI * 2 + i * Math.PI) * 0.7 : 0);
+        obj.arm.position.z = 5.6 - (name === 'attack' ? [1.8, 0.4][f] : 0); obj.spin.rotation.x = name === 'attack' && f === 0 ? -0.12 : 0;
+        obj.spin.rotation.z = name === 'death' ? [0.8, Math.PI / 2][f] : 0; obj.spin.position.y = name === 'death' ? 2 : 0;
+      }
+      BD.forEach((k, row) => { obj.spin.rotation.y = Math.PI / 2 - k * Math.PI / 4; snap(g, f * fw, row * fh); });
+    }
+    spr.an[name] = { cv: pixelize(cv), n };
+  }
+  b.sc.remove(obj.root); return SPR[key] = spr;
+}
+function drawSpr(c, spr, anim, fi, a, x, y) {
+  const A = spr.an[anim] || spr.an.idle, k = ((Math.round(a / (Math.PI / 4)) % 8) + 8) % 8, m = k >= 3 && k <= 5, row = DIRROW[m ? MIR[k] : k]; fi = Math.max(0, Math.min(A.n - 1, fi | 0)); x = Math.round(x); y = Math.round(y);
+  if (!m) c.drawImage(A.cv, fi * spr.fw, row * spr.fh, spr.fw, spr.fh, x - spr.ax, y - spr.ay, spr.fw, spr.fh);
+  else { c.save(); c.translate(x, y); c.scale(-1, 1); c.drawImage(A.cv, fi * spr.fw, row * spr.fh, spr.fw, spr.fh, -spr.ax, -spr.ay, spr.fw, spr.fh); c.restore(); }
+}
+function pxEllipse(c, x, y, rx, ry, col) { c.fillStyle = col; x = Math.round(x); y = Math.round(y); for (let dy = -ry; dy <= ry; dy++) { const hw = Math.round(rx * Math.sqrt(Math.max(0, 1 - (dy * dy) / (ry * ry + 0.01)))); c.fillRect(x - hw, y + dy, hw * 2, 1); } }
+function pxRing(c, x, y, rx, ry, col) { c.fillStyle = col; x = Math.round(x); y = Math.round(y); let px = null; for (let dy = -ry; dy <= ry; dy++) { const hw = Math.round(rx * Math.sqrt(Math.max(0, 1 - (dy * dy) / (ry * ry + 0.01)))), w0 = px === null || dy === ry ? hw : Math.max(1, Math.abs(hw - px)); if (dy === -ry || dy === ry) c.fillRect(x - hw, y + dy, hw * 2, 1); else { c.fillRect(x - hw, y + dy, w0, 1); c.fillRect(x + hw - w0, y + dy, w0, 1); } px = hw; } }
+
+/* ---------- scenery: ruins, trees, wrecks, town furniture — each baked once ---------- */
+const boxM = (w, h, d, col, x = 0, y = 0, z = 0) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), lam(col)); m.position.set(x, y, z); return m; };
+const grp = (...ms) => { const g = new THREE.Group(); ms.forEach(m => g.add(m)); return g; };
+const P3 = (name, h, tint, t = 0.5) => () => { const P = PROPS[name]; if (!P) return null; const o = P.obj.clone(true); o.scale.multiplyScalar(h); if (tint !== undefined) { const tc = srgb(tint); o.traverse(c => { if (c.isMesh) { const f = m => { const k = m.clone(); k.color.lerp(tc, t); return k; }; c.material = Array.isArray(c.material) ? c.material.map(f) : f(c.material); } }); } return o; };
+const RU = (seed, w, fl, d, o, ry = 0.3) => () => { const g = makeRuin(seeded(seed), w, fl, d, o); g.rotation.y = ry; return g; };
+const CAR = (name, ry) => () => { const o = P3(name, 17, 0x8a4a28, 0.55)(); if (o) { o.rotation.y = ry; o.rotation.z = 0.08; } return o; };
+const PDEF = {   // key: [maker, collision radius, fallback colour]
+  grassA: [P3('Grass', 9, 0xb8a860, 0.7), 0, '#a89858'], grassB: [P3('Grass_2', 10, 0xb8a860, 0.7), 0, '#a89858'], grassG: [P3('Grass', 10, 0x6a8a3a, 0.5), 0, '#5a7a3c'], grassS: [P3('Grass_Short', 7, 0x5a8a3a, 0.4), 0, '#5a7a3c'],
+  wheat: [P3('Wheat', 15, 0xc8b060, 0.4), 0, '#c8b060'], bush: [P3('Bush_1', 14, 0x7a8a48, 0.4), 0, '#6a7a40'], bushG: [P3('Bush_1', 15, 0x4a7a34, 0.3), 0, '#4a7a34'], plant: [P3('Plant_1', 11, 0x4a6a34, 0.4), 0, '#4a6a34'],
+  rock1: [P3('Rock_1', 11, 0x9a8c74, 0.4), 5, '#8a8072'], rock3: [P3('Rock_3', 17, 0x9a8c74, 0.4), 8, '#8a8072'], rock5: [P3('Rock_5', 13, 0x8a8a86, 0.6), 6, '#868684'], rockM: [P3('Rock_Moss_2', 15), 7, '#6a7a5a'], rockM2: [P3('Rock_Moss_5', 20), 9, '#6a7a5a'],
+  dead1: [P3('CommonTree_Dead_1', 74, 0x6a5a48, 0.45), 5, '#5a4a38'], dead3: [P3('CommonTree_Dead_3', 66, 0x6a5a48, 0.45), 5, '#5a4a38'], deadB: [P3('BirchTree_Dead_2', 70, 0x8a8478, 0.3), 5, '#8a8478'],
+  tree1: [P3('CommonTree_1', 70, 0x8a8a40, 0.3), 6, '#5a8a3a'], tree3: [P3('CommonTree_3', 82), 6, '#4a7a34'], birch: [P3('BirchTree_1', 76), 5, '#6a9442'], treeS: [P3('CommonTree_1', 66, 0x3e5a30, 0.4), 6, '#3e5a30'],
+  willow: [P3('Willow_2', 92, 0x4a5a38, 0.3), 7, '#4a5a38'], willowD: [P3('Willow_Dead_1', 84, 0x4a5a38, 0.3), 6, '#4a4a38'], willowD3: [P3('Willow_Dead_3', 78, 0x4a5a38, 0.3), 6, '#4a4a38'],
+  stump: [P3('TreeStump_Moss', 10), 5, '#5a5a3a'], log: [P3('WoodLog_Moss', 9), 0, '#5a5a3a'], lily: [P3('Lilypad', 2), 0, '#4a7a44'],
+  car1: [CAR('NormalCar1', 0.5), 15, '#8a4a28'], car2: [CAR('SUV', 2.1), 16, '#8a4a28'], car3: [CAR('Taxi', -0.9), 15, '#9a7a28'],
+  ruinP1: [RU(11, 52, 1, 34, { veg: 0.8, style: 'brick' }), 30, '#8a5a44'], ruinP2: [RU(12, 44, 2, 32, { veg: 0.8, style: 'pale' }, -0.25), 27, '#b0a890'], ruinP3: [RU(13, 60, 1, 30, { veg: 1, style: 'pale' }, 1.4), 30, '#b0a890'],
+  ruinC1: [RU(21, 56, 5, 44, { veg: 1.2, style: 'glass' }, 0.2), 34, '#3a5a66'], ruinC2: [RU(22, 48, 7, 44, { veg: 1.2, style: 'concrete' }, -0.2), 32, '#8f8f88'], ruinC3: [RU(23, 64, 4, 46, { veg: 1.3, style: 'pale' }, 0.1), 36, '#b0a890'],
+  ruinC4: [RU(24, 50, 8, 46, { veg: 1.1, style: 'glass' }, -0.1), 33, '#3a5a66'], ruinC5: [RU(25, 60, 3, 40, { veg: 1.4, style: 'brick' }, 0.25), 34, '#8a5a44'], ruinC6: [RU(26, 44, 6, 40, { veg: 1.2, style: 'concrete' }, 0), 29, '#8f8f88'],
+  ruinL1: [RU(31, 36, 1, 26, { veg: 1 }, 0.4), 21, '#8f8f88'], ruinL2: [RU(32, 40, 1, 28, { veg: 1.2, style: 'brick' }, -0.5), 23, '#8a5a44'],
+  ruinS1: [() => { const g = RU(41, 46, 2, 34, { veg: 1.6 }, 0.3)(); g.rotation.z = 0.12; g.position.y = -6; return g; }, 27, '#7a7a66'], ruinS2: [() => { const g = RU(42, 40, 1, 30, { veg: 1.7, style: 'pale' }, -0.4)(); g.rotation.x = 0.08; g.position.y = -4; return g; }, 24, '#8a8a70'],
+  rubble: [() => { const g = grp(boxM(30, 14, 22, 0x8a8a84, 0, 5, 0), boxM(16, 8, 14, 0x9a968e, 14, 3, 10), boxM(9, 5, 9, 0x7a7a74, -16, 2, 9)); g.children[0].rotation.z = 0.2; g.rotation.y = 0.5; return g; }, 17, '#8a8a84'],
+  lamp: [() => { const g = grp(boxM(1.6, 44, 1.6, 0x4a4a48, 0, 22, 0), boxM(12, 1.2, 1.2, 0x4a4a48, 5, 43, 0), boxM(1.4, 16, 1.4, 0x4a7a34, 0.9, 28, 0)); g.rotation.z = -0.12; return g; }, 2, '#4a4a48'],
+  bill: [() => grp(boxM(1.8, 40, 1.8, 0x4a4a48, -12, 20, 0), boxM(1.8, 40, 1.8, 0x4a4a48, 12, 20, 0), boxM(36, 16, 1, 0xa89878, 0, 34, 0), boxM(12, 9, 1.3, 0x6a5a44, 5, 34, 0), boxM(3, 20, 1.4, 0x4a7a34, -10, 28, 0.3)), 4, '#a89878'],
+  ribs: [() => { const g = new THREE.Group(); for (let k = 0; k < 6; k++) { const r = new THREE.Mesh(new THREE.TorusGeometry(9, 0.9, 4, 8, Math.PI), lam(0xe0d6c0)); r.position.set(k * 5 - 12, 0, 0); r.rotation.y = Math.PI / 2; g.add(r); } g.rotation.y = 0.5; return g; }, 0, '#e0d6c0'],
+  silo: [() => { const g = new THREE.Group(), c = new THREE.Mesh(new THREE.CylinderGeometry(13, 13, 60, 10), lam(0x8a7a6a)); c.position.y = 30; g.add(c); const cap = new THREE.Mesh(new THREE.ConeGeometry(14, 10, 10), lam(0x7a4a2a)); cap.position.y = 64; cap.rotation.z = 0.25; g.add(cap); g.add(boxM(4, 34, 1, 0x4a7a34, 6, 26, 12.4)); return g; }, 14, '#8a7a6a'],
+  crate: [() => grp(boxM(11, 9, 9, 0x8a6a3a, 0, 4.5, 0), boxM(11.4, 1.6, 9.4, 0x4a3a24, 0, 7, 0), boxM(2, 9.2, 9.4, 0x4a3a24, 0, 4.5, 0)), 0, '#8a6a3a'],
+  tent: [() => { const c = new THREE.Mesh(new THREE.ConeGeometry(20, 24, 6), lam(0x9a8a5a)); c.position.y = 12; return grp(c, boxM(7, 11, 1, 0x3a2e22, 0, 5.5, 17.6)); }, 16, '#9a8a5a'],
+  tent2: [() => { const c = new THREE.Mesh(new THREE.ConeGeometry(17, 21, 5), lam(0x6a7a5a)); c.position.y = 10.5; c.rotation.y = 0.6; return grp(c); }, 14, '#6a7a5a'],
+  stall: [() => grp(boxM(26, 8, 12, 0x6a4a2a, 0, 4, 0), boxM(1.4, 22, 1.4, 0x4a3422, -12, 11, -5), boxM(1.4, 22, 1.4, 0x4a3422, 12, 11, -5), boxM(1.4, 18, 1.4, 0x4a3422, -12, 9, 5), boxM(1.4, 18, 1.4, 0x4a3422, 12, 9, 5), (() => { const m = boxM(30, 1.4, 16, 0xb03a24, 0, 21, 0); m.rotation.x = 0.25; return m; })(), boxM(5, 4, 5, 0xd0a040, -6, 10, 0), boxM(5, 5, 5, 0x7a9a4a, 3, 10.5, 1)), 13, '#b03a24'],
+  stall2: [() => grp(boxM(24, 8, 12, 0x5a4a3a, 0, 4, 0), boxM(1.4, 20, 1.4, 0x4a3422, -11, 10, 0), boxM(1.4, 20, 1.4, 0x4a3422, 11, 10, 0), (() => { const m = boxM(28, 1.4, 16, 0x3a6a7a, 0, 20, 0); m.rotation.x = 0.25; return m; })(), boxM(6, 4, 4, 0x9a9a96, 0, 10, 0)), 12, '#3a6a7a'],
+  fence: [() => grp(boxM(34, 9, 2, 0x5a4630, 0, 6, 0), boxM(2.4, 15, 2.4, 0x3a2e22, -15, 7.5, 0), boxM(2.4, 15, 2.4, 0x3a2e22, 15, 7.5, 0), boxM(2, 13, 2, 0x8a8a84, -4, 9, 1.4)), 0, '#5a4630'],
+  flag: [() => grp(boxM(1.4, 46, 1.4, 0x4a3a2a, 0, 23, 0), boxM(15, 10, 0.8, 0xc0502a, 8, 40, 0), boxM(5, 4, 1, 0xe3a843, 7, 40, 0.2)), 2, '#c0502a'],
+  fire: [() => grp(boxM(11, 2.4, 2.4, 0x3a2a1a, 0, 1.2, 0), (() => { const m = boxM(11, 2.4, 2.4, 0x4a3422, 0, 1.6, 0); m.rotation.y = 1.3; return m; })(), boxM(3, 2, 3, 0x6a6a66, -6, 1, 5), boxM(3, 2, 3, 0x6a6a66, 6, 1, -4)), 5, '#3a2a1a'],
+  tower: [() => grp(boxM(2, 40, 2, 0x4a3a2a, -7, 20, -7), boxM(2, 40, 2, 0x4a3a2a, 7, 20, -7), boxM(2, 40, 2, 0x4a3a2a, -7, 20, 7), boxM(2, 40, 2, 0x4a3a2a, 7, 20, 7), boxM(20, 2, 20, 0x6a5236, 0, 34, 0), boxM(20, 6, 1.4, 0x5a4630, 0, 38, 10), boxM(22, 1.6, 22, 0x7a4a2a, 0, 50, 0), boxM(1.4, 14, 1.4, 0x4a3a2a, -9, 43, -9), boxM(1.4, 14, 1.4, 0x4a3a2a, 9, 43, -9)), 11, '#6a5236'],
+};
+function propSprite(key) {
+  if (SPR['p:' + key]) return SPR['p:' + key];
+  const def = PDEF[key]; let obj = null; try { obj = USE3D ? def[0]() : null; } catch (e) { obj = null; }
+  if (!obj) { const cv = document.createElement('canvas'), r = Math.max(6, def[1] || 5); cv.width = r * 2 + 2; cv.height = r * 2 + 2; const g = cv.getContext('2d'); pxEllipse(g, r + 1, r + 1, r, r, def[2]); return SPR['p:' + key] = { cv: pixelize(cv), ax: r + 1, ay: r * 2 }; }
+  const b = baker(), box = new THREE.Box3().setFromObject(obj), sz = box.getSize(new THREE.Vector3()), ctr = box.getCenter(new THREE.Vector3());
+  const rad = Math.hypot(sz.x, sz.z) / 2, top = Math.max(1, box.max.y), fw = Math.ceil(rad * 2 + Math.abs(ctr.x) * 2) + 8, fh = Math.ceil(top * Math.cos(PITCH) + (rad * 2 + Math.abs(ctr.z) * 2) * Math.sin(PITCH)) + 10, cv = document.createElement('canvas'); cv.width = fw; cv.height = fh;
+  b.sc.add(obj); const a = bakeSetup(fw, fh, top / 2); snap(cv.getContext('2d'), 0, 0); b.sc.remove(obj);
+  return SPR['p:' + key] = { cv: pixelize(cv), ax: a.ax, ay: a.ay };
+}
+const ZPROPS = {
+  plain: 'grassA grassA grassA grassA grassB grassB grassB wheat wheat bush bush rock1 rock1 rock3 dead1 dead1 dead3 deadB tree1 ruinP1 ruinP2 ruinP3 car1 car2 bill ribs silo'.split(' '),
+  city: 'grassS grassS grassS grassS grassS bushG bushG ruinC1 ruinC2 ruinC3 ruinC4 ruinC5 ruinC6 ruinC1 ruinC2 ruinC6 ruinL1 ruinL2 rubble rubble car1 car2 car3 car3 lamp lamp tree1 tree3 birch rock5'.split(' '),
+  swamp: 'grassG grassG grassG grassG grassG plant plant plant bushG willow willow willow willowD willowD3 treeS ruinS1 ruinS2 car1 car2 rockM rockM2 stump log lamp lily lily'.split(' '),
+};
+const TOWN_LAYOUT = [['flag', 0, -96], ['stall', -62, -40], ['stall2', 4, -58], ['stall', 66, -36], ['tent', -100, 34], ['tent2', -58, 84], ['tent', 98, 40], ['tent2', 52, 92], ['fire', 0, 22], ['tower', -112, -66], ['tower', 112, -70], ['crate', 30, -28], ['crate', -34, -22],
+  ['fence', -70, -118], ['fence', 70, -118], ['fence', -136, 0], ['fence', 136, 4], ['fence', -86, 128], ['fence', 86, 128]];
+const CELL = 220, CELLS = new Map();
+function cellProps(cx, cy) {
+  const k = cx + ',' + cy; let list = CELLS.get(k); if (list) return list; list = [];
+  const R = seeded(Math.imul(cx + 1000, 7919) ^ Math.imul(cy + 1000, 104729)), x0 = cx * CELL, y0 = cy * CELL, z = zoneAt(x0 + CELL / 2, y0 + CELL / 2), tab = ZPROPS[z], gr = groundAt(x0 + CELL / 2, y0 + CELL / 2);
+  for (let i = 0, n = z === 'plain' ? 9 : 11; i < n; i++) {
+    const key = tab[(R() * tab.length) | 0], x = x0 + R() * CELL, y = y0 + R() * CELL, r = PDEF[key][1], big = r > 9;
+    if (x < 20 || y < 20 || x > WW - 20 || y > WH - 20 || nearTown(x, y, TOWN_R + (big ? 70 : 20))) continue;
+    if (roadDist(x, y) < (big ? 22 + r : 16) || (z === 'city' && onStreet(x, y) && r > 0)) continue;
+    const wet = z === 'swamp' && isWater(x, y); if (key === 'lily' ? !wet : wet && r === 0) continue;
+    if (big && gr && R() < 0.7) continue;
+    if (big && list.some(p => p.r > 9 && d2(p.x, p.y, x, y) < (p.r + r + 26) ** 2)) continue;
+    list.push({ x, y, key, r });
+  }
+  for (const zt of ZKEYS) { const T = TOWNS[zt]; for (const [key, dx, dy] of TOWN_LAYOUT) { const x = T.x + dx, y = T.y + dy; if (Math.floor(x / CELL) === cx && Math.floor(y / CELL) === cy) list.push({ x, y, key, r: PDEF[key][1], fire: key === 'fire' }); } }
+  if (hash2(cx * 3 + 7, cy * 5 + 1) < 0.16 && !nearTown(x0 + 110, y0 + 110, 400)) list.push({ x: x0 + 40 + R() * 140, y: y0 + 40 + R() * 140, key: 'crate', r: 0, loot: k });
+  CELLS.set(k, list); return list;
+}
+
+/* ---------- the living world: herds, your caravan, townsfolk and other caravans on the roads ---------- */
+const TYPE_LOOT = { Triceratops: { hide: 2, bone: 1 }, Parasaurolophus: { meat: 2 }, Velociraptor: { bone: 1, hide: 1 }, Trex: { meat: 3, bone: 2 }, Stegosaurus: { bone: 2, hide: 1 }, Apatosaurus: { meat: 4 } };
+const NPC_NAMES = ['붉은모래 상단', '강철뿔 상단', '떠돌이 넬', '늪지기 조합', '잿빛 발톱', '고철 형제', '새벽길 상단'];
+let W = null, worldOn = false, PSZ = 1.3, VO = { x: 0, y: 0, w: 300, h: 500 };
+function fillPack(p) {
+  const Z = ZONES[p.z], H = HUNTS[Math.min(3, p.g)];
+  let foes;
+  if (p.boss) foes = huntFoes(p.z, 4);
+  else { const n = Math.max(1, H.n[0] - 1 + Math.round(Math.random() * (H.n[1] - H.n[0] + 0.6))); foes = addRare(Array.from({ length: n }, () => ({ type: pick(Z.wild), lv: Z.lv + H.lv[0] + Math.round(rand(0, H.lv[1] - H.lv[0])) })), p.z, H.rare * 0.5); }
+  p.mons = foes.map(f => ({ f, x: p.cx + rand(-26, 26), y: p.cy + rand(-26, 26), a: rand(0, 6.28), tx: p.cx, ty: p.cy, wait: rand(0, 5), ph: rand(0, 9), len: Math.round((UNITS[f.type].size || 11) * 2.4 * (f.boss ? BOSSES[f.boss].size : 1)) }));
+  p.dead = 0;
+}
+function initWorld() {
+  if (!S.pos) { const T = TOWNS[S.zone] || TOWNS.plain; S.pos = { x: T.x, y: T.y + 70 }; }
+  W = { lead: { x: S.pos.x, y: S.pos.y, a: -Math.PI / 2, tx: null, ty: null, moving: false }, crew: [], packs: [], cam: { x: S.pos.x, y: S.pos.y }, target: null, npcs: [], folk: [], looted: {}, t: 0, here: '', stepT: 0, callT: 5 };
+  const R = seeded(20261123), free = (x, y, gap) => !W.packs.some(p => d2(p.cx, p.cy, x, y) < gap * gap);
+  for (const z of ZKEYS) {
+    GROUNDS[z].forEach(([gx, gy], i) => {
+      if (i === 4) { const p = { z, g: 4, boss: true, cx: gx, cy: gy }; fillPack(p); W.packs.push(p); }
+      for (let n = 0, k = 0; n < (i === 4 ? 4 : 7) && k < 200; k++) { const a = R() * 6.28, r = (i === 4 ? 110 : 30) + R() * (GR - 60), x = gx + Math.cos(a) * r, y = gy + Math.sin(a) * r; if (!free(x, y, 96) || isWater(x, y)) continue; const p = { z, g: i === 4 ? 3 : i, cx: x, cy: y }; fillPack(p); W.packs.push(p); n++; }
+    });
+  }
+  for (let n = 0, k = 0; n < 46 && k < 3000; k++) {   // lone herds out in the wilds between the named grounds
+    const x = 120 + R() * (WW - 240), y = 120 + R() * (WH - 240); if (nearTown(x, y, 420) || groundAt(x, y) || roadDist(x, y) < 70 || !free(x, y, 240) || isWater(x, y)) continue;
+    const z = zoneAt(x, y), T = TOWNS[z], p = { z, g: clamp(Math.floor(Math.hypot(x - T.x, y - T.y) / 700), 0, 2), cx: x, cy: y }; fillPack(p); W.packs.push(p); n++;
+  }
+  // other caravans walking the roads, and people going about their day in each settlement
+  NPC_NAMES.forEach((name, i) => { const [a, b] = ROADS[i % 3], t = R(), A = TOWNS[a], Bt = TOWNS[b], types = [pick(['hunter', 'spear', 'sniper', 'medic', 'venomer']), pick(['hunter', 'spear', 'mechanic']), pick(['trike', 'para', 'apato', 'stego'])].slice(i % 2 ? 0 : 1);
+    W.npcs.push({ name, a, b, dir: i % 2 ? 1 : -1, t, wait: 0, mem: [{ type: 'leader' }, ...types.map(type => ({ type }))].map((m, k) => ({ ...m, x: A.x + (Bt.x - A.x) * t, y: A.y + (Bt.y - A.y) * t + k * 14, a: 0, moving: false, ph: R() * 9 })) }); });
+  for (const z of ZKEYS) for (let i = 0; i < 6; i++) { const T = TOWNS[z]; W.folk.push({ z, type: pick(['hunter', 'spear', 'medic', 'mechanic', 'venomer', 'sniper']), x: T.x + rand(-90, 90), y: T.y + rand(-70, 100), a: rand(0, 6.28), tx: T.x, ty: T.y, wait: rand(0, 6), ph: rand(0, 9), moving: false }); }
+  syncCrew();
+}
+function syncCrew() {
+  if (!W) return; const L = W.lead, old = new Map(W.crew.map(c => [c.u.id, c]));
+  W.crew = party().filter(u => !u.ko).sort((a, b) => (b.type === 'leader') - (a.type === 'leader')).map((u, i) => { const D = UNITS[u.type], o = old.get(u.id); return o ? Object.assign(o, { u }) : { u, x: L.x - Math.cos(L.a) * i * 16, y: L.y - Math.sin(L.a) * i * 16, a: L.a, moving: false, ph: rand(0, 9) }; });
+  for (const c of W.crew) { const D = UNITS[c.u.type]; c.len = Math.round((D.size || 11) * 2.4 * (1 + 0.07 * (c.u.tier || 0))); c.gap = 13 + (D.size || 11) * 0.8; }
+}
+const LANDQ = window.matchMedia('(orientation: landscape)'), isLand = () => LANDQ.matches, worldLive = () => worldOn || isLand();
+function showWorld() {
+  if (!W) initWorld(); syncCrew(); worldOn = true; $('app').classList.add('wo');
+  $('battle').hidden = false; $('bfoot').hidden = !B; $('ffoot').hidden = !!B; if (!B) $('bSel').hidden = true;
+  $('bTip').textContent = '땅을 눌러 이동 · 공룡 무리를 눌러 사냥'; resizeBattle(); updField();
+}
+function hideWorld() { if (B) return; worldOn = false; $('app').classList.remove('wo'); $('battle').hidden = true; save(); setView(inTown() ? 'town' : 'party'); resizeBattle(); }
+function walkTo(x, y, label) { if (!W) initWorld(); W.target = null; W.lead.tx = clamp(x, 10, WW - 10); W.lead.ty = clamp(y, 10, WH - 10); W.dest = label ? { x: W.lead.tx, y: W.lead.ty, label } : null; if (label) toast(`${label}(으)로 가는 중 · 땅을 누르면 멈춰요`); }
+function updField() {
+  if (!W || B) return; const t = inTown(), L = W.lead, g = groundAt(L.x, L.y), z = zoneAt(L.x, L.y);
+  $('fNearest').textContent = t ? '정착지 들어가기' : '가까운 무리로';
+  const here = t ? `${ZONES[t].n} 정착지` : g ? `${ZONES[g.z].n} · ${HUNT_NAMES[g.z][g.i]}` : `${ZONES[z].n} · 황무지`;
+  if (here !== W.here) {
+    W.here = here; $('bTitle').textContent = here;
+    if (t) { if (S.zone !== t || W.out) { S.zone = t; toast(`${ZONES[t].n} 정착지에 도착했어요`, 'good'); sfx('arrive'); } W.out = false; }
+    else { W.out = true; if (g) { const H = HUNTS[Math.min(3, g.i)], Z = ZONES[g.z]; toast(g.i === 4 ? `${HUNT_NAMES[g.z][4]} · ${BOSSES[Z.boss].n}의 영역이에요` : `${HUNT_NAMES[g.z][g.i]} · 야생 Lv${Z.lv + H.lv[0]}~${Z.lv + H.lv[1]}`, g.i === 4 ? 'warn' : ''); if (g.i === 4) sfx('roar'); } }
+  }
+  const lv = party().filter(u => !u.ko).length; $('bInfo').textContent = `대원 ${lv} · 포만감 ${Math.ceil(S.food)} · 짐 ${cargoUsed()}/${capacity()}`;
+}
+function worldTap(px, py) {
+  const x = VO.x + px / PSZ, y = VO.y + py / PSZ, L = W.lead;
+  let best = null, bd = 34 * 34;
+  for (const p of W.packs) { if (p.dead > 0 || d2(p.cx, p.cy, x, y) > 260 * 260) continue; for (const m of p.mons) { const d = d2(x, y, m.x, m.y - m.len * 0.2); if (d < Math.max(bd, (m.len * 0.5) ** 2) && (!best || d < bd)) { bd = d; best = p; } } }
+  W.dest = null;
+  for (let i = 0; i < W.npcs.length; i++) { const m = W.npcs[i].mem[0]; if (d2(x, y, m.x, m.y - 10) < 26 * 26) { if (d2(L.x, L.y, m.x, m.y) > 170 * 170) { toast(`${W.npcs[i].name}: 가까이 오면 거래할 수 있어요`); L.tx = m.x; L.ty = m.y + 30; W.target = null; } else npcModal(i); return; } }
+  if (best) { W.target = best; sfx('tap'); return; }
+  W.target = null; L.tx = clamp(x, 10, WW - 10); L.ty = clamp(y, 10, WH - 10); ringFx(L.tx, L.ty, '#e3a843', 14, 0.4); sfx('tap');
+}
+function engage(pack) {
+  if (!W.crew.length) { toast('싸울 수 있는 대원이 없어요. 정착지에서 쉬세요', 'warn'); W.target = null; W.lead.tx = null; sfx('deny'); return; }
+  // herds standing close to the one you touched come running: up to 8 dinosaurs in one fight
+  const joined = [pack]; let n = pack.mons.length;
+  for (const p of [...W.packs].sort((a, b) => d2(a.cx, a.cy, pack.cx, pack.cy) - d2(b.cx, b.cy, pack.cx, pack.cy))) {
+    if (p === pack || p.dead > 0 || p.boss) continue;
+    if (d2(p.cx, p.cy, pack.cx, pack.cy) < 150 * 150 && n + p.mons.length <= 8) { joined.push(p); n += p.mons.length; }
+  }
+  const mons = joined.flatMap(p => p.mons), boss = mons.find(m => m.f.boss);
+  W.target = null; W.lead.tx = null; W.dest = null;
+  if (joined.length > 1) toast(`주변 무리 ${joined.length - 1}떼가 싸움에 끼어들었어요 · 적 ${mons.length}마리`, 'warn');
+  sfx(boss ? 'roar' : 'horn');
+  startBattle({ kind: 'hunt', zone: pack.z, tier: pack.boss ? 4 : pack.g, foes: mons.map(m => m.f), mons, boss: boss ? boss.f.boss : null, packs: joined });
+}
+function afterBattle(opt) {
+  const L = W.lead;
+  if (opt.won) for (const p of opt.packs) { p.dead = p.boss ? 150 : rand(40, 70); p.mons = []; }
+  else for (const p of opt.packs) for (const m of p.mons) { m.x = p.cx + rand(-26, 26); m.y = p.cy + rand(-26, 26); }
+  const pos = new Map(opt.endPos || []);
+  syncCrew(); for (const c of W.crew) { const p = pos.get(c.u.id); if (p) { c.x = p.x; c.y = p.y; c.a = p.a; } }
+  if (!W.crew.length) {   // everyone is down: carried back to the nearest settlement
+    const z = ZKEYS.slice().sort((a, b) => d2(L.x, L.y, TOWNS[a].x, TOWNS[a].y) - d2(L.x, L.y, TOWNS[b].x, TOWNS[b].y))[0], T = TOWNS[z];
+    L.x = T.x; L.y = T.y + 60; S.zone = z; W.cam.x = L.x; W.cam.y = L.y; for (const u of party()) { u.ko = false; u.hp = Math.max(u.hp, Math.round(maxHp(u) * 0.15)); }
+    const lost = Math.floor(S.money * 0.1); S.money -= lost;
+    syncCrew(); for (const c of W.crew) { c.x = L.x; c.y = L.y; } toast(`상단이 쓰러져 ${ZONES[z].n} 정착지로 실려 왔어요${lost ? ` · 가진 돈 ${lost} 크레딧을 잃었어요 (전장에 맡긴 돈은 안전해요)` : ''}`, 'warn'); W.here = '';
+  } else { L.x = W.crew[0].x; L.y = W.crew[0].y; L.a = W.crew[0].a; if (!opt.won) { const p = opt.packs[0], a = Math.atan2(L.y - p.cy, L.x - p.cx); L.tx = clamp(L.x + Math.cos(a) * 130, 10, WW - 10); L.ty = clamp(L.y + Math.sin(a) * 130, 10, WH - 10); } }
+  L.moving = false; S.pos = { x: L.x, y: L.y };
+  $('bfoot').hidden = true; $('ffoot').hidden = false; $('bSel').hidden = true; W.here = ''; updField(); renderHeader(); save();
+}
+function stepWalker(o, dt, speed) { o.wait -= dt; if (o.wait <= 0 && !o.moving) { o.tx = o.hx + rand(-o.roam, o.roam); o.ty = o.hy + rand(-o.roam, o.roam); o.wait = rand(4, 10); } const d = Math.hypot(o.tx - o.x, o.ty - o.y); o.moving = d > 3; if (o.moving) { o.a = Math.atan2(o.ty - o.y, o.tx - o.x); o.x += Math.cos(o.a) * speed * dt; o.y += Math.sin(o.a) * speed * dt; } }
+function updWorld(dt) {
+  const L = W.lead; W.t += dt;
+  if (!B) {
+    if (W.target) { if (W.target.dead > 0 || !W.target.mons.length) W.target = null; else { const m = W.target.mons[0]; L.tx = m.x; L.ty = m.y; } }
+    L.moving = false;
+    if (L.tx !== null && W.crew.length) {
+      const d = Math.hypot(L.tx - L.x, L.ty - L.y), stop = W.target ? 30 + W.target.mons[0].len * 0.35 : 3;
+      if (d > stop) {
+        L.a = Math.atan2(L.ty - L.y, L.tx - L.x); const sp = (roadDist(L.x, L.y) < 18 ? 96 : 78) * (1 + 0.08 * sk('speed')) * (cargoUsed() > capacity() ? 0.5 : 1) * dt;
+        L.x += Math.cos(L.a) * sp; L.y += Math.sin(L.a) * sp; L.moving = true;
+        const cx = Math.floor(L.x / CELL), cy = Math.floor(L.y / CELL);   // slide around ruins, wrecks and trees
+        for (let j = cy - 1; j <= cy + 1; j++) for (let i = cx - 1; i <= cx + 1; i++) for (const p of cellProps(i, j)) {
+          if (p.r > 0) { const dd = Math.hypot(L.x - p.x, L.y - p.y), min = p.r + 4; if (dd < min && dd > 0.01) { L.x += (L.x - p.x) / dd * (min - dd); L.y += (L.y - p.y) / dd * (min - dd); } }
+          else if (p.loot && !(W.looted[p.loot] > W.t) && d2(L.x, L.y, p.x, p.y) < 22 * 22) openCrate(p);
+        }
+        L.x = clamp(L.x, 10, WW - 10); L.y = clamp(L.y, 10, WH - 10);
+      } else if (W.target) { engage(W.target); return; } else { L.tx = null; if (W.dest) { toast(`${W.dest.label}에 도착했어요`, 'good'); W.dest = null; } }
+    }
+    let px = L.x, py = L.y;
+    W.crew.forEach((c, i) => {
+      if (i === 0) { c.x = L.x; c.y = L.y; c.a = L.a; c.moving = L.moving; }
+      else { const d = Math.hypot(px - c.x, py - c.y); c.moving = d > c.gap + 0.5; if (c.moving) { c.a = Math.atan2(py - c.y, px - c.x); const sp = Math.min(d - c.gap, 110 * dt); c.x += Math.cos(c.a) * sp; c.y += Math.sin(c.a) * sp; } }
+      px = c.x; py = c.y;
+    });
+    S.pos.x = L.x; S.pos.y = L.y;
+    if (L.moving && !inTown()) { const was = S.food; S.food = Math.max(0, S.food - dt * 0.16); if (was > 20 && S.food <= 20) toast('포만감이 떨어져 가요. 곡물·고기·육포를 먹거나 여관에서 식사하세요', 'warn'); if (was > 0 && S.food <= 0) { toast('배가 고파 힘이 빠졌어요 · 공격력이 줄고 회복이 멈춰요', 'warn'); sfx('deny'); } }
+    if (L.moving) { W.stepT -= dt; if (W.stepT <= 0) { W.stepT = 0.32; sfx('step'); const c = W.crew[W.crew.length - 1] || L; burst(c.x, c.y, 1, 2, 'rgba(200,180,140,.8)', { spd: 10, up: 14, g: 30, life: 0.5, r: 2.4 }); } }
+    W.callT -= dt; if (W.callT <= 0) { W.callT = rand(7, 14); if (!inTown()) sfx(Math.random() < 0.3 ? 'callBig' : 'call'); }
+  }
+  // herds graze and wander near home; only the ones around you are simulated
+  for (const p of W.packs) {
+    if (p.dead > 0) { p.dead -= dt; if (p.dead <= 0) { if (d2(p.cx, p.cy, L.x, L.y) < 200 * 200) p.dead = 5; else { fillPack(p); if (p.boss && d2(p.cx, p.cy, L.x, L.y) < 900 * 900) { toast(`${BOSSES[ZONES[p.z].boss].n}가 다시 나타났어요`, 'warn'); sfx('roar'); } } } continue; }
+    if (d2(p.cx, p.cy, W.cam.x, W.cam.y) > 620 * 620 || (B && B.opt.packs.includes(p))) continue;
+    for (const m of p.mons) { m.wait -= dt; if (m.wait <= 0) { m.tx = p.cx + rand(-42, 42); m.ty = p.cy + rand(-42, 42); m.wait = rand(4, 10); } const d = Math.hypot(m.tx - m.x, m.ty - m.y); m.moving = d > 3; if (m.moving) { m.a = Math.atan2(m.ty - m.y, m.tx - m.x); const sp = UNITS[m.f.type].spd * 0.3 * dt; m.x += Math.cos(m.a) * sp; m.y += Math.sin(m.a) * sp; } }
+  }
+  for (const f of W.folk) { if (d2(f.x, f.y, W.cam.x, W.cam.y) > 500 * 500) continue; f.wait -= dt; if (f.wait <= 0) { const T = TOWNS[f.z]; f.tx = T.x + rand(-100, 100); f.ty = T.y + rand(-60, 105); f.wait = rand(3, 9); } const d = Math.hypot(f.tx - f.x, f.ty - f.y); f.moving = d > 3; if (f.moving) { f.a = Math.atan2(f.ty - f.y, f.tx - f.x); f.x += Math.cos(f.a) * 24 * dt; f.y += Math.sin(f.a) * 24 * dt; } }
+  for (const n of W.npcs) {
+    const A = TOWNS[n.a], Bt = TOWNS[n.b], len = Math.hypot(Bt.x - A.x, Bt.y - A.y), h = n.mem[0];
+    if (n.wait > 0) { n.wait -= dt; h.moving = false; } else { n.t += n.dir * 46 * dt / len; if (n.t >= 1 || n.t <= 0) { n.t = clamp(n.t, 0, 1); n.dir *= -1; n.wait = rand(8, 20); } const x = A.x + (Bt.x - A.x) * n.t, y = A.y + (Bt.y - A.y) * n.t, tx = x - Math.sin(y / 170) * 34, ty = y - Math.sin(x / 190) * 34; h.a = Math.atan2(ty - h.y, tx - h.x); h.moving = true; h.x = tx; h.y = ty; }
+    for (let i = 1; i < n.mem.length; i++) { const c = n.mem[i], p = n.mem[i - 1], d = Math.hypot(p.x - c.x, p.y - c.y), gap = UNITS[c.type].cls === 'dino' ? 34 : 15; c.moving = d > gap + 0.5; if (c.moving) { c.a = Math.atan2(p.y - c.y, p.x - c.x); const sp = Math.min(d - gap, 110 * dt); c.x += Math.cos(c.a) * sp; c.y += Math.sin(c.a) * sp; } }
+  }
+  // camera
+  let tx = L.x, ty = L.y - 14;
+  if (B) { const live = B.units.filter(u => u.hp > 0); if (live.length) { tx = live.reduce((s, u) => s + u.x, 0) / live.length; ty = live.reduce((s, u) => s + u.y, 0) / live.length - 10; } }
+  W.cam.x += (tx - W.cam.x) * Math.min(1, dt * 5); W.cam.y += (ty - W.cam.y) * Math.min(1, dt * 5);
+}
+function npcModal(i) {   // caravans you meet on the road keep a small stall: one thing to sell, one thing they want
+  const n = W.npcs[i]; if (!n.offer || n.offer.day !== S.day) { const raw = Object.keys(GOODS).filter(g => !GOODS[g].made), sg = pick(raw), bg = pick(Object.keys(GOODS).filter(g => g !== sg)); n.offer = { day: S.day, sg, sp: Math.round(GOODS[sg].base * rand(0.6, 0.8)), sn: 4 + (Math.random() * 8 | 0), bg, bp: Math.round(GOODS[bg].base * rand(1.25, 1.6)), bn: 3 + (Math.random() * 6 | 0) }; }
+  const o = n.offer; n.wait = Math.max(n.wait, 12); sfx('open');
+  showModal(`<h3>${n.name}</h3><div class="sub">길에서 만난 상단의 좌판 · 매일 물건이 바뀌어요</div><div class="card">
+    <div class="row"><div class="info"><b>${GOODS[o.sg].n} 팝니다</b><small>개당 ${o.sp} 크레딧 · ${o.sn}개 남음</small></div><button class="btn small primary" data-act="npcBuy" data-i="${i}" ${o.sn ? '' : 'disabled'}>모두 사기</button></div>
+    <div class="row"><div class="info"><b>${GOODS[o.bg].n} 삽니다</b><small>개당 ${o.bp} 크레딧 · ${o.bn}개까지 · 보유 ${S.cargo[o.bg] || 0}</small></div><button class="btn small primary" data-act="npcSell" data-i="${i}" ${o.bn && S.cargo[o.bg] ? '' : 'disabled'}>팔기</button></div>
+  </div><div class="mbtns"><button class="btn" data-act="close">닫기</button></div>`);
+}
+function openCrate(p) {
+  W.looted[p.loot] = W.t + 240; const r = Math.random(); sfx('loot'); burst(p.x, p.y, 6, 12, '#ffe9a0', { spd: 40, up: 60, life: 0.8 });
+  if (r < 0.3) { const k = addCargo('parts', Math.round(rand(2, 5))); toast(k ? `버려진 상자에서 기계 부품 ${k}개를 찾았어요` : '상자를 찾았지만 짐칸이 가득해요', 'good'); }
+  else if (r < 0.55) { const k = addCargo('water', Math.round(rand(3, 6))); toast(k ? `상자에서 깨끗한 물 ${k}통을 찾았어요` : '상자를 찾았지만 짐칸이 가득해요', 'good'); }
+  else if (r < 0.7) { S.darts += 1; toast('상자에서 마취 다트 1개를 찾았어요', 'good'); }
+  else { const m = Math.round(rand(20, 70) * ZONES[zoneAt(p.x, p.y)].danger); S.money += m; toast(`낡은 금고에서 ${m} 크레딧을 찾았어요`, 'good'); }
+  renderHeader();
+}
+/* ---------- drawing ---------- */
+const wcv = $('b3d'), wc = wcv.getContext('2d');
+function toScreen(x, h, y) { return { x: (x - VO.x) * PSZ, y: (y - h * 0.74 - VO.y) * PSZ, vis: true }; }
+function drawGround(c, ox, oy, w, h) { for (let cy = Math.floor(oy / CH); cy <= Math.floor((oy + h) / CH); cy++) for (let cx = Math.floor(ox / CH); cx <= Math.floor((ox + w) / CH); cx++) c.drawImage(chunk(cx, cy), cx * CH - ox, cy * CH - oy); }
+function drawScene(c, ox, oy, w, h, ents) {
+  drawGround(c, ox, oy, w, h);
+  const list = ents || [];
+  for (let cy = Math.floor((oy - 40) / CELL); cy <= Math.floor((oy + h + 190) / CELL); cy++) for (let cx = Math.floor((ox - 80) / CELL); cx <= Math.floor((ox + w + 80) / CELL); cx++) for (const p of cellProps(cx, cy)) { if (p.loot && W && W.looted[p.loot] > W.t) continue; list.push({ y: p.y, p }); }
+  list.sort((a, b) => a.y - b.y);
+  const T = performance.now() / 1000;
+  for (const e of list) {
+    if (e.p) { const p = e.p, s = propSprite(p.key), x = Math.round(p.x - ox), y = Math.round(p.y - oy); if (p.r > 3) pxEllipse(c, x, y + 1, Math.min(26, p.r + 3), Math.max(2, Math.min(9, p.r * 0.3) | 0), 'rgba(0,0,0,.25)'); c.drawImage(s.cv, x - s.ax, y - s.ay);
+      if (p.fire) { for (let k = 0; k < 7; k++) { const f = (T * 1.7 + k * 0.37) % 1; c.fillStyle = f < 0.35 ? '#ffe070' : f < 0.7 ? '#f08a30' : '#b03a20'; c.fillRect(x - 3 + Math.round(Math.sin(k * 2.4 + T * 5) * 3), y - 4 - Math.round(f * 12), f < 0.5 ? 2 : 1, 2); } }
+      else if (p.loot && ((T * 2) | 0) % 2) { c.fillStyle = '#ffe9a0'; c.fillRect(x - 1, y - 16, 2, 2); c.fillRect(x + 5, y - 11, 1, 1); }
+      continue; }
+    const x = e.x - ox, y = e.y - oy, spr = unitSprite(e.type, e.len || 0), sz = e.size || 11;
+    if (e.ring) pxRing(c, x, y, Math.round(sz * 0.8), Math.max(2, Math.round(sz * 0.42)), e.ring);
+    pxEllipse(c, x, y + 1, Math.max(4, Math.round(sz * 0.55)), Math.max(2, Math.round(sz * 0.22)), 'rgba(0,0,0,.28)');
+    drawSpr(c, spr, e.anim, e.fi, e.a, x + (e.jit || 0), y);
+  }
+}
+const animOf = (kind, moving, ph, T, fast) => moving ? ['walk', (T * (kind === 'dino' ? (fast ? 11 : 7) : 8) + ph) % (kind === 'dino' ? 6 : 4)] : ['idle', kind === 'dino' ? (T * 2.2 + ph) % 3 : 0];
+function renderWorld(dt) {
+  const cw = wcv.clientWidth, ch = wcv.clientHeight; if (!cw || !ch) return;
+  PSZ = bZoom; const w = Math.ceil(cw / PSZ), h = Math.ceil(ch / PSZ); if (wcv.width !== w || wcv.height !== h) { wcv.width = w; wcv.height = h; }
+  wc.imageSmoothingEnabled = false;
+  const sh = SHAKE > 0.01 ? SHAKE * 5 : 0, ox = Math.round(clamp(W.cam.x - w / 2, 0, Math.max(0, WW - w)) + (Math.random() - 0.5) * sh), oy = Math.round(clamp(W.cam.y - h / 2, 0, Math.max(0, WH - h)) + (Math.random() - 0.5) * sh);
+  VO = { x: ox, y: oy, w, h }; updPX(dt);
+  const T = performance.now() / 1000, ents = [], vis = (x, y, m = 90) => x > ox - m && x < ox + w + m && y > oy - m && y < oy + h + m + 40;
+  for (const p of W.packs) { if (p.dead > 0 || (B && B.opt.packs.includes(p))) continue; for (const m of p.mons) if (vis(m.x, m.y, m.len)) { const [anim, fi] = animOf('dino', m.moving, m.ph, T); ents.push({ x: m.x, y: m.y, a: m.a, type: m.f.type, len: m.len, size: m.len / 2.4, anim, fi, ring: p === W.target ? '#e3a843' : m.f.boss ? '#a02018' : null }); } }
+  for (const f of W.folk) if (vis(f.x, f.y)) { const [anim, fi] = animOf('human', f.moving, f.ph, T); ents.push({ x: f.x, y: f.y, a: f.a, type: f.type, anim, fi }); }
+  for (const n of W.npcs) for (const m of n.mem) if (vis(m.x, m.y)) { const dn = UNITS[m.type].cls === 'dino', [anim, fi] = animOf(dn ? 'dino' : 'human', m.moving, m.ph, T); ents.push({ x: m.x, y: m.y, a: m.a, type: m.type, len: dn ? UNITS[m.type].size * 2.4 : 0, size: UNITS[m.type].size || 11, anim, fi }); }
+  if (B) for (const u of B.units) {
+    const D = UNITS[u.type] || {}, kind = u.turret ? 'turret' : D.cls === 'dino' ? 'dino' : 'human', n = kind === 'dino' ? [5, 5] : [2, 2]; let anim, fi;
+    if (u.hp <= 0) { u.deadT = (u.deadT || 0) + dt; anim = 'death'; fi = Math.min(n[1] - 1, u.deadT * 9); }
+    else if (u.atkT > 0) { anim = 'attack'; fi = (1 - u.atkT / 0.5) * n[0]; }
+    else [anim, fi] = animOf(kind, u.moving, u.id * 1.7, T, u.spd > 50);
+    const sel = u === B.sel || u === B.focus;
+    ents.push({ x: u.x, y: u.y, a: u.turret ? (u.target ? Math.atan2(u.target.y - u.y, u.target.x - u.x) : u.a) : u.a, type: u.turret ? 'turret' : u.type, len: Math.round(u.size * 2.4), size: u.size, anim, fi, jit: u.hitT > 0 ? Math.round(Math.sin(B.t * 90) * 1.5) : 0, ring: u.hp <= 0 ? null : sel ? '#ffe070' : u.boss ? '#a02018' : u.side ? 'rgba(212,87,60,.75)' : 'rgba(227,168,67,.7)' });
+  } else for (const c of W.crew) { const dn = UNITS[c.u.type].cls === 'dino', [anim, fi] = animOf(dn ? 'dino' : 'human', c.moving, c.ph, T); ents.push({ x: c.x, y: c.y, a: c.a, type: c.u.type, len: c.len, size: (UNITS[c.u.type].size || 11) * (1 + 0.07 * (c.u.tier || 0)), anim, fi }); }
+  drawScene(wc, ox, oy, w, h, ents);
+  // overlay: names, bars, numbers, effects
+  const c = bc; c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, bcv.width, bcv.height); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.textAlign = 'center';
+  const tag = (txt, x, y, col, bg) => { c.font = '700 11px "IBM Plex Sans KR", sans-serif'; const tw = c.measureText(txt).width + 12; c.fillStyle = bg || 'rgba(18,14,10,.72)'; c.beginPath(); c.roundRect ? c.roundRect(x - tw / 2, y - 17, tw, 17, 8) : c.rect(x - tw / 2, y - 17, tw, 17); c.fill(); c.fillStyle = col; c.fillText(txt, x, y - 4.5); };
+  if (!B) {
+    for (const p of W.packs) {
+      if (p.dead > 0 || !p.mons.length || d2(p.cx, p.cy, W.cam.x, W.cam.y) > 520 * 520) continue;
+      const m = p.mons[0], s = toScreen(m.x, m.len * 0.75, m.y);
+      if (s.x < -30 || s.x > cw + 30 || s.y < 10 || s.y > ch + 20) { if (p !== W.target && !m.f.boss) continue; const a = Math.atan2(s.y - ch / 2, s.x - cw / 2), ex = clamp(cw / 2 + Math.cos(a) * cw, 20, cw - 20), ey = clamp(ch / 2 + Math.sin(a) * ch, 40, ch - 20); c.save(); c.translate(ex, ey); c.rotate(a); c.fillStyle = m.f.boss ? '#ff8a6a' : '#e3a843'; c.beginPath(); c.moveTo(11, 0); c.lineTo(-7, -8); c.lineTo(-3, 0); c.lineTo(-7, 8); c.closePath(); c.fill(); c.restore(); continue; }
+      const rare = p.mons.some(x => UNITS[x.f.type].rare && !x.f.boss), name = m.f.boss ? BOSSES[m.f.boss].n : UNITS[m.f.type].n;
+      tag(`${name} Lv${m.f.lv}${p.mons.length > 1 ? ' ×' + p.mons.length : ''}`, s.x, s.y, p === W.target ? '#1c120a' : m.f.boss ? '#ff8a6a' : rare ? '#f0b94a' : '#ece3d4', p === W.target ? 'rgba(227,168,67,.95)' : null);
+    }
+    for (const n of W.npcs) { const m = n.mem[0], s = toScreen(m.x, 30, m.y); if (s.x > -40 && s.x < cw + 40 && s.y > 0 && s.y < ch + 20) tag(n.name, s.x, s.y, '#9fd0ff'); }
+    if (W.crew.length) { const s = toScreen(W.lead.x, 31, W.lead.y); tag('나', s.x, s.y, '#8fcf6a'); }
+    for (const z of ZKEYS) { const T2 = TOWNS[z], s = toScreen(T2.x, 150, T2.y); if (s.x > -80 && s.x < cw + 80 && s.y > 20 && s.y < ch) { c.font = '400 16px "Black Han Sans", sans-serif'; c.lineWidth = 4; c.strokeStyle = 'rgba(18,14,10,.8)'; c.strokeText(ZONES[z].n + ' 정착지', s.x, s.y); c.fillStyle = '#ffe9c0'; c.fillText(ZONES[z].n + ' 정착지', s.x, s.y); } }
+    if (W.dest || W.lead.tx !== null) {   // long walks: an arrow on the screen edge points at where you are headed
+      const s = toScreen(W.lead.tx, 0, W.lead.ty); if (s.x < 0 || s.x > cw || s.y < 0 || s.y > ch) { const a = Math.atan2(s.y - ch / 2, s.x - cw / 2), ex = clamp(cw / 2 + Math.cos(a) * cw, 20, cw - 20), ey = clamp(ch / 2 + Math.sin(a) * ch, 40, ch - 20); c.save(); c.translate(ex, ey); c.rotate(a); c.fillStyle = '#8fcf6a'; c.beginPath(); c.moveTo(12, 0); c.lineTo(-7, -8); c.lineTo(-3, 0); c.lineTo(-7, 8); c.closePath(); c.fill(); c.restore(); if (W.dest) tag(`${W.dest.label} ${Math.round(Math.hypot(W.lead.tx - W.lead.x, W.lead.ty - W.lead.y) / 10)}m`, clamp(ex, 70, cw - 70), ey + (ey < ch / 2 ? 34 : -14), '#8fcf6a'); }
+    }
+    drawPX(c); drawMini(c, cw);
+  } else { renderOverlay(true); updSel(); }
+}
+function drawMini(c, cw) {   // corner minimap of the whole world
+  const mw = 66, mh = Math.round(mw * WH / WW), x0 = cw - mw - 8, y0 = 34, sx = mw / WW, sy = mh / WH;
+  c.fillStyle = 'rgba(18,14,10,.7)'; c.fillRect(x0 - 2, y0 - 2, mw + 4, mh + 4);
+  c.lineWidth = 1; c.strokeStyle = 'rgba(184,164,88,.6)'; for (const [a, b] of ROADS) { c.beginPath(); c.moveTo(x0 + TOWNS[a].x * sx, y0 + TOWNS[a].y * sy); c.lineTo(x0 + TOWNS[b].x * sx, y0 + TOWNS[b].y * sy); c.stroke(); }
+  for (const z of ZKEYS) { GROUNDS[z].forEach(([gx, gy], i) => { c.fillStyle = i === 4 ? '#d4573c' : 'rgba(236,227,212,.45)'; c.fillRect(x0 + gx * sx - 1, y0 + gy * sy - 1, 3, 3); }); c.fillStyle = '#e3a843'; c.fillRect(x0 + TOWNS[z].x * sx - 2.5, y0 + TOWNS[z].y * sy - 2.5, 5, 5); }
+  if (W.dest) { c.fillStyle = '#8fcf6a'; c.fillRect(x0 + W.dest.x * sx - 1.5, y0 + W.dest.y * sy - 1.5, 3, 3); }
+  c.fillStyle = '#fff'; c.beginPath(); c.arc(x0 + W.lead.x * sx, y0 + W.lead.y * sy, 2.6, 0, 7); c.fill(); c.strokeStyle = '#1c120a'; c.stroke();
+}
+$('fLeave').onclick = () => { sfx('open'); hideWorld(); };
+$('fZoom').onclick = () => $('bZoom').click();
+$('fNearest').onclick = () => {
+  if (!W || B) return; const L = W.lead;
+  if (inTown()) { sfx('open'); townSec = townSec === 'hunt' ? 'market' : townSec; hideWorld(); return; }
+  const near = W.packs.filter(p => !(p.dead > 0) && p.mons.length && !p.boss).sort((a, b) => d2(a.cx, a.cy, L.x, L.y) - d2(b.cx, b.cy, L.x, L.y))[0];
+  if (near) { W.target = near; W.dest = null; sfx('tap'); }
+};
+function makePortraits() {
+  if (!has3D) return;
+  const cv = document.createElement('canvas'); cv.width = 260; cv.height = 200;
+  const r = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: true, preserveDrawingBuffer: true }); r.outputEncoding = THREE.sRGBEncoding;
+  const cam = new THREE.PerspectiveCamera(30, 1.3, 1, 2000);
+  for (const type of Object.keys(UNITS)) {
+    const sc = new THREE.Scene(); sc.add(new THREE.HemisphereLight(0xfff2dc, 0x5a4a38, 0.9)); const sun = new THREE.DirectionalLight(0xffffff, 0.9); sun.position.set(-60, 120, 100); sc.add(sun);
+    const D = UNITS[type], obj = D.cls === 'dino' ? makeDino3(type, 60) : makeHuman3(type);
+    if (obj.acts) { playAnim(obj, 'idle'); obj.mixer.update(0.6); }
+    obj.spin.rotation.y = D.cls === 'dino' ? Math.PI / 2 + 0.6 : 0.6;
+    sc.add(obj.root);
+    const box = new THREE.Box3().setFromObject(obj.root), ctr = box.getCenter(new THREE.Vector3()), sz = box.getSize(new THREE.Vector3()), rad = Math.max(sz.x, sz.y, sz.z);
+    cam.position.set(ctr.x - rad * 0.35, ctr.y + rad * 0.55, ctr.z + rad * 1.55); cam.lookAt(ctr);
+    r.setClearColor(0x000000, 0); r.render(sc, cam);
+    const img = new Image(); img.src = cv.toDataURL('image/png'); PORTRAIT[type] = img;
+  }
+  r.dispose();
+}
+
+/* ================================================================
+   BATTLE RENDER + INPUT
+   ================================================================ */
+const bcv = $('bcv'), bc = bcv.getContext('2d');
+let dpr = 1, bView = { s: 1, ox: 0, oy: 0 };
+function resizeBattle() { dpr = Math.min(2.5, window.devicePixelRatio || 1); bcv.width = Math.round(bcv.clientWidth * dpr); bcv.height = Math.round(bcv.clientHeight * dpr); }
+let USE3D = false;
+function updSel() {
+  const S0 = B.sel; $('bSel').hidden = !S0 || S0.hp <= 0;
+  if (S0 && S0.hp > 0) {
+    const D = UNITS[S0.type];
+    $('bSelName').textContent = `${S0.boss ? BOSSES[S0.boss].n : S0.turret ? '포탑' : D.n}${D && D.rare && !S0.boss ? ' ★희귀' : ''} Lv${S0.lv}${S0.side && D && D.cls === 'dino' && !S0.boss ? (S0.hp <= S0.max * 0.3 ? ' · 포획 가능!' : ' · 30% 이하로') : ''}`;
+    $('bSelHp').style.width = (S0.hp / S0.max * 100) + '%';
+  }
+}
+const bPtr = new Map(); let bPinch = null;
+bcv.addEventListener('pointermove', e => { if (!bPtr.has(e.pointerId)) return; bPtr.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (bPtr.size === 2 && bPinch) { const [a, b] = [...bPtr.values()]; bZoom = clamp(bPinch.z * Math.hypot(a.x - b.x, a.y - b.y) / bPinch.d, 0.9, 3); $('bZoom').textContent = '직접'; } });
+const bUp = e => { bPtr.delete(e.pointerId); if (bPtr.size < 2) bPinch = null; };
+bcv.addEventListener('pointerup', bUp); bcv.addEventListener('pointercancel', bUp);
+bcv.addEventListener('pointerdown', e => {
+  bPtr.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (bPtr.size === 2) { const [a, b] = [...bPtr.values()]; bPinch = { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, z: bZoom }; return; }
+  if (!W || !worldLive()) return;
+  const r = bcv.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top;
+  if (!B) { worldTap(px, py); return; }
+  if (B.over) return;
+  const x = VO.x + px / PSZ, y = VO.y + py / PSZ; let best = null, bd = 1e9;
+  for (const u of B.units) { if (u.hp <= 0) continue; const d = d2(x, y, u.x, u.y - u.size * 0.5); if (d < Math.max(24, u.size * 1.1) ** 2 && d < bd) { best = u; bd = d; } }
+  B.sel = best; if (best && best.side === 1) { B.focus = best; sfx('tap'); ringFx(best.x, best.y, '#ffe070', best.size, 0.3); }
+});
+$('bCapture').onclick = () => B && !B.over && tryCapture();
+$('bRetreat').onclick = () => { if (!B || B.over) return; B.opt.retreat = true; B.loot = {}; endBattle(false); };
+const ZOOMS = [[1, '보통'], [1.3, '크게'], [1.9, '아주 크게']];
+$('bZoom').onclick = () => { const i = (ZOOMS.findIndex(z => z[0] === bZoom) + 1) % ZOOMS.length; bZoom = ZOOMS[i][0]; $('bZoom').textContent = $('fZoom').textContent = ZOOMS[i][1]; };
+$('bSpeed').onclick = () => { bSpeed = bSpeed === 1 ? 2 : 1; $('bSpeed').textContent = '×' + bSpeed; };
+
+/* ================================================================
+   SOUND — synthesized
+   ================================================================ */
+const SND = { ctx: null, mood: 'town', next: 0, step: 0, last: {} };
+const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
+function sndInit() {
+  if (SND.ctx) { if (SND.ctx.state === 'suspended') SND.ctx.resume(); return; }
+  try {
+    const C = new (window.AudioContext || window.webkitAudioContext)(); SND.ctx = C;
+    SND.master = C.createGain(); SND.master.connect(C.destination);
+    SND.music = C.createGain(); SND.music.connect(SND.master); SND.fx = C.createGain(); SND.fx.connect(SND.master); SND.amb = C.createGain(); SND.amb.connect(SND.master);
+    const len = C.sampleRate * 2, buf = C.createBuffer(1, len, C.sampleRate), d = buf.getChannelData(0); for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1; SND.noise = buf;
+    const w = C.createBufferSource(); w.buffer = buf; w.loop = true; const f = C.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 380; const wg = C.createGain(); wg.gain.value = 0.05; w.connect(f).connect(wg).connect(SND.amb); w.start();
+    const lfo = C.createOscillator(); lfo.frequency.value = 0.05; const lg = C.createGain(); lg.gain.value = 200; lfo.connect(lg).connect(f.frequency); lfo.start();
+    applySnd(); setInterval(sndTick, 100);
+  } catch (e) { SND.ctx = null; }
+}
+function applySnd() { if (!SND.ctx) return; const t = SND.ctx.currentTime, m = S.snd; SND.music.gain.setTargetAtTime(m === 2 ? 0.5 : 0, t, 0.3); SND.fx.gain.setTargetAtTime(m ? 0.8 : 0, t, 0.05); SND.amb.gain.setTargetAtTime(m === 2 ? 1 : 0, t, 0.3); }
+function tone(f, dur, o = {}) { const C = SND.ctx; if (!C) return; const t = C.currentTime + (o.at || 0), osc = C.createOscillator(), g = C.createGain(); osc.type = o.type || 'sine'; osc.frequency.setValueAtTime(f, t); if (o.slide) osc.frequency.exponentialRampToValueAtTime(Math.max(20, f * o.slide), t + dur); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(o.vol || 0.1, t + (o.attack || 0.005)); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); osc.connect(g).connect(o.dest || SND.fx); osc.start(t); osc.stop(t + dur + 0.05); }
+function noiseHit(dur, o = {}) { const C = SND.ctx; if (!C) return; const t = C.currentTime + (o.at || 0), src = C.createBufferSource(), f = C.createBiquadFilter(), g = C.createGain(); src.buffer = SND.noise; f.type = o.type || 'bandpass'; f.frequency.value = o.freq || 2000; f.Q.value = o.q || 1; if (o.sweep) f.frequency.exponentialRampToValueAtTime(o.sweep, t + dur); g.gain.setValueAtTime(o.vol || 0.2, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); src.connect(f).connect(g).connect(o.dest || SND.fx); src.start(t, Math.random()); src.stop(t + dur + 0.05); }
+const SFX = {
+  tap: () => tone(800, 0.05, { type: 'triangle', vol: 0.04 }),
+  step: () => noiseHit(0.07, { freq: 240, type: 'lowpass', vol: 0.16 }),
+  miss: () => noiseHit(0.13, { freq: 2200, sweep: 700, q: 4, vol: 0.07 }),
+  crit: () => { noiseHit(0.16, { freq: 3200, q: 1.2, vol: 0.3 }); tone(220, 0.18, { type: 'square', vol: 0.07, slide: 0.4 }); },
+  stun: () => [1400, 1750, 1400].forEach((f, i) => tone(f, 0.09, { type: 'sine', vol: 0.05, at: i * 0.07 })),
+  heal: () => [660, 880, 1320].forEach((f, i) => tone(f, 0.22, { type: 'sine', vol: 0.05, at: i * 0.06 })),
+  cry: () => { tone(620, 0.32, { type: 'sawtooth', vol: 0.07, slide: 0.45, attack: 0.02 }); noiseHit(0.25, { freq: 1500, q: 2, vol: 0.08 }); },
+  cryBig: () => { tone(150, 0.8, { type: 'sawtooth', vol: 0.13, slide: 0.45, attack: 0.05 }); tone(158, 0.8, { type: 'sawtooth', vol: 0.09, slide: 0.42, attack: 0.05 }); noiseHit(0.7, { freq: 420, type: 'lowpass', vol: 0.22 }); },
+  down: () => [330, 262, 196].forEach((f, i) => tone(f, 0.25, { type: 'triangle', vol: 0.08, at: i * 0.1 })),
+  call: () => { const f = rand(700, 1100); tone(f, 0.18, { type: 'triangle', vol: 0.025, slide: 1.25 }); tone(f * 1.1, 0.2, { type: 'triangle', vol: 0.02, slide: 0.8, at: 0.22 }); },
+  callBig: () => { tone(110, 1.4, { type: 'sawtooth', vol: 0.03, slide: 1.4, attack: 0.4 }); noiseHit(1.2, { freq: 300, type: 'lowpass', vol: 0.05 }); },
+  horn: () => { tone(196, 0.5, { type: 'sawtooth', vol: 0.07, attack: 0.06 }); tone(294, 0.6, { type: 'sawtooth', vol: 0.06, attack: 0.06, at: 0.18 }); },
+  levelup: () => [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, 0.28, { type: 'square', vol: 0.045, at: i * 0.08 })),
+  loot: () => [988, 1319, 1976].forEach((f, i) => tone(f, 0.18, { type: 'triangle', vol: 0.07, at: i * 0.06 })),
+  open: () => noiseHit(0.08, { freq: 1200, sweep: 2600, q: 2, vol: 0.05 }),
+  deny: () => { tone(180, 0.1, { type: 'square', vol: 0.05 }); tone(150, 0.14, { type: 'square', vol: 0.05, at: 0.1 }); },
+  coin: () => { tone(1320, 0.06, { type: 'square', vol: 0.035 }); tone(1760, 0.1, { type: 'square', vol: 0.035, at: 0.05 }); },
+  shot: () => { noiseHit(0.09, { freq: 1600, q: 0.6, vol: 0.32 }); tone(120, 0.08, { type: 'square', vol: 0.05, slide: 0.5 }); },
+  bow: () => noiseHit(0.12, { freq: 900, sweep: 3000, q: 2, vol: 0.12 }),
+  spit: () => noiseHit(0.15, { freq: 600, sweep: 200, q: 3, vol: 0.15 }),
+  bite: () => noiseHit(0.06, { freq: 2600, q: 2, vol: 0.14 }),
+  crunch: () => { noiseHit(0.14, { freq: 1100, q: 0.7, vol: 0.3 }); tone(140, 0.12, { type: 'square', vol: 0.05, slide: 0.5 }); },
+  crunchBig: () => { noiseHit(0.35, { freq: 500, q: 0.6, vol: 0.45 }); tone(80, 0.4, { type: 'sawtooth', vol: 0.1, slide: 0.4 }); },
+  roar: () => { tone(95, 1.1, { type: 'sawtooth', vol: 0.13, slide: 1.7, attack: 0.15 }); tone(101, 1.1, { type: 'sawtooth', vol: 0.1, slide: 1.6, attack: 0.15 }); noiseHit(0.9, { freq: 350, vol: 0.25, type: 'lowpass' }); },
+  drums: () => [0, 0.22, 0.44, 0.55].forEach(at => noiseHit(0.22, { freq: 130, type: 'lowpass', vol: 0.55, at })),
+  dart: () => noiseHit(0.1, { freq: 4000, q: 3, vol: 0.1 }),
+  capture: () => [523, 784, 1047, 1568].forEach((f, i) => tone(f, 0.3, { type: 'triangle', vol: 0.09, at: i * 0.07 })),
+  win: () => [392, 523, 659, 784].forEach((f, i) => tone(f, 0.45, { type: 'triangle', vol: 0.09, at: i * 0.12 })),
+  lose: () => [392, 330, 294, 247].forEach((f, i) => tone(f, 0.5, { type: 'triangle', vol: 0.08, at: i * 0.15 })),
+  march: () => [0, 0.3, 0.6].forEach(at => noiseHit(0.15, { freq: 200, type: 'lowpass', vol: 0.35, at })),
+  arrive: () => [523, 659, 784].forEach((f, i) => tone(f, 0.4, { vol: 0.07, at: i * 0.1 })),
+};
+function sfx(n, throttle = 0) { if (!SND.ctx || !S.snd) return; const now = performance.now(); if (throttle && now - (SND.last[n] || 0) < throttle) return; SND.last[n] = now; try { SFX[n](); } catch (e) { /* ignore */ } }
+// wasteland score: low drones and a slow pentatonic guitar-like pluck in town; pounding drums in battle
+function sndTick() {
+  const C = SND.ctx; if (!C || S.snd < 2) return;
+  const battle = SND.mood === 'battle', beat = 60 / (battle ? 120 : 70) / 2;
+  if (SND.next < C.currentTime) SND.next = C.currentTime + 0.05;
+  while (SND.next < C.currentTime + 0.35) {
+    const st = SND.step++, at = SND.next - C.currentTime, root = [40, 43, 38, 40][Math.floor(st / 16) % 4];
+    if (st % 16 === 0) [0, 7, 12].forEach(iv => tone(mtof(root + iv), beat * 16, { type: 'sawtooth', vol: battle ? 0.012 : 0.016, at, attack: 1, dest: SND.music }));
+    if (!battle && st % 2 === 0 && Math.random() < 0.4) tone(mtof(root + 24 + [0, 3, 5, 7, 10][Math.random() * 5 | 0]), beat * 4, { type: 'triangle', vol: 0.03, at, dest: SND.music });
+    if (battle) {
+      if (st % 4 === 0 || st % 16 === 10) noiseHit(0.2, { freq: 100, type: 'lowpass', vol: 0.55, at, dest: SND.music });
+      if (st % 8 === 4) noiseHit(0.14, { freq: 1800, q: 0.7, vol: 0.16, at, dest: SND.music });
+      tone(mtof(root + [0, 0, 12, 0, 3, 0, 7, 10][st % 8]), beat * 0.9, { type: 'square', vol: 0.016, at, dest: SND.music });
+    }
+    SND.next += beat;
+  }
+}
+
+/* ================================================================
+   UI
+   ================================================================ */
+let view = 'town', toastT;
+function toast(m, k) { const t = $('toast'); t.textContent = m; t.className = 'show ' + (k || ''); clearTimeout(toastT); toastT = setTimeout(() => t.className = '', 2600); }
+function showModal(h) { $('mcard').innerHTML = h; $('modal').hidden = false; $('mcard').querySelectorAll('canvas[data-u]').forEach(cv => portrait(cv, cv.dataset.u)); }
+function closeModal() { $('modal').hidden = true; }
+const tierName = u => (UNITS[u.type].cls === 'dino' ? TIER_DINO : TIER_HUMAN)[u.tier || 0] + UNITS[u.type].n;
+const unitName = u => u.name ? `${u.name}(${tierName(u)})` : tierName(u);
+const stars = n => '★'.repeat(n) + '☆'.repeat(5 - n);
+let townSec = 'hunt', partySec = 'crew';
+const chips = (list, cur, act) => `<div class="chips">${list.map(([k, n, badge]) => `<button class="chip${k === cur ? ' on' : ''}" data-act="${act}" data-k="${k}">${n}${badge ? `<i>${badge}</i>` : ''}</button>`).join('')}</div>`;
+function zoneHead(z) {
+  const Z = ZONES[z];
+  return `<div class="zonehead"><canvas data-shot="${z}" width="360" height="160" style="image-rendering:pixelated"></canvas><div class="zt"><b>${Z.n}</b><small><span class="danger">${stars(Z.danger + 1)}</span> 위험도 · 야생 Lv${Z.lv}~${Z.lv + 6}</small><br><small>${Z.ds}</small></div></div>`;
+}
+function renderTown() {
+  const z = S.zone, Z = ZONES[z], el = $('v-town');
+  if (!inTown()) { const near = nearestTown(); el.innerHTML = `<div class="card"><div class="row"><div class="info"><b>지금은 정착지 밖이에요</b><small>시장·공방·여관은 정착지 안에서 쓸 수 있어요 · 가장 가까운 곳: ${ZONES[near.z].n} (${near.d}m)</small></div><button class="btn small primary" data-act="walk" data-x="${TOWNS[near.z].x}" data-y="${TOWNS[near.z].y + 60}" data-l="${ZONES[near.z].n} 정착지">가기</button></div></div>`; return; }
+  const used = cargoUsed(), cap = capacity();
+  const others = Object.keys(ZONES).filter(o => o !== z);
+  const goods = Object.keys(GOODS).filter(g => !GOODS[g].made || S.cargo[g]).map(g => {
+    const G = GOODS[g], p = price(z, g), sp = sellPrice(z, g), rel = rawPrice(z, g) / G.base, have = S.cargo[g] || 0;
+    const cls = rel < 0.85 ? 'up' : rel > 1.2 ? 'down' : '';
+    const best = others.map(o => [o, sellPrice(o, g)]).sort((a, b) => b[1] - a[1])[0];
+    const tip = best[1] > p ? `<span class="up">${ZONES[best[0]].n}에 팔면 개당 +${best[1] - p}</span>` : best[1] > sp ? `${ZONES[best[0]].n}에서 ${best[1]}` : '여기가 가장 비싸요';
+    return `<div class="row"><div class="info"><b>${G.n} <span class="${cls}" style="font-weight:400;font-size:11px">${G.made ? '가공품' : rel < 0.85 ? '싸요' : rel > 1.2 ? '비싸요' : ''}</span></b><small>${G.made ? '' : `살 때 ${p} · `}팔 때 ${sp} · 보유 ${have}</small><small>${tip}</small></div>
+      ${G.made ? '' : `<button class="btn small" data-act="buy" data-g="${g}" data-n="1" ${S.money < p || used >= cap ? 'disabled' : ''}>1개</button>
+      <button class="btn small" data-act="buy" data-g="${g}" data-n="max" ${S.money < p || used >= cap ? 'disabled' : ''}>가득</button>`}
+      <button class="btn small primary" data-act="sell" data-g="${g}" ${have ? '' : 'disabled'}>모두 팔기</button></div>`;
+  }).join('');
+  const quests = (S.quests[z] || []).map((q, i) => {
+    const have = q.type === 'deliver' ? Math.min(q.n, S.cargo[q.g] || 0) : q.prog, ok = have >= q.n;
+    return `<div class="row"><div class="info"><b>${q.type === 'deliver' ? `${GOODS[q.g].n} ${q.n}개 납품` : `이 구역 사냥터에서 ${q.n}번 승리`}</b><div class="bar"><i style="width:${Math.min(100, have / q.n * 100)}%"></i></div><small>${have}/${q.n} · 보상 ${q.money} 크레딧 · 상단 경험치 ${q.xp}</small></div>
+      <button class="btn small ${ok ? 'primary' : ''}" data-act="quest" data-i="${i}" ${ok ? '' : 'disabled'}>${q.type === 'deliver' ? '납품' : '보고'}</button></div>`;
+  }).join('');
+  const job = S.jobs[z], outs = Object.entries(S.out[z] || {}).filter(([, k]) => k > 0);
+  const maxCraft = R => Math.min(20, ...Object.entries(R.in).map(([g, k]) => Math.floor((S.cargo[g] || 0) / k)), Math.floor(S.money / R.fee));
+  const shop = Object.entries(RECIPES).filter(([, R]) => R.zone === z).map(([id, R]) => {
+    const mx = maxCraft(R), outN = R.out === 'dart' ? '마취 다트' : GOODS[R.out].n;
+    return `<div class="row"><div class="info"><b>${R.n}</b><small>${Object.entries(R.in).map(([g, k]) => `${GOODS[g].n} ${k}`).join(' + ')} → ${outN} ${R.qty}개 · 1회 ${Math.round(R.t * (1 - 0.12 * sk('craft')))}초 · 품삯 ${R.fee}</small></div>
+      <button class="btn small" data-act="craft" data-r="${id}" data-n="1" ${job || mx < 1 ? 'disabled' : ''}>1회</button><button class="btn small primary" data-act="craft" data-r="${id}" data-n="${mx}" ${job || mx < 2 ? 'disabled' : ''}>${mx > 1 ? mx + '회' : '최대'}</button></div>`;
+  }).join('');
+  const jobRow = job ? `<div class="row"><div class="info"><b>작업 중: ${RECIPES[job.r].n}</b><div class="bar"><i style="width:${(1 - job.left / job.total) * 100}%;background:var(--amber)"></i></div><small>${job.total - job.left}/${job.total}회 완료 · 다른 구역에 다녀와도 계속 만들어요</small></div></div>` : '';
+  const outRow = outs.length ? `<div class="row"><div class="info"><b>완성품</b><small>${outs.map(([g, k]) => `${g === 'dart' ? '마취 다트' : GOODS[g].n} ${k}개`).join(' · ')}</small></div><button class="btn small primary" data-act="collect">찾기</button></div>` : '';
+  const recruit = Z.recruit.map(t => { const D = UNITS[t]; return `<div class="row"><canvas data-u="${t}" width="104" height="80"></canvas><div class="info"><b>${D.n} <span class="tag">${D.role}</span></b><small>${D.ds}</small><small>체력 ${D.hp} · 공격 ${D.atk} · 짐 ${D.carry}칸</small></div><button class="btn small primary" data-act="hire" data-t="${t}" ${S.money < D.cost ? 'disabled' : ''}>${D.cost}</button></div>`; }).join('');
+  const tame = Z.tame.map(t => `${UNITS[t].n}(${UNITS[t].role})`).join(', ') + ` · 희귀종: ${Z.rare.map(t => S.dex[t] ? UNITS[t].n : '???').join(', ')} (깊은 곳에서 가끔 나와요)`;
+  const hurt = S.units.filter(u => u.hp < maxHp(u) || u.ko), healCost = Math.round(S.units.reduce((s, u) => s + (maxHp(u) - u.hp), 0) * 0.12) + (hurt.length ? 5 : 0);
+  const qReady = (S.quests[z] || []).filter(q => (q.type === 'deliver' ? (S.cargo[q.g] || 0) : q.prog) >= q.n).length;
+  const secs = [['hunt', '사냥터'], ['market', '시장'], ['quest', '의뢰', qReady], ['shop', '공방', outs.length ? '!' : 0], ['hire', '고용'], ['bank', '전장'], ['inn', '여관', hurt.length && townSec !== 'inn' ? '!' : 0]];
+  el.innerHTML = `${zoneHead(z)}${chips(secs, townSec, 'tsec')}
+    ${townSec === 'hunt' ? `<h2>사냥터<small>여기서 길들일 수 있는 공룡: ${tame}</small></h2>
+    <div class="card">${HUNTS.map((H, i) => { const done = i < (S.cleared[z] || 0), G = GROUNDS[z][i], dist = Math.round(Math.hypot(G[0] - S.pos.x, G[1] - S.pos.y) / 10);
+      return `<div class="row"><span class="num${done ? ' done' : ''}${H.boss ? ' boss' : ''}">${H.boss ? '★' : i + 1}</span><div class="info"><b>${HUNT_NAMES[z][i]} ${done ? '<span class="tag">정복</span>' : ''}${H.boss ? ' <span class="tag" style="color:var(--bad)">우두머리</span>' : ''}</b><small>${H.boss ? `${BOSSES[Z.boss].n} Lv${Z.lv + 6} · 희귀 이상 장비 확정` : `Lv${Z.lv + H.lv[0]}~${Z.lv + H.lv[1]} · 희귀종 ${Math.round(H.rare * 50)}% · 장비 ${Math.round(H.drop * 100)}%`} · 거리 ${dist}m</small></div>
+        <button class="btn small primary" data-act="walk" data-x="${G[0]}" data-y="${G[1] + (H.boss ? 150 : 0)}" data-l="${HUNT_NAMES[z][i]}">가기</button></div>`; }).join('')}</div>` : ''}
+    ${townSec === 'market' ? `<h2>시장<small>사면 값이 오르고, 팔면 떨어져요 · 매일 시세가 바뀌어요</small></h2>
+    <div class="cargobar"><span>짐칸 ${used}/${cap}</span><div class="bar"><i style="width:${Math.min(100, used / Math.max(1, cap) * 100)}%;background:${used >= cap ? 'var(--bad)' : 'var(--amber)'}"></i></div></div><div class="card">${goods}</div>` : ''}
+    ${townSec === 'quest' ? `<h2>의뢰 게시판<small>매일 새 의뢰가 올라와요</small></h2>
+    <div class="card">${quests}</div>` : ''}
+    ${townSec === 'shop' ? `<h2>공방<small>재료를 맡기면 시간이 지나 가공품이 돼요 · 장비와 비싼 교역품을 만들어요</small></h2>
+    <div class="card">${jobRow}${outRow}${shop}</div>` : ''}
+    ${townSec === 'hire' ? `<h2>고용소<small>이 구역에서만 구할 수 있는 대원</small></h2>
+    <div class="card">${recruit}</div>` : ''}
+    ${townSec === 'bank' ? (() => { const inv = S.invest[z] || 0, head = isHead(z), st = Object.entries(S.store[z] || {}).filter(([, k]) => k > 0), cg = Object.entries(S.cargo);
+      const amt = (act, max) => [100, 1000].filter(n => n <= max).map(n => `<button class="btn small" data-act="${act}" data-n="${n}">${n}</button>`).join('') + `<button class="btn small primary" data-act="${act}" data-n="${max}" ${max > 0 ? '' : 'disabled'}>전부</button>`;
+      return `<h2>전장<small>돈을 맡기면 매일 1% 이자가 붙고, 상단이 쓰러져도 잃지 않아요</small></h2>
+      <div class="card"><div class="row"><div class="info"><b>예금 ${fmt(S.bank)} 크레딧</b><small>맡기기 · 가진 돈 ${fmt(S.money)}</small></div>${amt('dep', S.money)}</div>
+      <div class="row"><div class="info"><b>찾기</b><small>어느 정착지 전장에서든 찾을 수 있어요</small></div>${amt('wd', S.bank)}</div></div>
+      <h2>마을 투자<small>투자금의 3%를 매일 배당으로 받아요 · 가장 많이 투자하면 이 마을의 대방이 돼요</small></h2>
+      <div class="card"><div class="row"><div class="info"><b>${head ? '당신이 이 마을의 대방이에요' : `현재 대방: ${RIVALS[z][0]}`}</b><small>내 투자 ${fmt(inv)} · ${head ? `2위 ${RIVALS[z][0]} ${fmt(S.rival[z])}` : `대방까지 ${fmt(S.rival[z] - inv + 1)} 더`} · 대방 혜택: 이 마을에서 5% 싸게 사고 5% 비싸게 팔아요</small></div>${amt('inv', S.money)}</div></div>
+      <h2>여각 (창고)<small>짐을 이 정착지에 맡겨 둬요 · 다른 정착지에서는 찾을 수 없어요</small></h2>
+      <div class="card">${cg.length ? cg.map(([g, k]) => `<div class="row"><div class="info"><b>${GOODS[g].n} ${k}개</b><small>짐칸에 있어요</small></div><button class="btn small" data-act="stIn" data-g="${g}">맡기기</button></div>`).join('') : ''}${st.map(([g, k]) => `<div class="row"><div class="info"><b>${GOODS[g].n} ${k}개</b><small>창고에 있어요</small></div><button class="btn small primary" data-act="stOut" data-g="${g}">찾기</button></div>`).join('')}${cg.length || st.length ? '' : '<div class="row"><div class="info"><small>맡긴 짐이 없어요</small></div></div>'}</div>`; })() : ''}
+    ${townSec === 'inn' ? `<h2>여관과 상점</h2>
+    <div class="card">
+      <div class="row"><div class="info"><b>식사 · 포만감 ${Math.ceil(S.food)}/100</b><div class="bar"><i style="width:${S.food}%;background:${S.food <= 20 ? 'var(--bad)' : 'var(--amber)'}"></i></div><small>필드를 걷고 싸우면 줄어요. 0이 되면 공격력이 30% 줄고 회복이 멈춰요 · 짐의 곡물·고기·육포도 먹을 수 있어요 (상단 탭 → 짐)</small></div><button class="btn small primary" data-act="meal" ${S.food >= 100 || S.money < 20 ? 'disabled' : ''}>20</button></div>
+      <div class="row"><div class="info"><b>여관에서 쉬기</b><small>${hurt.length ? `다친 대원 ${hurt.length}명 모두 바로 회복 · 정착지에 있으면 저절로 천천히 회복돼요` : '모두 건강해요'}</small></div><button class="btn small primary" data-act="heal" data-cost="${healCost}" ${!hurt.length || S.money < healCost ? 'disabled' : ''}>${healCost}</button></div>
+      ${hurt.length && S.money < healCost ? `<div class="row"><div class="info"><b>구호소 (무료)</b><small>돈이 모자랄 때 · 모두 체력 절반으로 일으켜요</small></div><button class="btn small" data-act="aid">쉬기</button></div>` : ''}
+      <div class="row"><div class="info"><b>마취 다트</b><small>공룡 포획에 써요 · 보유 ${S.darts}개</small></div><button class="btn small" data-act="dart" data-n="1" ${S.money < 35 ? 'disabled' : ''}>35</button><button class="btn small" data-act="dart" data-n="5" ${S.money < 165 ? 'disabled' : ''}>5개 165</button></div>
+    </div>` : ''}`;
+  el.querySelectorAll('canvas[data-u]').forEach(cv => portrait(cv, cv.dataset.u));
+  el.querySelectorAll('canvas[data-shot]').forEach(cv => { try { const T = TOWNS[cv.dataset.shot], g = cv.getContext('2d'); g.imageSmoothingEnabled = false; if (!W) initWorld(); drawScene(g, T.x - 180, T.y - 120, 360, 160, W.folk.filter(f => f.z === cv.dataset.shot).map(f => ({ x: f.x, y: f.y, a: f.a, type: f.type, anim: 'idle', fi: 0 }))); } catch (e) { /* header stays blank */ } });
+}
+function renderParty() {
+  const el = $('v-party'), P = party();
+  const row = u => { const D = UNITS[u.type], mh = maxHp(u);
+    return `<div class="row"><canvas data-u="${u.type}" width="104" height="80"></canvas><div class="info"><b>${unitName(u)} Lv${u.lv} <span class="tag">${D.role}</span>${u.ko ? ' <span class="tag" style="color:var(--bad)">쓰러짐</span>' : ''}</b>
+      <div class="bar"><i style="width:${u.hp / mh * 100}%;${u.ko ? 'background:var(--bad)' : ''}"></i></div><small>체력 ${u.hp}/${mh} · 공격 ${Math.round(D.atk * lvMul(u.lv) * gearMul(u).atk)} · 무기 ${u.gw || 0} · 방어구 ${u.ga || 0} · 짐 ${D.carry}칸 · 경험치 ${u.xp}/${xpNeed(u.lv)}</small></div>
+      <button class="btn small" data-act="unit" data-id="${u.id}">관리</button>
+      ${u.type === 'leader' ? '<span class="tag on">대장</span>' : `<button class="btn small ${u.inParty ? '' : 'primary'}" data-act="toggle" data-id="${u.id}">${u.inParty ? '대기' : '참전'}</button>`}</div>`; };
+  const reserve = S.units.filter(u => !u.inParty);
+  const psecs = [['crew', '대원'], ['bag', '가방', S.items.length], ['dex', '도감'], ['skill', '스킬', S.sp], ['cargo', '짐']];
+  el.innerHTML = `<div class="card"><div class="row"><div class="info"><b>상단 Lv${S.clv} · ${P.length}/${partyCap()}명</b><div class="bar"><i style="width:${S.cxp / cxpNeed(S.clv) * 100}%;background:var(--amber)"></i></div><small>상단 경험치 ${S.cxp}/${cxpNeed(S.clv)} · 장사, 사냥, 의뢰로 올라요 · 레벨마다 인원 +1(최대 12)</small><small>짐칸 ${cargoUsed()}/${capacity()} · 전투 ${S.stats.battles} · 포획 ${S.stats.captures}</small></div><button class="btn small" data-act="snd">${['소리 끔', '효과음만', '소리 켬'][S.snd]}</button></div></div>${chips(psecs, partySec, 'psec')}
+    ${partySec === 'crew' ? `<h2>진형<small>${FORMS[S.form].ds}</small></h2>${chips(Object.entries(FORMS).map(([k, f]) => [k, f.n]), S.form, 'form')}<h2>출전 대원<small>포만감 ${Math.ceil(S.food)}/100</small></h2><div class="card">${P.map(row).join('')}</div>
+    <h2>대기 대원<small>정착지 우리에서 쉬어요</small></h2><div class="card">${reserve.length ? reserve.map(row).join('') : '<div class="row"><div class="info"><small>없어요. 사냥터에서 공룡을 포획하거나 고용소에서 대원을 구하세요</small></div></div>'}</div>` : ''}
+    ${partySec === 'bag' ? `<h2>가방<small>장비 ${S.items.length}/${BAG_MAX} · 대원의 관리 버튼에서 착용해요</small></h2><div class="card">${S.items.length ? [...S.items].sort((a, b) => b.r - a.r || b.lv - a.lv).map(it => `<div class="row"><div class="info"><b>${itemName(it)}</b><small>${SLOTS[it.slot]} · Lv${it.lv} · ${itemText(it)}</small></div><button class="btn small" data-act="sellItem" data-it="${it.id}">${itemPrice(it)}에 팔기</button></div>`).join('') : '<div class="row"><div class="info"><small>아직 얻은 장비가 없어요. 사냥에서 이기면 가끔 떨어져요</small></div></div>'}</div>` : ''}
+    ${partySec === 'dex' ? `<h2>공룡 도감<small>${Object.keys(UNITS).filter(t => UNITS[t].cls === 'dino').filter(t => S.dex[t] === 2).length} / ${Object.keys(UNITS).filter(t => UNITS[t].cls === 'dino').length}종 포획</small></h2><div class="dexg">${Object.keys(UNITS).filter(t => UNITS[t].cls === 'dino').map(t => { const st = S.dex[t] || 0, D = UNITS[t]; return `<div class="dexc${st ? '' : ' unk'}${st === 2 ? ' own' : ''}"><canvas data-u="${t}" width="104" height="80"></canvas><b>${st ? D.n : '???'}</b><small>${st === 2 ? (D.rare ? '★희귀 · ' : '') + D.role : st ? '미포획' : (D.rare ? '희귀종' : '미발견')}</small></div>`; }).join('')}</div>` : ''}
+    ${partySec === 'skill' ? `<h2>상단 스킬<small>남은 포인트 ${S.sp}</small></h2><div class="card">${Object.entries(SKILLS).map(([k, K]) => { const lv = sk(k); return `<div class="row"><div class="info"><b>${K.n} Lv${lv}</b><small>${lv ? K.ds(lv) : '아직 배우지 않았어요'}${lv < SKILL_MAX ? ` → ${K.ds(lv + 1)}` : ''}</small></div><button class="btn small primary" data-act="skill" data-k="${k}" ${S.sp < 1 || lv >= SKILL_MAX ? 'disabled' : ''}>${lv >= SKILL_MAX ? '최고' : '배우기'}</button></div>`; }).join('')}</div>` : ''}
+    ${partySec === 'cargo' ? `<h2>짐</h2><div class="card">${Object.keys(S.cargo).length ? Object.entries(S.cargo).map(([g, k]) => `<div class="row"><div class="info"><b>${GOODS[g].n} ${k}개</b><small>${ZONES[S.zone].n}에서 팔면 개당 ${sellPrice(S.zone, g)}${FOODS[g] ? ` · 먹으면 포만감 +${FOODS[g]}` : ''}</small></div>${FOODS[g] ? `<button class="btn small" data-act="eat" data-g="${g}" ${S.food >= 100 ? 'disabled' : ''}>먹기</button>` : ''}</div>`).join('') : '<div class="row"><div class="info"><small>짐칸이 비었어요</small></div></div>'}</div>` : ''}`;
+  el.querySelectorAll('canvas[data-u]').forEach(cv => portrait(cv, cv.dataset.u));
+}
+function itemModal(uid, slot) {
+  const u = S.units.find(x => x.id === uid), cur = (u.eq || {})[slot];
+  const list = S.items.filter(x => x.slot === slot).sort((a, b) => RAR[b.r].m * (1 + b.lv * 0.03) - RAR[a.r].m * (1 + a.lv * 0.03));
+  showModal(`<h3>${SLOTS[slot]} 고르기</h3><div class="sub">${unitName(u)} · 지금: ${cur ? itemName(cur) + ' ' + itemText(cur) : '없음'}</div>
+    <div class="card">${cur ? `<div class="row"><div class="info"><b>${itemName(cur)}</b><small>착용 중 · ${itemText(cur)}</small></div><button class="btn small" data-act="unequip" data-id="${uid}" data-slot="${slot}">해제</button></div>` : ''}
+    ${list.map(it => `<div class="row"><div class="info"><b>${itemName(it)}</b><small>Lv${it.lv} · ${itemText(it)}</small></div><button class="btn small primary" data-act="equip" data-id="${uid}" data-it="${it.id}">착용</button></div>`).join('') || '<div class="row"><div class="info"><small>가방에 맞는 장비가 없어요. 사냥터 깊은 곳일수록 좋은 장비가 나와요</small></div></div>'}</div>
+    <div class="mbtns"><button class="btn" data-act="unit" data-id="${uid}">돌아가기</button></div>`);
+}
+function unitModal(id) {
+  const u = S.units.find(x => x.id === id); if (!u) return;
+  const D = UNITS[u.type], dino = D.cls === 'dino', gm = gearMul(u), tier = u.tier || 0, P = PROMO[tier];
+  const gearRow = (key, item, label, eff) => { const lv = u[key] || 0, need = lv + 1, have = S.cargo[item] || 0;
+    return `<div class="row"><div class="info"><b>${label} ${lv}/3단계</b><small>${eff}${lv < 3 ? ` · 다음 단계: ${GOODS[item].n} ${need}개 (보유 ${have})` : ''}</small></div><button class="btn small primary" data-act="gear" data-id="${u.id}" data-k="${key}" ${lv >= 3 || have < need ? 'disabled' : ''}>${lv >= 3 ? '최고' : '강화'}</button></div>`; };
+  const names = dino ? TIER_DINO : TIER_HUMAN;
+  showModal(`<canvas data-u="${u.type}" width="260" height="200" style="width:156px;height:120px;align-self:center"></canvas><h3>${unitName(u)}</h3><div class="sub">Lv${u.lv} · ${D.role} · ${D.ds}</div>
+    <div class="card"><div class="row"><div class="info"><small style="color:var(--text)">체력 ${maxHp(u)} · 공격 ${Math.round(D.atk * lvMul(u.lv) * gm.atk)} · 방어 ${Math.round(D.def * (1 + 0.05 * (u.lv - 1)) * gm.def)} · 짐 ${D.carry}칸</small></div></div>
+    ${gearRow('gw', 'weapon', dino ? '발톱 덮개 단련' : '무기 단련', '공방 제작품으로 강화 · 단계마다 공격 +15%')}
+    ${gearRow('ga', 'armor', dino ? '갑주 보강' : '방어구 보강', '공방 제작품으로 강화 · 단계마다 방어 +25%, 체력 +10%')}
+    ${Object.entries(SLOTS).map(([sl, sn]) => { const it = (u.eq || {})[sl], n = S.items.filter(x => x.slot === sl).length; return `<div class="row"><div class="info"><b>착용 ${sn}: ${it ? itemName(it) : '<span style="color:var(--muted)">비어 있음</span>'}</b><small>${it ? itemText(it) + ` · Lv${it.lv}` : '사냥터에서 얻은 장비를 착용해요'} · 가방에 ${n}개</small></div><button class="btn small" data-act="pickItem" data-id="${u.id}" data-slot="${sl}" ${n || it ? '' : 'disabled'}>교체</button></div>`; }).join('')}
+    <div class="row"><div class="info"><b>${dino ? '성장' : '전직'}: ${tier >= 2 ? '최고 단계' : names[tier + 1] + D.n}</b><small>${tier >= 2 ? '더 오를 단계가 없어요' : `체력과 공격 +30% · 조건: Lv${P.lv}, 상단 Lv${P.clv}, ${P.cost} 크레딧`}</small></div><button class="btn small primary" data-act="promote" data-id="${u.id}" ${tier >= 2 || u.lv < P.lv || S.clv < P.clv || S.money < P.cost ? 'disabled' : ''}>${tier >= 2 ? '완료' : dino ? '성장' : '전직'}</button></div></div>
+    <div class="sub" style="margin:0">강철 무기는 무너진 도시 공방, 가죽 갑옷은 잿빛 평원 공방에서 만들어요</div>
+    <div class="mbtns"><button class="btn" data-act="close">닫기</button></div>`);
+}
+const nearestTown = () => ZKEYS.map(z => ({ z, d: Math.round(Math.hypot(TOWNS[z].x - S.pos.x, TOWNS[z].y - S.pos.y) / 10) })).sort((a, b) => a.d - b.d)[0];
+function renderMap() {
+  const el = $('v-map');
+  const rows = ZKEYS.map(z => { const d = Math.round(Math.hypot(TOWNS[z].x - S.pos.x, TOWNS[z].y - S.pos.y) / 10); return `<div class="row"><div class="info"><b>${ZONES[z].n} 정착지</b><small>거리 ${d}m · 야생 Lv${ZONES[z].lv}~${ZONES[z].lv + 6} · <span class="danger">${stars(ZONES[z].danger + 1)}</span></small></div><button class="btn small primary" data-act="walk" data-x="${TOWNS[z].x}" data-y="${TOWNS[z].y + 60}" data-l="${ZONES[z].n} 정착지">걸어가기</button></div>`; }).join('');
+  el.innerHTML = `<canvas id="mapcv" width="720" height="${Math.round(720 * WH / WW)}" style="touch-action:manipulation"></canvas><h2>월드 지도<small>지도를 누르면 그곳으로 걸어가요 · 길 위에서는 더 빨리 걸어요</small></h2><div class="card">${rows}</div>`;
+  drawMap();
+  $('mapcv').onclick = e => { const cv = $('mapcv'), r = cv.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * WW, y = (e.clientY - r.top) / r.height * WH, g = groundAt(x, y), t = nearTown(x, y, 260); if (t) walkTo(TOWNS[t].x, TOWNS[t].y + 60, ZONES[t].n + ' 정착지'); else walkTo(x, y, g ? HUNT_NAMES[g.z][g.i] : '표시한 곳'); showWorld(); };
+}
+let MAPBG = null;
+function drawMap() {
+  const cv = $('mapcv'); if (!cv) return; const g = cv.getContext('2d'), w = cv.width, h = cv.height, k = w / WW;
+  if (!MAPBG) {   // coarse picture of the terrain, drawn once
+    MAPBG = document.createElement('canvas'); MAPBG.width = 110; MAPBG.height = 150; const m = MAPBG.getContext('2d'), col = { plain: ['#8f7c50', '#7a6844'], city: ['#5e605c', '#4c4e50'], swamp: ['#4e5634', '#3e4628'] };
+    for (let y = 0; y < 150; y++) for (let x = 0; x < 110; x++) { const wx = x * 40 + 20, wy = y * 40 + 20, z = zoneAt(wx, wy); m.fillStyle = roadDist(wx, wy) < 24 ? '#b8a458' : isWater(wx, wy) ? '#24383a' : col[z][hash2(x, y) < 0.5 ? 0 : 1]; m.fillRect(x, y, 1, 1); }
+  }
+  g.imageSmoothingEnabled = false; g.drawImage(MAPBG, 0, 0, w, h); g.textAlign = 'center';
+  for (const z of ZKEYS) GROUNDS[z].forEach(([gx, gy], i) => { g.fillStyle = i === 4 ? 'rgba(212,87,60,.35)' : 'rgba(18,14,10,.28)'; g.beginPath(); g.arc(gx * k, gy * k, GR * k, 0, 7); g.fill(); g.font = '700 17px "IBM Plex Sans KR", sans-serif'; g.lineWidth = 4; g.strokeStyle = 'rgba(18,14,10,.75)'; g.strokeText(HUNT_NAMES[z][i], gx * k, gy * k + 6); g.fillStyle = i === 4 ? '#ff9a7a' : '#ece3d4'; g.fillText(HUNT_NAMES[z][i], gx * k, gy * k + 6); });
+  for (const z of ZKEYS) { const T = TOWNS[z]; g.fillStyle = '#e3a843'; g.strokeStyle = '#1c1711'; g.lineWidth = 3; g.beginPath(); g.moveTo(T.x * k, T.y * k - 16); g.lineTo(T.x * k + 14, T.y * k + 8); g.lineTo(T.x * k - 14, T.y * k + 8); g.closePath(); g.stroke(); g.fill(); g.font = '400 26px "Black Han Sans", sans-serif'; g.lineWidth = 6; g.strokeText(ZONES[z].n, T.x * k, T.y * k + 38); g.fillStyle = '#ffe9c0'; g.fillText(ZONES[z].n, T.x * k, T.y * k + 38); }
+  g.fillStyle = '#fff'; g.strokeStyle = '#d0743a'; g.lineWidth = 4; g.beginPath(); g.arc(S.pos.x * k, S.pos.y * k, 8, 0, 7); g.fill(); g.stroke();
+}
+function feed(lines) { const el = $('feed'); el.innerHTML = lines.slice(0, 7).map(l => `<div>${l}</div>`).join(''); el.className = ''; void el.offsetWidth; el.className = 'show'; }
+function renderHeader() {
+  $('rMoney').textContent = fmt(S.money); $('rCargo').textContent = `${cargoUsed()}/${capacity()}`; $('rDay').textContent = S.day;
+  $('sub').textContent = `${inTown() ? ZONES[S.zone].n + ' 정착지' : ZONES[zoneAt(S.pos.x, S.pos.y)].n + ' 필드'} · 멸망 후 ${S.day}일차`;
+}
+function renderAll() { renderHeader(); if (view === 'town') renderTown(); if (view === 'party') renderParty(); if (view === 'map') renderMap(); }
+function setView(v) { if (v === 'field') { showWorld(); return; } view = v; document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.v === v)); ['town', 'party', 'map'].forEach(k => $('v-' + k).hidden = k !== v); renderAll(); }
+
+function addRare(foes, z, chance) {
+  if (Math.random() < chance) foes[foes.length - 1].type = pick(ZONES[z].rare);
+  return foes;
+}
+function huntFoes(z, tier) {
+  const Z = ZONES[z], H = HUNTS[tier];
+  if (H.boss) return [{ type: BOSSES[Z.boss].base, lv: Z.lv + 6, boss: Z.boss }, { type: pick(Z.wild), lv: Z.lv + 4 }, { type: pick(Z.wild), lv: Z.lv + 4 }];
+  const n = H.n[0] + Math.round(Math.random() * (H.n[1] - H.n[0]));
+  return addRare(Array.from({ length: n }, () => ({ type: pick(Z.wild), lv: Z.lv + H.lv[0] + Math.round(rand(0, H.lv[1] - H.lv[0])) })), z, H.rare);
+}
+document.body.addEventListener('click', e => {
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const act = b.dataset.act, z = S.zone;
+  if (act === 'buy') { const g = b.dataset.g; let n = b.dataset.n === 'max' ? 40 : +b.dataset.n, spent = 0; while (n-- > 0 && S.money >= price(z, g) && cargoUsed() < capacity()) { const p = price(z, g); S.money -= p; spent += p; S.cargo[g] = (S.cargo[g] || 0) + 1; S.press[z][g] += 0.025; } if (spent) { sfx('coin'); S.stats.trades++; } }
+  else if (act === 'sell') { const g = b.dataset.g; let got = 0; while (S.cargo[g] > 0) { const p = sellPrice(z, g); S.money += p; got += p; S.cargo[g]--; S.press[z][g] = Math.max(0.4, S.press[z][g] - 0.022); } delete S.cargo[g]; S.stats.earned += got; gainCxp(got / 12); sfx('coin'); toast(`${GOODS[g].n}을 팔아 ${got} 크레딧`, 'good'); }
+  else if (act === 'hire') { const t = b.dataset.t, D = UNITS[t]; if (S.money < D.cost) return; S.money -= D.cost; const u = addUnit(t, Math.max(1, ZONES[z].lv - 1), party().length < partyCap()); sfx('coin'); toast(`${D.n}을 고용했어요${u.inParty ? '' : ' (상단이 가득 차 대기)'}`, 'good'); }
+  else if (act === 'aid') { for (const u of S.units) { const mh = maxHp(u); u.hp = Math.max(u.hp, Math.round(mh * 0.5)); u.ko = false; } toast('구호소에서 쉬고 모두 일어났어요', 'good'); sfx('arrive'); }
+  else if (act === 'heal') { const cost = +b.dataset.cost; if (S.money < cost) return; S.money -= cost; for (const u of S.units) { u.hp = maxHp(u); u.ko = false; } toast('모두 푹 쉬었어요', 'good'); sfx('arrive'); }
+  else if (act === 'dep') { const n = Math.min(S.money, +b.dataset.n); if (n <= 0) return; S.money -= n; S.bank += n; sfx('coin'); toast(`전장에 ${fmt(n)} 크레딧을 맡겼어요`); }
+  else if (act === 'wd') { const n = Math.min(S.bank, +b.dataset.n); if (n <= 0) return; S.bank -= n; S.money += n; sfx('coin'); }
+  else if (act === 'inv') { const n = Math.min(S.money, +b.dataset.n); if (n <= 0) return; const was = isHead(z); S.money -= n; S.invest[z] = (S.invest[z] || 0) + n; gainCxp(n / 20); sfx('coin'); if (!was && isHead(z)) { toast(`${ZONES[z].n}의 대방이 되었어요! 이 마을에서 더 싸게 사고 더 비싸게 팔아요`, 'good'); sfx('win'); } else toast(`${ZONES[z].n}에 ${fmt(n)} 크레딧을 투자했어요`); }
+  else if (act === 'stIn') { const g = b.dataset.g, k = S.cargo[g] || 0; if (!k) return; S.store[z] = S.store[z] || {}; S.store[z][g] = (S.store[z][g] || 0) + k; delete S.cargo[g]; sfx('tap'); }
+  else if (act === 'stOut') { const g = b.dataset.g, k = (S.store[z] || {})[g] || 0; if (!k) return; const got = addCargo(g, k); S.store[z][g] -= got; sfx('tap'); if (got < k) toast(`짐칸이 모자라 ${k - got}개는 창고에 남겼어요`, 'warn'); }
+  else if (act === 'meal') { if (S.money < 20 || S.food >= 100) return; S.money -= 20; S.food = 100; sfx('heal'); toast('든든하게 먹었어요 · 포만감 100'); }
+  else if (act === 'eat') { const g = b.dataset.g; if (!S.cargo[g] || S.food >= 100) return; S.cargo[g]--; if (!S.cargo[g]) delete S.cargo[g]; S.food = Math.min(100, S.food + FOODS[g]); sfx('heal'); }
+  else if (act === 'form') { S.form = b.dataset.k; sfx('tap'); }
+  else if (act === 'npcBuy' || act === 'npcSell') {
+    const n = W.npcs[+b.dataset.i], o = n && n.offer; if (!o) return;
+    if (act === 'npcBuy') { let k = 0; while (o.sn > 0 && S.money >= o.sp && cargoUsed() < capacity()) { S.money -= o.sp; o.sn--; S.cargo[o.sg] = (S.cargo[o.sg] || 0) + 1; k++; } if (!k) { toast('돈이나 짐칸이 모자라요', 'warn'); return; } toast(`${GOODS[o.sg].n} ${k}개를 샀어요`, 'good'); }
+    else { let k = 0, got = 0; while (o.bn > 0 && S.cargo[o.bg] > 0) { S.cargo[o.bg]--; o.bn--; S.money += o.bp; got += o.bp; k++; } if (!S.cargo[o.bg]) delete S.cargo[o.bg]; if (!k) { toast(`${GOODS[o.bg].n}이(가) 없어요`, 'warn'); return; } S.stats.earned += got; gainCxp(got / 12); toast(`${GOODS[o.bg].n} ${k}개를 팔아 ${got} 크레딧`, 'good'); }
+    sfx('coin'); S.stats.trades++; save(); renderHeader(); npcModal(+b.dataset.i); return;
+  }
+  else if (act === 'dart') { const n = +b.dataset.n, cost = n === 5 ? 165 : 35; if (S.money < cost) return; S.money -= cost; S.darts += n; sfx('coin'); }
+  else if (act === 'walk') { walkTo(+b.dataset.x, +b.dataset.y, b.dataset.l); showWorld(); return; }
+  else if (act === 'toggle') { const u = S.units.find(x => x.id === +b.dataset.id); if (!u) return; if (!u.inParty && party().length >= partyCap()) { toast(`지금은 대장 포함 ${partyCap()}명까지예요. 상단 레벨을 올리면 늘어나요 (최대 12명)`); return; } u.inParty = !u.inParty; if (cargoUsed() > capacity()) toast('짐칸이 모자라요. 출발 전에 짐을 줄이세요', 'warn'); }
+  else if (act === 'tsec') { townSec = b.dataset.k; sfx('tap'); }
+  else if (act === 'psec') { partySec = b.dataset.k; sfx('tap'); }
+  else if (act === 'quest') {
+    const q = S.quests[z][+b.dataset.i]; if (!q) return;
+    if (q.type === 'deliver') { if ((S.cargo[q.g] || 0) < q.n) return; S.cargo[q.g] -= q.n; if (!S.cargo[q.g]) delete S.cargo[q.g]; } else if (q.prog < q.n) return;
+    S.money += q.money; S.stats.earned += q.money; gainCxp(q.xp); S.quests[z].splice(+b.dataset.i, 1); sfx('coin'); toast(`의뢰 완료 · ${q.money} 크레딧`, 'good');
+  }
+  else if (act === 'craft') {
+    const R = RECIPES[b.dataset.r], n = +b.dataset.n; if (S.jobs[z] || n < 1) return;
+    if (S.money < R.fee * n || !Object.entries(R.in).every(([g, k]) => (S.cargo[g] || 0) >= k * n)) return;
+    for (const [g, k] of Object.entries(R.in)) { S.cargo[g] -= k * n; if (!S.cargo[g]) delete S.cargo[g]; }
+    S.money -= R.fee * n; S.jobs[z] = { r: b.dataset.r, left: n, total: n, t: 0 }; sfx('tap'); toast(`${R.n} ${n}회를 맡겼어요`);
+  }
+  else if (act === 'collect') {
+    const o = S.out[z] || {}; let left = 0;
+    for (const [g, k] of Object.entries(o)) { if (g === 'dart') { S.darts += k; o[g] = 0; } else { const got = addCargo(g, k); o[g] = k - got; left += k - got; } }
+    sfx('coin'); toast(left ? `짐칸이 모자라 ${left}개는 공방에 남겨 뒀어요` : '완성품을 모두 찾았어요', left ? 'warn' : 'good');
+  }
+  else if (act === 'skill') { const k = b.dataset.k; if (S.sp < 1 || sk(k) >= SKILL_MAX) return; S.sp--; S.skills[k] = sk(k) + 1; sfx('capture'); }
+  else if (act === 'unit') { unitModal(+b.dataset.id); return; }
+  else if (act === 'pickItem') { itemModal(+b.dataset.id, b.dataset.slot); return; }
+  else if (act === 'equip' || act === 'unequip') {
+    const u = S.units.find(x => x.id === +b.dataset.id); u.eq = u.eq || {}; const r = u.hp / maxHp(u);
+    if (act === 'equip') { const i = S.items.findIndex(x => x.id === +b.dataset.it); if (i < 0) return; const it = S.items.splice(i, 1)[0]; if (u.eq[it.slot]) S.items.push(u.eq[it.slot]); u.eq[it.slot] = it; }
+    else { const sl = b.dataset.slot; if (u.eq[sl]) { S.items.push(u.eq[sl]); u.eq[sl] = null; } }
+    u.hp = Math.max(u.ko ? 0 : 1, Math.round(maxHp(u) * r)); sfx('coin'); save(); renderAll(); unitModal(u.id); return;
+  }
+  else if (act === 'sellItem') { const i = S.items.findIndex(x => x.id === +b.dataset.it); if (i < 0) return; const it = S.items.splice(i, 1)[0], pr = itemPrice(it); S.money += pr; S.stats.earned += pr; sfx('coin'); toast(`${it.n}을(를) ${pr} 크레딧에 팔았어요`); }
+  else if (act === 'gear') {
+    const u = S.units.find(x => x.id === +b.dataset.id), key = b.dataset.k, item = key === 'gw' ? 'weapon' : 'armor', need = (u[key] || 0) + 1;
+    if ((u[key] || 0) >= 3 || (S.cargo[item] || 0) < need) return;
+    S.cargo[item] -= need; if (!S.cargo[item]) delete S.cargo[item]; const r = u.hp / maxHp(u); u[key] = need; u.hp = Math.round(maxHp(u) * r); sfx('capture'); save(); renderAll(); unitModal(u.id); return;
+  }
+  else if (act === 'promote') {
+    const u = S.units.find(x => x.id === +b.dataset.id), P = PROMO[u.tier || 0];
+    if (!P || u.lv < P.lv || S.clv < P.clv || S.money < P.cost) return;
+    S.money -= P.cost; u.tier = (u.tier || 0) + 1; u.hp = maxHp(u); u.ko = false; sfx('win'); toast(`${unitName(u)}(으)로 ${UNITS[u.type].cls === 'dino' ? '성장' : '전직'}했어요`, 'good'); save(); renderAll(); unitModal(u.id); return;
+  }
+  else if (act === 'closeBattle') { closeBattle(); return; }
+  else if (act === 'close') closeModal();
+  else if (act === 'snd') { sndInit(); S.snd = (S.snd + 2) % 3; applySnd(); }
+  save(); renderAll();
+});
+$('tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { sfx('tap'); setView(b.dataset.v); } });
+document.addEventListener('pointerdown', sndInit);
+$('modal').addEventListener('click', e => { if (e.target.id === 'modal' && !$('mcard').querySelector('[data-act="closeBattle"]')) closeModal(); });
+window.addEventListener('resize', () => { if (worldLive()) resizeBattle(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
+
+/* ================================================================
+   LOOP
+   ================================================================ */
+let last = performance.now(), acc = 0, uiAcc = 0, saveAcc = 0;
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  tick(dt);
+  if (B && !B.over) { acc += dt * bSpeed; let k = 0; while (acc >= 1 / 30 && k < 8) { bStep(1 / 30); acc -= 1 / 30; k++; } if (k >= 8) acc = 0; }
+  if (W && worldLive()) { if (bcv.width !== Math.round(bcv.clientWidth * dpr)) resizeBattle(); updWorld(dt); renderWorld(dt); }
+  uiAcc += dt;
+  if (uiAcc > 0.5) { uiAcc = 0; renderHeader(); if (W && worldLive() && !B) { if (W.crew.length !== party().filter(u => !u.ko).length) syncCrew(); updField(); } }
+  saveAcc += dt; if (saveAcc > 5) { saveAcc = 0; save(); }
+}
+S = load() || freshState();
+if (!S.units || !S.units.length) freshState();
+for (const u of S.units) { if (u.type === 'pachy') u.type = 'para'; if (u.type === 'sarco') u.type = 'stego'; }
+S.items = S.items || []; S.cleared = S.cleared || {}; if (S.food === undefined) S.food = 100; S.bank = S.bank || 0; S.invest = S.invest || {}; S.store = S.store || {}; S.form = S.form || 'bal'; S.rival = S.rival || Object.fromEntries(Object.entries(RIVALS).map(([z, r]) => [z, r[1]])); if (!S.pos) { const T0 = TOWNS[S.zone] || TOWNS.plain; S.pos = { x: T0.x, y: T0.y + 70 }; }
+S.clv = S.clv || 1; S.cxp = S.cxp || 0; S.sp = S.sp || 0; S.skills = S.skills || {}; S.jobs = S.jobs || {}; S.out = S.out || {}; S.quests = S.quests || {};
+for (const z of Object.keys(ZONES)) for (const g of Object.keys(GOODS)) { if (S.drift[z][g] === undefined) S.drift[z][g] = 1; if (S.press[z][g] === undefined) S.press[z][g] = 1; }
+ensureQuests();
+S.dex = S.dex || {}; for (const u of S.units) if (UNITS[u.type].cls === 'dino') S.dex[u.type] = 2;
+$('v-town').innerHTML = '<div id="loading"><b style="font-family:var(--f-display);font-size:20px;color:var(--rust)">공룡 상단</b><span id="loadTxt">불러오는 중…</span></div>';
+loadModels((n, t) => { const el = $('loadTxt'); if (el) el.textContent = `공룡 모델 불러오는 중 ${n}/${t}`; }).then(ok => {
+  USE3D = ok;
+  if (ok) { try { makePortraits(); } catch (e) { USE3D = false; } }
+  const el = $('loadTxt'); if (el) el.textContent = '픽셀 월드 그리는 중…';
+  setTimeout(() => { view = inTown() ? 'town' : 'party'; setView(view); showWorld(); if (S.stats.battles === 0) toast('땅을 눌러 걸어 다니세요 · 정착지에서 곡물을 싸게 사서 다른 정착지에 팔아 보세요'); }, 60);
+});
+window.__dino = { get S() { return S; }, get B() { return B; }, get W() { return W; }, walkTo, TOWNS, GROUNDS, SPR };
+requestAnimationFrame(frame);
+})();
+</script>
