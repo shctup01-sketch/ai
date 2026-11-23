@@ -271,12 +271,17 @@ const sk = k => (S.skills && S.skills[k]) || 0;
 const cxpNeed = lv => Math.round(120 * Math.pow(lv, 1.5));
 const partyCap = () => Math.min(12, 5 + S.clv);
 const TIER_HUMAN = ['', '숙련 ', '정예 '], TIER_DINO = ['', '성체 ', '우두머리 '];
-const PROMO = [{ lv: 10, clv: 3, cost: 400 }, { lv: 20, clv: 6, cost: 1500 }];
+const PROMO = [{ lv: 10, clv: 3, cost: 2500 }, { lv: 20, clv: 6, cost: 12000 }];
+const hireCost = (t, z) => Math.round(UNITS[t].cost * 4 * (1 + ZONES[z].lv * 0.25) / 10) * 10;   // better recruits in harder zones cost far more
+const wageOf = u => UNITS[u.type].cls === 'human' && u.type !== 'leader' ? 8 + u.lv * 4 + (u.tier || 0) * 20 : 0;
+const wages = () => S.units.reduce((s, u) => s + wageOf(u), 0);
+const ENH_MAX = 10, enhCost = it => Math.round(120 * (1 + it.r) * Math.pow((it.en || 0) + 1, 1.8) * (1 + it.lv * 0.05) / 10) * 10, enhRate = it => Math.max(0.3, 1 - (it.en || 0) * 0.08);
+const trainCost = u => 400 * ((u.skLv || 0) + 1) ** 2;
 const gearMul = u => {
   const t = 1 + 0.3 * (u.tier || 0), b = { atk: 0, hp: 0, def: 0 };
   for (const it of Object.values(u.eq || {})) if (it) { const s = itemStat(it); for (const k in s) b[k] += s[k]; }
   const st = u.st || {}, m = mastery(u), ex = (u.elite ? (u.type === 'leader' ? 1.35 : 1.25) : 1) * (u.famed ? 1.15 : 1);   // trained stats and time spent fighting together both count
-  return { hp: t * (1 + 0.1 * (u.ga || 0)) * (1 + b.hp) * (1 + 0.03 * (st.h || 0)) * (1 + 0.02 * m) * ex, atk: t * (1 + 0.15 * (u.gw || 0)) * (1 + b.atk) * (1 + 0.025 * (st.a || 0)) * (1 + 0.03 * m) * ex, def: (1 + 0.25 * (u.ga || 0)) * (1 + b.def) * (1 + 0.04 * (st.d || 0)) };
+  return { hp: t * (1 + 0.1 * (u.ga || 0)) * (1 + b.hp) * (1 + 0.012 * (st.h || 0)) * (1 + 0.02 * m) * ex, atk: t * (1 + 0.15 * (u.gw || 0)) * (1 + b.atk) * (1 + 0.01 * (st.a || 0)) * (1 + 0.03 * m) * ex, def: (1 + 0.25 * (u.ga || 0)) * (1 + b.def) * (1 + 0.015 * (st.d || 0)) };
 };
 // Rare paths. Boss tokens open a mutation for dinosaurs and a special job for people; eggs hatch; famed wanderers visit one town a day.
 const TOKEN_N = { trikeKing: '늙은 뿔의 증표', oneEye: '외눈의 증표', swampKing: '폭군의 증표', ironHorn: '녹슨 골판의 증표', frostTitan: '빙벽의 증표', emberKing: '용암뿔의 증표', origin: '태초의 증표' };
@@ -289,7 +294,7 @@ const unitSkill = u => u.elite && ELITE[u.type] ? ELITE[u.type].sk : skillOf(u.t
 function rollWanderer() {
   if (S.wander && S.wander.day === S.day) return;
   const z = pick(Object.keys(ZONES)), type = pick(['hunter', 'spear', 'sniper', 'mechanic', 'medic', 'venomer', 'porter']), lv = ZONES[z].lv + 3;
-  S.wander = { day: S.day, z, type, name: pick(FAMED[type]), lv, cost: Math.round((UNITS[type].cost * 3 + lv * 90) / 10) * 10, gone: false };
+  S.wander = { day: S.day, z, type, name: pick(FAMED[type]), lv, cost: Math.round((UNITS[type].cost * 14 + lv * 400) / 10) * 10, gone: false };
 }
 function hatchEgg(e) {
   const Z = ZONES[e.z], rare = Math.random() < 0.25, type = rare ? pick(Z.rare) : pick(Z.tame), inP = party().length < partyCap(), u = addUnit(type, Math.max(1, Z.lv), inP);
@@ -301,7 +306,7 @@ const MAST_N = ['낯섦', '익숙함', '믿음', '호흡', '단짝', '전우', '
 const PERKS = [[5, '스킬 재사용 15% 빨라짐'], [10, '1차 전직·진화 가능'], [15, '스킬 피해 +20%'], [20, '2차 전직·진화 가능'], [25, '전투 중 체력이 서서히 회복'], [30, '치명타 확률 +10%']];
 const powerOf = u => { const D = UNITS[u.type], g = gearMul(u); return Math.round((D.hp * lvMul(u.lv) * g.hp * 0.12 + D.atk * lvMul(u.lv) * g.atk * D.as * 5 + D.def * (1 + 0.05 * (u.lv - 1)) * g.def * 2) * (1 + 0.1 * PERKS.filter(p => u.lv >= p[0]).length * 0.5)); };
 const partyPower = () => party().reduce((s, u) => s + powerOf(u), 0);
-const wildPower = (type, lv) => { const D = UNITS[type]; return D.hp * lvMul(lv) * 0.12 + D.atk * lvMul(lv) * D.as * 5 + D.def * (1 + 0.05 * (lv - 1)) * 2; };
+const wildPower = (type, lv) => { const D = UNITS[type], wm = Math.pow(wildMul(lv), 0.7); return D.hp * lvMul(lv) * wm * 0.12 + D.atk * lvMul(lv) * wm * D.as * 5 + D.def * (1 + 0.05 * (lv - 1)) * 2; };
 const groundPower = (z, i) => { const Z = ZONES[z], H = HUNTS[Math.min(3, i)], lv = zl(Z, (H.lv[0] + H.lv[1]) / 2), avg = Z.wild.reduce((s, t) => s + wildPower(t, lv), 0) / Z.wild.length; return Math.round(avg * ((H.n[0] + H.n[1]) / 2 + 1) * (i === 4 ? 2.6 : 1.15) / 10) * 10; };
 const RANKS = [['떠돌이 넬', 500], ['잿빛 발톱', 1100], ['고철 형제', 2000], ['늪지기 조합', 3400], ['새벽길 상단', 5200], ['강철뿔 상단', 8000], ['붉은모래 상단', 12000]];
 function checkRank() { const p = partyPower(), beat = RANKS.filter(r => p > r[1]).length; if (beat > (S.rankBest || 0)) { for (let i = S.rankBest || 0; i < beat; i++) { const prize = 200 * (i + 1); S.money += prize; toast(`상단 순위 상승! ${RANKS[i][0]}을(를) 제쳤어요 · 상금 ${prize} 크레딧`, 'good'); } S.rankBest = beat; sfx('win'); } }
@@ -320,10 +325,10 @@ const HUNT_NAMES = {
   abyss: ['밀림 입구', '무너진 연구소', '알의 골짜기', '태고의 숲', '태초의 둥지'],
 };
 const HUNTS = [
-  { lv: [0, 1], n: [2, 2], rare: 0.08, drop: 0.14 },
-  { lv: [2, 3], n: [3, 3], rare: 0.2, drop: 0.2 },
-  { lv: [3, 4], n: [3, 4], rare: 0.3, drop: 0.27 },
-  { lv: [5, 6], n: [4, 5], rare: 0.45, drop: 0.36 },
+  { lv: [0, 1], n: [2, 3], rare: 0.08, drop: 0.14 },
+  { lv: [2, 3], n: [3, 4], rare: 0.2, drop: 0.2 },
+  { lv: [3, 4], n: [4, 5], rare: 0.3, drop: 0.27 },
+  { lv: [5, 6], n: [5, 6], rare: 0.45, drop: 0.36 },
   { boss: true, lv: [6, 6], drop: 1 },
 ];
 // Loot: equipment drops with five rarities. Anyone in the caravan, human or dinosaur, can wear it.
@@ -335,10 +340,10 @@ const ITEM_NAMES = {
   charm: ['공룡 이빨 목걸이', '깃털 부적', '낡은 나침반', '호박 속 모기', '티라노 발톱 장식'],
 };
 const BAG_MAX = 40;
-function itemStat(it) { const m = RAR[it.r].m * (1 + it.lv * 0.03); return it.slot === 'weapon' ? { atk: 0.06 * m } : it.slot === 'armor' ? { hp: 0.05 * m, def: 0.08 * m } : { atk: 0.03 * m, hp: 0.03 * m }; }
+function itemStat(it) { const m = RAR[it.r].m * (1 + it.lv * 0.03) * (1 + 0.08 * (it.en || 0)); return it.slot === 'weapon' ? { atk: 0.06 * m } : it.slot === 'armor' ? { hp: 0.05 * m, def: 0.08 * m } : { atk: 0.03 * m, hp: 0.03 * m }; }
 const itemPrice = it => Math.round(18 * RAR[it.r].m * RAR[it.r].m * (1 + it.lv * 0.1));
 const itemText = it => { const s = itemStat(it), parts = []; if (s.atk) parts.push(`공격 +${Math.round(s.atk * 100)}%`); if (s.hp) parts.push(`체력 +${Math.round(s.hp * 100)}%`); if (s.def) parts.push(`방어 +${Math.round(s.def * 100)}%`); return parts.join(' · '); };
-const itemName = it => `<span style="color:${RAR[it.r].c}">[${RAR[it.r].n}] ${it.n}</span>`;
+const itemName = it => `<span style="color:${RAR[it.r].c}">[${RAR[it.r].n}] ${it.n}${it.en ? ' +' + it.en : ''}</span>`;
 function rollItem(lv, luck, minR = 0) {
   const w = RAR.map((R, i) => i < minR ? 0 : R.w * Math.pow(1 + luck, i)); let r = Math.random() * w.reduce((a, b) => a + b, 0), ri = minR;
   for (let i = 0; i < w.length; i++) { r -= w[i]; if (r <= 0) { ri = i; break; } }
@@ -385,7 +390,10 @@ const BOSSES = {
   origin:    { base: 'trex', n: '태초의 폭군', hp: 4.5, atk: 1.8, size: 1.45 },
 };
 const lvMul = lv => 1 + 0.12 * (lv - 1);
-const xpNeed = lv => Math.round(22 * Math.pow(lv, 1.45));
+const xpNeed = lv => Math.round(16 * Math.pow(lv, 2.2)) + 24;
+const xpDiff = d => d <= -8 ? 0.1 : d < -3 ? 1 + (d + 3) * 0.18 : Math.min(1.3, 1 + d * 0.03);   // d = enemy level minus yours
+const lvEdge = (a, t) => clamp(1 + 0.07 * ((a.lv || 1) - (t.lv || 1)), 0.3, 1.6);                // fighting above your level hurts both ways
+const wildMul = lv => (1 + 0.05 * (lv - 1)) * (lv >= 20 ? 1.6 : lv >= 10 ? 1.25 : 1) * Math.min(1, 0.62 + 0.05 * lv) * 0.72 * (1 + Math.max(0, lv - 14) * 0.04);                                                      // wild things grow tougher than level alone
 const STUN_HP_LIMIT = 700;   // like monster grades: big creatures shrug off stuns
 const DAY_LEN = 90;
 
@@ -413,7 +421,7 @@ const SKX = { volley: ['적 셋을 쏴요', '적 다섯을 더 세게 쏴요', '
 const skName = (k, t) => SKN[k][Math.min(2, t || 0)], skDesc = (k, t) => SKX[k][Math.min(2, t || 0)];
 const JOBS = { leader: ['상단 대장', '행수', '대행수'], hunter: ['사냥꾼', '명사수', '신궁'], spear: ['창잡이', '중갑 창병', '철벽 수호자'], sniper: ['저격수', '명저격수', '유령 저격수'], mechanic: ['정비공', '기술자', '병기 장인'], medic: ['의사', '군의관', '명의'], porter: ['짐꾼', '보부상', '거상'], venomer: ['독침술사', '독술사', '역병술사'] };
 const skillOf = type => SK_OF[type] || SK_MODEL[MODEL_FILES[type]] || null;
-function skHit(u, t, mult, crit) { const def = Math.max(0, t.def * (t.guardT > 0 ? 2 : 1) - t.shred * 2.5), dmg = u.atk * (u.roarT > 0 ? 1.25 : 1) * mult * (u.plv >= 15 ? 1.2 : 1) * 40 / (40 + def); t.hp -= dmg; t.hitT = 0.2; num(t, Math.round(dmg) + '!', '#ffd870'); burst(t.x, t.y, 10, 7, '#ffd870', { spd: 65, life: 0.4, r: 2.6 }); if (t.hp <= 0) onKill(u, t); }
+function skHit(u, t, mult, crit) { const def = Math.max(0, t.def * (t.guardT > 0 ? 2 : 1) - t.shred * 2.5), dmg = u.atk * (u.roarT > 0 ? 1.25 : 1) * mult * lvEdge(u, t) * (1 + 0.08 * (u.skLv || 0)) * (u.plv >= 15 ? 1.2 : 1) * 40 / (40 + def); t.hp -= dmg; t.hitT = 0.2; num(t, Math.round(dmg) + '!', '#ffd870'); burst(t.x, t.y, 10, 7, '#ffd870', { spd: 65, life: 0.4, r: 2.6 }); if (t.hp <= 0) onKill(u, t); }
 function castSkill(u) {
   const k = u.sk, K = SK[k]; if (!K || u.skCd > 0 || u.hp <= 0 || u.stun > 0 || B.over) return false;
   const T = u.tier || 0, P = [1, 1.4, 1.9][T];   // promotion and evolution change the skill itself, not only its strength
@@ -438,7 +446,7 @@ function autoPotion() {   // drink before someone falls
   if (!S.auto.pot || S.pots < 1 || (W.potT || 0) > W.t) return;
   if (B) { if (B.over) return; const us = B.units.filter(u => u.side === 0 && u.hp > 0 && !u.turret); if (!us.some(u => u.hp < u.max * 0.3)) return; }
   else { const us = party(); if (!us.length || us.reduce((s, u) => s + (u.ko ? 0 : u.hp / maxHp(u)), 0) / us.length >= 0.45) return; }
-  W.potT = W.t + 4; usePotion();
+  if (B && (W.potCd || 0) > W.t) return; W.potT = W.t + 4; usePotion();
 }
 let S;
 function freshState() {
@@ -481,7 +489,8 @@ function ensureQuests() {
   }
 }
 function newDay() {
-  S.day++; ensureQuests(); rollWanderer(); if (S.wander) setTimeout(() => toast(`[${S.day}일차] 이름난 용병 ${S.wander.name}이(가) ${ZONES[S.wander.z].n} 고용소에 하루 머물러요`), 6000);
+  S.day++; ensureQuests(); rollWanderer();
+  { const w = wages(); if (w > 0) { if (S.money >= w) { S.money -= w; S.unpaid = false; } else { S.unpaid = true; setTimeout(() => toast(`[${S.day}일차] 일당 ${fmt(w)} 크레딧을 못 줘서 용병들의 사기가 떨어졌어요 · 공격 -20%`, 'warn'), 9000); } } } if (S.wander) setTimeout(() => toast(`[${S.day}일차] 이름난 용병 ${S.wander.name}이(가) ${ZONES[S.wander.z].n} 고용소에 하루 머물러요`), 6000);
   { const int = Math.floor(S.bank * 0.01); let div = 0; for (const z of Object.keys(ZONES)) { div += Math.floor((S.invest[z] || 0) * 0.03); if (Math.random() < 0.5) S.rival[z] += Math.round(rand(20, 90) * ZONES[z].danger); }
     S.bank += int; S.money += div; if (int || div) setTimeout(() => toast(`[${S.day}일차] ${int ? `전장 이자 +${int}` : ''}${int && div ? ' · ' : ''}${div ? `마을 투자 배당 +${div}` : ''}`, 'good'), 3000); }
   for (const z of Object.keys(ZONES)) for (const g of Object.keys(GOODS)) S.drift[z][g] = clamp(S.drift[z][g] * rand(0.88, 1.14) + (1 - S.drift[z][g]) * 0.25, 0.6, 1.6);
@@ -541,10 +550,11 @@ function startBattle(opt) {
 }
 function spawn(side, type, lv, x, y, ref, boss) {
   const D = UNITS[type], st = unitStats(type, lv, boss);
-  if (ref) { const fm = FORMS[S.form] || FORMS.bal; st.atk *= fm.atk * (hungry() ? 0.7 : 1); st.def *= fm.def; }
+  if (!ref && side === 1) { const wm = wildMul(lv) * (boss ? 1.9 : 1); st.hp *= wm; st.atk *= wm * (boss ? 0.8 : 1); }
+  if (ref) { const fm = FORMS[S.form] || FORMS.bal; st.atk *= fm.atk * (hungry() ? 0.7 : 1) * (S.unpaid && UNITS[type].cls === 'human' ? 0.8 : 1); st.def *= fm.def; }
   if (ref) { const gm = gearMul(ref); st.hp *= gm.hp; st.atk *= gm.atk; st.def *= gm.def; st.size *= 1 + 0.07 * (ref.tier || 0); }
   const u = { id: B.idSeq++, side, type, lv, ref, boss, x, y, a: side ? Math.PI / 2 : -Math.PI / 2, hp: ref ? Math.min(ref.hp, st.hp) : st.hp, max: st.hp, atk: st.atk, def: st.def, size: st.size,
-              tier: ref ? ref.tier || 0 : 0, plv: ref ? ref.lv : 0, elite: !!(ref && ref.elite), sk: side === 0 ? (ref ? unitSkill(ref) : skillOf(type)) : null, skCd: rand(2, 6), guardT: 0, roarT: 0,
+              tier: ref ? ref.tier || 0 : 0, plv: ref ? ref.lv : 0, skLv: ref ? ref.skLv || 0 : 0, elite: !!(ref && ref.elite), sk: side === 0 ? (ref ? unitSkill(ref) : skillOf(type)) : null, skCd: rand(2, 6), guardT: 0, roarT: 0,
               range: D.range, as: D.as, spd: D.spd, cd: rand(0, 0.6), stun: 0, shred: 0, shredT: 0, leg: rand(0, 6), moving: false, hitT: 0 };
   B.units.push(u); return u;
 }
@@ -619,7 +629,7 @@ function attack(u, t) {
   let atk = u.atk * (u.roarT > 0 ? 1.25 : 1);
   if (D.pack) atk *= 1 + 0.15 * Math.min(3, alive(u.side).filter(o => o !== u && o.type === u.type && d2(o.x, o.y, u.x, u.y) < 90 * 90).length);
   const def = Math.max(0, t.def * (t.guardT > 0 ? 2 : 1) - t.shred * 2.5);
-  let dmg = atk * rand(0.85, 1.15) * 40 / (40 + def), crit = Math.random() < (D.crit || 0.08) + (u.plv >= 30 ? 0.1 : 0);
+  let dmg = atk * lvEdge(u, t) * rand(0.85, 1.15) * 40 / (40 + def), crit = Math.random() < (D.crit || 0.08) + (u.plv >= 30 ? 0.1 : 0);
   if (crit) dmg *= 1.8;
   const ranged = u.range > 40;
   B.fx.push({ t: ranged ? 0.25 : 0.15, kind: D.acid ? 'acid' : u.turret || D.gun ? 'bullet' : D.bow ? 'arrow' : ranged ? 'dart' : 'bite', x: u.x, y: u.y, x2: t.x, y2: t.y });
@@ -668,9 +678,9 @@ function onKill(u, t) {
     if (t.boss) { SHAKE = 1; flash(0.55); } else if (big) SHAKE = Math.max(SHAKE, 0.6);
     if (t.side === 0) { flash(0.25, '212,87,60'); sfx('down', 300); } }
   if (t.side === 1) {
-    B.xp += 12 * t.lv * (t.boss ? 6 : 1);
-    if (B.opt.kind !== 'escort') for (const [g, k] of Object.entries(ZONES[B.opt.zone].loot)) { const x = k * (t.size / 20) * rand(0.6, 1.3) * (1 + 0.15 * sk('loot')) * 0.24 * (t.boss ? 4 : 1), n = Math.floor(x) + (Math.random() < x % 1 ? 1 : 0); if (n) B.loot[g] = (B.loot[g] || 0) + n; }
-    B.money = (B.money || 0) + Math.round((t.size * 1.6 + t.lv * 3) * (t.boss ? 6 : 1) * rand(0.8, 1.2) * (1 + 0.1 * sk('loot')));
+    B.xp += 9 * t.lv * (t.boss ? 8 : 1);
+    if (B.opt.kind !== 'escort') for (const [g, k] of Object.entries(ZONES[B.opt.zone].loot)) { const x = k * (t.size / 20) * rand(0.6, 1.3) * (1 + 0.15 * sk('loot')) * 0.18 * (t.boss ? 5 : 1), n = Math.floor(x) + (Math.random() < x % 1 ? 1 : 0); if (n) B.loot[g] = (B.loot[g] || 0) + n; }
+    B.money = (B.money || 0) + Math.round((t.size * 1.2 + t.lv * 2.2) * (t.boss ? 8 : 1) * rand(0.8, 1.2) * (1 + 0.1 * sk('loot')));
     { const TL = TYPE_LOOT[MODEL_FILES[t.type]] || {}, own = t.type === 'compy' ? { meat: 1 } : t.type === 'dilo' ? { venom: 1, meat: 1 } : TL; for (const [g] of Object.entries(own)) if (Math.random() < 0.22) B.loot[g] = (B.loot[g] || 0) + 1; }
     if (t.type === 'dilo' || t.type === 'sarco') B.loot.venom = (B.loot.venom || 0) + (t.type === 'dilo' ? 1 : 0);
   } else if (t.ref) { t.ref.hp = 0; t.ref.ko = true; toast(`${unitName(t.ref)}가 쓰러졌어요`, 'warn'); }
@@ -720,7 +730,7 @@ function endBattle(win) {
     const ours = party();
     const share = Math.round(B.xp / Math.max(1, Math.sqrt(ours.length)));
     for (const u of ours) {
-      u.xp += u.ko ? Math.round(share * 0.3) : share;
+      { const elv = opt.foes.reduce((s, f) => s + f.lv, 0) / opt.foes.length, got = Math.max(1, Math.round(share * xpDiff(elv - u.lv))); u.xp += u.ko ? Math.round(got * 0.3) : got; }
       if (!u.ko) { const m0 = mastery(u); u.wins = (u.wins || 0) + 1; if (mastery(u) > m0) lines.push(`${unitName(u)}의 ${UNITS[u.type].cls === 'dino' ? '친밀도' : '숙련도'}가 '${MAST_N[mastery(u)]}'(으)로 올랐어요 · 공격 +3%, 체력 +2%`); }
       while (u.xp >= xpNeed(u.lv) && u.lv < 60) { u.xp -= xpNeed(u.lv); u.lv++; u.hp = Math.min(maxHp(u), u.hp + Math.round(maxHp(u) * 0.3)); u.pts = (u.pts || 0) + 3; { const pk = PERKS.find(p => p[0] === u.lv); lines.push(`${unitName(u)} Lv${u.lv} 달성 · 능력치 포인트 +3${pk ? ` · <b style="color:var(--amber)">${pk[1]}</b>` : ''}`); } lvUp = true; if (PROMO[u.tier || 0] && u.lv === PROMO[u.tier || 0].lv) lines.push(`<b style="color:var(--amber)">${unitName(u)}: ${UNITS[u.type].cls === 'dino' ? '진화' : '전직'}할 수 있어요</b> (상단 창에서)`); }
     }
@@ -744,6 +754,7 @@ function endBattle(win) {
 }
 function loseCargo(frac) { let lost = 0; for (const g of Object.keys(S.cargo)) { const k = Math.floor(S.cargo[g] * frac); S.cargo[g] -= k; lost += k; if (!S.cargo[g]) delete S.cargo[g]; } return lost; }
 function closeBattle() {
+  if (!B) return;
   const opt = B.opt; B = null; SND.mood = 'town'; SND.step = 0; closeModal();
   afterBattle(opt);
 }
@@ -1331,11 +1342,11 @@ function initWorld() {
   for (const z of ZKEYS) {
     GROUNDS[z].forEach(([gx, gy], i) => {
       if (i === 4) { const p = { z, g: 4, boss: true, cx: gx, cy: gy }; fillPack(p); W.packs.push(p); }
-      for (let n = 0, k = 0; n < (i === 4 ? 4 : 7) && k < 200; k++) { const a = R() * 6.28, r = (i === 4 ? 110 : 30) + R() * (GR - 60), x = gx + Math.cos(a) * r, y = gy + Math.sin(a) * r; if (!free(x, y, 96) || isWater(x, y)) continue; const p = { z, g: i === 4 ? 3 : i, cx: x, cy: y }; fillPack(p); W.packs.push(p); n++; }
+      for (let n = 0, k = 0; n < (i === 4 ? 6 : 13) && k < 400; k++) { const a = R() * 6.28, r = (i === 4 ? 110 : 30) + R() * (GR - 60), x = gx + Math.cos(a) * r, y = gy + Math.sin(a) * r; if (!free(x, y, 84) || isWater(x, y)) continue; const p = { z, g: i === 4 ? 3 : i, cx: x, cy: y }; fillPack(p); W.packs.push(p); n++; }
     });
   }
-  for (let n = 0, k = 0; n < 100 && k < 8000; k++) {   // lone herds out in the wilds between the named grounds
-    const x = 120 + R() * (WW - 240), y = 120 + R() * (WH - 240); if (nearTown(x, y, 420) || groundAt(x, y) || roadDist(x, y) < 70 || !free(x, y, 240) || isWater(x, y)) continue;
+  for (let n = 0, k = 0; n < 210 && k < 14000; k++) {   // lone herds out in the wilds between the named grounds
+    const x = 120 + R() * (WW - 240), y = 120 + R() * (WH - 240); if (nearTown(x, y, 420) || groundAt(x, y) || roadDist(x, y) < 70 || !free(x, y, 170) || isWater(x, y)) continue;
     const z = zoneAt(x, y), T = TOWNS[z], p = { z, g: clamp(Math.floor(Math.hypot(x - T.x, y - T.y) / 700), 0, 2), cx: x, cy: y }; fillPack(p); W.packs.push(p); n++;
   }
   // other caravans walking the roads, and people going about their day in each settlement
@@ -1385,7 +1396,7 @@ function engage(pack) {
   const joined = [pack]; let n = pack.mons.length;
   for (const p of [...W.packs].sort((a, b) => d2(a.cx, a.cy, pack.cx, pack.cy) - d2(b.cx, b.cy, pack.cx, pack.cy))) {
     if (p === pack || p.dead > 0 || p.boss) continue;
-    if (d2(p.cx, p.cy, pack.cx, pack.cy) < 150 * 150 && n + p.mons.length <= 8) { joined.push(p); n += p.mons.length; }
+    if (d2(p.cx, p.cy, pack.cx, pack.cy) < 120 * 120 && n + p.mons.length <= Math.min(10, W.crew.length + 1)) { joined.push(p); n += p.mons.length; }
   }
   const mons = joined.flatMap(p => p.mons), boss = mons.find(m => m.f.boss);
   W.target = null; W.lead.tx = null; W.dest = null;
@@ -1481,10 +1492,13 @@ function updSkbar(dt) {   // manual skill buttons, shown only when auto skills a
   el.innerHTML = B.units.filter(u => u.side === 0 && u.sk && u.hp > 0).map(u => `<button data-sk="${u.id}" ${u.skCd > 0 ? 'disabled' : ''}>${skName(u.sk, u.tier)}${u.skCd > 0 ? ' ' + Math.ceil(u.skCd) : ''}</button>`).join('');
 }
 $('skbar').addEventListener('pointerdown', e => { const b = e.target.closest('button'); if (!b || !B) return; const u = B.units.find(x => x.id === +b.dataset.sk); if (u && !castSkill(u)) toast('지금은 쓸 수 없어요 · 적이 사거리 밖이에요'); skT = 0; });
+const potPrice = () => 40 + 12 * Math.max(...S.units.map(u => u.lv));
 function usePotion() {
   if (S.pots < 1) { toast('회복약이 없어요 · 정착지 잡화점에서 살 수 있어요', 'warn'); sfx('deny'); return; }
-  if (B) { if (B.over) return; const us = B.units.filter(u => u.side === 0 && u.hp > 0 && !u.turret); if (!us.some(u => u.hp < u.max)) { toast('모두 체력이 가득해요'); return; } for (const u of us) { const h = Math.min(u.max - u.hp, u.max * 0.4); u.hp += h; if (h > 1) num(u, '+' + Math.round(h), '#8fbf6a'); burst(u.x, u.y, 4, 6, '#8fd36a', { spd: 14, up: 55, g: 0, life: 0.7 }); } }
-  else { const us = party(); if (!us.some(u => u.ko || u.hp < maxHp(u))) { toast('모두 체력이 가득해요'); return; } for (const u of us) { const mh = maxHp(u); u.hp = Math.min(mh, Math.round(u.hp + mh * 0.4)); u.ko = false; } syncCrew(); for (const c of W.crew) burst(c.x, c.y, 4, 6, '#8fd36a', { spd: 14, up: 55, g: 0, life: 0.7 }); toast('회복약을 써서 모두 체력을 채웠어요', 'good'); }
+  if (B && (W.potCd || 0) > W.t) { toast(`회복약은 ${Math.ceil(W.potCd - W.t)}초 뒤에 다시 쓸 수 있어요`); return; }
+  if (B) W.potCd = W.t + 15;
+  if (B) { if (B.over) return; const us = B.units.filter(u => u.side === 0 && u.hp > 0 && !u.turret); if (!us.some(u => u.hp < u.max)) { toast('모두 체력이 가득해요'); return; } for (const u of us) { const h = Math.min(u.max - u.hp, u.max * 0.3); u.hp += h; if (h > 1) num(u, '+' + Math.round(h), '#8fbf6a'); burst(u.x, u.y, 4, 6, '#8fd36a', { spd: 14, up: 55, g: 0, life: 0.7 }); } }
+  else { const us = party(); if (!us.some(u => u.ko || u.hp < maxHp(u))) { toast('모두 체력이 가득해요'); return; } for (const u of us) { const mh = maxHp(u); u.hp = Math.min(mh, Math.round(u.hp + mh * 0.3)); u.ko = false; } syncCrew(); for (const c of W.crew) burst(c.x, c.y, 4, 6, '#8fd36a', { spd: 14, up: 55, g: 0, life: 0.7 }); toast('회복약을 써서 모두 체력을 채웠어요', 'good'); }
   S.pots--; sfx('heal'); updPots(); save();
 }
 function updPots() { $('fPot').textContent = $('bPot').textContent = `회복약 ${S.pots}`; }
@@ -1752,7 +1766,7 @@ function renderTown() {
   }).join('');
   const jobRow = job ? `<div class="row"><div class="info"><b>작업 중: ${RECIPES[job.r].n}</b><div class="bar"><i style="width:${(1 - job.left / job.total) * 100}%;background:var(--amber)"></i></div><small>${job.total - job.left}/${job.total}회 완료 · 다른 구역에 다녀와도 계속 만들어요</small></div></div>` : '';
   const outRow = outs.length ? `<div class="row"><div class="info"><b>완성품</b><small>${outs.map(([g, k]) => `${g === 'dart' ? '마취 다트' : GOODS[g].n} ${k}개`).join(' · ')}</small></div><button class="btn small primary" data-act="collect">찾기</button></div>` : '';
-  const recruit = Z.recruit.map(t => { const D = UNITS[t]; return `<div class="row"><canvas data-u="${t}" width="104" height="80"></canvas><div class="info"><b>${D.n} <span class="tag">${D.role}</span></b><small>${D.ds}</small><small>체력 ${D.hp} · 공격 ${D.atk} · 짐 ${D.carry}칸</small></div><button class="btn small primary" data-act="hire" data-t="${t}" ${S.money < D.cost ? 'disabled' : ''}>${D.cost}</button></div>`; }).join('');
+  const recruit = Z.recruit.map(t => { const D = UNITS[t]; return `<div class="row"><canvas data-u="${t}" width="104" height="80"></canvas><div class="info"><b>${D.n} <span class="tag">${D.role}</span></b><small>${D.ds}</small><small>체력 ${D.hp} · 공격 ${D.atk} · 짐 ${D.carry}칸 · Lv${Math.max(1, Z.lv - 1)}로 합류 · 일당 ${wageOf({ type: t, lv: Math.max(1, Z.lv - 1) })}</small></div><button class="btn small primary" data-act="hire" data-t="${t}" ${S.money < hireCost(t, z) ? 'disabled' : ''}>${fmt(hireCost(t, z))}</button></div>`; }).join('');
   const tame = Z.tame.map(t => `${UNITS[t].n}(${UNITS[t].role})`).join(', ') + ` · 희귀종: ${Z.rare.map(t => S.dex[t] ? UNITS[t].n : '???').join(', ')} (깊은 곳에서 가끔 나와요)`;
   const hurt = S.units.filter(u => u.hp < maxHp(u) || u.ko), healCost = Math.round(S.units.reduce((s, u) => s + (maxHp(u) - u.hp), 0) * 0.12) + (hurt.length ? 5 : 0);
   const qReady = (S.quests[z] || []).filter(q => (q.type === 'deliver' ? (S.cargo[q.g] || 0) : q.prog) >= q.n).length;
@@ -1786,7 +1800,7 @@ function renderTown() {
       <div class="card">${cg.length ? cg.map(([g, k]) => `<div class="row"><div class="info"><b>${GOODS[g].n} ${k}개</b><small>짐칸에 있어요</small></div><button class="btn small" data-act="stIn" data-g="${g}">맡기기</button></div>`).join('') : ''}${st.map(([g, k]) => `<div class="row"><div class="info"><b>${GOODS[g].n} ${k}개</b><small>창고에 있어요</small></div><button class="btn small primary" data-act="stOut" data-g="${g}">찾기</button></div>`).join('')}${cg.length || st.length ? '' : '<div class="row"><div class="info"><small>맡긴 짐이 없어요</small></div></div>'}</div>`; })() : ''}
     ${townSec === 'store' ? `<h2>잡화점<small>필드에서 쓰는 물건을 팔아요</small></h2>
     <div class="card">
-      <div class="row"><div class="info"><b>회복약</b><small>필드나 전투 중에 쓰면 모두의 체력을 40% 채워요 · 전투 밖에서는 쓰러진 대원도 일어나요 · 보유 ${S.pots}개</small></div><button class="btn small" data-act="pot" data-n="1" ${S.money < 45 ? 'disabled' : ''}>45</button><button class="btn small primary" data-act="pot" data-n="5" ${S.money < 200 ? 'disabled' : ''}>5개 200</button></div>
+      <div class="row"><div class="info"><b>회복약</b><small>필드나 전투 중에 쓰면 모두의 체력을 30% 채워요 · 전투 중에는 15초에 한 번 · 전투 밖에서는 쓰러진 대원도 일어나요 · 대원 레벨이 오르면 값도 올라요 · 보유 ${S.pots}개</small></div><button class="btn small" data-act="pot" data-n="1" ${S.money < potPrice() ? 'disabled' : ''}>${potPrice()}</button><button class="btn small primary" data-act="pot" data-n="5" ${S.money < potPrice() * 5 ? 'disabled' : ''}>5개 ${potPrice() * 5}</button></div>
       <div class="row"><div class="info"><b>마취 다트</b><small>공룡 포획에 써요 · 보유 ${S.darts}개</small></div><button class="btn small" data-act="dart" data-n="1" ${S.money < 35 ? 'disabled' : ''}>35</button><button class="btn small" data-act="dart" data-n="5" ${S.money < 165 ? 'disabled' : ''}>5개 165</button></div>
       <div class="row"><div class="info"><b>귀환석</b><small>쓰면 가장 가까운 정착지로 바로 돌아와요 (지도에서 사용) · 보유 ${S.stones}개</small></div><button class="btn small" data-act="stone" ${S.money < 60 ? 'disabled' : ''}>60</button></div>
       <div class="row"><div class="info"><b>곡물 자루</b><small>먹으면 포만감 +15 · 배가 고프면 짐에서 알아서 꺼내 먹어요</small></div><button class="btn small" data-act="buy" data-g="grain" data-n="5" ${S.money < price(z, 'grain') * 5 ? 'disabled' : ''}>5개</button></div>
@@ -1810,7 +1824,7 @@ function renderParty() {
   const reserve = S.units.filter(u => !u.inParty);
   const psecs = [['crew', '대원', S.units.filter(u => u.inParty && u.pts > 0).length], ['rank', '순위'], ['bag', '가방', S.items.length], ['dex', '도감'], ['skill', '스킬', S.sp], ['cargo', '짐']];
   el.innerHTML = `<div class="card"><div class="row"><div class="info"><b>상단 Lv${S.clv} · ${P.length}/${partyCap()}명</b><div class="bar"><i style="width:${S.cxp / cxpNeed(S.clv) * 100}%;background:var(--amber)"></i></div><small>상단 경험치 ${S.cxp}/${cxpNeed(S.clv)} · 장사, 사냥, 의뢰로 올라요 · 레벨마다 인원 +1(최대 12)</small><small>짐칸 ${cargoUsed()}/${capacity()} · 전투 ${S.stats.battles} · 포획 ${S.stats.captures}</small></div><button class="btn small" data-act="snd">${['소리 끔', '효과음만', '소리 켬'][S.snd]}</button></div></div>${chips(psecs, partySec, 'psec')}
-    ${partySec === 'crew' ? `<h2>자동 설정</h2><div class="card">${[['skill', '스킬 자동 사용', '대원이 준비된 스킬을 알아서 써요 · 끄면 전투 중에 스킬 버튼이 나와요'], ['pot', '회복약 자동 사용', '누군가 체력 30% 아래로 떨어지면 알아서 마셔요'], ['hunt', '자동 사냥', '가까운 무리를 계속 찾아가 사냥해요']].map(([k, n, d]) => `<div class="row"><div class="info"><b>${n}</b><small>${d}</small></div><button class="btn small ${S.auto[k] ? 'primary' : ''}" data-act="auto" data-k="${k}">${S.auto[k] ? '켜짐' : '꺼짐'}</button></div>`).join('')}</div><h2>진형<small>${FORMS[S.form].ds}</small></h2>${chips(Object.entries(FORMS).map(([k, f]) => [k, f.n]), S.form, 'form')}<h2>출전 대원<small>상단 전투력 ${fmt(partyPower())} · 포만감 ${Math.ceil(S.food)}/100</small></h2><div class="card">${P.map(row).join('')}</div>
+    ${partySec === 'crew' ? `<h2>자동 설정</h2><div class="card">${[['skill', '스킬 자동 사용', '대원이 준비된 스킬을 알아서 써요 · 끄면 전투 중에 스킬 버튼이 나와요'], ['pot', '회복약 자동 사용', '누군가 체력 30% 아래로 떨어지면 알아서 마셔요 (전투 중 15초에 한 번)'], ['hunt', '자동 사냥', '가까운 무리를 계속 찾아가 사냥해요']].map(([k, n, d]) => `<div class="row"><div class="info"><b>${n}</b><small>${d}</small></div><button class="btn small ${S.auto[k] ? 'primary' : ''}" data-act="auto" data-k="${k}">${S.auto[k] ? '켜짐' : '꺼짐'}</button></div>`).join('')}</div><h2>진형<small>${FORMS[S.form].ds}</small></h2>${chips(Object.entries(FORMS).map(([k, f]) => [k, f.n]), S.form, 'form')}<h2>출전 대원<small>상단 전투력 ${fmt(partyPower())} · 포만감 ${Math.ceil(S.food)}/100 · 용병 일당 하루 ${fmt(wages())}${S.unpaid ? ' <b style="color:var(--bad)">(밀림 · 공격 -20%)</b>' : ''}</small></h2><div class="card">${P.map(row).join('')}</div>
     <h2>대기 대원<small>정착지 우리에서 쉬어요</small></h2><div class="card">${reserve.length ? reserve.map(row).join('') : '<div class="row"><div class="info"><small>없어요. 사냥터에서 공룡을 포획하거나 고용소에서 대원을 구하세요</small></div></div>'}</div>` : ''}
     ${partySec === 'bag' ? `<h2>우두머리 증표<small>변이 진화와 특수 전직에 써요 · 우두머리를 잡으면 하나씩 얻어요</small></h2><div class="card"><div class="row"><div class="info"><small style="color:var(--text)">${Object.entries(S.tokens).filter(([, k]) => k > 0).map(([k, n]) => `${TOKEN_N[k]} ${n}개`).join(' · ') || '아직 없어요'}</small><small>공룡 알: ${Object.entries(S.eggBag).filter(([, k]) => k > 0).map(([ez, k]) => `${ZONES[ez].n} ${k}개`).join(' · ') || '없음'}</small></div></div></div><h2>가방<small>장비 ${S.items.length}/${BAG_MAX} · 대원의 관리 버튼에서 착용해요</small></h2><div class="card">${S.items.length ? [...S.items].sort((a, b) => b.r - a.r || b.lv - a.lv).map(it => `<div class="row"><div class="info"><b>${itemName(it)}</b><small>${SLOTS[it.slot]} · Lv${it.lv} · ${itemText(it)}</small></div><button class="btn small" data-act="sellItem" data-it="${it.id}">${itemPrice(it)}에 팔기</button></div>`).join('') : '<div class="row"><div class="info"><small>아직 얻은 장비가 없어요. 사냥에서 이기면 가끔 떨어져요</small></div></div>'}</div>` : ''}
     ${partySec === 'rank' ? (() => { const me = partyPower(), list = [...RANKS.map(r => [r[0], r[1], 0]), ['내 상단', me, 1]].sort((a, b) => b[1] - a[1]), up = list[list.findIndex(r => r[2]) - 1];
@@ -1836,16 +1850,17 @@ function unitModal(id) {
     return `<div class="row"><div class="info"><b>${label} ${lv}/3단계</b><small>${eff}${lv < 3 ? ` · 다음 단계: ${GOODS[item].n} ${need}개 (보유 ${have})` : ''}</small></div><button class="btn small primary" data-act="gear" data-id="${u.id}" data-k="${key}" ${lv >= 3 || have < need ? 'disabled' : ''}>${lv >= 3 ? '최고' : '강화'}</button></div>`; };
   const names = dino ? TIER_DINO : TIER_HUMAN;
   showModal(`<canvas data-u="${u.type}" data-t="${u.tier || 0}" width="156" height="120" style="width:156px;height:120px;align-self:center"></canvas><h3>${unitName(u)}</h3><div class="sub">Lv${u.lv} · ${D.role} · 전투력 <b style="color:var(--amber)">${fmt(powerOf(u))}</b></div>
-    <div class="card"><div class="row"><div class="info"><b>능력치 포인트 ${u.pts || 0}</b><small>레벨이 오를 때마다 3 · 공격 ${u.st.a} (각 +2.5%) · 체력 ${u.st.h} (각 +3%) · 방어 ${u.st.d} (각 +4%)</small></div>${[['a', '공격'], ['h', '체력'], ['d', '방어'], ['auto', '알아서']].map(([k, n]) => `<button class="btn small ${k === 'auto' ? 'primary' : ''}" data-act="stat" data-id="${u.id}" data-k="${k}" ${u.pts > 0 ? '' : 'disabled'}>${n}</button>`).join('')}</div>
-    <div class="row"><div class="info"><b>${dino ? '친밀도' : '숙련도'}: ${MAST_N[mastery(u)]} (${mastery(u)}/10)</b><div class="bar"><i style="width:${mastery(u) >= 10 ? 100 : Math.min(100, (u.wins || 0) / masteryNext(u) * 100)}%;background:var(--amber)"></i></div><small>함께 이긴 전투 ${u.wins || 0}번${mastery(u) < 10 ? ` · 다음 단계까지 ${masteryNext(u) - (u.wins || 0)}번` : ''} · 지금 효과: 공격 +${mastery(u) * 3}%, 체력 +${mastery(u) * 2}%</small></div>${dino ? `<button class="btn small" data-act="feed" data-id="${u.id}" ${S.cargo.meat && mastery(u) < 10 ? '' : 'disabled'}>고기 주기</button>` : ''}</div>
+    <div class="card"><div class="row"><div class="info"><b>능력치 포인트 ${u.pts || 0}</b><small>레벨이 오를 때마다 3 · 공격 ${u.st.a} (각 +1%) · 체력 ${u.st.h} (각 +1.2%) · 방어 ${u.st.d} (각 +1.5%)</small></div>${[['a', '공격'], ['h', '체력'], ['d', '방어'], ['auto', '알아서']].map(([k, n]) => `<button class="btn small ${k === 'auto' ? 'primary' : ''}" data-act="stat" data-id="${u.id}" data-k="${k}" ${u.pts > 0 ? '' : 'disabled'}>${n}</button>`).join('')}</div>
+    <div class="row"><div class="info"><b>${dino ? '친밀도' : '숙련도'}: ${MAST_N[mastery(u)]} (${mastery(u)}/10)</b><div class="bar"><i style="width:${mastery(u) >= 10 ? 100 : Math.min(100, (u.wins || 0) / masteryNext(u) * 100)}%;background:var(--amber)"></i></div><small>함께 이긴 전투 ${u.wins || 0}번${mastery(u) < 10 ? ` · 다음 단계까지 ${masteryNext(u) - (u.wins || 0)}번` : ''} · 지금 효과: 공격 +${mastery(u) * 3}%, 체력 +${mastery(u) * 2}%</small></div>${dino ? `<button class="btn small" data-act="feed" data-id="${u.id}" ${S.cargo.meat >= 3 && mastery(u) < 10 ? '' : 'disabled'}>고기 3개 주기</button>` : ''}</div>
     <div class="row"><div class="info"><b>성장 단계</b>${PERKS.map(([lv, n]) => `<small style="color:${u.lv >= lv ? 'var(--good, #8fbf6a)' : 'var(--muted)'}">${u.lv >= lv ? '✓' : '·'} Lv${lv} ${n}</small>`).join('')}</div></div></div>
     <div class="card"><div class="row"><div class="info"><small style="color:var(--text)">체력 ${maxHp(u)} · 공격 ${Math.round(D.atk * lvMul(u.lv) * gm.atk)} · 방어 ${Math.round(D.def * (1 + 0.05 * (u.lv - 1)) * gm.def)} · 짐 ${carryOf(u)}칸</small></div></div>
     ${gearRow('gw', 'weapon', dino ? '발톱 덮개 단련' : '무기 단련', '공방 제작품으로 강화 · 단계마다 공격 +15%')}
     ${gearRow('ga', 'armor', dino ? '갑주 보강' : '방어구 보강', '공방 제작품으로 강화 · 단계마다 방어 +25%, 체력 +10%')}
-    ${Object.entries(SLOTS).map(([sl, sn]) => { const it = (u.eq || {})[sl], n = S.items.filter(x => x.slot === sl).length; return `<div class="row"><div class="info"><b>착용 ${sn}: ${it ? itemName(it) : '<span style="color:var(--muted)">비어 있음</span>'}</b><small>${it ? itemText(it) + ` · Lv${it.lv}` : '사냥터에서 얻은 장비를 착용해요'} · 가방에 ${n}개</small></div><button class="btn small" data-act="pickItem" data-id="${u.id}" data-slot="${sl}" ${n || it ? '' : 'disabled'}>교체</button></div>`; }).join('')}
+    ${Object.entries(SLOTS).map(([sl, sn]) => { const it = (u.eq || {})[sl], n = S.items.filter(x => x.slot === sl).length; return `<div class="row"><div class="info"><b>착용 ${sn}: ${it ? itemName(it) : '<span style="color:var(--muted)">비어 있음</span>'}</b><small>${it ? itemText(it) + ` · Lv${it.lv}${(it.en || 0) < ENH_MAX ? ` · 강화 성공률 ${Math.round(enhRate(it) * 100)}%` : ''}` : '사냥터에서 얻은 장비를 착용해요'} · 가방에 ${n}개</small></div>${it ? `<button class="btn small primary" data-act="enh" data-id="${u.id}" data-slot="${sl}" ${(it.en || 0) >= ENH_MAX || S.money < enhCost(it) ? 'disabled' : ''}>${(it.en || 0) >= ENH_MAX ? '최고' : `강화 ${fmt(enhCost(it))}`}</button>` : ''}<button class="btn small" data-act="pickItem" data-id="${u.id}" data-slot="${sl}" ${n || it ? '' : 'disabled'}>교체</button></div>`; }).join('')}
+    ${unitSkill(u) ? `<div class="row"><div class="info"><b>스킬 수련 ${u.skLv || 0}/10</b><small>${skName(unitSkill(u), tier)}의 위력이 단계마다 +8% · 지금 +${(u.skLv || 0) * 8}%</small></div><button class="btn small primary" data-act="train" data-id="${u.id}" ${(u.skLv || 0) >= 10 || S.money < trainCost(u) ? 'disabled' : ''}>${(u.skLv || 0) >= 10 ? '최고' : fmt(trainCost(u))}</button></div>` : ''}
     <div class="row"><div class="info"><b>${dino ? '진화' : '전직'}: ${tier >= 2 ? '최고 단계' : tierNameOf(u.type, tier + 1)}</b><small>${tier >= 2 ? '더 오를 단계가 없어요' : `체력과 공격 +30% · 겉모습이 바뀌어요${u.type === 'porter' ? ` · 짐칸 ${carryOf(u)} → ${carryOf({ ...u, tier: tier + 1 })}칸` : ''}${skillOf(u.type) ? ` · 스킬이 ${skName(skillOf(u.type), tier + 1)}(으)로 바뀌어요: ${skDesc(skillOf(u.type), tier + 1)}` : ''} · 조건: Lv${P.lv}, 상단 Lv${P.clv}, ${P.cost} 크레딧`}</small></div><button class="btn small primary" data-act="promote" data-id="${u.id}" ${tier >= 2 || u.lv < P.lv || S.clv < P.clv || S.money < P.cost ? 'disabled' : ''}>${tier >= 2 ? '완료' : dino ? '진화' : '전직'}</button></div></div>
-    ${dino && MUT[u.type] ? MUT[u.type].map(([to, tk]) => `<div class="row"><div class="info"><b style="color:var(--amber)">변이 진화: ${UNITS[to].n}</b><small>${UNITS[to].ds} · 레벨과 능력치는 그대로 · 조건: Lv20, ${TOKEN_N[tk]} 1개 (보유 ${S.tokens[tk] || 0}), 500 크레딧</small></div><button class="btn small primary" data-act="mutate" data-id="${u.id}" data-to="${to}" data-tk="${tk}" ${u.lv < 20 || !(S.tokens[tk] > 0) || S.money < 500 ? 'disabled' : ''}>변이</button></div>`).join('') : ''}
-    ${!dino && ELITE[u.type] && !u.elite ? `<div class="row"><div class="info"><b style="color:var(--amber)">특수 전직: ${ELITE[u.type].n}</b><small>${ELITE[u.type].ds} · 체력과 공격 +25% · 스킬을 30% 더 자주 써요 · 조건: 2차 전직 완료, ${TOKEN_N[ELITE[u.type].token]} 1개 (보유 ${S.tokens[ELITE[u.type].token] || 0}), 1,000 크레딧</small></div><button class="btn small primary" data-act="elite" data-id="${u.id}" ${tier < 2 || !(S.tokens[ELITE[u.type].token] > 0) || S.money < 1000 ? 'disabled' : ''}>전직</button></div>` : ''}
+    ${dino && MUT[u.type] ? MUT[u.type].map(([to, tk]) => `<div class="row"><div class="info"><b style="color:var(--amber)">변이 진화: ${UNITS[to].n}</b><small>${UNITS[to].ds} · 레벨과 능력치는 그대로 · 조건: Lv20, ${TOKEN_N[tk]} 1개 (보유 ${S.tokens[tk] || 0}), 8,000 크레딧</small></div><button class="btn small primary" data-act="mutate" data-id="${u.id}" data-to="${to}" data-tk="${tk}" ${u.lv < 20 || !(S.tokens[tk] > 0) || S.money < 8000 ? 'disabled' : ''}>변이</button></div>`).join('') : ''}
+    ${!dino && ELITE[u.type] && !u.elite ? `<div class="row"><div class="info"><b style="color:var(--amber)">특수 전직: ${ELITE[u.type].n}</b><small>${ELITE[u.type].ds} · 체력과 공격 +25% · 스킬을 30% 더 자주 써요 · 조건: 2차 전직 완료, ${TOKEN_N[ELITE[u.type].token]} 1개 (보유 ${S.tokens[ELITE[u.type].token] || 0}), 20,000 크레딧</small></div><button class="btn small primary" data-act="elite" data-id="${u.id}" ${tier < 2 || !(S.tokens[ELITE[u.type].token] > 0) || S.money < 20000 ? 'disabled' : ''}>전직</button></div>` : ''}
     <div class="sub" style="margin:0">강철 무기는 무너진 도시 공방, 가죽 갑옷은 잿빛 평원 공방에서 만들어요</div>
     <div class="mbtns"><button class="btn" data-act="close">닫기</button>${u.type === 'leader' ? '' : `<button class="btn" style="color:var(--bad)" data-act="dismiss" data-id="${u.id}">${dino ? '놓아주기' : '내보내기'}</button>`}</div>`);
 }
@@ -1883,7 +1898,7 @@ function addRare(foes, z, chance) {
 }
 function huntFoes(z, tier) {
   const Z = ZONES[z], H = HUNTS[tier];
-  if (H.boss) return [{ type: BOSSES[Z.boss].base, lv: (Z.bossLv || zl(Z, 6)), boss: Z.boss }, { type: pick(Z.wild), lv: zl(Z, 4) }, { type: pick(Z.wild), lv: zl(Z, 4) }];
+  if (H.boss) return [{ type: BOSSES[Z.boss].base, lv: (Z.bossLv || zl(Z, 6)), boss: Z.boss }, ...Array.from({ length: 4 }, () => ({ type: pick(Z.wild), lv: zl(Z, 4) }))];
   const n = H.n[0] + Math.round(Math.random() * (H.n[1] - H.n[0]));
   return addRare(Array.from({ length: n }, () => ({ type: pick(Z.wild), lv: zl(Z, H.lv[0] + rand(0, H.lv[1] - H.lv[0])) })), z, H.rare);
 }
@@ -1892,7 +1907,7 @@ document.body.addEventListener('click', e => {
   const act = b.dataset.act, z = S.zone;
   if (act === 'buy') { const g = b.dataset.g; let n = b.dataset.n === 'max' ? 40 : +b.dataset.n, spent = 0; while (n-- > 0 && S.money >= price(z, g) && cargoUsed() < capacity()) { const p = price(z, g); S.money -= p; spent += p; S.cargo[g] = (S.cargo[g] || 0) + 1; S.press[z][g] += 0.025; } if (spent) { sfx('coin'); S.stats.trades++; } }
   else if (act === 'sell') { const g = b.dataset.g; let got = 0; while (S.cargo[g] > 0) { const p = sellPrice(z, g); S.money += p; got += p; S.cargo[g]--; S.press[z][g] = Math.max(0.4, S.press[z][g] - 0.022); } delete S.cargo[g]; S.stats.earned += got; gainCxp(got / 12); sfx('coin'); toast(`${GOODS[g].n}을 팔아 ${got} 크레딧`, 'good'); }
-  else if (act === 'hire') { const t = b.dataset.t, D = UNITS[t]; if (S.money < D.cost) return; S.money -= D.cost; const u = addUnit(t, Math.max(1, ZONES[z].lv - 1), party().length < partyCap()); sfx('coin'); toast(`${D.n}을 고용했어요${u.inParty ? '' : ' (상단이 가득 차 대기)'}`, 'good'); }
+  else if (act === 'hire') { const t = b.dataset.t, D = UNITS[t], hc = hireCost(t, z); if (S.money < hc) return; S.money -= hc; const u = addUnit(t, Math.max(1, ZONES[z].lv - 1), party().length < partyCap()); sfx('coin'); toast(`${D.n}을 고용했어요${u.inParty ? '' : ' (상단이 가득 차 대기)'}`, 'good'); }
   else if (act === 'aid') { for (const u of S.units) { const mh = maxHp(u); u.hp = Math.max(u.hp, Math.round(mh * 0.5)); u.ko = false; } toast('구호소에서 쉬고 모두 일어났어요', 'good'); sfx('arrive'); }
   else if (act === 'heal') { const cost = +b.dataset.cost; if (S.money < cost) return; S.money -= cost; for (const u of S.units) { u.hp = maxHp(u); u.ko = false; } toast('모두 푹 쉬었어요', 'good'); sfx('arrive'); }
   else if (act === 'dep') { const n = Math.min(S.money, +b.dataset.n); if (n <= 0) return; S.money -= n; S.bank += n; sfx('coin'); toast(`전장에 ${fmt(n)} 크레딧을 맡겼어요`); }
@@ -1910,13 +1925,15 @@ document.body.addEventListener('click', e => {
     const back = Math.round((UNITS[u.type].cost || 60) * 0.3 + u.lv * 10); S.money += back; S.units = S.units.filter(x => x !== u);
     toast(`${unitName(u)}${UNITS[u.type].cls === 'dino' ? '을(를) 야생으로 돌려보냈어요' : '와(과) 작별했어요'} · 착용 장비는 가방으로 · 위로금 ${back} 크레딧`); sfx('tap'); syncCrew(); closeModal(); save(); renderAll(); return;
   }
-  else if (act === 'mutate') { const u = S.units.find(x => x.id === +b.dataset.id), tk = b.dataset.tk; if (!u || u.lv < 20 || !(S.tokens[tk] > 0) || S.money < 500) return; S.tokens[tk]--; S.money -= 500; const r = u.hp / maxHp(u); u.type = b.dataset.to; u.hp = Math.round(maxHp(u) * r); S.dex[u.type] = 2; sfx('win'); flash(0.7); toast(`${unitName(u)}(으)로 변이했어요!`, 'good'); syncCrew(); checkRank(); save(); renderAll(); unitModal(u.id); return; }
-  else if (act === 'elite') { const u = S.units.find(x => x.id === +b.dataset.id), E = u && ELITE[u.type]; if (!E || u.elite || (u.tier || 0) < 2 || !(S.tokens[E.token] > 0) || S.money < 1000) return; S.tokens[E.token]--; S.money -= 1000; u.elite = true; u.hp = maxHp(u); u.ko = false; sfx('win'); flash(0.7); toast(`${E.n}(으)로 특수 전직했어요!`, 'good'); syncCrew(); checkRank(); save(); renderAll(); unitModal(u.id); return; }
+  else if (act === 'mutate') { const u = S.units.find(x => x.id === +b.dataset.id), tk = b.dataset.tk; if (!u || u.lv < 20 || !(S.tokens[tk] > 0) || S.money < 8000) return; S.tokens[tk]--; S.money -= 8000; const r = u.hp / maxHp(u); u.type = b.dataset.to; u.hp = Math.round(maxHp(u) * r); S.dex[u.type] = 2; sfx('win'); flash(0.7); toast(`${unitName(u)}(으)로 변이했어요!`, 'good'); syncCrew(); checkRank(); save(); renderAll(); unitModal(u.id); return; }
+  else if (act === 'elite') { const u = S.units.find(x => x.id === +b.dataset.id), E = u && ELITE[u.type]; if (!E || u.elite || (u.tier || 0) < 2 || !(S.tokens[E.token] > 0) || S.money < 20000) return; S.tokens[E.token]--; S.money -= 20000; u.elite = true; u.hp = maxHp(u); u.ko = false; sfx('win'); flash(0.7); toast(`${E.n}(으)로 특수 전직했어요!`, 'good'); syncCrew(); checkRank(); save(); renderAll(); unitModal(u.id); return; }
   else if (act === 'incubate') { const ez = b.dataset.z; if (!(S.eggBag[ez] > 0) || S.eggs.length >= 3) return; S.eggBag[ez]--; S.eggs.push({ z: ez, t: 150 }); sfx('tap'); }
   else if (act === 'hatch') { const e = S.eggs[+b.dataset.i]; if (!e || e.t > 0) return; S.eggs.splice(+b.dataset.i, 1); const r = hatchEgg(e); sfx(r.rare ? 'win' : 'capture'); if (r.rare) flash(0.7); toast(`${r.rare ? '희귀종! ' : ''}${UNITS[r.u.type].n} 새끼가 태어났어요${r.inP ? '' : ' (대기)'}`, 'good'); syncCrew(); }
   else if (act === 'famed') { const w = S.wander; if (!w || w.gone || w.z !== z || S.money < w.cost) return; S.money -= w.cost; const u = addUnit(w.type, w.lv, party().length < partyCap()); u.name = w.name; u.famed = true; u.tier = 1; u.hp = maxHp(u); w.gone = true; sfx('win'); toast(`${w.name}이(가) 상단에 합류했어요${u.inParty ? '' : ' (대기)'}`, 'good'); syncCrew(); checkRank(); }
+  else if (act === 'enh') { const u = S.units.find(x => x.id === +b.dataset.id), it = u && (u.eq || {})[b.dataset.slot]; if (!it || (it.en || 0) >= ENH_MAX) return; const c = enhCost(it); if (S.money < c) return; S.money -= c; const r = u.hp / maxHp(u); if (Math.random() < enhRate(it)) { it.en = (it.en || 0) + 1; sfx('win'); toast(`강화 성공! ${it.n} +${it.en}`, 'good'); } else { sfx('deny'); toast('강화에 실패했어요 · 장비는 그대로예요', 'warn'); } u.hp = Math.round(maxHp(u) * r); checkRank(); save(); renderAll(); unitModal(u.id); return; }
+  else if (act === 'train') { const u = S.units.find(x => x.id === +b.dataset.id); if (!u || (u.skLv || 0) >= 10) return; const c = trainCost(u); if (S.money < c) return; S.money -= c; u.skLv = (u.skLv || 0) + 1; sfx('capture'); toast(`스킬 수련 ${u.skLv}단계 · 위력 +${u.skLv * 8}%`, 'good'); save(); renderAll(); unitModal(u.id); return; }
   else if (act === 'stat') { const u = S.units.find(x => x.id === +b.dataset.id); if (!u || !(u.pts > 0)) return; const r = u.hp / maxHp(u); if (b.dataset.k === 'auto') { const pref = { '탱커': 'h', '짐꾼': 'h', '회복': 'h' }[UNITS[u.type].role] || 'a'; while (u.pts > 0) { const k = u.pts % 3 === 0 ? 'd' : u.pts % 3 === 1 ? pref : (pref === 'a' ? 'h' : 'a'); u.st[k]++; u.pts--; } } else { u.st[b.dataset.k]++; u.pts--; } u.hp = Math.round(maxHp(u) * r); sfx('capture'); checkRank(); save(); renderAll(); unitModal(u.id); return; }
-  else if (act === 'feed') { const u = S.units.find(x => x.id === +b.dataset.id); if (!u || !S.cargo.meat) return; S.cargo.meat--; if (!S.cargo.meat) delete S.cargo.meat; u.wins = (u.wins || 0) + 1; sfx('heal'); save(); renderAll(); unitModal(u.id); return; }
+  else if (act === 'feed') { const u = S.units.find(x => x.id === +b.dataset.id); if (!u || !(S.cargo.meat >= 3)) return; S.cargo.meat -= 3; if (!S.cargo.meat) delete S.cargo.meat; u.wins = (u.wins || 0) + 1; sfx('heal'); save(); renderAll(); unitModal(u.id); return; }
   else if (act === 'form') { S.form = b.dataset.k; sfx('tap'); }
   else if (act === 'npcBuy' || act === 'npcSell') {
     const n = W.npcs[+b.dataset.i], o = n && n.offer; if (!o) return;
@@ -1924,7 +1941,7 @@ document.body.addEventListener('click', e => {
     else { let k = 0, got = 0; while (o.bn > 0 && S.cargo[o.bg] > 0) { S.cargo[o.bg]--; o.bn--; S.money += o.bp; got += o.bp; k++; } if (!S.cargo[o.bg]) delete S.cargo[o.bg]; if (!k) { toast(`${GOODS[o.bg].n}이(가) 없어요`, 'warn'); return; } S.stats.earned += got; gainCxp(got / 12); toast(`${GOODS[o.bg].n} ${k}개를 팔아 ${got} 크레딧`, 'good'); }
     sfx('coin'); S.stats.trades++; save(); renderHeader(); npcModal(+b.dataset.i); return;
   }
-  else if (act === 'pot') { const n = +b.dataset.n, cost = n === 5 ? 200 : 45; if (S.money < cost) return; S.money -= cost; S.pots += n; sfx('coin'); }
+  else if (act === 'pot') { const n = +b.dataset.n, cost = potPrice() * n; if (S.money < cost) return; S.money -= cost; S.pots += n; sfx('coin'); }
   else if (act === 'stone') { if (S.money < 60) return; S.money -= 60; S.stones++; sfx('coin'); }
   else if (act === 'recall') { if (S.stones < 1 || B) return; S.stones--; const near = nearestTown(), T = TOWNS[near.z]; W.lead.x = T.x; W.lead.y = T.y + 60; W.lead.tx = null; W.dest = null; W.target = null; for (const c of W.crew) { c.x = T.x; c.y = T.y + 60; } W.cam.x = T.x; W.cam.y = T.y; S.pos = { x: T.x, y: T.y + 60 }; flash(0.8); sfx('arrive'); showWorld(); return; }
   else if (act === 'dart') { const n = +b.dataset.n, cost = n === 5 ? 165 : 35; if (S.money < cost) return; S.money -= cost; S.darts += n; sfx('coin'); }
@@ -2008,7 +2025,7 @@ loadModels((n, t) => { const el = $('loadTxt'); if (el) el.textContent = `공룡
   const el = $('loadTxt'); if (el) el.textContent = '픽셀 월드 그리는 중…';
   setTimeout(() => { setView('party'); showWorld(); if (S.stats.battles === 0) toast('땅을 눌러 걷고, 건물을 누르면 시장·여관을 쓸 수 있어요'); }, 60);
 });
-window.__dino = { get S() { return S; }, get B() { return B; }, get W() { return W; }, addUnit, VO: () => VO, walkTo, TOWNS, GROUNDS, SPR };
+window.__dino = { get S() { return S; }, get B() { return B; }, get W() { return W; }, set speed(v) { bSpeed = v; }, addUnit, xpNeed, partyPower, groundPower, VO: () => VO, walkTo, TOWNS, GROUNDS, SPR };
 requestAnimationFrame(frame);
 })();
 </script>
