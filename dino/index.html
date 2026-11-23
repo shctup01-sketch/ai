@@ -81,17 +81,25 @@ h2 small { font-family: var(--f-body); font-size: 11px; color: var(--muted); mar
 .bhead small { color: var(--muted); font-size: 11px; }
 .bfield { flex: 1; min-height: 0; position: relative; }
 #bcv, #b3d { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+.dexg { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.dexc { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 4px 3px 6px; text-align: center; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.dexc canvas { width: 100%; height: 44px; }
+.dexc b { font-size: 10px; font-weight: 600; overflow-wrap: anywhere; line-height: 1.25; }
+.dexc small { font-size: 9px; color: var(--muted); }
+.dexc.unk canvas { filter: brightness(0) opacity(.45); }
+.dexc.own { border-color: var(--amber); }
 #loading { display: flex; flex-direction: column; gap: 8px; align-items: center; justify-content: center; min-height: 60%; color: var(--muted); }
-#bTip { position: absolute; left: 50%; top: 8px; transform: translateX(-50%); font-size: 11px; color: #d8cdb9; background: rgba(18,14,10,.7); padding: 3px 9px; border-radius: 10px; pointer-events: none; white-space: nowrap; }
+#bTip { animation: tipfade 6s forwards; position: absolute; left: 50%; top: 8px; transform: translateX(-50%); font-size: 11px; color: #d8cdb9; background: rgba(18,14,10,.7); padding: 3px 9px; border-radius: 10px; pointer-events: none; white-space: nowrap; }
 #bSel { position: absolute; left: 8px; right: 8px; bottom: 8px; background: rgba(18,14,10,.86); border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; font-size: 12px; display: flex; gap: 8px; align-items: center; pointer-events: none; }
 #bSel .bar { flex: 1; } #bSel .bar i { background: var(--bad); }
 .bfoot { display: flex; gap: 6px; padding: 7px max(12px, env(safe-area-inset-right, 0px)) 9px max(12px, env(safe-area-inset-left, 0px)); }
-.bfoot .btn { flex: 1; padding: 11px 6px; font-size: 13px; }
+.bfoot .btn { flex: 1; padding: 11px 4px; font-size: 13px; }
 #modal { position: absolute; inset: 0; z-index: 40; background: rgba(8,6,4,.72); display: grid; place-items: center; padding: 20px max(16px, env(safe-area-inset-right, 0px)) 20px max(16px, env(safe-area-inset-left, 0px)); }
 .mcard { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px 16px; width: 100%; max-width: 360px; max-height: 100%; overflow-y: auto; display: flex; flex-direction: column; gap: 11px; animation: pop .22s ease-out; }
 .mcard h3 { font-family: var(--f-display); font-weight: 400; font-size: 24px; margin: 0; text-align: center; }
 .mcard .sub { text-align: center; color: var(--muted); font-size: 12px; margin-top: -5px; line-height: 1.5; }
 .mbtns { display: flex; gap: 8px; } .mbtns .btn { flex: 1; padding: 11px; }
+@keyframes tipfade { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
 @keyframes pop { from { transform: scale(.92); opacity: 0; } to { transform: none; opacity: 1; } }
 #toast { position: absolute; left: 50%; top: 56px; transform: translate(-50%, -6px); background: rgba(28,23,17,.95); border: 1px solid var(--line); padding: 7px 14px; border-radius: 16px; font-size: 12px; opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; z-index: 50; max-width: calc(100% - 24px); text-align: center; }
 #toast.show { opacity: 1; transform: translate(-50%, 0); }
@@ -121,7 +129,7 @@ h2 small { font-family: var(--f-body); font-size: 11px; color: var(--muted); mar
   <div id="battle" hidden>
     <div class="bhead"><b id="bTitle"></b><small id="bInfo"></small></div>
     <div class="bfield"><canvas id="b3d"></canvas><canvas id="bcv"></canvas><div id="bTip">적을 눌러 집중 공격 · 체력 30% 이하면 포획</div><div id="bSel" hidden><span id="bSelName"></span><span class="bar"><i id="bSelHp"></i></span></div></div>
-    <div class="bfoot"><button class="btn" id="bRetreat">후퇴</button><button class="btn primary" id="bCapture">포획</button><button class="btn" id="bSpeed">×1</button></div>
+    <div class="bfoot"><button class="btn" id="bRetreat">후퇴</button><button class="btn primary" id="bCapture">포획</button><button class="btn" id="bZoom">크게</button><button class="btn" id="bSpeed">×1</button></div>
   </div>
   <div id="toast"></div>
   <div id="modal" hidden><div class="mcard" id="mcard"></div></div>
@@ -152,15 +160,15 @@ const GOODS = {
 const ZONES = {
   plain: { n: '잿빛 평원', lv: 1, danger: 1, ground: 'plain', mx: 0.24, my: 0.72,
     ds: '재가 날리는 마른 초원. 초식 공룡 떼가 지나가고, 살아남은 농부들이 곡물을 키워요.',
-    recruit: ['hunter', 'spear'], tame: ['trike', 'para', 'apato'], wild: ['para', 'para', 'trike', 'para', 'trike', 'apato'], boss: 'trikeKing',
+    recruit: ['hunter', 'spear'], tame: ['trike', 'para', 'apato'], rare: ['trikeIron', 'trikeRed', 'paraGold'], wild: ['para', 'para', 'trike', 'para', 'trike', 'apato'], boss: 'trikeKing',
     loot: { meat: 3, hide: 2, bone: 1 }, price: { grain: .55, hide: .8, meat: .85, bone: .9, water: 1.05, ammo: 1.45, parts: 1.35, herb: 1.35, venom: 1.4 } },
   city: { n: '무너진 도시', lv: 5, danger: 2, ground: 'city', mx: 0.74, my: 0.42,
     ds: '공룡에게 짓밟힌 옛 도시. 폐허에서 부품과 탄약을 캐지만 먹을 것과 물이 귀해요. 랩터 무리가 골목을 지배해요.',
-    recruit: ['sniper', 'mechanic'], tame: ['raptor', 'compy'], wild: ['compy', 'compy', 'raptor', 'raptor'], boss: 'oneEye',
+    recruit: ['sniper', 'mechanic'], tame: ['raptor', 'compy'], rare: ['raptorShadow', 'stegoRust'], wild: ['compy', 'compy', 'raptor', 'raptor'], boss: 'oneEye',
     loot: { parts: 2, ammo: 1, meat: 1, hide: 1 }, price: { parts: .55, ammo: .65, meat: 1.5, grain: 1.45, water: 1.6, herb: 1.2, hide: 1.1, bone: 1.15, venom: 1.25 } },
   swamp: { n: '썩은 늪지', lv: 9, danger: 3, ground: 'swamp', mx: 0.3, my: 0.24,
     ds: '독이 고인 늪. 약초와 독샘이 나지만 거대 악어와 산성 침을 뱉는 공룡이 숨어 있어요.',
-    recruit: ['medic', 'venomer'], tame: ['dilo', 'stego'], wild: ['dilo', 'dilo', 'stego', 'compy'], boss: 'swampKing',
+    recruit: ['medic', 'venomer'], tame: ['dilo', 'stego'], rare: ['raptorVenom', 'apatoMoss', 'trexYoung'], wild: ['dilo', 'dilo', 'stego', 'compy'], boss: 'swampKing',
     loot: { herb: 2, venom: 1, meat: 2, hide: 1 }, price: { herb: .55, venom: .6, water: .85, parts: 1.6, ammo: 1.35, grain: 1.25, meat: 1.1, hide: 1.2, bone: 1.1 } },
 };
 const ROUTES = { 'plain|city': { t: 26, danger: 1.3 }, 'city|swamp': { t: 32, danger: 2.3 }, 'plain|swamp': { t: 38, danger: 2.7 } };
@@ -182,6 +190,14 @@ const UNITS = {
   dilo:    { n: '딜로포사우루스', cls: 'dino', role: '약화', hp: 190, atk: 12, def: 5, spd: 46, range: 75, as: 0.9, carry: 6, size: 21, shred: 6, acid: true, ds: '산성 침으로 적의 장갑을 녹여요.' },
   stego:   { n: '스테고사우루스', cls: 'dino', role: '파괴', hp: 420, atk: 34, def: 15, spd: 24, range: 24, as: 0.6, carry: 20, size: 34, ds: '가시 꼬리를 휘둘러 큰 피해를 줘요.' },
   trex:    { n: '티라노사우루스', cls: 'dino', role: '포식자', hp: 620, atk: 40, def: 14, spd: 40, range: 26, as: 0.7, carry: 30, size: 40, ds: '늪을 지배하는 폭군. 아직 길들인 사람이 없어요.' },
+  trikeIron:    { n: '철갑 트리케라톱스', cls: 'dino', role: '탱커', rare: true, hp: 540, atk: 20, def: 26, spd: 24, range: 24, as: 0.7, carry: 45, size: 33, taunt: true, ds: '희귀종. 쇳빛 피부가 유난히 두꺼워 웬만한 공격은 튕겨 내요.' },
+  trikeRed:     { n: '붉은뿔 트리케라톱스', cls: 'dino', role: '돌격', rare: true, hp: 400, atk: 36, def: 12, spd: 38, range: 24, as: 0.8, carry: 30, size: 29, ds: '희귀종. 성질이 사나워 방패보다 창에 가까워요.' },
+  paraGold:     { n: '황금볏 파라사우롤로푸스', cls: 'dino', role: '회복', rare: true, hp: 260, atk: 12, def: 9, spd: 46, range: 90, as: 0.8, carry: 10, size: 22, heal: 16, ds: '희귀종. 낮은 울음소리가 무리를 진정시켜 다친 동료를 회복시켜요.' },
+  apatoMoss:    { n: '이끼등 아파토사우루스', cls: 'dino', role: '짐꾼', rare: true, hp: 760, atk: 14, def: 13, spd: 20, range: 26, as: 0.5, carry: 110, size: 42, taunt: true, regen: 10, ds: '희귀종. 등에 이끼가 자라요. 싸우는 중에도 상처가 스스로 아물어요.' },
+  raptorShadow: { n: '그림자 랩터', cls: 'dino', role: '암살', rare: true, hp: 150, atk: 18, def: 4, spd: 84, range: 15, as: 1.7, carry: 4, size: 17, pack: true, crit: 0.32, ds: '희귀종. 폐허의 어둠에 숨어 급소를 노려요. 치명타가 자주 터져요.' },
+  raptorVenom:  { n: '독니 랩터', cls: 'dino', role: '약화', rare: true, hp: 150, atk: 15, def: 4, spd: 72, range: 15, as: 1.6, carry: 4, size: 17, pack: true, shred: 3, ds: '희귀종. 물린 자리가 썩어 들어가 장갑이 약해져요.' },
+  stegoRust:    { n: '녹슨등 스테고사우루스', cls: 'dino', role: '가시', rare: true, hp: 460, atk: 28, def: 17, spd: 24, range: 24, as: 0.6, carry: 20, size: 34, taunt: true, thorns: 0.35, ds: '희귀종. 고철 더미에서 자라 골판이 쇠처럼 날카로워요. 물어뜯는 적이 다쳐요.' },
+  trexYoung:    { n: '어린 티라노사우루스', cls: 'dino', role: '포식자', rare: true, hp: 380, atk: 32, def: 10, spd: 52, range: 22, as: 0.9, carry: 15, size: 28, ds: '희귀종. 어미를 잃은 어린 폭군. 길들일 수 있는 유일한 티라노예요.' },
 };
 const BOSSES = {
   trikeKing: { base: 'trike', n: '늙은 우두머리 트리케라톱스', hp: 4.5, atk: 1.6, size: 1.35 },
@@ -199,7 +215,7 @@ const DAY_LEN = 90;
 const SAVE = 'dino-caravan-v1';
 let S;
 function freshState() {
-  const s = { money: 300, t: 0, day: 1, zone: 'plain', travel: null, cargo: {}, darts: 3, idSeq: 1, units: [], drift: {}, press: {}, stats: { battles: 0, captures: 0, trades: 0, earned: 0 }, snd: 2 };
+  const s = { money: 300, t: 0, day: 1, zone: 'plain', travel: null, cargo: {}, darts: 3, idSeq: 1, units: [], drift: {}, press: {}, stats: { battles: 0, captures: 0, trades: 0, earned: 0 }, snd: 2, dex: {} };
   for (const z of Object.keys(ZONES)) { s.drift[z] = {}; s.press[z] = {}; for (const g of Object.keys(GOODS)) { s.drift[z][g] = 1; s.press[z][g] = 1; } }
   S = s;
   addUnit('leader', 1, true); addUnit('hunter', 1, true); addUnit('spear', 1, true);
@@ -208,7 +224,7 @@ function freshState() {
 }
 function addUnit(type, lv, inParty) {
   const u = { id: S.idSeq++, type, lv, xp: 0, hp: 0, ko: false, inParty: !!inParty };
-  u.hp = maxHp(u); S.units.push(u); return u;
+  u.hp = maxHp(u); S.units.push(u); if (UNITS[type].cls === 'dino') S.dex[type] = 2; return u;
 }
 const maxHp = u => Math.round(UNITS[u.type].hp * lvMul(u.lv));
 const party = () => S.units.filter(u => u.inParty);
@@ -267,7 +283,7 @@ function travelStep(dt) {
       const zone = Math.random() < 0.6 ? T.to : T.from, Z = ZONES[zone], R = routeOf(T.from, T.to);
       toast('습격! 야생 공룡이 상단을 덮쳐요', 'warn'); sfx('roar');
       const n = 2 + (R.danger > 2 ? 1 : 0) + (Math.random() < 0.4 ? 1 : 0);
-      setTimeout(() => startBattle({ kind: 'ambush', zone, foes: Array.from({ length: n }, () => ({ type: pick(Z.wild), lv: Math.max(1, Math.round((ZONES[T.from].lv + Z.lv) / 2 + rand(-1, 1))) })) }), 600);
+      setTimeout(() => startBattle({ kind: 'ambush', zone, foes: addRare(Array.from({ length: n }, () => ({ type: pick(Z.wild), lv: Math.max(1, Math.round((ZONES[T.from].lv + Z.lv) / 2 + rand(-1, 1))) })), zone, 0.12) }), 600);
     } else {
       const r = Math.random();
       if (r < 0.35) { const k = Math.round(rand(2, 5)); addCargo('parts', k); toast(`버려진 트럭을 뒤져 기계 부품 ${k}개를 찾았어요`, 'good'); }
@@ -287,7 +303,7 @@ function addCargo(g, k) { const room = Math.max(0, capacity() - cargoUsed()); k 
    BATTLE — real-time, up to 12 on our side, formation start, auto with focus fire
    ================================================================ */
 const BW = 360, BH = 600;
-let B = null, bSpeed = 1;
+let B = null, bSpeed = 1, bZoom = 1.3;
 function unitStats(type, lv, boss) {
   const D = UNITS[type], m = lvMul(lv), bm = boss ? BOSSES[boss] : null;
   return { hp: D.hp * m * (bm ? bm.hp : 1), atk: D.atk * m * (bm ? bm.atk : 1), def: D.def * (1 + 0.05 * (lv - 1)), size: (D.size || 11) * (bm ? bm.size : 1) };
@@ -305,6 +321,7 @@ function startBattle(opt) {
   opt.foes.forEach((f, i) => spawn(1, f.type, f.lv, BW / 2 + (i - (opt.foes.length - 1) / 2) * 62 + rand(-10, 10), rand(70, 150), null, f.boss));
   $('bTitle').textContent = opt.kind === 'ambush' ? '습격!' : opt.boss ? `우두머리 사냥 · ${BOSSES[opt.boss].n}` : `${Z.n} 사냥터`;
   $('bInfo').textContent = `적 ${opt.foes.length} · 아군 ${ours.length}`;
+  for (const f of opt.foes) { S.dex[f.type] = Math.max(S.dex[f.type] || 0, 1); if (UNITS[f.type].rare && !f.boss) setTimeout(() => toast(`희귀종 발견: ${UNITS[f.type].n}!`, 'good'), 900); }
   $('battle').hidden = false; resizeBattle(); updCapture();
   if (USE3D) setupBattle3D();
   SND.mood = 'battle'; SND.step = 0; sfx('drums');
@@ -328,6 +345,7 @@ function bStep(dt) {
     if (u.hp <= 0) continue;
     u.hitT = Math.max(0, u.hitT - dt); u.atkT = Math.max(0, (u.atkT || 0) - dt);
     if (u.shredT > 0) { u.shredT -= dt; if (u.shredT <= 0) u.shred = 0; }
+    if (UNITS[u.type] && UNITS[u.type].regen) u.hp = Math.min(u.max, u.hp + UNITS[u.type].regen * lvMul(u.lv) * dt);
     if (u.stun > 0) { u.stun -= dt; u.moving = false; continue; }
     const D = UNITS[u.type] || {};
     // medics heal instead of attacking when someone is hurt
@@ -382,10 +400,12 @@ function attack(u, t) {
   let atk = u.atk;
   if (D.pack) atk *= 1 + 0.15 * Math.min(3, alive(u.side).filter(o => o !== u && o.type === u.type && d2(o.x, o.y, u.x, u.y) < 90 * 90).length);
   const def = Math.max(0, t.def - t.shred * 2.5);
-  let dmg = atk * rand(0.85, 1.15) * 40 / (40 + def), crit = Math.random() < 0.08;
+  let dmg = atk * rand(0.85, 1.15) * 40 / (40 + def), crit = Math.random() < (D.crit || 0.08);
   if (crit) dmg *= 1.8;
   const ranged = u.range > 40;
   B.fx.push({ t: ranged ? 0.25 : 0.15, kind: D.acid ? 'acid' : u.turret || D.gun ? 'bullet' : D.bow ? 'arrow' : ranged ? 'dart' : 'bite', x: u.x, y: u.y, x2: t.x, y2: t.y });
+  const TD = UNITS[t.type];
+  if (TD && TD.thorns && u.range <= 40 && !u.turret) { const back = dmg * TD.thorns; u.hp -= back; num(u, Math.round(back), '#c0601c'); if (u.hp <= 0) onKill(t, u); }
   t.hp -= dmg; t.hitT = 0.15; num(t, Math.round(dmg) + (crit ? '!' : ''), crit ? '#e3a843' : t.side ? '#ece3d4' : '#d4573c');
   if (D.shred) { t.shred = Math.min(5, t.shred + 1); t.shredT = 5; }
   if (D.stun && t.max <= STUN_HP_LIMIT && !t.boss) { t.stun = D.stun; B.fx.push({ t: 0.6, kind: 'stun', x: t.x, y: t.y }); }
@@ -411,7 +431,7 @@ function tryCapture() {
   if (S.darts <= 0) { toast('마취 다트가 없어요. 정착지 상점에서 사세요', 'warn'); return; }
   S.darts--; sfx('dart');
   const leader = party().find(u => u.type === 'leader');
-  const chance = clamp(0.55 + (1 - t.hp / (t.max * 0.3)) * 0.4 - Math.max(0, t.lv - leader.lv) * 0.04, 0.15, 0.95);
+  const chance = clamp(0.55 + (1 - t.hp / (t.max * 0.3)) * 0.4 - Math.max(0, t.lv - leader.lv) * 0.04 - (UNITS[t.type].rare ? 0.15 : 0), 0.15, 0.95);
   B.fx.push({ t: 0.3, kind: 'dart', x: BW / 2, y: BH - 40, x2: t.x, y2: t.y });
   setTimeout(() => {
     if (!B || t.hp <= 0) return;
@@ -472,7 +492,7 @@ const DINO_LOOK = {
   sarco:  { col: '#4c4c34', stripe: '#33331f', quad: true,  body: [0.3, 0.14], head: [0.2, 0.06], neck: 0.36, tail: 0.5 },
 };
 function drawDino(c, type, x, y, a, L, ph, o = {}) {
-  type = ({ para: 'pachy', stego: 'sarco', apato: 'trike', trex: 'raptor' })[type] || type;
+  type = ({ para: 'pachy', stego: 'sarco', apato: 'trike', trex: 'raptor', trikeIron: 'trike', trikeRed: 'trike', paraGold: 'pachy', apatoMoss: 'trike', raptorShadow: 'raptor', raptorVenom: 'raptor', stegoRust: 'sarco', trexYoung: 'raptor' })[type] || type;
   const K = DINO_LOOK[type], base = o.tint || K.col, dk = shade(base, -0.45), lt = shade(base, 0.35);
   c.save(); c.translate(x + L * 0.06, y + L * 0.09); c.rotate(a);
   c.fillStyle = 'rgba(8,5,2,.3)'; c.beginPath(); c.ellipse(-L * 0.05, 0, L * 0.5, L * (K.body[1] + 0.08), 0, 0, 7); c.fill(); c.restore();
@@ -597,8 +617,10 @@ function groundTex(kind) {
    3D — low-poly CC0 dinosaurs (Quaternius) rendered with three.js.
    The battle simulation stays 2D (x, y on the field); here x→X, y→Z.
    ================================================================ */
-const MODEL_FILES = { trike: 'Triceratops', para: 'Parasaurolophus', raptor: 'Velociraptor', compy: 'Velociraptor', dilo: 'Trex', stego: 'Stegosaurus', apato: 'Apatosaurus', trex: 'Trex' };
-const MODEL_TINT = { compy: [0x8a9a50, 0.5], dilo: [0x9aa040, 0.4] };
+const MODEL_FILES = { trike: 'Triceratops', para: 'Parasaurolophus', raptor: 'Velociraptor', compy: 'Velociraptor', dilo: 'Trex', stego: 'Stegosaurus', apato: 'Apatosaurus', trex: 'Trex',
+  trikeIron: 'Triceratops', trikeRed: 'Triceratops', paraGold: 'Parasaurolophus', apatoMoss: 'Apatosaurus', raptorShadow: 'Velociraptor', raptorVenom: 'Velociraptor', stegoRust: 'Stegosaurus', trexYoung: 'Trex' };
+const MODEL_TINT = { compy: [0x8a9a50, 0.5], dilo: [0x9aa040, 0.4], trikeIron: [0x7a8694, 0.6], trikeRed: [0xb04428, 0.5], paraGold: [0xe0b030, 0.55], apatoMoss: [0x5a8a40, 0.5],
+  raptorShadow: [0x141c30, 0.7], raptorVenom: [0x8a3a9a, 0.5], stegoRust: [0xc0601c, 0.55], trexYoung: [0xd0c8b0, 0.45] };
 const MODELS = {}, PORTRAIT = {};
 let G3 = null;
 const has3D = (() => { try { const c = document.createElement('canvas'); return !!(window.THREE && THREE.FBXLoader && THREE.SkeletonUtils && (c.getContext('webgl') || c.getContext('experimental-webgl'))); } catch (e) { return false; } })();
@@ -776,7 +798,7 @@ function render3D(dt) {
   if (live.length) {
     let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
     for (const u of live) { x0 = Math.min(x0, u.x); x1 = Math.max(x1, u.x); z0 = Math.min(z0, u.y); z1 = Math.max(z1, u.y); }
-    const spread = Math.max(x1 - x0, (z1 - z0) * (w / h)), want = clamp(spread * 1.25 / (w / h < 0.8 ? 0.62 : 1), 200, 620);
+    const spread = Math.max(x1 - x0, (z1 - z0) * (w / h)), want = clamp(spread * 1.25 / (w / h < 0.8 ? 0.62 : 1), 200, 620) / bZoom;
     g.look.lerp(new THREE.Vector3((x0 + x1) / 2, 0, (z0 + z1) / 2 + 10), 0.05); g.dist += (want - g.dist) * 0.04;
   }
   g.camera.position.set(g.look.x - g.dist * 0.08, g.dist * 0.82, g.look.z + g.dist * 0.6); g.camera.lookAt(g.look);
@@ -887,11 +909,17 @@ function updSel() {
   const S0 = B.sel; $('bSel').hidden = !S0 || S0.hp <= 0;
   if (S0 && S0.hp > 0) {
     const D = UNITS[S0.type];
-    $('bSelName').textContent = `${S0.boss ? BOSSES[S0.boss].n : S0.turret ? '포탑' : D.n} Lv${S0.lv}${S0.side && D && D.cls === 'dino' && !S0.boss ? (S0.hp <= S0.max * 0.3 ? ' · 포획 가능!' : ' · 30% 이하로') : ''}`;
+    $('bSelName').textContent = `${S0.boss ? BOSSES[S0.boss].n : S0.turret ? '포탑' : D.n}${D && D.rare && !S0.boss ? ' ★희귀' : ''} Lv${S0.lv}${S0.side && D && D.cls === 'dino' && !S0.boss ? (S0.hp <= S0.max * 0.3 ? ' · 포획 가능!' : ' · 30% 이하로') : ''}`;
     $('bSelHp').style.width = (S0.hp / S0.max * 100) + '%';
   }
 }
+const bPtr = new Map(); let bPinch = null;
+bcv.addEventListener('pointermove', e => { if (!bPtr.has(e.pointerId)) return; bPtr.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (bPtr.size === 2 && bPinch) { const [a, b] = [...bPtr.values()]; bZoom = clamp(bPinch.z * Math.hypot(a.x - b.x, a.y - b.y) / bPinch.d, 0.8, 3); $('bZoom').textContent = '직접'; } });
+const bUp = e => { bPtr.delete(e.pointerId); if (bPtr.size < 2) bPinch = null; };
+bcv.addEventListener('pointerup', bUp); bcv.addEventListener('pointercancel', bUp);
 bcv.addEventListener('pointerdown', e => {
+  bPtr.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (bPtr.size === 2) { const [a, b] = [...bPtr.values()]; bPinch = { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, z: bZoom }; return; }
   if (!B || B.over) return;
   const r = bcv.getBoundingClientRect(), x = (e.clientX - r.left - bView.ox) / bView.s, y = (e.clientY - r.top - bView.oy) / bView.s;
   if (USE3D && G3 && G3.scene) { B.sel = pick3D(e.clientX - r.left, e.clientY - r.top); if (B.sel && B.sel.side === 1) { B.focus = B.sel; sfx('tap'); } return; }
@@ -902,6 +930,8 @@ bcv.addEventListener('pointerdown', e => {
 });
 $('bCapture').onclick = () => B && !B.over && tryCapture();
 $('bRetreat').onclick = () => { if (!B || B.over) return; B.opt.retreat = true; B.loot = {}; endBattle(false); };
+const ZOOMS = [[1, '보통'], [1.3, '크게'], [1.9, '아주 크게']];
+$('bZoom').onclick = () => { const i = (ZOOMS.findIndex(z => z[0] === bZoom) + 1) % ZOOMS.length; bZoom = ZOOMS[i][0]; $('bZoom').textContent = ZOOMS[i][1]; };
 $('bSpeed').onclick = () => { bSpeed = bSpeed === 1 ? 2 : 1; $('bSpeed').textContent = '×' + bSpeed; };
 
 /* ================================================================
@@ -987,7 +1017,7 @@ function renderTown() {
       <button class="btn small primary" data-act="sell" data-g="${g}" ${have ? '' : 'disabled'}>팔기</button></div>`;
   }).join('');
   const recruit = Z.recruit.map(t => { const D = UNITS[t]; return `<div class="row"><canvas data-u="${t}" width="104" height="80"></canvas><div class="info"><b>${D.n} <span class="tag">${D.role}</span></b><small>${D.ds}</small><small>체력 ${D.hp} · 공격 ${D.atk} · 짐 ${D.carry}칸</small></div><button class="btn small primary" data-act="hire" data-t="${t}" ${S.money < D.cost ? 'disabled' : ''}>${D.cost}</button></div>`; }).join('');
-  const tame = Z.tame.map(t => `${UNITS[t].n}(${UNITS[t].role})`).join(', ');
+  const tame = Z.tame.map(t => `${UNITS[t].n}(${UNITS[t].role})`).join(', ') + ` · 희귀종: ${Z.rare.map(t => S.dex[t] ? UNITS[t].n : '???').join(', ')} (깊은 곳에서 가끔 나와요)`;
   const hurt = S.units.filter(u => u.hp < maxHp(u) || u.ko), healCost = Math.round(S.units.reduce((s, u) => s + (maxHp(u) - u.hp), 0) * 0.12) + (hurt.length ? 5 : 0);
   el.innerHTML = `${zoneHead(z)}
     <h2>사냥터<small>여기서 길들일 수 있는 공룡: ${tame}</small></h2>
@@ -1019,6 +1049,7 @@ function renderParty() {
   el.innerHTML = `<div class="card"><div class="row"><div class="info"><b>상단 ${P.length}/12명</b><small>짐칸 ${cargoUsed()}/${capacity()} · 전투 ${S.stats.battles} · 포획 ${S.stats.captures}</small></div><button class="btn small" data-act="snd">${['소리 끔', '효과음만', '소리 켬'][S.snd]}</button></div></div>
     <h2>출전 대원<small>앞줄: 탱커·근접 / 뒷줄: 원거리·지원</small></h2><div class="card">${P.map(row).join('')}</div>
     <h2>대기 대원<small>정착지 우리에서 쉬어요</small></h2><div class="card">${reserve.length ? reserve.map(row).join('') : '<div class="row"><div class="info"><small>없어요. 사냥터에서 공룡을 포획하거나 고용소에서 대원을 구하세요</small></div></div>'}</div>
+    <h2>공룡 도감<small>${Object.keys(UNITS).filter(t => UNITS[t].cls === 'dino').filter(t => S.dex[t] === 2).length} / ${Object.keys(UNITS).filter(t => UNITS[t].cls === 'dino').length}종 포획</small></h2><div class="dexg">${Object.keys(UNITS).filter(t => UNITS[t].cls === 'dino').map(t => { const st = S.dex[t] || 0, D = UNITS[t]; return `<div class="dexc${st ? '' : ' unk'}${st === 2 ? ' own' : ''}"><canvas data-u="${t}" width="104" height="80"></canvas><b>${st ? D.n : '???'}</b><small>${st === 2 ? (D.rare ? '★희귀 · ' : '') + D.role : st ? '미포획' : (D.rare ? '희귀종' : '미발견')}</small></div>`; }).join('')}</div>
     <h2>짐</h2><div class="card">${Object.keys(S.cargo).length ? Object.entries(S.cargo).map(([g, k]) => `<div class="row"><div class="info"><b>${GOODS[g].n} ${k}개</b><small>이 정착지에서 팔면 개당 ${S.travel ? '-' : sellPrice(S.zone, g)}</small></div></div>`).join('') : '<div class="row"><div class="info"><small>짐칸이 비었어요</small></div></div>'}</div>`;
   el.querySelectorAll('canvas[data-u]').forEach(cv => portrait(cv, cv.dataset.u));
 }
@@ -1062,11 +1093,15 @@ function renderHeader() {
 function renderAll() { renderHeader(); if (view === 'town') renderTown(); if (view === 'party') renderParty(); if (view === 'map') renderMap(); }
 function setView(v) { view = v; document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.v === v)); ['town', 'party', 'map'].forEach(k => $('v-' + k).hidden = k !== v); renderAll(); }
 
+function addRare(foes, z, chance) {
+  if (Math.random() < chance) foes[foes.length - 1].type = pick(ZONES[z].rare);
+  return foes;
+}
 function huntFoes(z, tier) {
   const Z = ZONES[z];
   if (tier === 3) return [{ type: BOSSES[Z.boss].base, lv: Z.lv + 6, boss: Z.boss }, { type: pick(Z.wild), lv: Z.lv + 4 }, { type: pick(Z.wild), lv: Z.lv + 4 }];
   const n = tier === 1 ? 2 : 3 + (Math.random() < 0.5 ? 1 : 0), lv0 = tier === 1 ? Z.lv : Z.lv + 2;
-  return Array.from({ length: n }, () => ({ type: pick(Z.wild), lv: lv0 + Math.round(rand(0, tier === 1 ? 1 : 2)) }));
+  return addRare(Array.from({ length: n }, () => ({ type: pick(Z.wild), lv: lv0 + Math.round(rand(0, tier === 1 ? 1 : 2)) })), z, tier === 1 ? 0.1 : 0.35);
 }
 document.body.addEventListener('click', e => {
   const b = e.target.closest('[data-act]'); if (!b) return;
@@ -1111,6 +1146,7 @@ function frame(now) {
 S = load() || freshState();
 if (!S.units || !S.units.length) freshState();
 for (const u of S.units) { if (u.type === 'pachy') u.type = 'para'; if (u.type === 'sarco') u.type = 'stego'; }
+S.dex = S.dex || {}; for (const u of S.units) if (UNITS[u.type].cls === 'dino') S.dex[u.type] = 2;
 $('v-town').innerHTML = '<div id="loading"><b style="font-family:var(--f-display);font-size:20px;color:var(--rust)">공룡 상단</b><span id="loadTxt">공룡 모델 불러오는 중…</span></div>';
 loadModels((n, t) => { const el = $('loadTxt'); if (el) el.textContent = `공룡 모델 불러오는 중 ${n}/${t}`; }).then(ok => {
   USE3D = ok;
