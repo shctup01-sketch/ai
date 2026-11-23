@@ -74,7 +74,12 @@ h2 small { font-family: var(--f-body); font-size: 11px; color: var(--muted); mar
 .bhead small { color: var(--muted); font-size: 11px; }
 .bfield { flex: 1; min-height: 0; position: relative; }
 #b3d { image-rendering: pixelated; image-rendering: crisp-edges; }
-#feed { position: absolute; left: 8px; top: 34px; max-width: 62%; font-size: 12px; line-height: 1.5; color: #ece3d4; text-shadow: 0 1px 2px #000, 0 0 3px #000; pointer-events: none; opacity: 0; }
+#autoBtn { position: absolute; left: 8px; top: 8px; z-index: 2; font-size: 12px; font-weight: 700; padding: 7px 12px; border-radius: 16px; background: rgba(18,14,10,.8); color: #d8cdb9; border: 1px solid var(--line); }
+#autoBtn.on { background: var(--rust); color: #1c120a; border-color: transparent; }
+#skbar { position: absolute; left: 8px; right: 8px; bottom: 8px; display: flex; flex-wrap: wrap; gap: 5px; z-index: 2; }
+#skbar button { font-size: 11px; font-weight: 700; padding: 8px 9px; border-radius: 9px; background: rgba(42,34,26,.94); color: #ffe9c0; border: 1px solid var(--amber); }
+#skbar button:disabled { color: #8a7e6c; border-color: var(--line); }
+#feed { position: absolute; left: 8px; top: 44px; max-width: 62%; font-size: 12px; line-height: 1.5; color: #ece3d4; text-shadow: 0 1px 2px #000, 0 0 3px #000; pointer-events: none; opacity: 0; }
 #feed.show { animation: feedfade 6s forwards; }
 @keyframes feedfade { 0% { opacity: 0; transform: translateY(6px); } 6% { opacity: 1; transform: none; } 80% { opacity: 1; } 100% { opacity: 0; } }
 #bcv, #b3d { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
@@ -150,7 +155,7 @@ h2 { margin-top: 2px; } h2 small { display: block; margin: 3px 0 0; line-height:
   .bhead small { margin-right: 84px; }
   .bfoot { position: absolute; right: 0; bottom: 0; z-index: 3; width: min(360px, 60%); padding-bottom: max(8px, env(safe-area-inset-bottom, 0px)); }
   .bfoot .btn { min-height: 42px; } .bfoot .btn:not(.primary) { background-color: rgba(42,34,26,.92); }
-  #bTip { top: 34px; } #feed { top: 40px; } #bSel { right: auto; width: min(300px, 40%); }
+  #bTip { top: 34px; } #feed { top: 76px; } #autoBtn { top: 40px; } #skbar { right: 370px; bottom: 10px; } #bSel { right: auto; width: min(300px, 40%); }
   .mcard { max-width: 520px; max-height: 94%; }
   #modal { place-items: center; } .mcard { border-radius: 16px; border-bottom: 1px solid var(--line); }
 }
@@ -175,7 +180,7 @@ h2 { margin-top: 2px; } h2 small { display: block; margin: 3px 0 0; line-height:
   </div>
   <div id="battle" hidden>
     <div class="bhead"><b id="bTitle"></b><small id="bInfo"></small></div>
-    <div class="bfield"><canvas id="b3d"></canvas><canvas id="bcv"></canvas><div id="bTip">적을 눌러 집중 공격 · 체력 30% 이하면 포획</div><div id="feed"></div><div id="bSel" hidden><span id="bSelName"></span><span class="bar"><i id="bSelHp"></i></span></div></div>
+    <div class="bfield"><canvas id="b3d"></canvas><canvas id="bcv"></canvas><div id="bTip">적을 눌러 집중 공격 · 체력 30% 이하면 포획</div><div id="feed"></div><button id="autoBtn"></button><div id="skbar" hidden></div><div id="bSel" hidden><span id="bSelName"></span><span class="bar"><i id="bSelHp"></i></span></div></div>
     <div class="bfoot" id="ffoot" hidden><button class="btn" id="fLeave">상단</button><button class="btn" id="fZoom">지도</button><button class="btn" id="fPot">회복약</button><button class="btn primary" id="fNearest">가까운 무리 사냥</button></div>
     <div class="bfoot" id="bfoot"><button class="btn" id="bRetreat">후퇴</button><button class="btn primary" id="bCapture">포획</button><button class="btn" id="bPot">회복약</button><button class="btn" id="bZoom" hidden>크게</button><button class="btn" id="bSpeed">×1</button></div>
   </div>
@@ -335,6 +340,40 @@ const FORMS = { bal: { n: '균형진', ds: '기본 대형', atk: 1, def: 1 }, at
 const RIVALS = { plain: ['곡물상 하르', 900], city: ['고철왕 베크', 2600], swamp: ['약초꾼 모리', 4200] };
 const isHead = z => (S.invest[z] || 0) > S.rival[z];
 const hungry = () => S.food <= 0;
+// Every caravan member has one battle skill on a cooldown. With auto on they use it themselves.
+const SK = { volley: { n: '일제 사격', cd: 12, ds: '적 셋을 한꺼번에 쏴요' }, multishot: { n: '연속 사격', cd: 10, ds: '한 적에게 화살 세 발' }, guard: { n: '철벽', cd: 14, ds: '5초 동안 방어 2배' }, snipe: { n: '급소 저격', cd: 14, ds: '3배 피해의 한 발' },
+  grenade: { n: '수류탄', cd: 12, ds: '주변 적 모두에게 피해' }, firstaid: { n: '응급 처치', cd: 16, ds: '아군 모두 체력 20% 회복' }, mist: { n: '독안개', cd: 14, ds: '모든 적의 장갑을 녹여요' },
+  charge: { n: '돌진', cd: 11, ds: '들이받아 큰 피해와 기절' }, boom: { n: '굉음', cd: 13, ds: '주변 적을 기절시켜요' }, stomp: { n: '지진 밟기', cd: 13, ds: '주변 적 모두에게 피해' }, pounce: { n: '급습', cd: 8, ds: '빠르게 두 번 물어요' },
+  acid: { n: '산성 분사', cd: 12, ds: '주변 적의 장갑을 녹이고 피해' }, tail: { n: '꼬리 휘두르기', cd: 11, ds: '주변 적 모두에게 큰 피해' }, roar: { n: '포효', cd: 16, ds: '6초 동안 아군 공격 +25%' } };
+const SK_OF = { leader: 'volley', hunter: 'multishot', spear: 'guard', sniper: 'snipe', mechanic: 'grenade', medic: 'firstaid', venomer: 'mist', dilo: 'acid', paraGold: 'firstaid' };
+const SK_MODEL = { Triceratops: 'charge', Parasaurolophus: 'boom', Apatosaurus: 'stomp', Velociraptor: 'pounce', Stegosaurus: 'tail', Trex: 'roar' };
+const skillOf = type => SK_OF[type] || SK_MODEL[MODEL_FILES[type]] || null;
+function skHit(u, t, mult, crit) { const def = Math.max(0, t.def * (t.guardT > 0 ? 2 : 1) - t.shred * 2.5), dmg = u.atk * (u.roarT > 0 ? 1.25 : 1) * mult * 40 / (40 + def); t.hp -= dmg; t.hitT = 0.2; num(t, Math.round(dmg) + '!', '#ffd870'); burst(t.x, t.y, 10, 7, '#ffd870', { spd: 65, life: 0.4, r: 2.6 }); if (t.hp <= 0) onKill(u, t); }
+function castSkill(u) {
+  const k = u.sk, K = SK[k]; if (!K || u.skCd > 0 || u.hp <= 0 || u.stun > 0 || B.over) return false;
+  const foes = alive(1), mates = alive(0), near = r => foes.filter(f => d2(f.x, f.y, u.x, u.y) < r * r), t = u.target && u.target.hp > 0 && u.target.side === 1 ? u.target : foes.slice().sort((a, b) => d2(a.x, a.y, u.x, u.y) - d2(b.x, b.y, u.x, u.y))[0];
+  if (!t) return false; const reach = u.range + (u.size + t.size) * 0.5 + 14, inR = d2(u.x, u.y, t.x, t.y) < reach * reach;
+  if (k === 'volley') { if (!inR) return false; foes.slice().sort((a, b) => d2(a.x, a.y, u.x, u.y) - d2(b.x, b.y, u.x, u.y)).slice(0, 3).forEach(f => { B.fx.push({ t: 0.25, kind: 'bullet', x: u.x, y: u.y, x2: f.x, y2: f.y }); skHit(u, f, 1.6); }); sfx('shot'); }
+  else if (k === 'multishot') { if (!inR) return false; for (let i = 0; i < 3; i++) if (t.hp > 0) { B.fx.push({ t: 0.25 + i * 0.05, kind: 'arrow', x: u.x, y: u.y, x2: t.x, y2: t.y }); skHit(u, t, 0.85); } sfx('bow'); }
+  else if (k === 'snipe') { if (!inR) return false; B.fx.push({ t: 0.3, kind: 'bullet', x: u.x, y: u.y, x2: t.x, y2: t.y }); skHit(u, t, 3); SHAKE = Math.max(SHAKE, 0.4); sfx('crit'); }
+  else if (k === 'guard') { u.guardT = 5; ringFx(u.x, u.y, '#9fd0ff', u.size * 1.4, 0.6); sfx('stun'); }
+  else if (k === 'grenade') { if (!inR) return false; ringFx(t.x, t.y, '#ff9a40', 60, 0.5); burst(t.x, t.y, 6, 20, '#ffb050', { spd: 90, life: 0.6, r: 3.4 }); foes.filter(f => d2(f.x, f.y, t.x, t.y) < 70 * 70).forEach(f => skHit(u, f, 2.2)); SHAKE = Math.max(SHAKE, 0.6); sfx('crunchBig'); }
+  else if (k === 'firstaid') { if (!mates.some(m => m.hp < m.max * 0.7)) return false; for (const m of mates) { const h = Math.min(m.max - m.hp, m.max * 0.2); m.hp += h; if (h > 1) num(m, '+' + Math.round(h), '#8fbf6a'); burst(m.x, m.y, 4, 5, '#8fd36a', { spd: 14, up: 55, g: 0, life: 0.7 }); } sfx('heal'); }
+  else if (k === 'mist') { for (const f of foes) { f.shred = Math.min(5, f.shred + 3); f.shredT = 8; burst(f.x, f.y, 8, 6, '#a0d040', { spd: 20, up: 20, g: 10, life: 0.9, r: 3 }); } sfx('spit'); }
+  else if (k === 'charge') { if (!inR) return false; skHit(u, t, 1.8); if (t.hp > 0 && !t.boss) t.stun = Math.max(t.stun, 1.5); ringFx(t.x, t.y, '#f8e88a', 26, 0.4); SHAKE = Math.max(SHAKE, 0.5); sfx('crunch'); }
+  else if (k === 'boom') { const ns = near(110); if (!ns.length) return false; ringFx(u.x, u.y, '#f8e88a', 110, 0.6); for (const f of ns) { if (!f.boss) f.stun = Math.max(f.stun, 1.6); skHit(u, f, 0.6); } sfx('roar'); }
+  else if (k === 'stomp' || k === 'tail') { const r = k === 'stomp' ? 80 : 60, ns = near(r + u.size); if (!ns.length) return false; ringFx(u.x, u.y, '#d2be96', r + u.size, 0.5); burst(u.x, u.y, 2, 16, '#c9b48a', { spd: 80, up: 30, life: 0.7, r: 3.6, g: 60 }); ns.forEach(f => skHit(u, f, k === 'stomp' ? 1.3 : 1.7)); SHAKE = Math.max(SHAKE, 0.6); sfx('crunchBig'); }
+  else if (k === 'pounce') { if (!inR) return false; skHit(u, t, 1.3); if (t.hp > 0) skHit(u, t, 1.3); sfx('bite'); }
+  else if (k === 'acid') { if (!inR) return false; ringFx(t.x, t.y, '#c0e040', 50, 0.5); foes.filter(f => d2(f.x, f.y, t.x, t.y) < 60 * 60).forEach(f => { f.shred = Math.min(5, f.shred + 2); f.shredT = 8; skHit(u, f, 1.1); }); sfx('spit'); }
+  else if (k === 'roar') { for (const m of mates) { m.roarT = 6; ringFx(m.x, m.y, '#ff9a6a', m.size, 0.5); } SHAKE = Math.max(SHAKE, 0.4); sfx('roar'); }
+  u.skCd = K.cd; u.atkT = 0.5; num(u, K.n, '#ffe070'); return true;
+}
+function autoPotion() {   // drink before someone falls
+  if (!S.auto.pot || S.pots < 1 || (W.potT || 0) > W.t) return;
+  if (B) { if (B.over) return; const us = B.units.filter(u => u.side === 0 && u.hp > 0 && !u.turret); if (!us.some(u => u.hp < u.max * 0.3)) return; }
+  else { const us = party(); if (!us.length || us.reduce((s, u) => s + (u.ko ? 0 : u.hp / maxHp(u)), 0) / us.length >= 0.45) return; }
+  W.potT = W.t + 4; usePotion();
+}
 let S;
 function freshState() {
   const s = { money: 300, t: 0, day: 1, zone: 'plain', travel: null, cargo: {}, darts: 3, idSeq: 1, units: [], drift: {}, press: {}, stats: { battles: 0, captures: 0, trades: 0, earned: 0 }, snd: 2, dex: {}, clv: 1, cxp: 0, sp: 0, skills: {}, jobs: {}, out: {}, quests: {}, qday: 0, items: [], cleared: {}, itemSeq: 0 };
@@ -436,6 +475,7 @@ function spawn(side, type, lv, x, y, ref, boss) {
   if (ref) { const fm = FORMS[S.form] || FORMS.bal; st.atk *= fm.atk * (hungry() ? 0.7 : 1); st.def *= fm.def; }
   if (ref) { const gm = gearMul(ref); st.hp *= gm.hp; st.atk *= gm.atk; st.def *= gm.def; st.size *= 1 + 0.07 * (ref.tier || 0); }
   const u = { id: B.idSeq++, side, type, lv, ref, boss, x, y, a: side ? Math.PI / 2 : -Math.PI / 2, hp: ref ? Math.min(ref.hp, st.hp) : st.hp, max: st.hp, atk: st.atk, def: st.def, size: st.size,
+              sk: side === 0 ? skillOf(type) : null, skCd: rand(2, 6), guardT: 0, roarT: 0,
               range: D.range, as: D.as, spd: D.spd, cd: rand(0, 0.6), stun: 0, shred: 0, shredT: 0, leg: rand(0, 6), moving: false, hitT: 0 };
   B.units.push(u); return u;
 }
@@ -450,7 +490,7 @@ function bStep(dt) {
   const us = B.units;
   for (const u of us) {
     if (u.hp <= 0) continue;
-    u.hitT = Math.max(0, u.hitT - dt); u.atkT = Math.max(0, (u.atkT || 0) - dt);
+    u.hitT = Math.max(0, u.hitT - dt); u.atkT = Math.max(0, (u.atkT || 0) - dt); if (u.skCd > 0) u.skCd -= dt; if (u.guardT > 0) u.guardT -= dt; if (u.roarT > 0) u.roarT -= dt;
     if (u.shredT > 0) { u.shredT -= dt; if (u.shredT <= 0) u.shred = 0; }
     if (UNITS[u.type] && UNITS[u.type].regen) u.hp = Math.min(u.max, u.hp + UNITS[u.type].regen * lvMul(u.lv) * dt);
     if (u.stun > 0) { u.stun -= dt; u.moving = false; continue; }
@@ -460,6 +500,7 @@ function bStep(dt) {
       const hurt = alive(u.side).filter(o => o !== u && o.hp < o.max * 0.85).sort((a, b) => a.hp / a.max - b.hp / b.max)[0];
       if (hurt) { moveToward(u, hurt, D.range * 0.8, dt); u.cd -= dt; if (u.cd <= 0 && d2(u.x, u.y, hurt.x, hurt.y) < (D.range + 10) ** 2) { u.cd = 1 / u.as; const h = D.heal * lvMul(u.lv); hurt.hp = Math.min(hurt.max, hurt.hp + h); B.fx.push({ t: 0.5, kind: 'heal', x: hurt.x, y: hurt.y }); burst(hurt.x, hurt.y, 4, 6, '#8fd36a', { spd: 14, up: 55, g: 0, life: 0.7 }); sfx('heal', 150); num(hurt, '+' + Math.round(h), '#8fbf6a'); } continue; }
     }
+    if (u.sk && S.auto.skill && u.skCd <= 0) castSkill(u);
     const tgt = chooseTarget(u);
     if (!tgt) { u.moving = false; continue; }
     u.target = tgt;
@@ -504,9 +545,9 @@ function attack(u, t) {
   u.atkT = 0.5;
   const acc = 85 + u.lv * 2, eva = (UNITS[t.type] ? UNITS[t.type].spd : 0) * 0.25;
   if (Math.random() > acc / (acc + eva)) { num(t, '빗나감', '#a89a86'); sfx('miss', 120); return; }
-  let atk = u.atk;
+  let atk = u.atk * (u.roarT > 0 ? 1.25 : 1);
   if (D.pack) atk *= 1 + 0.15 * Math.min(3, alive(u.side).filter(o => o !== u && o.type === u.type && d2(o.x, o.y, u.x, u.y) < 90 * 90).length);
-  const def = Math.max(0, t.def - t.shred * 2.5);
+  const def = Math.max(0, t.def * (t.guardT > 0 ? 2 : 1) - t.shred * 2.5);
   let dmg = atk * rand(0.85, 1.15) * 40 / (40 + def), crit = Math.random() < (D.crit || 0.08);
   if (crit) dmg *= 1.8;
   const ranged = u.range > 40;
@@ -1205,7 +1246,7 @@ function hideWorld(v) { if (B) return; worldOn = false; $('app').classList.remov
 function walkTo(x, y, label) { if (!W) initWorld(); W.target = null; W.lead.tx = clamp(x, 10, WW - 10); W.lead.ty = clamp(y, 10, WH - 10); W.dest = label ? { x: W.lead.tx, y: W.lead.ty, label } : null; if (label) toast(`${label}(으)로 가는 중 · 땅을 누르면 멈춰요`); }
 function updField() {
   if (!W || B) return; const t = inTown(), L = W.lead, g = groundAt(L.x, L.y), z = zoneAt(L.x, L.y);
-  $('fNearest').textContent = t ? '사냥터 가기' : '가까운 무리 사냥'; W.badges = spotBadges(); updPots(); autoEat();
+  $('fNearest').textContent = t ? '사냥터 가기' : '가까운 무리 사냥'; W.badges = spotBadges(); updPots(); autoEat(); updAuto();
   const here = t ? `${ZONES[t].n} 정착지` : g ? `${ZONES[g.z].n} · ${HUNT_NAMES[g.z][g.i]}` : `${ZONES[z].n} · 황무지`;
   if (here !== W.here) {
     W.here = here; $('bTitle').textContent = here;
@@ -1222,6 +1263,7 @@ function worldTap(px, py) {
   { const tz = nearTown(x, y, TOWN_R + 40); if (tz) for (const [k, n, dx, dy] of TOWN_SPOTS) { const T = TOWNS[tz]; if (d2(x, y, T.x + dx, T.y + dy - 14) < 30 * 30) { if (inTown() === tz) openTown(k); else { walkTo(T.x + dx, T.y + dy + 28, `${ZONES[tz].n} ${n}`); W.dest.open = k; } return; } } }
   for (let i = 0; i < W.npcs.length; i++) { const m = W.npcs[i].mem[0]; if (d2(x, y, m.x, m.y - 10) < 26 * 26) { if (d2(L.x, L.y, m.x, m.y) > 170 * 170) { toast(`${W.npcs[i].name}: 가까이 오면 거래할 수 있어요`); L.tx = m.x; L.ty = m.y + 30; W.target = null; } else npcModal(i); return; } }
   if (best) { W.target = best; sfx('tap'); return; }
+  if (S.auto.hunt) { S.auto.hunt = false; updAuto(); toast('자동 사냥을 껐어요'); }
   W.target = null; L.tx = clamp(x, 10, WW - 10); L.ty = clamp(y, 10, WH - 10); ringFx(L.tx, L.ty, '#e3a843', 14, 0.4); sfx('tap');
 }
 function engage(pack) {
@@ -1255,18 +1297,21 @@ function afterBattle(opt) {
 }
 function stepWalker(o, dt, speed) { o.wait -= dt; if (o.wait <= 0 && !o.moving) { o.tx = o.hx + rand(-o.roam, o.roam); o.ty = o.hy + rand(-o.roam, o.roam); o.wait = rand(4, 10); } const d = Math.hypot(o.tx - o.x, o.ty - o.y); o.moving = d > 3; if (o.moving) { o.a = Math.atan2(o.ty - o.y, o.tx - o.x); o.x += Math.cos(o.a) * speed * dt; o.y += Math.sin(o.a) * speed * dt; } }
 function updWorld(dt) {
-  const L = W.lead; W.t += dt;
+  const L = W.lead; W.t += dt; autoPotion();
   if (!B) {
     if (W.target) { if (W.target.dead > 0 || !W.target.mons.length) W.target = null; else { const m = W.target.mons[0]; L.tx = m.x; L.ty = m.y; } }
     L.moving = false;
     if (L.tx !== null && W.crew.length) {
       const d = Math.hypot(L.tx - L.x, L.ty - L.y), stop = W.target ? 30 + W.target.mons[0].len * 0.35 : 3;
       if (d > stop) {
-        L.a = Math.atan2(L.ty - L.y, L.tx - L.x); const sp = (roadDist(L.x, L.y) < 18 ? 96 : 78) * (1 + 0.08 * sk('speed')) * (cargoUsed() > capacity() ? 0.5 : 1) * dt;
+        // if something has been in the way for a moment, swing wide around it
+        W.prog = W.prog || { d, t: 0 }; W.prog.t += dt; if (W.prog.t > 0.7) { if (W.prog.d - d < 12 && !(W.detour > 0)) { W.detour = 1.1; W.side = W.side === 1 ? -1 : 1; } W.prog = { d, t: 0 }; }
+        if (W.detour > 0) W.detour -= dt;
+        L.a = Math.atan2(L.ty - L.y, L.tx - L.x) + (W.detour > 0 ? W.side * 1.35 : 0); const sp = (roadDist(L.x, L.y) < 18 ? 96 : 78) * (1 + 0.08 * sk('speed')) * (cargoUsed() > capacity() ? 0.5 : 1) * dt;
         L.x += Math.cos(L.a) * sp; L.y += Math.sin(L.a) * sp; L.moving = true;
         const cx = Math.floor(L.x / CELL), cy = Math.floor(L.y / CELL);   // slide around ruins, wrecks and trees
         for (let j = cy - 1; j <= cy + 1; j++) for (let i = cx - 1; i <= cx + 1; i++) for (const p of cellProps(i, j)) {
-          if (p.r > 0) { const dd = Math.hypot(L.x - p.x, L.y - p.y), min = p.r + 4; if (dd < min && dd > 0.01) { L.x += (L.x - p.x) / dd * (min - dd); L.y += (L.y - p.y) / dd * (min - dd); } }
+          if (p.r > 0) { const dd = Math.hypot(L.x - p.x, L.y - p.y), min = p.r + 4; if (dd < min && dd > 0.01) { const nx = (L.x - p.x) / dd, ny = (L.y - p.y) / dd, sd = (-ny * Math.cos(L.a) + nx * Math.sin(L.a)) >= 0 ? 1 : -1; L.x += nx * (min - dd) - ny * sd * sp * 0.6; L.y += ny * (min - dd) + nx * sd * sp * 0.6; } }
           else if (p.loot && !(W.looted[p.loot] > W.t) && d2(L.x, L.y, p.x, p.y) < 22 * 22) openCrate(p);
         }
         L.x = clamp(L.x, 10, WW - 10); L.y = clamp(L.y, 10, WH - 10);
@@ -1281,6 +1326,11 @@ function updWorld(dt) {
     S.pos.x = L.x; S.pos.y = L.y;
     if (L.moving && !inTown()) { const was = S.food; S.food = Math.max(0, S.food - dt * 0.16); if (was > 20 && S.food <= 20) toast('포만감이 떨어져 가요. 곡물·고기·육포를 먹거나 여관에서 식사하세요', 'warn'); if (was > 0 && S.food <= 0) { toast('배가 고파 힘이 빠졌어요 · 공격력이 줄고 회복이 멈춰요', 'warn'); sfx('deny'); } }
     if (L.moving) { W.stepT -= dt; if (W.stepT <= 0) { W.stepT = 0.32; sfx('step'); const c = W.crew[W.crew.length - 1] || L; burst(c.x, c.y, 1, 2, 'rgba(200,180,140,.8)', { spd: 10, up: 14, g: 30, life: 0.5, r: 2.4 }); } }
+    if (S.auto.hunt && !W.target && L.tx === null && !inTown() && W.crew.length) {   // auto hunt: keep taking the nearest herd you can handle
+      const us = party(), hp = us.reduce((s, u) => s + (u.ko ? 0 : u.hp / maxHp(u)), 0) / Math.max(1, us.length), top = Math.max(...us.map(u => u.lv));
+      if (hp < 0.4) { if (!W.resting) { W.resting = true; toast(S.pots ? '체력을 채우는 중이에요' : '체력이 낮아 쉬는 중이에요 · 회복약이 없어요', 'warn'); } }
+      else { if (hp > 0.7) W.resting = false; if (!W.resting) { const p = W.packs.filter(p => !(p.dead > 0) && p.mons.length && !p.boss && p.mons[0].f.lv <= top + 3 && d2(p.cx, p.cy, L.x, L.y) < 800 * 800).sort((a, b) => d2(a.cx, a.cy, L.x, L.y) - d2(b.cx, b.cy, L.x, L.y))[0]; if (p) W.target = p; else if (!W.noPack) { W.noPack = true; toast('근처에 잡을 만한 무리가 없어요 · 사냥터로 가 보세요'); } } }
+    }
     W.callT -= dt; if (W.callT <= 0) { W.callT = rand(7, 14); if (!inTown()) sfx(Math.random() < 0.3 ? 'callBig' : 'call'); }
   }
   // herds graze and wander near home; only the ones around you are simulated
@@ -1308,6 +1358,15 @@ function npcModal(i) {   // caravans you meet on the road keep a small stall: on
     <div class="row"><div class="info"><b>${GOODS[o.bg].n} 삽니다</b><small>개당 ${o.bp} 크레딧 · ${o.bn}개까지 · 보유 ${S.cargo[o.bg] || 0}</small></div><button class="btn small primary" data-act="npcSell" data-i="${i}" ${o.bn && S.cargo[o.bg] ? '' : 'disabled'}>팔기</button></div>
   </div><div class="mbtns"><button class="btn" data-act="close">닫기</button></div>`);
 }
+function updAuto() { const b = $('autoBtn'); b.textContent = S.auto.hunt ? '자동 사냥 켜짐' : '자동 사냥'; b.classList.toggle('on', S.auto.hunt); }
+$('autoBtn').onclick = () => { S.auto.hunt = !S.auto.hunt; if (W) { W.resting = false; W.noPack = false; if (!S.auto.hunt) W.target = null; } sfx('tap'); updAuto(); toast(S.auto.hunt ? '자동 사냥 시작 · 땅을 누르면 멈춰요' : '자동 사냥을 껐어요'); save(); };
+let skT = 0;
+function updSkbar(dt) {   // manual skill buttons, shown only when auto skills are off
+  const el = $('skbar'), on = !!B && !B.over && !S.auto.skill; if (el.hidden === on) el.hidden = !on; if (!on) return;
+  skT -= dt; if (skT > 0) return; skT = 0.25;
+  el.innerHTML = B.units.filter(u => u.side === 0 && u.sk && u.hp > 0).map(u => `<button data-sk="${u.id}" ${u.skCd > 0 ? 'disabled' : ''}>${SK[u.sk].n}${u.skCd > 0 ? ' ' + Math.ceil(u.skCd) : ''}</button>`).join('');
+}
+$('skbar').addEventListener('pointerdown', e => { const b = e.target.closest('button'); if (!b || !B) return; const u = B.units.find(x => x.id === +b.dataset.sk); if (u && !castSkill(u)) toast('지금은 쓸 수 없어요 · 적이 사거리 밖이에요'); skT = 0; });
 function usePotion() {
   if (S.pots < 1) { toast('회복약이 없어요 · 정착지 잡화점에서 살 수 있어요', 'warn'); sfx('deny'); return; }
   if (B) { if (B.over) return; const us = B.units.filter(u => u.side === 0 && u.hp > 0 && !u.turret); if (!us.some(u => u.hp < u.max)) { toast('모두 체력이 가득해요'); return; } for (const u of us) { const h = Math.min(u.max - u.hp, u.max * 0.4); u.hp += h; if (h > 1) num(u, '+' + Math.round(h), '#8fbf6a'); burst(u.x, u.y, 4, 6, '#8fd36a', { spd: 14, up: 55, g: 0, life: 0.7 }); } }
@@ -1387,6 +1446,7 @@ function renderWorld(dt) {
     }
     drawPX(c); drawMini(c, cw);
   } else { renderOverlay(true); updSel(); }
+  updSkbar(dt);
 }
 function drawMini(c, cw) {   // corner minimap of the whole world
   const mw = 66, mh = Math.round(mw * WH / WW), x0 = cw - mw - 8, y0 = 34, sx = mw / WW, sy = mh / WH;
@@ -1624,13 +1684,13 @@ function renderParty() {
   const el = $('v-party'), P = party();
   const row = u => { const D = UNITS[u.type], mh = maxHp(u);
     return `<div class="row"><canvas data-u="${u.type}" width="104" height="80"></canvas><div class="info"><b>${unitName(u)} Lv${u.lv} <span class="tag">${D.role}</span>${u.ko ? ' <span class="tag" style="color:var(--bad)">쓰러짐</span>' : ''}</b>
-      <div class="bar"><i style="width:${u.hp / mh * 100}%;${u.ko ? 'background:var(--bad)' : ''}"></i></div><small>체력 ${u.hp}/${mh} · 공격 ${Math.round(D.atk * lvMul(u.lv) * gearMul(u).atk)} · 무기 ${u.gw || 0} · 방어구 ${u.ga || 0} · 짐 ${D.carry}칸 · 경험치 ${u.xp}/${xpNeed(u.lv)}</small></div>
+      <div class="bar"><i style="width:${u.hp / mh * 100}%;${u.ko ? 'background:var(--bad)' : ''}"></i></div><small>체력 ${u.hp}/${mh} · 공격 ${Math.round(D.atk * lvMul(u.lv) * gearMul(u).atk)} · 무기 ${u.gw || 0} · 방어구 ${u.ga || 0} · 짐 ${D.carry}칸 · 경험치 ${u.xp}/${xpNeed(u.lv)}</small>${skillOf(u.type) ? `<small style="color:var(--amber)">스킬 · ${SK[skillOf(u.type)].n}: ${SK[skillOf(u.type)].ds}</small>` : ''}</div>
       <button class="btn small" data-act="unit" data-id="${u.id}">관리</button>
       ${u.type === 'leader' ? '<span class="tag on">대장</span>' : `<button class="btn small ${u.inParty ? '' : 'primary'}" data-act="toggle" data-id="${u.id}">${u.inParty ? '대기' : '참전'}</button>`}</div>`; };
   const reserve = S.units.filter(u => !u.inParty);
   const psecs = [['crew', '대원'], ['bag', '가방', S.items.length], ['dex', '도감'], ['skill', '스킬', S.sp], ['cargo', '짐']];
   el.innerHTML = `<div class="card"><div class="row"><div class="info"><b>상단 Lv${S.clv} · ${P.length}/${partyCap()}명</b><div class="bar"><i style="width:${S.cxp / cxpNeed(S.clv) * 100}%;background:var(--amber)"></i></div><small>상단 경험치 ${S.cxp}/${cxpNeed(S.clv)} · 장사, 사냥, 의뢰로 올라요 · 레벨마다 인원 +1(최대 12)</small><small>짐칸 ${cargoUsed()}/${capacity()} · 전투 ${S.stats.battles} · 포획 ${S.stats.captures}</small></div><button class="btn small" data-act="snd">${['소리 끔', '효과음만', '소리 켬'][S.snd]}</button></div></div>${chips(psecs, partySec, 'psec')}
-    ${partySec === 'crew' ? `<h2>진형<small>${FORMS[S.form].ds}</small></h2>${chips(Object.entries(FORMS).map(([k, f]) => [k, f.n]), S.form, 'form')}<h2>출전 대원<small>포만감 ${Math.ceil(S.food)}/100</small></h2><div class="card">${P.map(row).join('')}</div>
+    ${partySec === 'crew' ? `<h2>자동 설정</h2><div class="card">${[['skill', '스킬 자동 사용', '대원이 준비된 스킬을 알아서 써요 · 끄면 전투 중에 스킬 버튼이 나와요'], ['pot', '회복약 자동 사용', '누군가 체력 30% 아래로 떨어지면 알아서 마셔요'], ['hunt', '자동 사냥', '가까운 무리를 계속 찾아가 사냥해요']].map(([k, n, d]) => `<div class="row"><div class="info"><b>${n}</b><small>${d}</small></div><button class="btn small ${S.auto[k] ? 'primary' : ''}" data-act="auto" data-k="${k}">${S.auto[k] ? '켜짐' : '꺼짐'}</button></div>`).join('')}</div><h2>진형<small>${FORMS[S.form].ds}</small></h2>${chips(Object.entries(FORMS).map(([k, f]) => [k, f.n]), S.form, 'form')}<h2>출전 대원<small>포만감 ${Math.ceil(S.food)}/100</small></h2><div class="card">${P.map(row).join('')}</div>
     <h2>대기 대원<small>정착지 우리에서 쉬어요</small></h2><div class="card">${reserve.length ? reserve.map(row).join('') : '<div class="row"><div class="info"><small>없어요. 사냥터에서 공룡을 포획하거나 고용소에서 대원을 구하세요</small></div></div>'}</div>` : ''}
     ${partySec === 'bag' ? `<h2>가방<small>장비 ${S.items.length}/${BAG_MAX} · 대원의 관리 버튼에서 착용해요</small></h2><div class="card">${S.items.length ? [...S.items].sort((a, b) => b.r - a.r || b.lv - a.lv).map(it => `<div class="row"><div class="info"><b>${itemName(it)}</b><small>${SLOTS[it.slot]} · Lv${it.lv} · ${itemText(it)}</small></div><button class="btn small" data-act="sellItem" data-it="${it.id}">${itemPrice(it)}에 팔기</button></div>`).join('') : '<div class="row"><div class="info"><small>아직 얻은 장비가 없어요. 사냥에서 이기면 가끔 떨어져요</small></div></div>'}</div>` : ''}
     ${partySec === 'dex' ? `<h2>공룡 도감<small>${Object.keys(UNITS).filter(t => UNITS[t].cls === 'dino').filter(t => S.dex[t] === 2).length} / ${Object.keys(UNITS).filter(t => UNITS[t].cls === 'dino').length}종 포획</small></h2><div class="dexg">${Object.keys(UNITS).filter(t => UNITS[t].cls === 'dino').map(t => { const st = S.dex[t] || 0, D = UNITS[t]; return `<div class="dexc${st ? '' : ' unk'}${st === 2 ? ' own' : ''}"><canvas data-u="${t}" width="104" height="80"></canvas><b>${st ? D.n : '???'}</b><small>${st === 2 ? (D.rare ? '★희귀 · ' : '') + D.role : st ? '미포획' : (D.rare ? '희귀종' : '미발견')}</small></div>`; }).join('')}</div>` : ''}
@@ -1714,6 +1774,7 @@ document.body.addEventListener('click', e => {
   else if (act === 'stOut') { const g = b.dataset.g, k = (S.store[z] || {})[g] || 0; if (!k) return; const got = addCargo(g, k); S.store[z][g] -= got; sfx('tap'); if (got < k) toast(`짐칸이 모자라 ${k - got}개는 창고에 남겼어요`, 'warn'); }
   else if (act === 'meal') { if (S.money < 20 || S.food >= 100) return; S.money -= 20; S.food = 100; sfx('heal'); toast('든든하게 먹었어요 · 포만감 100'); }
   else if (act === 'eat') { const g = b.dataset.g; if (!S.cargo[g] || S.food >= 100) return; S.cargo[g]--; if (!S.cargo[g]) delete S.cargo[g]; S.food = Math.min(100, S.food + FOODS[g]); sfx('heal'); }
+  else if (act === 'auto') { S.auto[b.dataset.k] = !S.auto[b.dataset.k]; sfx('tap'); updAuto(); }
   else if (act === 'form') { S.form = b.dataset.k; sfx('tap'); }
   else if (act === 'npcBuy' || act === 'npcSell') {
     const n = W.npcs[+b.dataset.i], o = n && n.offer; if (!o) return;
@@ -1793,7 +1854,7 @@ function frame(now) {
 S = load() || freshState();
 if (!S.units || !S.units.length) freshState();
 for (const u of S.units) { if (u.type === 'pachy') u.type = 'para'; if (u.type === 'sarco') u.type = 'stego'; }
-S.items = S.items || []; S.cleared = S.cleared || {}; if (S.food === undefined) S.food = 100; if (S.pots === undefined) S.pots = 2; S.stones = S.stones || 0; S.bank = S.bank || 0; S.invest = S.invest || {}; S.store = S.store || {}; S.form = S.form || 'bal'; S.rival = S.rival || Object.fromEntries(Object.entries(RIVALS).map(([z, r]) => [z, r[1]])); if (!S.pos) { const T0 = TOWNS[S.zone] || TOWNS.plain; S.pos = { x: T0.x, y: T0.y + 70 }; }
+S.items = S.items || []; S.cleared = S.cleared || {}; if (S.food === undefined) S.food = 100; if (S.pots === undefined) S.pots = 2; S.auto = Object.assign({ skill: true, pot: true, hunt: false }, S.auto || {}); S.stones = S.stones || 0; S.bank = S.bank || 0; S.invest = S.invest || {}; S.store = S.store || {}; S.form = S.form || 'bal'; S.rival = S.rival || Object.fromEntries(Object.entries(RIVALS).map(([z, r]) => [z, r[1]])); if (!S.pos) { const T0 = TOWNS[S.zone] || TOWNS.plain; S.pos = { x: T0.x, y: T0.y + 70 }; }
 S.clv = S.clv || 1; S.cxp = S.cxp || 0; S.sp = S.sp || 0; S.skills = S.skills || {}; S.jobs = S.jobs || {}; S.out = S.out || {}; S.quests = S.quests || {};
 for (const z of Object.keys(ZONES)) for (const g of Object.keys(GOODS)) { if (S.drift[z][g] === undefined) S.drift[z][g] = 1; if (S.press[z][g] === undefined) S.press[z][g] = 1; }
 ensureQuests();
