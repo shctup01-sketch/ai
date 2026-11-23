@@ -517,8 +517,19 @@ function colonyStep(dt) {
       if (G.layT >= LAY_TIME) { G.food -= C.cost; G.layT = 0; const p = inChamber('B'); G.brood.push({ caste: G.queue.shift(), st: 0, t: 0, x: p.x, y: p.y, r: rand(0, 6.28) }); }
     }
   } else G.layT = 0;
+  // Claustral founding: a collapsing colony's queen raises workers from her own body reserves, no food needed.
+  const workerTotal = G.ants.filter(a => a.caste === 'worker').length + G.brood.filter(b => b.caste === 'worker').length;
+  G.founding = workerTotal < 4;
+  if (G.founding) {
+    G.foundT = (G.foundT || 0) + dt;
+    if (G.foundT >= 4) {
+      G.foundT = 0; const p = inChamber('B');
+      G.brood.push({ caste: 'worker', st: 0, t: 0, x: p.x, y: p.y, r: rand(0, 6.28) });
+      if (!G.foundNotice && view === 'colony' && !BT) { G.foundNotice = true; toast('군집이 위험해요 · 여왕이 몸에 저장한 영양으로 일개미를 키워요', 'warn'); }
+    }
+  } else { G.foundT = 0; G.foundNotice = false; }
   const nurses = G.ants.filter(a => a.loc === 'nest' && a.task === 'nurse').length;
-  const care = Math.min(1, 0.35 + nurses / Math.max(1, G.brood.length) * 1.95);
+  const care = Math.min(1, (nurses ? 0.35 : 0.7) + nurses / Math.max(1, G.brood.length) * 1.95);
   for (const b of G.brood) {
     b.t += dt * care;
     if (b.t >= CASTES[b.caste].dev[b.st]) { b.t = 0; b.st++; }
@@ -555,6 +566,7 @@ function colonyStep(dt) {
     if (clusters < 8) spawnFood(); G.nextFood = rand(14, 26);
   }
   G.nextFoe -= dt;
+  if (G.nextFoe <= 0 && G.ants.length < 10) G.nextFoe = 20;   // let a small colony recover
   if (G.nextFoe <= 0) {
     let type;
     if (G.t > 140 && G.spidersSent < 1) type = 'spider';
@@ -1005,7 +1017,8 @@ function renderColonyUi() {
     q.innerHTML = G.queue.length ? G.queue.map((k, i) => `<button class="qchip${i === 0 ? ' first' : ''}" data-i="${i}" aria-label="${CASTES[k].n} 취소">${CASTES[k].n}<span class="x">×</span></button>`).join('') : '<span class="muted" style="font-size:11px">아래에서 낳을 개미를 고르세요</span>';
   }
   const ls = $('layStatus');
-  if (!G.queue.length) ls.textContent = '대기 중';
+  if (G.founding) ls.textContent = '여왕 비상 산란 중';
+  else if (!G.queue.length) ls.textContent = '대기 중';
   else { const C = CASTES[G.queue[0]]; ls.textContent = G.food < C.cost ? `먹이 ${C.cost} 필요` : `산란 ${Math.round(G.layT / LAY_TIME * 100)}%`; }
   for (const k of Object.keys(CASTES)) { const el = $('caste-' + k); if (el) el.classList.toggle('short', casteOk(k) && G.food < CASTES[k].cost); }
   if (sel) {
