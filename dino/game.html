@@ -601,13 +601,18 @@ function loadModels(onProgress) {
     const files = [...new Set(Object.values(MODEL_FILES))]; let n = 0, ok = true;
     const L = new THREE.FBXLoader();
     const fin = () => { onProgress(++n, files.length); if (n === files.length) res(ok); };
-    files.forEach(f => L.load('models/' + f + '.fbx', o => {
+    // models ship as base64 text (the host serves text, not .fbx), decoded back to the binary FBX here
+    const loadOne = f => fetch('models/' + f + '.b64.txt').then(r => { if (!r.ok) throw new Error(r.status); return r.text(); }).then(t => {
+      const bin = atob(t.trim()), buf = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+      return L.parse(buf.buffer, 'models/');
+    });
+    files.forEach(f => loadOne(f).then(o => {
       lambertize(o);
       const clips = {}; for (const a of o.animations) clips[a.name.split('_').pop().toLowerCase()] = a;
       const sz = new THREE.Box3().setFromObject(o).getSize(new THREE.Vector3());
       MODELS[f] = { obj: o, clips, len: Math.max(sz.x, sz.z) };
       fin();
-    }, undefined, () => { ok = false; fin(); }));
+    }).catch(() => { ok = false; fin(); }));
   });
 }
 const srgb = c => new THREE.Color(c).convertSRGBToLinear();
