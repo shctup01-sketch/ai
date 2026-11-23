@@ -404,7 +404,7 @@ const STATE_TEXT = {
   explore: '먹이 찾는 중 · 동료가 남긴 페로몬을 따라가요', toFood: '먹이 발견!', carry: '먹이 운반 중 · 지나간 길에 페로몬을 남겨요',
   corpse: '죽은 동료를 쓰레기장으로 옮기는 중', return: '먹이를 못 찾고 굴로 돌아가는 중', fight: '전투 중 · 턱으로 물고 있어요',
   alarm: '경보 페로몬을 맡고 출동', patrol: '굴 입구 주변 순찰', chase: '적을 추격 중', flee: '적을 피해 달아나는 중',
-  deliver: '굴 안: 저장고에 먹이를 내려놓는 중', exit: '굴 안: 밖으로 나가는 중', nurse: '굴 안: 알과 애벌레를 돌보는 중 (어린 일개미)', emerge: '굴 안: 막 태어나 밖으로 나가는 중',
+  deliver: '굴 안: 저장고에 먹이를 내려놓는 중', exit: '굴 안: 밖으로 나가는 중', nurse: '굴 안: 알과 애벌레를 돌보는 중 (어린 일개미)', emerge: '굴 안: 막 태어나 밖으로 나가는 중', lockdown: '굴 안: 입구에 적이 있어 숨어서 기다리는 중',
 };
 const homeP = new Float32Array(GW * GH), foodP = new Float32Array(GW * GH);
 const gi = (x, y) => { const cx = x / CELL | 0, cy = y / CELL | 0; return (cx < 0 || cy < 0 || cx >= GW || cy >= GH) ? -1 : cy * GW + cx; };
@@ -555,6 +555,7 @@ function colonyStep(dt) {
     const clusters = new Set(G.items.filter(i => i.kind !== 'carcass').map(i => (i.x / 60 | 0) + ',' + (i.y / 60 | 0))).size;
     if (clusters < 8) spawnFood(); G.nextFood = rand(14, 26);
   }
+  if (G.ants.length < 10) for (const f of G.foes) if (f.life >= 0) { f.life = -1; f.fleeing = true; }
   G.nextFoe -= dt;
   if (G.nextFoe <= 0 && G.ants.length < 10) G.nextFoe = 20;   // let a small colony recover
   if (G.nextFoe <= 0) {
@@ -646,7 +647,10 @@ function nestArrive(a) {
   if (a.task === 'deliver') {
     if (a.carry && a.carry.type === 'food') { G.food += a.carry.val; mission('gather', a.carry.val); }
     a.carry = null; a.wait = rand(0.5, 1.5); setNestTask(a, 'exit', 'E');
-  } else if (a.task === 'exit' || a.task === 'emerge') exitToSurface(a);
+  } else if (a.task === 'exit' || a.task === 'emerge') {
+    if (a.caste === 'worker' && G.foes.some(f => f.life >= 0 && d2(f.x, f.y, NEST.x, NEST.y) < 80 * 80)) { a.wait = 1.5; a.lockdown = true; return; }
+    a.lockdown = false; exitToSurface(a);
+  }
   else if (a.task === 'nurse') {
     if (a.age > NURSE_AGE) { setNestTask(a, 'exit', 'E'); return; }
     a.wait = rand(1.5, 4); const r = Math.random();
@@ -660,7 +664,7 @@ function updFoe(f, dt) {
   for (const a of G.ants) { if (a.loc !== 'surface') continue; const d = d2(f.x, f.y, a.x, a.y); if (d < bd) { bd = d; t = a; } }
   const slow = 1 / (1 + f.biters * 0.45);
   if (f.type !== 'raider' && f.hp < D.hp * 0.35 && !f.fleeing) { f.fleeing = true; f.life = -1; }
-  if (f.life < 0 && f.type !== 'raider') turnTo(f, angTo(NEST.x, NEST.y, f.x, f.y), 2 * dt);
+  if (f.life < 0) turnTo(f, angTo(NEST.x, NEST.y, f.x, f.y), 2 * dt);
   else if (t) {
     const contact = D.size * 0.6 + t.len * 0.5 + 2;
     if (bd < contact * contact) { f.moving = false; turnTo(f, angTo(f.x, f.y, t.x, t.y), 6 * dt); t.hp -= D.atk * dt; raiseAlarm(f); }
@@ -669,7 +673,7 @@ function updFoe(f, dt) {
   else wander(f, dt, 1);
   if (f.moving) { const sp = D.speed * slow; f.x += Math.cos(f.a) * sp * dt; f.y += Math.sin(f.a) * sp * dt; f.leg += dt * sp * 0.4; } else f.leg += dt * 2;
   if (f.x < -30 || f.x > W + 30 || f.y < -30 || f.y > H + 30) f.gone = true;
-  else if (f.life >= 0 || f.type === 'raider') {
+  else if (f.life >= 0) {
     if (f.x < 6 || f.x > W - 6) { f.a = Math.PI - f.a; f.x = Math.max(6, Math.min(W - 6, f.x)); }
     if (f.y < 6 || f.y > H - 6) { f.a = -f.a; f.y = Math.max(6, Math.min(H - 6, f.y)); }
   }
@@ -1014,7 +1018,7 @@ function renderColonyUi() {
   if (sel) {
     $('info').hidden = false;
     $('iName').textContent = `${CASTES[sel.caste].n} #${sel.id}`;
-    $('iState').textContent = STATE_TEXT[sel.loc === 'nest' ? sel.task : sel.state] || '';
+    $('iState').textContent = STATE_TEXT[sel.loc === 'nest' ? (sel.lockdown ? 'lockdown' : sel.task) : sel.state] || '';
     $('iHp').style.width = (sel.hp / CASTES[sel.caste].hp * 100) + '%';
   } else $('info').hidden = true;
 }
