@@ -91,6 +91,16 @@ h2 small { font-family: var(--f-body); font-size: 11px; color: var(--muted); mar
 .dexc small { font-size: 9px; color: var(--muted); }
 .dexc.unk canvas { filter: brightness(0) opacity(.45); }
 .dexc.own { border-color: var(--amber); }
+.chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; position: sticky; top: -12px; z-index: 5; background: var(--bg); padding: 8px 0; margin: -4px 0; }
+.chips::-webkit-scrollbar { display: none; }
+.chip { flex: none; height: 36px; padding: 0 14px; border-radius: 18px; background: var(--panel); border: 1px solid var(--line); font-weight: 600; font-size: 13px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
+.chip.on { background: var(--rust); border-color: var(--rust); color: #1c120a; }
+.chip i { font-style: normal; min-width: 18px; height: 18px; border-radius: 9px; background: var(--bad); color: #fff; font-size: 11px; display: grid; place-items: center; padding: 0 5px; }
+.chip.on i { background: #1c120a; color: var(--amber); }
+.num { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-family: var(--f-display); font-size: 15px; background: var(--panel-2); border: 1px solid var(--line); color: var(--muted); }
+.num.done { border-color: var(--good); color: var(--good); } .num.boss { border-color: var(--bad); color: var(--bad); }
+.cargobar { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.cargobar span { flex: none; } .cargobar .bar { flex: 1; height: 7px; }
 #loading { display: flex; flex-direction: column; gap: 8px; align-items: center; justify-content: center; min-height: 60%; color: var(--muted); }
 #bTip { animation: tipfade 6s forwards; position: absolute; left: 50%; top: 8px; transform: translateX(-50%); font-size: 11px; color: #d8cdb9; background: rgba(18,14,10,.7); padding: 3px 9px; border-radius: 10px; pointer-events: none; white-space: nowrap; }
 #bSel { position: absolute; left: 8px; right: 8px; bottom: 8px; background: rgba(18,14,10,.86); border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; font-size: 12px; display: flex; gap: 8px; align-items: center; pointer-events: none; }
@@ -108,6 +118,31 @@ h2 small { font-family: var(--f-body); font-size: 11px; color: var(--muted); mar
 #toast.show { opacity: 1; transform: translate(-50%, 0); }
 #toast.warn { border-color: var(--bad); } #toast.good { border-color: var(--amber); }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+/* interface polish */
+.view > * { flex-shrink: 0; }
+h2 { margin-top: 2px; } h2 small { display: block; margin: 3px 0 0; line-height: 1.45; }
+.card { border-radius: 14px; padding: 12px 13px; gap: 11px; background: linear-gradient(#2a231c, #241e18); }
+.row + .row { padding-top: 11px; }
+.row .info b { font-size: 14px; } .row .info small { font-size: 11.5px; line-height: 1.45; }
+.row canvas { width: 58px; height: 46px; border-radius: 10px; background: #1a1510; border: 1px solid var(--line); }
+.btn { min-height: 40px; border-radius: 10px; padding: 8px 13px; font-size: 13px; }
+.btn.small { min-height: 36px; padding: 6px 11px; font-size: 12.5px; }
+.btn.primary { box-shadow: inset 0 -2px 0 rgba(0,0,0,.25); }
+.tag { border-radius: 6px; padding: 2px 7px; }
+.zonehead { min-height: 150px; border-radius: 14px; } .zonehead .zt { padding: 14px; } .zonehead .zt b { font-size: 24px; }
+.rc { border-radius: 9px; padding: 4px 9px; min-width: 58px; } .rc b { font-size: 14px; } .rc em { font-size: 10px; }
+#tabs { padding-top: 6px; }
+#tabs button { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 13px; padding: 6px 2px 5px; }
+#tabs svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+#tabs button.on { color: var(--rust); background: none; box-shadow: none; }
+/* sheets slide up from the bottom, within thumb reach */
+#modal { place-items: end center; padding: 0; }
+.mcard { max-width: 620px; border-radius: 20px 20px 0 0; border-bottom: 0; max-height: 88%; padding: 10px 16px calc(18px + env(safe-area-inset-bottom, 0px)); animation: sheet .24s ease-out; }
+.mcard::before { content: ""; width: 44px; height: 4px; border-radius: 2px; background: var(--line); margin: 0 auto 6px; flex: none; }
+@keyframes sheet { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+#toast { top: 62px; border-radius: 12px; padding: 9px 14px; font-size: 13px; box-shadow: 0 6px 20px rgba(0,0,0,.4); }
+.bfoot .btn { min-height: 46px; } #bCapture { flex: 1.6; font-size: 14px; }
+.dexg { gap: 8px; } .dexc { border-radius: 10px; }
 </style>
 
 <div id="app">
@@ -125,9 +160,9 @@ h2 small { font-family: var(--f-body); font-size: 11px; color: var(--muted); mar
     <section class="view" id="v-map" hidden></section>
   </main>
   <nav id="tabs">
-    <button data-v="town" class="on">정착지</button>
-    <button data-v="party">상단</button>
-    <button data-v="map">지도</button>
+    <button data-v="town" class="on"><svg viewBox="0 0 24 24"><path d="M3 20h18M5 20V10l7-6 7 6v10M10 20v-6h4v6"/></svg>정착지</button>
+    <button data-v="party"><svg viewBox="0 0 24 24"><circle cx="8" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M2 20c0-4 3-6 6-6s6 2 6 6M14 20c0-3 1.5-5 4-5s4 2 4 5"/></svg>상단</button>
+    <button data-v="map"><svg viewBox="0 0 24 24"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></svg>지도</button>
   </nav>
   <div id="battle" hidden>
     <div class="bhead"><b id="bTitle"></b><small id="bInfo"></small></div>
@@ -1317,6 +1352,8 @@ function closeModal() { $('modal').hidden = true; }
 const tierName = u => (UNITS[u.type].cls === 'dino' ? TIER_DINO : TIER_HUMAN)[u.tier || 0] + UNITS[u.type].n;
 const unitName = u => u.name ? `${u.name}(${tierName(u)})` : tierName(u);
 const stars = n => '★'.repeat(n) + '☆'.repeat(5 - n);
+let townSec = 'hunt', partySec = 'crew';
+const chips = (list, cur, act) => `<div class="chips">${list.map(([k, n, badge]) => `<button class="chip${k === cur ? ' on' : ''}" data-act="${act}" data-k="${k}">${n}${badge ? `<i>${badge}</i>` : ''}</button>`).join('')}</div>`;
 function zoneHead(z) {
   const Z = ZONES[z];
   return `<div class="zonehead">${ZONESHOT[z] ? `<img src="${ZONESHOT[z]}" alt="">` : `<canvas data-ground="${Z.ground}" width="360" height="160"></canvas>`}<div class="zt"><b>${Z.n}</b><small><span class="danger">${stars(Z.danger + 1)}</span> 위험도 · 야생 Lv${Z.lv}~${Z.lv + 6}</small><br><small>${Z.ds}</small></div></div>`;
@@ -1353,25 +1390,27 @@ function renderTown() {
   const recruit = Z.recruit.map(t => { const D = UNITS[t]; return `<div class="row"><canvas data-u="${t}" width="104" height="80"></canvas><div class="info"><b>${D.n} <span class="tag">${D.role}</span></b><small>${D.ds}</small><small>체력 ${D.hp} · 공격 ${D.atk} · 짐 ${D.carry}칸</small></div><button class="btn small primary" data-act="hire" data-t="${t}" ${S.money < D.cost ? 'disabled' : ''}>${D.cost}</button></div>`; }).join('');
   const tame = Z.tame.map(t => `${UNITS[t].n}(${UNITS[t].role})`).join(', ') + ` · 희귀종: ${Z.rare.map(t => S.dex[t] ? UNITS[t].n : '???').join(', ')} (깊은 곳에서 가끔 나와요)`;
   const hurt = S.units.filter(u => u.hp < maxHp(u) || u.ko), healCost = Math.round(S.units.reduce((s, u) => s + (maxHp(u) - u.hp), 0) * 0.12) + (hurt.length ? 5 : 0);
-  el.innerHTML = `${zoneHead(z)}
-    <h2>사냥터<small>여기서 길들일 수 있는 공룡: ${tame}</small></h2>
+  const qReady = (S.quests[z] || []).filter(q => (q.type === 'deliver' ? (S.cargo[q.g] || 0) : q.prog) >= q.n).length;
+  const secs = [['hunt', '사냥터'], ['market', '시장'], ['quest', '의뢰', qReady], ['shop', '공방', outs.length ? '!' : 0], ['hire', '고용'], ['inn', '여관', hurt.length && townSec !== 'inn' ? '!' : 0]];
+  el.innerHTML = `${zoneHead(z)}${chips(secs, townSec, 'tsec')}
+    ${townSec === 'hunt' ? `<h2>사냥터<small>여기서 길들일 수 있는 공룡: ${tame}</small></h2>
     <div class="card">${HUNTS.map((H, i) => { const open = i <= (S.cleared[z] || 0), done = i < (S.cleared[z] || 0);
-      return `<div class="row"><div class="info"><b>${HUNT_NAMES[z][i]} ${done ? '<span class="tag">정복</span>' : ''}${H.boss ? ' <span class="tag" style="color:var(--bad)">우두머리</span>' : ''}</b><small>${H.boss ? `${BOSSES[Z.boss].n} Lv${Z.lv + 6} · 희귀 이상 장비 확정` : `Lv${Z.lv + H.lv[0]}~${Z.lv + H.lv[1]} · ${H.n[0] === H.n[1] ? H.n[0] : H.n[0] + '~' + H.n[1]}마리 · 희귀종 ${Math.round(H.rare * 100)}% · 장비 ${Math.round(H.drop * 100)}%`}</small></div>
-        <button class="btn small ${open ? 'primary' : ''}" data-act="hunt" data-tier="${i}" ${open ? '' : 'disabled'}>${open ? '사냥' : '잠김'}</button></div>`; }).join('')}</div>
-    <h2>시장<small>사면 값이 오르고, 팔면 떨어져요 · 매일 시세가 바뀌어요</small></h2>
-    <div class="card">${goods}</div>
-    <h2>의뢰 게시판<small>매일 새 의뢰가 올라와요</small></h2>
-    <div class="card">${quests}</div>
-    <h2>공방<small>재료를 맡기면 시간이 지나 가공품이 돼요 · 장비와 비싼 교역품을 만들어요</small></h2>
-    <div class="card">${jobRow}${outRow}${shop}</div>
-    <h2>고용소<small>이 구역에서만 구할 수 있는 대원</small></h2>
-    <div class="card">${recruit}</div>
-    <h2>여관과 상점</h2>
+      return `<div class="row"><span class="num${done ? ' done' : ''}${H.boss ? ' boss' : ''}">${H.boss ? '★' : i + 1}</span><div class="info"><b>${HUNT_NAMES[z][i]} ${done ? '<span class="tag">정복</span>' : ''}${H.boss ? ' <span class="tag" style="color:var(--bad)">우두머리</span>' : ''}</b><small>${H.boss ? `${BOSSES[Z.boss].n} Lv${Z.lv + 6} · 희귀 이상 장비 확정` : `Lv${Z.lv + H.lv[0]}~${Z.lv + H.lv[1]} · ${H.n[0] === H.n[1] ? H.n[0] : H.n[0] + '~' + H.n[1]}마리 · 희귀종 ${Math.round(H.rare * 100)}% · 장비 ${Math.round(H.drop * 100)}%`}</small></div>
+        <button class="btn small ${open ? 'primary' : ''}" data-act="hunt" data-tier="${i}" ${open ? '' : 'disabled'}>${open ? '사냥' : '잠김'}</button></div>`; }).join('')}</div>` : ''}
+    ${townSec === 'market' ? `<h2>시장<small>사면 값이 오르고, 팔면 떨어져요 · 매일 시세가 바뀌어요</small></h2>
+    <div class="cargobar"><span>짐칸 ${used}/${cap}</span><div class="bar"><i style="width:${Math.min(100, used / Math.max(1, cap) * 100)}%;background:${used >= cap ? 'var(--bad)' : 'var(--amber)'}"></i></div></div><div class="card">${goods}</div>` : ''}
+    ${townSec === 'quest' ? `<h2>의뢰 게시판<small>매일 새 의뢰가 올라와요</small></h2>
+    <div class="card">${quests}</div>` : ''}
+    ${townSec === 'shop' ? `<h2>공방<small>재료를 맡기면 시간이 지나 가공품이 돼요 · 장비와 비싼 교역품을 만들어요</small></h2>
+    <div class="card">${jobRow}${outRow}${shop}</div>` : ''}
+    ${townSec === 'hire' ? `<h2>고용소<small>이 구역에서만 구할 수 있는 대원</small></h2>
+    <div class="card">${recruit}</div>` : ''}
+    ${townSec === 'inn' ? `<h2>여관과 상점</h2>
     <div class="card">
       <div class="row"><div class="info"><b>여관에서 쉬기</b><small>${hurt.length ? `다친 대원 ${hurt.length}명 모두 바로 회복 · 정착지에 있으면 저절로 천천히 회복돼요` : '모두 건강해요'}</small></div><button class="btn small primary" data-act="heal" data-cost="${healCost}" ${!hurt.length || S.money < healCost ? 'disabled' : ''}>${healCost}</button></div>
       ${hurt.length && S.money < healCost ? `<div class="row"><div class="info"><b>구호소 (무료)</b><small>돈이 모자랄 때 · 모두 체력 절반으로 일으켜요</small></div><button class="btn small" data-act="aid">쉬기</button></div>` : ''}
       <div class="row"><div class="info"><b>마취 다트</b><small>공룡 포획에 써요 · 보유 ${S.darts}개</small></div><button class="btn small" data-act="dart" data-n="1" ${S.money < 35 ? 'disabled' : ''}>35</button><button class="btn small" data-act="dart" data-n="5" ${S.money < 165 ? 'disabled' : ''}>5개 165</button></div>
-    </div>`;
+    </div>` : ''}`;
   el.querySelectorAll('canvas[data-u]').forEach(cv => portrait(cv, cv.dataset.u));
   el.querySelectorAll('canvas[data-ground]').forEach(cv => { const g = cv.getContext('2d'); g.drawImage(groundTex(cv.dataset.ground), 0, 200, BW, 160, 0, 0, 360, 160); });
 }
@@ -1383,13 +1422,14 @@ function renderParty() {
       <button class="btn small" data-act="unit" data-id="${u.id}">관리</button>
       ${u.type === 'leader' ? '<span class="tag on">대장</span>' : `<button class="btn small ${u.inParty ? '' : 'primary'}" data-act="toggle" data-id="${u.id}">${u.inParty ? '대기' : '참전'}</button>`}</div>`; };
   const reserve = S.units.filter(u => !u.inParty);
-  el.innerHTML = `<div class="card"><div class="row"><div class="info"><b>상단 Lv${S.clv} · ${P.length}/${partyCap()}명</b><div class="bar"><i style="width:${S.cxp / cxpNeed(S.clv) * 100}%;background:var(--amber)"></i></div><small>상단 경험치 ${S.cxp}/${cxpNeed(S.clv)} · 장사, 사냥, 의뢰로 올라요 · 레벨마다 인원 +1(최대 12)</small><small>짐칸 ${cargoUsed()}/${capacity()} · 전투 ${S.stats.battles} · 포획 ${S.stats.captures}</small></div><button class="btn small" data-act="snd">${['소리 끔', '효과음만', '소리 켬'][S.snd]}</button></div></div>
-    <h2>상단 스킬<small>남은 포인트 ${S.sp}</small></h2><div class="card">${Object.entries(SKILLS).map(([k, K]) => { const lv = sk(k); return `<div class="row"><div class="info"><b>${K.n} Lv${lv}</b><small>${lv ? K.ds(lv) : '아직 배우지 않았어요'}${lv < SKILL_MAX ? ` → ${K.ds(lv + 1)}` : ''}</small></div><button class="btn small primary" data-act="skill" data-k="${k}" ${S.sp < 1 || lv >= SKILL_MAX ? 'disabled' : ''}>${lv >= SKILL_MAX ? '최고' : '배우기'}</button></div>`; }).join('')}</div>
-    <h2>출전 대원<small>앞줄: 탱커·근접 / 뒷줄: 원거리·지원</small></h2><div class="card">${P.map(row).join('')}</div>
-    <h2>대기 대원<small>정착지 우리에서 쉬어요</small></h2><div class="card">${reserve.length ? reserve.map(row).join('') : '<div class="row"><div class="info"><small>없어요. 사냥터에서 공룡을 포획하거나 고용소에서 대원을 구하세요</small></div></div>'}</div>
-    <h2>가방<small>장비 ${S.items.length}/${BAG_MAX} · 대원의 관리 버튼에서 착용해요</small></h2><div class="card">${S.items.length ? [...S.items].sort((a, b) => b.r - a.r || b.lv - a.lv).map(it => `<div class="row"><div class="info"><b>${itemName(it)}</b><small>${SLOTS[it.slot]} · Lv${it.lv} · ${itemText(it)}</small></div><button class="btn small" data-act="sellItem" data-it="${it.id}">${itemPrice(it)}에 팔기</button></div>`).join('') : '<div class="row"><div class="info"><small>아직 얻은 장비가 없어요. 사냥에서 이기면 가끔 떨어져요</small></div></div>'}</div>
-    <h2>공룡 도감<small>${Object.keys(UNITS).filter(t => UNITS[t].cls === 'dino').filter(t => S.dex[t] === 2).length} / ${Object.keys(UNITS).filter(t => UNITS[t].cls === 'dino').length}종 포획</small></h2><div class="dexg">${Object.keys(UNITS).filter(t => UNITS[t].cls === 'dino').map(t => { const st = S.dex[t] || 0, D = UNITS[t]; return `<div class="dexc${st ? '' : ' unk'}${st === 2 ? ' own' : ''}"><canvas data-u="${t}" width="104" height="80"></canvas><b>${st ? D.n : '???'}</b><small>${st === 2 ? (D.rare ? '★희귀 · ' : '') + D.role : st ? '미포획' : (D.rare ? '희귀종' : '미발견')}</small></div>`; }).join('')}</div>
-    <h2>짐</h2><div class="card">${Object.keys(S.cargo).length ? Object.entries(S.cargo).map(([g, k]) => `<div class="row"><div class="info"><b>${GOODS[g].n} ${k}개</b><small>이 정착지에서 팔면 개당 ${S.travel ? '-' : sellPrice(S.zone, g)}</small></div></div>`).join('') : '<div class="row"><div class="info"><small>짐칸이 비었어요</small></div></div>'}</div>`;
+  const psecs = [['crew', '대원'], ['bag', '가방', S.items.length], ['dex', '도감'], ['skill', '스킬', S.sp], ['cargo', '짐']];
+  el.innerHTML = `<div class="card"><div class="row"><div class="info"><b>상단 Lv${S.clv} · ${P.length}/${partyCap()}명</b><div class="bar"><i style="width:${S.cxp / cxpNeed(S.clv) * 100}%;background:var(--amber)"></i></div><small>상단 경험치 ${S.cxp}/${cxpNeed(S.clv)} · 장사, 사냥, 의뢰로 올라요 · 레벨마다 인원 +1(최대 12)</small><small>짐칸 ${cargoUsed()}/${capacity()} · 전투 ${S.stats.battles} · 포획 ${S.stats.captures}</small></div><button class="btn small" data-act="snd">${['소리 끔', '효과음만', '소리 켬'][S.snd]}</button></div></div>${chips(psecs, partySec, 'psec')}
+    ${partySec === 'crew' ? `<h2>출전 대원<small>앞줄: 탱커·근접 / 뒷줄: 원거리·지원</small></h2><div class="card">${P.map(row).join('')}</div>
+    <h2>대기 대원<small>정착지 우리에서 쉬어요</small></h2><div class="card">${reserve.length ? reserve.map(row).join('') : '<div class="row"><div class="info"><small>없어요. 사냥터에서 공룡을 포획하거나 고용소에서 대원을 구하세요</small></div></div>'}</div>` : ''}
+    ${partySec === 'bag' ? `<h2>가방<small>장비 ${S.items.length}/${BAG_MAX} · 대원의 관리 버튼에서 착용해요</small></h2><div class="card">${S.items.length ? [...S.items].sort((a, b) => b.r - a.r || b.lv - a.lv).map(it => `<div class="row"><div class="info"><b>${itemName(it)}</b><small>${SLOTS[it.slot]} · Lv${it.lv} · ${itemText(it)}</small></div><button class="btn small" data-act="sellItem" data-it="${it.id}">${itemPrice(it)}에 팔기</button></div>`).join('') : '<div class="row"><div class="info"><small>아직 얻은 장비가 없어요. 사냥에서 이기면 가끔 떨어져요</small></div></div>'}</div>` : ''}
+    ${partySec === 'dex' ? `<h2>공룡 도감<small>${Object.keys(UNITS).filter(t => UNITS[t].cls === 'dino').filter(t => S.dex[t] === 2).length} / ${Object.keys(UNITS).filter(t => UNITS[t].cls === 'dino').length}종 포획</small></h2><div class="dexg">${Object.keys(UNITS).filter(t => UNITS[t].cls === 'dino').map(t => { const st = S.dex[t] || 0, D = UNITS[t]; return `<div class="dexc${st ? '' : ' unk'}${st === 2 ? ' own' : ''}"><canvas data-u="${t}" width="104" height="80"></canvas><b>${st ? D.n : '???'}</b><small>${st === 2 ? (D.rare ? '★희귀 · ' : '') + D.role : st ? '미포획' : (D.rare ? '희귀종' : '미발견')}</small></div>`; }).join('')}</div>` : ''}
+    ${partySec === 'skill' ? `<h2>상단 스킬<small>남은 포인트 ${S.sp}</small></h2><div class="card">${Object.entries(SKILLS).map(([k, K]) => { const lv = sk(k); return `<div class="row"><div class="info"><b>${K.n} Lv${lv}</b><small>${lv ? K.ds(lv) : '아직 배우지 않았어요'}${lv < SKILL_MAX ? ` → ${K.ds(lv + 1)}` : ''}</small></div><button class="btn small primary" data-act="skill" data-k="${k}" ${S.sp < 1 || lv >= SKILL_MAX ? 'disabled' : ''}>${lv >= SKILL_MAX ? '최고' : '배우기'}</button></div>`; }).join('')}</div>` : ''}
+    ${partySec === 'cargo' ? `<h2>짐</h2><div class="card">${Object.keys(S.cargo).length ? Object.entries(S.cargo).map(([g, k]) => `<div class="row"><div class="info"><b>${GOODS[g].n} ${k}개</b><small>이 정착지에서 팔면 개당 ${S.travel ? '-' : sellPrice(S.zone, g)}</small></div></div>`).join('') : '<div class="row"><div class="info"><small>짐칸이 비었어요</small></div></div>'}</div>` : ''}`;
   el.querySelectorAll('canvas[data-u]').forEach(cv => portrait(cv, cv.dataset.u));
 }
 function itemModal(uid, slot) {
@@ -1406,11 +1446,11 @@ function unitModal(id) {
   const gearRow = (key, item, label, eff) => { const lv = u[key] || 0, need = lv + 1, have = S.cargo[item] || 0;
     return `<div class="row"><div class="info"><b>${label} ${lv}/3단계</b><small>${eff}${lv < 3 ? ` · 다음 단계: ${GOODS[item].n} ${need}개 (보유 ${have})` : ''}</small></div><button class="btn small primary" data-act="gear" data-id="${u.id}" data-k="${key}" ${lv >= 3 || have < need ? 'disabled' : ''}>${lv >= 3 ? '최고' : '강화'}</button></div>`; };
   const names = dino ? TIER_DINO : TIER_HUMAN;
-  showModal(`<canvas data-u="${u.type}" width="260" height="150" style="height:110px"></canvas><h3>${unitName(u)}</h3><div class="sub">Lv${u.lv} · ${D.role} · ${D.ds}</div>
+  showModal(`<canvas data-u="${u.type}" width="260" height="200" style="width:156px;height:120px;align-self:center"></canvas><h3>${unitName(u)}</h3><div class="sub">Lv${u.lv} · ${D.role} · ${D.ds}</div>
     <div class="card"><div class="row"><div class="info"><small style="color:var(--text)">체력 ${maxHp(u)} · 공격 ${Math.round(D.atk * lvMul(u.lv) * gm.atk)} · 방어 ${Math.round(D.def * (1 + 0.05 * (u.lv - 1)) * gm.def)} · 짐 ${D.carry}칸</small></div></div>
-    ${gearRow('gw', 'weapon', dino ? '강철 발톱 덮개' : '무기', '단계마다 공격 +15%')}
-    ${gearRow('ga', 'armor', dino ? '가죽 갑주' : '방어구', '단계마다 방어 +25%, 체력 +10%')}
-    ${Object.entries(SLOTS).map(([sl, sn]) => { const it = (u.eq || {})[sl], n = S.items.filter(x => x.slot === sl).length; return `<div class="row"><div class="info"><b>${sn}: ${it ? itemName(it) : '<span style="color:var(--muted)">비어 있음</span>'}</b><small>${it ? itemText(it) + ` · Lv${it.lv}` : '사냥터에서 얻은 장비를 착용해요'} · 가방에 ${n}개</small></div><button class="btn small" data-act="pickItem" data-id="${u.id}" data-slot="${sl}" ${n || it ? '' : 'disabled'}>교체</button></div>`; }).join('')}
+    ${gearRow('gw', 'weapon', dino ? '발톱 덮개 단련' : '무기 단련', '공방 제작품으로 강화 · 단계마다 공격 +15%')}
+    ${gearRow('ga', 'armor', dino ? '갑주 보강' : '방어구 보강', '공방 제작품으로 강화 · 단계마다 방어 +25%, 체력 +10%')}
+    ${Object.entries(SLOTS).map(([sl, sn]) => { const it = (u.eq || {})[sl], n = S.items.filter(x => x.slot === sl).length; return `<div class="row"><div class="info"><b>착용 ${sn}: ${it ? itemName(it) : '<span style="color:var(--muted)">비어 있음</span>'}</b><small>${it ? itemText(it) + ` · Lv${it.lv}` : '사냥터에서 얻은 장비를 착용해요'} · 가방에 ${n}개</small></div><button class="btn small" data-act="pickItem" data-id="${u.id}" data-slot="${sl}" ${n || it ? '' : 'disabled'}>교체</button></div>`; }).join('')}
     <div class="row"><div class="info"><b>${dino ? '성장' : '전직'}: ${tier >= 2 ? '최고 단계' : names[tier + 1] + D.n}</b><small>${tier >= 2 ? '더 오를 단계가 없어요' : `체력과 공격 +30% · 조건: Lv${P.lv}, 상단 Lv${P.clv}, ${P.cost} 크레딧`}</small></div><button class="btn small primary" data-act="promote" data-id="${u.id}" ${tier >= 2 || u.lv < P.lv || S.clv < P.clv || S.money < P.cost ? 'disabled' : ''}>${tier >= 2 ? '완료' : dino ? '성장' : '전직'}</button></div></div>
     <div class="sub" style="margin:0">강철 무기는 무너진 도시 공방, 가죽 갑옷은 잿빛 평원 공방에서 만들어요</div>
     <div class="mbtns"><button class="btn" data-act="close">닫기</button></div>`);
@@ -1481,6 +1521,8 @@ document.body.addEventListener('click', e => {
     const foes = huntFoes(z, tier); startBattle({ kind: 'hunt', zone: z, tier, foes, boss: HUNTS[tier].boss ? ZONES[z].boss : null }); if (HUNTS[tier].boss) sfx('roar');
   }
   else if (act === 'toggle') { const u = S.units.find(x => x.id === +b.dataset.id); if (!u) return; if (!u.inParty && party().length >= partyCap()) { toast(`지금은 대장 포함 ${partyCap()}명까지예요. 상단 레벨을 올리면 늘어나요 (최대 12명)`); return; } u.inParty = !u.inParty; if (cargoUsed() > capacity()) toast('짐칸이 모자라요. 출발 전에 짐을 줄이세요', 'warn'); }
+  else if (act === 'tsec') { townSec = b.dataset.k; sfx('tap'); }
+  else if (act === 'psec') { partySec = b.dataset.k; sfx('tap'); }
   else if (act === 'go') startTravel(b.dataset.z);
   else if (act === 'quest') {
     const q = S.quests[z][+b.dataset.i]; if (!q) return;
@@ -1525,6 +1567,7 @@ document.body.addEventListener('click', e => {
 });
 $('tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { sfx('tap'); setView(b.dataset.v); } });
 document.addEventListener('pointerdown', sndInit);
+$('modal').addEventListener('click', e => { if (e.target.id === 'modal' && !$('mcard').querySelector('[data-act="closeBattle"]')) closeModal(); });
 window.addEventListener('resize', () => { if (B) resizeBattle(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
 
