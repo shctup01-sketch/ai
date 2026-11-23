@@ -357,26 +357,33 @@ const SK = { volley: { n: '일제 사격', cd: 12, ds: '적 셋을 한꺼번에 
   acid: { n: '산성 분사', cd: 12, ds: '주변 적의 장갑을 녹이고 피해' }, tail: { n: '꼬리 휘두르기', cd: 11, ds: '주변 적 모두에게 큰 피해' }, roar: { n: '포효', cd: 16, ds: '6초 동안 아군 공격 +25%' } };
 const SK_OF = { leader: 'volley', hunter: 'multishot', spear: 'guard', sniper: 'snipe', mechanic: 'grenade', medic: 'firstaid', venomer: 'mist', dilo: 'acid', paraGold: 'firstaid' };
 const SK_MODEL = { Triceratops: 'charge', Parasaurolophus: 'boom', Apatosaurus: 'stomp', Velociraptor: 'pounce', Stegosaurus: 'tail', Trex: 'roar' };
+const SKN = { volley: ['일제 사격', '집중 포화', '포격 명령'], multishot: ['연속 사격', '속사', '화살비'], guard: ['철벽', '강철 의지', '수호의 벽'], snipe: ['급소 저격', '관통탄', '처형 사격'], grenade: ['수류탄', '고폭탄', '집속 폭탄'], firstaid: ['응급 처치', '야전 수술', '기적의 손'], mist: ['독안개', '부식 안개', '역병 구름'],
+  charge: ['돌진', '분노의 돌진', '대지 가르기'], boom: ['굉음', '천둥 울음', '폭풍의 포효'], stomp: ['지진 밟기', '대지 진동', '산사태'], pounce: ['급습', '연쇄 급습', '피의 축제'], acid: ['산성 분사', '부식 분사', '녹아내리는 비'], tail: ['꼬리 휘두르기', '가시 회오리', '파멸의 꼬리'], roar: ['포효', '폭군의 포효', '지배자의 포효'] };
+const SKX = { volley: ['적 셋을 쏴요', '적 다섯을 더 세게 쏴요', '모든 적을 쏴요'], multishot: ['화살 세 발', '화살 네 발', '모든 적에게 화살비'], guard: ['5초 동안 방어 2배', '방어 2배에 체력도 회복', '아군 모두 방어 2배'], snipe: ['3배 피해', '4배 피해', '5배 피해와 기절'], grenade: ['주변 적에게 피해', '더 넓고 강하게', '아주 넓은 폭발'], firstaid: ['아군 체력 20% 회복', '30% 회복', '45% 회복'], mist: ['적의 장갑을 녹여요', '더 많이 녹여요', '장갑을 녹이고 기절'],
+  charge: ['들이받아 기절', '더 강한 돌진', '주변 적까지 함께 쓰러뜨려요'], boom: ['주변 적 기절', '더 넓게 더 오래', '아주 넓게 기절'], stomp: ['주변 적에게 피해', '더 넓고 강하게', '아주 넓고 강하게'], pounce: ['두 번 물어요', '세 번 물어요', '네 번 물어요'], acid: ['장갑을 녹이고 피해', '더 넓고 강하게', '아주 넓게'], tail: ['주변 적에게 큰 피해', '더 넓고 강하게', '아주 넓고 강하게'], roar: ['6초간 아군 공격 +25%', '8초간 지속', '10초간 지속하고 체력 회복'] };
+const skName = (k, t) => SKN[k][Math.min(2, t || 0)], skDesc = (k, t) => SKX[k][Math.min(2, t || 0)];
+const JOBS = { leader: ['상단 대장', '행수', '대행수'], hunter: ['사냥꾼', '명사수', '신궁'], spear: ['창잡이', '중갑 창병', '철벽 수호자'], sniper: ['저격수', '명저격수', '유령 저격수'], mechanic: ['정비공', '기술자', '병기 장인'], medic: ['의무병', '군의관', '명의'], venomer: ['독침술사', '독술사', '역병술사'] };
 const skillOf = type => SK_OF[type] || SK_MODEL[MODEL_FILES[type]] || null;
 function skHit(u, t, mult, crit) { const def = Math.max(0, t.def * (t.guardT > 0 ? 2 : 1) - t.shred * 2.5), dmg = u.atk * (u.roarT > 0 ? 1.25 : 1) * mult * 40 / (40 + def); t.hp -= dmg; t.hitT = 0.2; num(t, Math.round(dmg) + '!', '#ffd870'); burst(t.x, t.y, 10, 7, '#ffd870', { spd: 65, life: 0.4, r: 2.6 }); if (t.hp <= 0) onKill(u, t); }
 function castSkill(u) {
   const k = u.sk, K = SK[k]; if (!K || u.skCd > 0 || u.hp <= 0 || u.stun > 0 || B.over) return false;
-  const foes = alive(1), mates = alive(0), near = r => foes.filter(f => d2(f.x, f.y, u.x, u.y) < r * r), t = u.target && u.target.hp > 0 && u.target.side === 1 ? u.target : foes.slice().sort((a, b) => d2(a.x, a.y, u.x, u.y) - d2(b.x, b.y, u.x, u.y))[0];
-  if (!t) return false; const reach = u.range + (u.size + t.size) * 0.5 + 14, inR = d2(u.x, u.y, t.x, t.y) < reach * reach;
-  if (k === 'volley') { if (!inR) return false; foes.slice().sort((a, b) => d2(a.x, a.y, u.x, u.y) - d2(b.x, b.y, u.x, u.y)).slice(0, 3).forEach(f => { B.fx.push({ t: 0.25, kind: 'bullet', x: u.x, y: u.y, x2: f.x, y2: f.y }); skHit(u, f, 1.6); }); sfx('shot'); }
-  else if (k === 'multishot') { if (!inR) return false; for (let i = 0; i < 3; i++) if (t.hp > 0) { B.fx.push({ t: 0.25 + i * 0.05, kind: 'arrow', x: u.x, y: u.y, x2: t.x, y2: t.y }); skHit(u, t, 0.85); } sfx('bow'); }
-  else if (k === 'snipe') { if (!inR) return false; B.fx.push({ t: 0.3, kind: 'bullet', x: u.x, y: u.y, x2: t.x, y2: t.y }); skHit(u, t, 3); SHAKE = Math.max(SHAKE, 0.4); sfx('crit'); }
-  else if (k === 'guard') { u.guardT = 5; ringFx(u.x, u.y, '#9fd0ff', u.size * 1.4, 0.6); sfx('stun'); }
-  else if (k === 'grenade') { if (!inR) return false; ringFx(t.x, t.y, '#ff9a40', 60, 0.5); burst(t.x, t.y, 6, 20, '#ffb050', { spd: 90, life: 0.6, r: 3.4 }); foes.filter(f => d2(f.x, f.y, t.x, t.y) < 70 * 70).forEach(f => skHit(u, f, 2.2)); SHAKE = Math.max(SHAKE, 0.6); sfx('crunchBig'); }
-  else if (k === 'firstaid') { if (!mates.some(m => m.hp < m.max * 0.7)) return false; for (const m of mates) { const h = Math.min(m.max - m.hp, m.max * 0.2); m.hp += h; if (h > 1) num(m, '+' + Math.round(h), '#8fbf6a'); burst(m.x, m.y, 4, 5, '#8fd36a', { spd: 14, up: 55, g: 0, life: 0.7 }); } sfx('heal'); }
-  else if (k === 'mist') { for (const f of foes) { f.shred = Math.min(5, f.shred + 3); f.shredT = 8; burst(f.x, f.y, 8, 6, '#a0d040', { spd: 20, up: 20, g: 10, life: 0.9, r: 3 }); } sfx('spit'); }
-  else if (k === 'charge') { if (!inR) return false; skHit(u, t, 1.8); if (t.hp > 0 && !t.boss) t.stun = Math.max(t.stun, 1.5); ringFx(t.x, t.y, '#f8e88a', 26, 0.4); SHAKE = Math.max(SHAKE, 0.5); sfx('crunch'); }
-  else if (k === 'boom') { const ns = near(110); if (!ns.length) return false; ringFx(u.x, u.y, '#f8e88a', 110, 0.6); for (const f of ns) { if (!f.boss) f.stun = Math.max(f.stun, 1.6); skHit(u, f, 0.6); } sfx('roar'); }
-  else if (k === 'stomp' || k === 'tail') { const r = k === 'stomp' ? 80 : 60, ns = near(r + u.size); if (!ns.length) return false; ringFx(u.x, u.y, '#d2be96', r + u.size, 0.5); burst(u.x, u.y, 2, 16, '#c9b48a', { spd: 80, up: 30, life: 0.7, r: 3.6, g: 60 }); ns.forEach(f => skHit(u, f, k === 'stomp' ? 1.3 : 1.7)); SHAKE = Math.max(SHAKE, 0.6); sfx('crunchBig'); }
-  else if (k === 'pounce') { if (!inR) return false; skHit(u, t, 1.3); if (t.hp > 0) skHit(u, t, 1.3); sfx('bite'); }
-  else if (k === 'acid') { if (!inR) return false; ringFx(t.x, t.y, '#c0e040', 50, 0.5); foes.filter(f => d2(f.x, f.y, t.x, t.y) < 60 * 60).forEach(f => { f.shred = Math.min(5, f.shred + 2); f.shredT = 8; skHit(u, f, 1.1); }); sfx('spit'); }
-  else if (k === 'roar') { for (const m of mates) { m.roarT = 6; ringFx(m.x, m.y, '#ff9a6a', m.size, 0.5); } SHAKE = Math.max(SHAKE, 0.4); sfx('roar'); }
-  u.skCd = K.cd; u.atkT = 0.5; num(u, K.n, '#ffe070'); return true;
+  const T = u.tier || 0, P = [1, 1.4, 1.9][T];   // promotion and evolution change the skill itself, not only its strength
+  const foes = alive(1), mates = alive(0), near = r => foes.filter(f => d2(f.x, f.y, u.x, u.y) < r * r), byDist = () => foes.slice().sort((a, b) => d2(a.x, a.y, u.x, u.y) - d2(b.x, b.y, u.x, u.y)), t = u.target && u.target.hp > 0 && u.target.side === 1 ? u.target : byDist()[0];
+  if (!t) return false; const reach = u.range + (u.size + t.size) * 0.5 + 14, inR = d2(u.x, u.y, t.x, t.y) < reach * reach, around = r => foes.filter(f => d2(f.x, f.y, t.x, t.y) < r * r);
+  if (k === 'volley') { if (!inR) return false; byDist().slice(0, [3, 5, 99][T]).forEach(f => { B.fx.push({ t: 0.25, kind: 'bullet', x: u.x, y: u.y, x2: f.x, y2: f.y }); skHit(u, f, 1.6 * P); }); sfx('shot'); }
+  else if (k === 'multishot') { if (!inR) return false; if (T === 2) foes.forEach(f => { B.fx.push({ t: 0.3, kind: 'arrow', x: u.x, y: u.y, x2: f.x, y2: f.y }); skHit(u, f, 1.5); }); else for (let i = 0; i < 3 + T; i++) if (t.hp > 0) { B.fx.push({ t: 0.25 + i * 0.05, kind: 'arrow', x: u.x, y: u.y, x2: t.x, y2: t.y }); skHit(u, t, 0.85 * P); } sfx('bow'); }
+  else if (k === 'snipe') { if (!inR) return false; B.fx.push({ t: 0.3, kind: 'bullet', x: u.x, y: u.y, x2: t.x, y2: t.y }); skHit(u, t, 3 + T); if (T === 2 && t.hp > 0 && !t.boss) t.stun = Math.max(t.stun, 2); SHAKE = Math.max(SHAKE, 0.4); sfx('crit'); }
+  else if (k === 'guard') { for (const m of T === 2 ? mates : [u]) { m.guardT = 5 + T; ringFx(m.x, m.y, '#9fd0ff', m.size * 1.4, 0.6); } if (T >= 1) { const h = Math.min(u.max - u.hp, u.max * 0.15); u.hp += h; if (h > 1) num(u, '+' + Math.round(h), '#8fbf6a'); } sfx('stun'); }
+  else if (k === 'grenade') { if (!inR) return false; const r = 70 + T * 22; ringFx(t.x, t.y, '#ff9a40', r - 10, 0.5); burst(t.x, t.y, 6, 20 + T * 8, '#ffb050', { spd: 90 + T * 20, life: 0.6, r: 3.4 }); around(r).forEach(f => skHit(u, f, 2.2 * P)); SHAKE = Math.max(SHAKE, 0.6); sfx('crunchBig'); }
+  else if (k === 'firstaid') { if (!mates.some(m => m.hp < m.max * 0.7)) return false; const pc = [0.2, 0.3, 0.45][T]; for (const m of mates) { const h = Math.min(m.max - m.hp, m.max * pc); m.hp += h; if (h > 1) num(m, '+' + Math.round(h), '#8fbf6a'); burst(m.x, m.y, 4, 5, '#8fd36a', { spd: 14, up: 55, g: 0, life: 0.7 }); } sfx('heal'); }
+  else if (k === 'mist') { for (const f of foes) { f.shred = Math.min(5, f.shred + 3 + T); f.shredT = 8 + T * 2; if (T === 2 && !f.boss) f.stun = Math.max(f.stun, 1); burst(f.x, f.y, 8, 6, '#a0d040', { spd: 20, up: 20, g: 10, life: 0.9, r: 3 }); } sfx('spit'); }
+  else if (k === 'charge') { if (!inR) return false; for (const f of T === 2 ? around(70) : [t]) { skHit(u, f, 1.8 * P); if (f.hp > 0 && !f.boss) f.stun = Math.max(f.stun, 1.5); } ringFx(t.x, t.y, '#f8e88a', T === 2 ? 70 : 26, 0.4); SHAKE = Math.max(SHAKE, 0.5 + T * 0.15); sfx(T === 2 ? 'crunchBig' : 'crunch'); }
+  else if (k === 'boom') { const r = 110 + T * 30, ns = near(r); if (!ns.length) return false; ringFx(u.x, u.y, '#f8e88a', r, 0.6); for (const f of ns) { if (!f.boss) f.stun = Math.max(f.stun, 1.6 + T * 0.5); skHit(u, f, 0.6 * P); } sfx('roar'); }
+  else if (k === 'stomp' || k === 'tail') { const r = (k === 'stomp' ? 80 : 60) + T * 18, ns = near(r + u.size); if (!ns.length) return false; ringFx(u.x, u.y, '#d2be96', r + u.size, 0.5); burst(u.x, u.y, 2, 16 + T * 6, '#c9b48a', { spd: 80, up: 30, life: 0.7, r: 3.6, g: 60 }); ns.forEach(f => skHit(u, f, (k === 'stomp' ? 1.3 : 1.7) * P)); SHAKE = Math.max(SHAKE, 0.6 + T * 0.15); sfx('crunchBig'); }
+  else if (k === 'pounce') { if (!inR) return false; for (let i = 0; i < 2 + T; i++) if (t.hp > 0) skHit(u, t, 1.3); sfx('bite'); }
+  else if (k === 'acid') { if (!inR) return false; const r = 60 + T * 22; ringFx(t.x, t.y, '#c0e040', r - 10, 0.5); around(r).forEach(f => { f.shred = Math.min(5, f.shred + 2 + T); f.shredT = 8; skHit(u, f, 1.1 * P); }); sfx('spit'); }
+  else if (k === 'roar') { for (const m of mates) { m.roarT = 6 + T * 2; ringFx(m.x, m.y, '#ff9a6a', m.size, 0.5); if (T === 2) { const h = Math.min(m.max - m.hp, m.max * 0.1); m.hp += h; } } SHAKE = Math.max(SHAKE, 0.4); sfx('roar'); }
+  u.skCd = K.cd; u.atkT = 0.5; num(u, skName(k, T), '#ffe070'); return true;
 }
 function autoPotion() {   // drink before someone falls
   if (!S.auto.pot || S.pots < 1 || (W.potT || 0) > W.t) return;
@@ -485,7 +492,7 @@ function spawn(side, type, lv, x, y, ref, boss) {
   if (ref) { const fm = FORMS[S.form] || FORMS.bal; st.atk *= fm.atk * (hungry() ? 0.7 : 1); st.def *= fm.def; }
   if (ref) { const gm = gearMul(ref); st.hp *= gm.hp; st.atk *= gm.atk; st.def *= gm.def; st.size *= 1 + 0.07 * (ref.tier || 0); }
   const u = { id: B.idSeq++, side, type, lv, ref, boss, x, y, a: side ? Math.PI / 2 : -Math.PI / 2, hp: ref ? Math.min(ref.hp, st.hp) : st.hp, max: st.hp, atk: st.atk, def: st.def, size: st.size,
-              sk: side === 0 ? skillOf(type) : null, skCd: rand(2, 6), guardT: 0, roarT: 0,
+              tier: ref ? ref.tier || 0 : 0, sk: side === 0 ? skillOf(type) : null, skCd: rand(2, 6), guardT: 0, roarT: 0,
               range: D.range, as: D.as, spd: D.spd, cd: rand(0, 0.6), stun: 0, shred: 0, shredT: 0, leg: rand(0, 6), moving: false, hitT: 0 };
   B.units.push(u); return u;
 }
@@ -657,7 +664,7 @@ function endBattle(win) {
     const share = Math.round(B.xp / Math.max(1, Math.sqrt(ours.length)));
     for (const u of ours) {
       u.xp += u.ko ? Math.round(share * 0.3) : share;
-      while (u.xp >= xpNeed(u.lv) && u.lv < 40) { u.xp -= xpNeed(u.lv); u.lv++; u.hp = Math.min(maxHp(u), u.hp + Math.round(maxHp(u) * 0.3)); lines.push(`${unitName(u)} Lv${u.lv} 달성`); lvUp = true; }
+      while (u.xp >= xpNeed(u.lv) && u.lv < 40) { u.xp -= xpNeed(u.lv); u.lv++; u.hp = Math.min(maxHp(u), u.hp + Math.round(maxHp(u) * 0.3)); lines.push(`${unitName(u)} Lv${u.lv} 달성`); lvUp = true; if (PROMO[u.tier || 0] && u.lv === PROMO[u.tier || 0].lv) lines.push(`<b style="color:var(--amber)">${unitName(u)}: ${UNITS[u.type].cls === 'dino' ? '진화' : '전직'}할 수 있어요</b> (상단 창에서)`); }
     }
     for (const [g, k] of Object.entries(B.loot)) { const got = addCargo(g, k); lines.unshift(`${GOODS[g].n} +${got}${got < k ? ` (짐칸 부족으로 ${k - got}개 버림)` : ''}`); }
     for (const c of B.captured) { const inP = party().length < partyCap(); const u = addUnit(c.type, c.lv, inP); u.hp = Math.round(maxHp(u) * 0.4); lines.push(`${UNITS[c.type].n} Lv${c.lv}이(가) 상단에 합류했어요${inP ? '' : ' (대기)'}`); S.stats.captures++; }
@@ -871,7 +878,7 @@ function loadModels(onProgress) {
       lambertize(o);
       const clips = {}; for (const a of o.animations) clips[a.name.split('_').pop().toLowerCase()] = a;
       const sz = new THREE.Box3().setFromObject(o).getSize(new THREE.Vector3());
-      MODELS[f] = { obj: o, clips, len: Math.max(sz.x, sz.z) };
+      MODELS[f] = { obj: o, clips, len: Math.max(sz.x, sz.z), h: sz.y };
       fin();
     }).catch(() => { ok = false; fin(); }));
   });
@@ -881,7 +888,7 @@ const lam = (col, extra = {}) => new THREE.MeshLambertMaterial(Object.assign({ c
 // people for hire, built from simple low-poly shapes to match the dinosaurs
 const HUMAN3 = { leader: [0x7a6448, 0x3a2e22], hunter: [0x56633a, 0x3a3020], spear: [0x6c5c4a, 0x3a3026], sniper: [0x444a44, 0x2a2e2a],
                  mechanic: [0xc06a20, 0x34405a], medic: [0xe2ddd0, 0x6a6a70], venomer: [0x3e4a34, 0x24281c] };
-function makeHuman3(type) {
+function makeHuman3(type, tier = 0) {
   const [body, pants] = HUMAN3[type], g = new THREE.Group(), s = new THREE.Group(); g.add(s);
   const M = (geo, col, x, y, z, parent = s) => { const m = new THREE.Mesh(geo, typeof col === 'number' ? lam(col) : col); m.position.set(x, y, z); m.castShadow = true; parent.add(m); return m; };
   const B = (w, h, d) => new THREE.BoxGeometry(w, h, d), skin = lam(0xd9a47c), legs = [];
@@ -926,6 +933,8 @@ function makeHuman3(type) {
     M(cyl(1.5, 1.5, 6, 8), 0x7ab030, 2, 11.6, -4.9); M(cyl(1.5, 1.5, 6, 8), 0x5a9024, -2, 11.6, -4.9);
     W(cyl(0.5, 0.5, 15, 6), 0x8a7a4a, 0, 0, 5, Math.PI / 2);
   }
+  if (tier >= 1) { for (const sd of [-1, 1]) M(B(3.2, 2.4, 4.6), tier >= 2 ? 0xe3a843 : 0x9a9a94, sd * 4.6, 15.3, 0); M(B(7, 2.2, 4.2), 0x8a6a3a, 0, 8.4, 0); M(B(6.9, 3, 0.8), tier >= 2 ? 0xe3a843 : 0x8a8a84, 0, 12.4, 2.1); }
+  if (tier >= 2) { M(B(8, 13, 0.8), 0xa02a20, 0, 9, -5.3); M(B(1.3, 5.5, 3.2), 0xe3a843, 0, 22, -0.4); M(B(1.6, 1.6, 1.6), 0x8fe0ff, 0, 0.6, 9, arm); }
   return { root: g, spin: s, legs, arm, human: true };
 }
 function makeTurret3() {
@@ -936,11 +945,17 @@ function makeTurret3() {
   const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 10, 6), lam(0x2a2a28)); barrel.rotation.x = Math.PI / 2; barrel.position.z = 6; head.add(barrel);
   return { root: g, spin: head, turret: true };
 }
-function makeDino3(type, len) {
+function makeDino3(type, len, tier = 0) {
   const M = MODELS[MODEL_FILES[type]], inst = THREE.SkeletonUtils.clone(M.obj);
   if (MODEL_TINT[type]) { const [col, t] = MODEL_TINT[type], tc = srgb(col); inst.traverse(c => { if (c.isMesh) { const tint = m => { const k = m.clone(); k.color.lerp(tc, t); return k; }; c.material = Array.isArray(c.material) ? c.material.map(tint) : tint(c.material); } }); }
+  if (tier >= 1) { const tc = srgb(tier >= 2 ? 0xd8a030 : 0x3a2a20), amt = tier >= 2 ? 0.22 : 0.18; inst.traverse(c => { if (c.isMesh) { const f = m => { const k = m.clone(); k.color.lerp(tc, amt); return k; }; c.material = Array.isArray(c.material) ? c.material.map(f) : f(c.material); } }); }
   inst.scale.setScalar(len / M.len);
   const g = new THREE.Group(), s = new THREE.Group(); s.add(inst); g.add(s);
+  if (tier >= 1) {   // a pack saddle once grown, a war banner on the pack leader
+    const by = (M.h || M.len * 0.4) * (len / M.len) * 0.66, w = len * 0.17, sad = new THREE.Mesh(new THREE.BoxGeometry(w, len * 0.07, len * 0.2), lam(tier >= 2 ? 0xa02a20 : 0x6a4a2a)); sad.position.y = by; s.add(sad);
+    for (const sd of [-1, 1]) { const bag = new THREE.Mesh(new THREE.BoxGeometry(len * 0.05, len * 0.09, len * 0.13), lam(0x8a6a3a)); bag.position.set(sd * w * 0.6, by - len * 0.04, 0); s.add(bag); }
+    if (tier >= 2) { const pole = new THREE.Mesh(new THREE.BoxGeometry(1.2, len * 0.36, 1.2), lam(0x4a3a2a)); pole.position.set(0, by + len * 0.18, -len * 0.06); s.add(pole); const fl = new THREE.Mesh(new THREE.BoxGeometry(len * 0.02 + 0.6, len * 0.12, len * 0.17), lam(0xe3a843)); fl.position.set(0, by + len * 0.3, -len * 0.06 - len * 0.09); s.add(fl); }
+  }
   const mixer = new THREE.AnimationMixer(inst), acts = {};
   for (const [k, clip] of Object.entries(M.clips)) acts[k] = mixer.clipAction(clip);
   return { root: g, spin: s, mixer, acts, cur: null };
@@ -1098,16 +1113,16 @@ function pixelize(cv) {   // hard alpha, a reduced palette and a dark one-pixel 
   g.putImageData(im, 0, 0); return cv;
 }
 const ANIMS = { dino: [['idle', 3], ['walk', 6], ['attack', 5], ['death', 5]], human: [['idle', 1], ['walk', 4], ['attack', 2], ['death', 2]], turret: [['idle', 1]] };
-function unitSprite(type, len) {
+function unitSprite(type, len, tier = 0) {
   const D = UNITS[type], kind = type === 'turret' ? 'turret' : D.cls === 'dino' ? 'dino' : 'human'; len = Math.round(kind === 'dino' ? len : 22);
-  const key = type + '|' + len; if (SPR[key]) return SPR[key];
+  const key = type + '|' + len + '|' + tier; if (SPR[key]) return SPR[key];
   const fw = kind === 'dino' ? Math.ceil(len * 1.5) + 8 : kind === 'human' ? 56 : 30, fh = fw, spr = { fw, fh, an: {}, kind };
   if (!USE3D) {   // no WebGL: fall back to the hand-drawn shapes
     spr.ax = fw >> 1; spr.ay = fh >> 1;
     for (const [name, n] of ANIMS[kind]) { const cv = document.createElement('canvas'); cv.width = fw * n; cv.height = fh * 5; const g = cv.getContext('2d'); BD.forEach((k, row) => { for (let f = 0; f < n; f++) { const x = f * fw + fw / 2, y = row * fh + fh / 2, a = k * Math.PI / 4; if (kind === 'dino') drawDino(g, type, x, y, a, len, f * 1.1, { still: name !== 'walk', dead: name === 'death' }); else if (kind === 'human') drawHuman(g, type, x, y, a, 11, f * 1.6, { still: name !== 'walk' }); else { g.fillStyle = '#6a6a62'; g.fillRect(x - 5, y - 5, 10, 10); } } }); spr.an[name] = { cv, n }; }
     return SPR[key] = spr;
   }
-  const b = baker(), obj = kind === 'dino' ? makeDino3(type, len) : kind === 'human' ? makeHuman3(type) : makeTurret3();
+  const b = baker(), obj = kind === 'dino' ? makeDino3(type, len, tier) : kind === 'human' ? makeHuman3(type, tier) : makeTurret3();
   obj.root.traverse(o => { o.frustumCulled = false; }); b.sc.add(obj.root);
   Object.assign(spr, bakeSetup(fw, fh, kind === 'dino' ? len * 0.2 : 9));
   for (const [name, n] of ANIMS[kind]) {
@@ -1310,12 +1325,13 @@ function updWorld(dt) {
   const L = W.lead; W.t += dt; autoPotion();
   if (!B) {
     if (W.target) { if (W.target.dead > 0 || !W.target.mons.length) W.target = null; else { const m = W.target.mons[0]; L.tx = m.x; L.ty = m.y; } }
-    L.moving = false;
+    L.moving0 = L.moving; L.moving = false;
     if (L.tx !== null && W.crew.length) {
       const d = Math.hypot(L.tx - L.x, L.ty - L.y), stop = W.target ? 30 + W.target.mons[0].len * 0.35 : 3;
       if (d > stop) {
         // if something has been in the way for a moment, swing wide around it
-        W.prog = W.prog || { d, t: 0 }; W.prog.t += dt; if (W.prog.t > 0.7) { if (W.prog.d - d < 12 && !(W.detour > 0)) { W.detour = 1.1; W.side = W.side === 1 ? -1 : 1; } W.prog = { d, t: 0 }; }
+        if (!W.prog || !L.moving0) { W.prog = { x: L.x, y: L.y, t: 0 }; W.detour = 0; } W.prog.t += dt;   // only when truly blocked: barely moved for most of a second
+        if (W.prog.t > 0.8) { if (Math.hypot(L.x - W.prog.x, L.y - W.prog.y) < 9 && !(W.detour > 0)) { W.detour = 0.8; W.side = W.side === 1 ? -1 : 1; } W.prog = { x: L.x, y: L.y, t: 0 }; }
         if (W.detour > 0) W.detour -= dt;
         L.a = Math.atan2(L.ty - L.y, L.tx - L.x) + (W.detour > 0 ? W.side * 1.35 : 0); const sp = (roadDist(L.x, L.y) < 18 ? 96 : 78) * (1 + 0.08 * sk('speed')) * (cargoUsed() > capacity() ? 0.5 : 1) * dt;
         L.x += Math.cos(L.a) * sp; L.y += Math.sin(L.a) * sp; L.moving = true;
@@ -1374,7 +1390,7 @@ let skT = 0;
 function updSkbar(dt) {   // manual skill buttons, shown only when auto skills are off
   const el = $('skbar'), on = !!B && !B.over && !S.auto.skill; if (el.hidden === on) el.hidden = !on; if (!on) return;
   skT -= dt; if (skT > 0) return; skT = 0.25;
-  el.innerHTML = B.units.filter(u => u.side === 0 && u.sk && u.hp > 0).map(u => `<button data-sk="${u.id}" ${u.skCd > 0 ? 'disabled' : ''}>${SK[u.sk].n}${u.skCd > 0 ? ' ' + Math.ceil(u.skCd) : ''}</button>`).join('');
+  el.innerHTML = B.units.filter(u => u.side === 0 && u.sk && u.hp > 0).map(u => `<button data-sk="${u.id}" ${u.skCd > 0 ? 'disabled' : ''}>${skName(u.sk, u.tier)}${u.skCd > 0 ? ' ' + Math.ceil(u.skCd) : ''}</button>`).join('');
 }
 $('skbar').addEventListener('pointerdown', e => { const b = e.target.closest('button'); if (!b || !B) return; const u = B.units.find(x => x.id === +b.dataset.sk); if (u && !castSkill(u)) toast('지금은 쓸 수 없어요 · 적이 사거리 밖이에요'); skT = 0; });
 function usePotion() {
@@ -1410,7 +1426,7 @@ function drawScene(c, ox, oy, w, h, ents) {
       if (p.fire) { for (let k = 0; k < 7; k++) { const f = (T * 1.7 + k * 0.37) % 1; c.fillStyle = f < 0.35 ? '#ffe070' : f < 0.7 ? '#f08a30' : '#b03a20'; c.fillRect(x - 3 + Math.round(Math.sin(k * 2.4 + T * 5) * 3), y - 4 - Math.round(f * 12), f < 0.5 ? 2 : 1, 2); } }
       else if (p.loot && ((T * 2) | 0) % 2) { c.fillStyle = '#ffe9a0'; c.fillRect(x - 1, y - 16, 2, 2); c.fillRect(x + 5, y - 11, 1, 1); }
       continue; }
-    const x = e.x - ox, y = e.y - oy, spr = unitSprite(e.type, e.len || 0), sz = e.size || 11;
+    const x = e.x - ox, y = e.y - oy, spr = unitSprite(e.type, e.len || 0, e.tier || 0), sz = e.size || 11;
     if (e.ring) pxRing(c, x, y, Math.round(sz * 0.8), Math.max(2, Math.round(sz * 0.42)), e.ring);
     pxEllipse(c, x, y + 1, Math.max(4, Math.round(sz * 0.55)), Math.max(2, Math.round(sz * 0.22)), 'rgba(0,0,0,.28)');
     drawSpr(c, spr, e.anim, e.fi, e.a, x + (e.jit || 0), y);
@@ -1433,8 +1449,8 @@ function renderWorld(dt) {
     else if (u.atkT > 0) { anim = 'attack'; fi = (1 - u.atkT / 0.5) * n[0]; }
     else [anim, fi] = animOf(kind, u.moving, u.id * 1.7, T, u.spd > 50);
     const sel = u === B.sel || u === B.focus;
-    ents.push({ x: u.x, y: u.y, a: u.turret ? (u.target ? Math.atan2(u.target.y - u.y, u.target.x - u.x) : u.a) : u.a, type: u.turret ? 'turret' : u.type, len: Math.round(u.size * 2.4), size: u.size, anim, fi, jit: u.hitT > 0 ? Math.round(Math.sin(B.t * 90) * 1.5) : 0, ring: u.hp <= 0 ? null : sel ? '#ffe070' : u.boss ? '#a02018' : u.side ? 'rgba(212,87,60,.75)' : 'rgba(227,168,67,.7)' });
-  } else for (const c of W.crew) { const dn = UNITS[c.u.type].cls === 'dino', [anim, fi] = animOf(dn ? 'dino' : 'human', c.moving, c.ph, T); ents.push({ x: c.x, y: c.y, a: c.a, type: c.u.type, len: c.len, size: (UNITS[c.u.type].size || 11) * (1 + 0.07 * (c.u.tier || 0)), anim, fi }); }
+    ents.push({ tier: u.tier || 0, x: u.x, y: u.y, a: u.turret ? (u.target ? Math.atan2(u.target.y - u.y, u.target.x - u.x) : u.a) : u.a, type: u.turret ? 'turret' : u.type, len: Math.round(u.size * 2.4), size: u.size, anim, fi, jit: u.hitT > 0 ? Math.round(Math.sin(B.t * 90) * 1.5) : 0, ring: u.hp <= 0 ? null : sel ? '#ffe070' : u.boss ? '#a02018' : u.side ? 'rgba(212,87,60,.75)' : 'rgba(227,168,67,.7)' });
+  } else for (const c of W.crew) { const dn = UNITS[c.u.type].cls === 'dino', [anim, fi] = animOf(dn ? 'dino' : 'human', c.moving, c.ph, T); ents.push({ tier: c.u.tier || 0, x: c.x, y: c.y, a: c.a, type: c.u.type, len: c.len, size: (UNITS[c.u.type].size || 11) * (1 + 0.07 * (c.u.tier || 0)), anim, fi }); }
   drawScene(wc, ox, oy, w, h, ents);
   // overlay: names, bars, numbers, effects
   const c = bc; c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, bcv.width, bcv.height); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.textAlign = 'center';
@@ -1609,7 +1625,8 @@ let view = 'town', toastT;
 function toast(m, k) { const t = $('toast'); t.textContent = m; t.className = 'show ' + (k || ''); clearTimeout(toastT); toastT = setTimeout(() => t.className = '', 2600); }
 function showModal(h) { $('mcard').innerHTML = h; $('modal').hidden = false; $('mcard').querySelectorAll('canvas[data-u]').forEach(cv => portrait(cv, cv.dataset.u)); }
 function closeModal() { $('modal').hidden = true; }
-const tierName = u => (UNITS[u.type].cls === 'dino' ? TIER_DINO : TIER_HUMAN)[u.tier || 0] + UNITS[u.type].n;
+const tierNameOf = (type, t) => JOBS[type] ? JOBS[type][t] : TIER_DINO[t] + UNITS[type].n;
+const tierName = u => tierNameOf(u.type, u.tier || 0);
 const unitName = u => u.name ? `${u.name}(${tierName(u)})` : tierName(u);
 const stars = n => '★'.repeat(n) + '☆'.repeat(5 - n);
 let townSec = 'hunt', partySec = 'crew';
@@ -1694,7 +1711,7 @@ function renderParty() {
   const el = $('v-party'), P = party();
   const row = u => { const D = UNITS[u.type], mh = maxHp(u);
     return `<div class="row"><canvas data-u="${u.type}" width="104" height="80"></canvas><div class="info"><b>${unitName(u)} Lv${u.lv} <span class="tag">${D.role}</span>${u.ko ? ' <span class="tag" style="color:var(--bad)">쓰러짐</span>' : ''}</b>
-      <div class="bar"><i style="width:${u.hp / mh * 100}%;${u.ko ? 'background:var(--bad)' : ''}"></i></div><small>체력 ${u.hp}/${mh} · 공격 ${Math.round(D.atk * lvMul(u.lv) * gearMul(u).atk)} · 무기 ${u.gw || 0} · 방어구 ${u.ga || 0} · 짐 ${D.carry}칸 · 경험치 ${u.xp}/${xpNeed(u.lv)}</small>${skillOf(u.type) ? `<small style="color:var(--amber)">스킬 · ${SK[skillOf(u.type)].n}: ${SK[skillOf(u.type)].ds}</small>` : ''}</div>
+      <div class="bar"><i style="width:${u.hp / mh * 100}%;${u.ko ? 'background:var(--bad)' : ''}"></i></div><small>체력 ${u.hp}/${mh} · 공격 ${Math.round(D.atk * lvMul(u.lv) * gearMul(u).atk)} · 무기 ${u.gw || 0} · 방어구 ${u.ga || 0} · 짐 ${D.carry}칸 · 경험치 ${u.xp}/${xpNeed(u.lv)}</small>${skillOf(u.type) ? `<small style="color:var(--amber)">스킬 · ${skName(skillOf(u.type), u.tier)}: ${skDesc(skillOf(u.type), u.tier)}</small>` : ''}</div>
       <button class="btn small" data-act="unit" data-id="${u.id}">관리</button>
       ${u.type === 'leader' ? '<span class="tag on">대장</span>' : `<button class="btn small ${u.inParty ? '' : 'primary'}" data-act="toggle" data-id="${u.id}">${u.inParty ? '대기' : '참전'}</button>`}</div>`; };
   const reserve = S.units.filter(u => !u.inParty);
@@ -1727,7 +1744,7 @@ function unitModal(id) {
     ${gearRow('gw', 'weapon', dino ? '발톱 덮개 단련' : '무기 단련', '공방 제작품으로 강화 · 단계마다 공격 +15%')}
     ${gearRow('ga', 'armor', dino ? '갑주 보강' : '방어구 보강', '공방 제작품으로 강화 · 단계마다 방어 +25%, 체력 +10%')}
     ${Object.entries(SLOTS).map(([sl, sn]) => { const it = (u.eq || {})[sl], n = S.items.filter(x => x.slot === sl).length; return `<div class="row"><div class="info"><b>착용 ${sn}: ${it ? itemName(it) : '<span style="color:var(--muted)">비어 있음</span>'}</b><small>${it ? itemText(it) + ` · Lv${it.lv}` : '사냥터에서 얻은 장비를 착용해요'} · 가방에 ${n}개</small></div><button class="btn small" data-act="pickItem" data-id="${u.id}" data-slot="${sl}" ${n || it ? '' : 'disabled'}>교체</button></div>`; }).join('')}
-    <div class="row"><div class="info"><b>${dino ? '성장' : '전직'}: ${tier >= 2 ? '최고 단계' : names[tier + 1] + D.n}</b><small>${tier >= 2 ? '더 오를 단계가 없어요' : `체력과 공격 +30% · 조건: Lv${P.lv}, 상단 Lv${P.clv}, ${P.cost} 크레딧`}</small></div><button class="btn small primary" data-act="promote" data-id="${u.id}" ${tier >= 2 || u.lv < P.lv || S.clv < P.clv || S.money < P.cost ? 'disabled' : ''}>${tier >= 2 ? '완료' : dino ? '성장' : '전직'}</button></div></div>
+    <div class="row"><div class="info"><b>${dino ? '진화' : '전직'}: ${tier >= 2 ? '최고 단계' : tierNameOf(u.type, tier + 1)}</b><small>${tier >= 2 ? '더 오를 단계가 없어요' : `체력과 공격 +30% · 겉모습이 바뀌어요${skillOf(u.type) ? ` · 스킬이 ${skName(skillOf(u.type), tier + 1)}(으)로 바뀌어요: ${skDesc(skillOf(u.type), tier + 1)}` : ''} · 조건: Lv${P.lv}, 상단 Lv${P.clv}, ${P.cost} 크레딧`}</small></div><button class="btn small primary" data-act="promote" data-id="${u.id}" ${tier >= 2 || u.lv < P.lv || S.clv < P.clv || S.money < P.cost ? 'disabled' : ''}>${tier >= 2 ? '완료' : dino ? '진화' : '전직'}</button></div></div>
     <div class="sub" style="margin:0">강철 무기는 무너진 도시 공방, 가죽 갑옷은 잿빛 평원 공방에서 만들어요</div>
     <div class="mbtns"><button class="btn" data-act="close">닫기</button></div>`);
 }
@@ -1834,7 +1851,7 @@ document.body.addEventListener('click', e => {
   else if (act === 'promote') {
     const u = S.units.find(x => x.id === +b.dataset.id), P = PROMO[u.tier || 0];
     if (!P || u.lv < P.lv || S.clv < P.clv || S.money < P.cost) return;
-    S.money -= P.cost; u.tier = (u.tier || 0) + 1; u.hp = maxHp(u); u.ko = false; sfx('win'); toast(`${unitName(u)}(으)로 ${UNITS[u.type].cls === 'dino' ? '성장' : '전직'}했어요`, 'good'); save(); renderAll(); unitModal(u.id); return;
+    S.money -= P.cost; u.tier = (u.tier || 0) + 1; u.hp = maxHp(u); u.ko = false; sfx('win'); toast(`${unitName(u)}(으)로 ${UNITS[u.type].cls === 'dino' ? '진화' : '전직'}했어요${skillOf(u.type) ? ` · 새 스킬: ${skName(skillOf(u.type), u.tier)}` : ''}`, 'good'); flash(0.6); syncCrew(); save(); renderAll(); unitModal(u.id); return;
   }
   else if (act === 'closeBattle') { closeBattle(); return; }
   else if (act === 'close') closeModal();
