@@ -157,7 +157,8 @@ h2 { margin-top: 2px; } h2 small { display: block; margin: 3px 0 0; line-height:
   <div id="battle" hidden>
     <div class="bhead"><b id="bTitle"></b><small id="bInfo"></small></div>
     <div class="bfield"><canvas id="b3d"></canvas><canvas id="bcv"></canvas><div id="bTip">적을 눌러 집중 공격 · 체력 30% 이하면 포획</div><div id="bSel" hidden><span id="bSelName"></span><span class="bar"><i id="bSelHp"></i></span></div></div>
-    <div class="bfoot"><button class="btn" id="bRetreat">후퇴</button><button class="btn primary" id="bCapture">포획</button><button class="btn" id="bZoom">크게</button><button class="btn" id="bSpeed">×1</button></div>
+    <div class="bfoot" id="ffoot" hidden><button class="btn" id="fLeave">정착지로</button><button class="btn" id="fZoom">크게</button><button class="btn primary" id="fNearest">가까운 무리로</button></div>
+    <div class="bfoot" id="bfoot"><button class="btn" id="bRetreat">후퇴</button><button class="btn primary" id="bCapture">포획</button><button class="btn" id="bZoom">크게</button><button class="btn" id="bSpeed">×1</button></div>
   </div>
   <div id="toast"></div>
   <div id="modal" hidden><div class="mcard" id="mcard"></div></div>
@@ -371,7 +372,7 @@ function tick(dt) {
   }
   if (!B) for (const u of S.units) {
     const mh = maxHp(u); if (u.hp >= mh) continue;
-    u.hp = Math.min(mh, u.hp + mh * (S.travel ? 0.003 : 0.01) * dt);
+    u.hp = Math.min(mh, u.hp + mh * (S.travel || F ? 0.003 : 0.01) * dt);
     if (u.ko && u.hp >= mh * 0.3) { u.ko = false; if (view === 'town') toast(`${unitName(u)}가 기운을 차렸어요`); }
   }
 }
@@ -419,7 +420,7 @@ function addCargo(g, k) { const room = Math.max(0, capacity() - cargoUsed()); k 
 /* ================================================================
    BATTLE — real-time, up to 12 on our side, formation start, auto with focus fire
    ================================================================ */
-const BW = 360, BH = 600;
+const BW = 360, BH = 600, BSIZE = [BW, BH];
 let B = null, bSpeed = 1, bZoom = 1.3;
 function unitStats(type, lv, boss) {
   const D = UNITS[type], m = lvMul(lv), bm = boss ? BOSSES[boss] : null;
@@ -439,9 +440,9 @@ function startBattle(opt) {
   $('bTitle').textContent = opt.kind === 'ambush' ? '습격!' : opt.boss ? `우두머리 사냥 · ${BOSSES[opt.boss].n}` : opt.kind === 'hunt' ? `${Z.n} · ${HUNT_NAMES[opt.zone][opt.tier]}` : `${Z.n} 사냥터`;
   $('bInfo').textContent = `적 ${opt.foes.length} · 아군 ${ours.length}`;
   for (const f of opt.foes) { S.dex[f.type] = Math.max(S.dex[f.type] || 0, 1); if (UNITS[f.type].rare && !f.boss) setTimeout(() => toast(`희귀종 발견: ${UNITS[f.type].n}!`, 'good'), 900); }
-  $('battle').hidden = false; resizeBattle(); updCapture();
+  $('battle').hidden = false; $('bfoot').hidden = false; $('ffoot').hidden = true; $('bTip').textContent = '적을 눌러 집중 공격 · 체력 30% 이하면 포획'; resizeBattle(); updCapture();
   if (USE3D) setupBattle3D();
-  SND.mood = 'battle'; SND.step = 0; sfx('drums');
+  SND.mood = 'battle'; SND.step = 0; sfx('drums'); PX.length = 0; flash(0.7);
 }
 function spawn(side, type, lv, x, y, ref, boss) {
   const D = UNITS[type], st = unitStats(type, lv, boss);
@@ -469,7 +470,7 @@ function bStep(dt) {
     // medics heal instead of attacking when someone is hurt
     if (D.heal) {
       const hurt = alive(u.side).filter(o => o !== u && o.hp < o.max * 0.85).sort((a, b) => a.hp / a.max - b.hp / b.max)[0];
-      if (hurt) { moveToward(u, hurt, D.range * 0.8, dt); u.cd -= dt; if (u.cd <= 0 && d2(u.x, u.y, hurt.x, hurt.y) < (D.range + 10) ** 2) { u.cd = 1 / u.as; const h = D.heal * lvMul(u.lv); hurt.hp = Math.min(hurt.max, hurt.hp + h); B.fx.push({ t: 0.5, kind: 'heal', x: hurt.x, y: hurt.y }); num(hurt, '+' + Math.round(h), '#8fbf6a'); } continue; }
+      if (hurt) { moveToward(u, hurt, D.range * 0.8, dt); u.cd -= dt; if (u.cd <= 0 && d2(u.x, u.y, hurt.x, hurt.y) < (D.range + 10) ** 2) { u.cd = 1 / u.as; const h = D.heal * lvMul(u.lv); hurt.hp = Math.min(hurt.max, hurt.hp + h); B.fx.push({ t: 0.5, kind: 'heal', x: hurt.x, y: hurt.y }); burst(hurt.x, hurt.y, 4, 6, '#8fd36a', { spd: 14, up: 55, g: 0, life: 0.7 }); sfx('heal', 150); num(hurt, '+' + Math.round(h), '#8fbf6a'); } continue; }
     }
     const tgt = chooseTarget(u);
     if (!tgt) { u.moving = false; continue; }
@@ -514,7 +515,7 @@ function attack(u, t) {
   const D = UNITS[u.type] || {};
   u.atkT = 0.5;
   const acc = 85 + u.lv * 2, eva = (UNITS[t.type] ? UNITS[t.type].spd : 0) * 0.25;
-  if (Math.random() > acc / (acc + eva)) { num(t, '빗나감', '#a89a86'); return; }
+  if (Math.random() > acc / (acc + eva)) { num(t, '빗나감', '#a89a86'); sfx('miss', 120); return; }
   let atk = u.atk;
   if (D.pack) atk *= 1 + 0.15 * Math.min(3, alive(u.side).filter(o => o !== u && o.type === u.type && d2(o.x, o.y, u.x, u.y) < 90 * 90).length);
   const def = Math.max(0, t.def - t.shred * 2.5);
@@ -524,18 +525,52 @@ function attack(u, t) {
   B.fx.push({ t: ranged ? 0.25 : 0.15, kind: D.acid ? 'acid' : u.turret || D.gun ? 'bullet' : D.bow ? 'arrow' : ranged ? 'dart' : 'bite', x: u.x, y: u.y, x2: t.x, y2: t.y });
   const TD = UNITS[t.type];
   if (TD && TD.thorns && u.range <= 40 && !u.turret) { const back = dmg * TD.thorns; u.hp -= back; num(u, Math.round(back), '#c0601c'); if (u.hp <= 0) onKill(t, u); }
+  { const gun = u.turret || D.gun, big = t.size > 25;
+    if (gun) burst(u.x, u.y, 12, 3, '#ffe9a0', { spd: 25, life: 0.12, up: 10, r: 2.6 });
+    burst(t.x, t.y, big ? 16 : 9, crit ? 9 : 4, D.acid ? '#c0e040' : gun ? '#ffd870' : '#e0452e', { spd: crit ? 70 : 45, life: 0.4, r: crit ? 2.8 : 2 });
+    if (crit) { ringFx(t.x, t.y, '#ffd870', 20, 0.3); SHAKE = Math.max(SHAKE, u.side === 0 ? 0.35 : 0.5); sfx('crit', 90); }
+    else if (u.side === 1 && u.boss) SHAKE = Math.max(SHAKE, 0.45); }
   t.hp -= dmg; t.hitT = 0.15; num(t, Math.round(dmg) + (crit ? '!' : ''), crit ? '#e3a843' : t.side ? '#ece3d4' : '#d4573c');
   if (D.shred) { t.shred = Math.min(5, t.shred + 1); t.shredT = 5; }
-  if (D.stun && t.max <= STUN_HP_LIMIT && !t.boss) { t.stun = D.stun; B.fx.push({ t: 0.6, kind: 'stun', x: t.x, y: t.y }); }
+  if (D.stun && t.max <= STUN_HP_LIMIT && !t.boss) { t.stun = D.stun; B.fx.push({ t: 0.6, kind: 'stun', x: t.x, y: t.y }); sfx('stun', 200); ringFx(t.x, t.y, '#f8e88a', 18, 0.4); }
   sfx(u.turret || D.gun ? 'shot' : D.bow ? 'bow' : ranged ? 'spit' : 'bite', 70);
   if (t.hp <= 0) onKill(u, t);
 }
+/* ---------------- Effects: world-space particles drawn on the overlay, screen flash and camera shake ---------------- */
+const PX = []; let FLASH = 0, FLASHC = '255,240,210', SHAKE = 0;
+function burst(x, y, h, n, col, o = {}) {
+  if (PX.length > 260) return;
+  for (let i = 0; i < n; i++) { const a = rand(0, 6.283), sp = rand(0.3, 1) * (o.spd || 40), life = rand(0.6, 1) * (o.life || 0.45); PX.push({ x, y, h, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vh: rand(0.2, 1) * (o.up ?? 40), g: o.g ?? 120, t: life, life, col, r: rand(0.6, 1) * (o.r || 2.2), ring: 0 }); }
+}
+function ringFx(x, y, col, size = 22, life = 0.45) { PX.push({ x, y, h: 1, vx: 0, vy: 0, vh: 0, g: 0, t: life, life, col, r: size, ring: 1 }); }
+function flash(a = 0.5, col = '255,240,210') { FLASH = a; FLASHC = col; }
+function updPX(dt) {
+  for (const p of PX) { p.t -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.h += p.vh * dt; p.vh -= p.g * dt; if (p.h < 0) { p.h = 0; p.vh = 0; p.vx *= 0.6; p.vy *= 0.6; } }
+  for (let i = PX.length - 1; i >= 0; i--) if (PX[i].t <= 0) PX.splice(i, 1);
+  FLASH = Math.max(0, FLASH - dt * 1.8); SHAKE = Math.max(0, SHAKE - dt * 3);
+}
+function drawPX(c) {
+  for (const p of PX) {
+    const s = toScreen(p.x, p.h, p.y); if (!s.vis) continue; const k = p.t / p.life;
+    c.globalAlpha = Math.min(1, k * 1.6);
+    if (p.ring) { c.strokeStyle = p.col; c.lineWidth = 2.5 * k + 0.5; c.beginPath(); c.ellipse(s.x, s.y, p.r * (1.3 - k), p.r * (1.3 - k) * 0.55, 0, 0, 7); c.stroke(); }
+    else { c.fillStyle = p.col; c.beginPath(); c.arc(s.x, s.y, p.r * (0.5 + k * 0.5), 0, 7); c.fill(); }
+  }
+  c.globalAlpha = 1;
+  if (FLASH > 0.01) { c.fillStyle = `rgba(${FLASHC},${FLASH})`; c.fillRect(0, 0, bcv.width, bcv.height); }
+}
+function shakeCam(cam) { if (SHAKE > 0.01) { cam.position.x += (Math.random() - 0.5) * SHAKE * 9; cam.position.y += (Math.random() - 0.5) * SHAKE * 6; } }
 function num(t, s, col) { B.nums.push({ x: t.x + rand(-6, 6), y: t.y - t.size * 0.6, y0: t.y, s, col, t: 0.8 }); }
 function onKill(u, t) {
   t.hp = 0; sfx(t.size > 25 ? 'crunchBig' : 'crunch', 60);
+  { const big = t.size > 25; burst(t.x, t.y, 2, big ? 22 : 12, '#c9b48a', { spd: big ? 75 : 50, up: 30, life: 0.8, r: big ? 4.5 : 3.2, g: 60 }); ringFx(t.x, t.y, 'rgba(210,190,150,.9)', big ? 46 : 26, 0.55);
+    if (t.side === 1 && UNITS[t.type] && UNITS[t.type].cls === 'dino') sfx(big ? 'cryBig' : 'cry', 250);
+    if (t.boss) { SHAKE = 1; flash(0.55); } else if (big) SHAKE = Math.max(SHAKE, 0.6);
+    if (t.side === 0) { flash(0.25, '212,87,60'); sfx('down', 300); } }
   if (t.side === 1) {
     B.xp += 12 * t.lv * (t.boss ? 6 : 1);
     if (B.opt.kind !== 'escort') for (const [g, k] of Object.entries(ZONES[B.opt.zone].loot)) { const n = Math.max(0, Math.round(k * (t.size / 20) * rand(0.6, 1.3) * (1 + 0.15 * sk('loot'))) * (t.boss ? 3 : 1)); if (n) B.loot[g] = (B.loot[g] || 0) + n; }
+    { const TL = TYPE_LOOT[MODEL_FILES[t.type]] || {}, own = t.type === 'compy' ? { meat: 1 } : t.type === 'dilo' ? { venom: 1, meat: 1 } : TL; for (const [g, k] of Object.entries(own)) if (Math.random() < 0.6) B.loot[g] = (B.loot[g] || 0) + k; }
     if (t.type === 'dilo' || t.type === 'sarco') B.loot.venom = (B.loot.venom || 0) + (t.type === 'dilo' ? 1 : 0);
   } else if (t.ref) { t.ref.hp = 0; t.ref.ko = true; toast(`${unitName(t.ref)}가 쓰러졌어요`, 'warn'); }
   if (B.sel === t) B.sel = null;
@@ -558,32 +593,32 @@ function tryCapture() {
   setTimeout(() => {
     if (!B || t.hp <= 0) return;
     if (Math.random() < chance) {
-      t.hp = 0; B.captured.push({ type: t.type, lv: t.lv }); B.xp += 15 * t.lv; B.sel = null; sfx('capture');
+      t.hp = 0; B.captured.push({ type: t.type, lv: t.lv }); B.xp += 15 * t.lv; B.sel = null; sfx('capture'); for (let k = 0; k < 3; k++) ringFx(t.x, t.y, '#90d0f0', 20 + k * 14, 0.5 + k * 0.15); burst(t.x, t.y, 10, 16, '#bfe6ff', { spd: 55, up: 70, life: 0.9 });
       toast(`포획 성공! ${UNITS[t.type].n} Lv${t.lv}`, 'good');
     } else { t.atk *= 1.1; toast(`포획 실패 (성공 확률 ${Math.round(chance * 100)}%) · 공룡이 성났어요`, 'warn'); sfx('roar'); }
     updCapture();
   }, 320);
 }
 function endBattle(win) {
-  if (B.over) return; B.over = true; S.stats.battles++;
+  if (B.over) return; B.over = true; S.stats.battles++; B.opt.won = win;
   const opt = B.opt;
   for (const bu of B.units) if (bu.ref) { bu.ref.hp = Math.max(0, Math.round(bu.hp)); bu.ref.ko = bu.hp <= 0; }
-  const lines = [];
+  const lines = []; let lvUp = false, gotItem = false;
   if (win) {
     gainCxp(B.xp / 6 + B.captured.length * 15);
     if (opt.kind === 'hunt') S.cleared[opt.zone] = Math.max(S.cleared[opt.zone] || 0, opt.tier + 1);
     {   // loot roll: deeper grounds, rare dinosaurs and bosses drop better gear
-      const H = opt.kind === 'hunt' ? HUNTS[opt.tier] : { drop: 0.1 }, rares = opt.foes.filter(f => UNITS[f.type].rare && !f.boss).length;
+      const H0 = opt.kind === 'hunt' ? HUNTS[opt.tier] : { drop: 0.1 }, Hb = opt.boss ? H0 : H0.boss ? HUNTS[3] : H0, H = { boss: !!opt.boss, drop: Hb.drop + Math.max(0, opt.foes.length - 3) * 0.04 }, rares = opt.foes.filter(f => UNITS[f.type].rare && !f.boss).length;
       const lv = Math.max(...opt.foes.map(f => f.lv)), luck = (opt.tier || 0) * 0.35 + rares * 0.3;
       const drops = []; if (Math.random() < H.drop + rares * 0.15) drops.push(rollItem(lv, luck, H.boss ? 2 : 0)); if (H.boss && Math.random() < 0.5) drops.push(rollItem(lv, luck, 1));
-      for (const it of drops) { if (S.items.length >= BAG_MAX) { const pr = itemPrice(it); S.money += pr; lines.push(`가방이 가득 차서 ${itemName(it)}을(를) ${pr} 크레딧에 팔았어요`); } else { S.items.push(it); lines.push(`<b style="color:var(--amber)">득템!</b> ${itemName(it)} <span style="color:var(--muted)">${SLOTS[it.slot]} · ${itemText(it)}</span>`); if (it.r >= 2) sfx('capture'); } }
+      for (const it of drops) { if (S.items.length >= BAG_MAX) { const pr = itemPrice(it); S.money += pr; lines.push(`가방이 가득 차서 ${itemName(it)}을(를) ${pr} 크레딧에 팔았어요`); } else { S.items.push(it); lines.push(`<b style="color:var(--amber)">득템!</b> ${itemName(it)} <span style="color:var(--muted)">${SLOTS[it.slot]} · ${itemText(it)}</span>`); gotItem = true; } }
     }
     if (opt.kind === 'hunt') for (const q of S.quests[opt.zone] || []) if (q.type === 'hunt' && !q.done && q.prog < q.n) q.prog++;
     const ours = party();
     const share = Math.round(B.xp / Math.max(1, Math.sqrt(ours.length)));
     for (const u of ours) {
       u.xp += u.ko ? Math.round(share * 0.3) : share;
-      while (u.xp >= xpNeed(u.lv) && u.lv < 40) { u.xp -= xpNeed(u.lv); u.lv++; u.hp = Math.min(maxHp(u), u.hp + Math.round(maxHp(u) * 0.3)); lines.push(`${unitName(u)} Lv${u.lv} 달성`); }
+      while (u.xp >= xpNeed(u.lv) && u.lv < 40) { u.xp -= xpNeed(u.lv); u.lv++; u.hp = Math.min(maxHp(u), u.hp + Math.round(maxHp(u) * 0.3)); lines.push(`${unitName(u)} Lv${u.lv} 달성`); lvUp = true; }
     }
     for (const [g, k] of Object.entries(B.loot)) { const got = addCargo(g, k); lines.unshift(`${GOODS[g].n} +${got}${got < k ? ` (짐칸 부족으로 ${k - got}개 버림)` : ''}`); }
     for (const c of B.captured) { const inP = party().length < partyCap(); const u = addUnit(c.type, c.lv, inP); u.hp = Math.round(maxHp(u) * 0.4); lines.push(`${UNITS[c.type].n} Lv${c.lv}이(가) 상단에 합류했어요${inP ? '' : ' (대기)'}`); S.stats.captures++; }
@@ -592,8 +627,9 @@ function endBattle(win) {
     if (opt.kind === 'ambush') { const lost = loseCargo(0.35); lines.push(lost ? `짐 ${lost}개를 잃었어요` : '잃은 짐은 없어요'); }
     lines.push('쓰러진 대원은 여관에서 회복할 수 있어요');
   }
-  sfx(win ? 'win' : 'lose');
+  sfx(win ? 'win' : 'lose'); if (win) flash(0.35);
   setTimeout(() => {
+    if (gotItem) sfx('loot'); else if (lvUp) sfx('levelup');
     showModal(`<h3>${win ? '승리' : opt.retreat ? '후퇴' : '패배'}</h3><div class="sub">${$('bTitle').textContent}</div>
       <div class="card">${lines.map(l => `<div class="row"><div class="info"><small style="color:var(--text)">${l}</small></div></div>`).join('') || '<div class="row"><div class="info"><small>얻은 것이 없어요</small></div></div>'}</div>
       <div class="mbtns"><button class="btn primary" data-act="closeBattle">확인</button></div>`);
@@ -601,7 +637,11 @@ function endBattle(win) {
   save();
 }
 function loseCargo(frac) { let lost = 0; for (const g of Object.keys(S.cargo)) { const k = Math.floor(S.cargo[g] * frac); S.cargo[g] -= k; lost += k; if (!S.cargo[g]) delete S.cargo[g]; } return lost; }
-function closeBattle() { B = null; $('battle').hidden = true; SND.mood = 'town'; SND.step = 0; closeModal(); renderAll(); }
+function closeBattle() {
+  const opt = B.opt; B = null; SND.mood = 'town'; SND.step = 0; closeModal();
+  if (F && opt.field) { afterFieldBattle(opt); return; }
+  $('battle').hidden = true; renderAll();
+}
 function updCapture() { $('bCapture').textContent = `포획 · 다트 ${S.darts}`; }
 
 /* ================================================================
@@ -921,7 +961,8 @@ function makeRuin(R, w, floors, d, o = {}) {
   return g;
 }
 function seeded(seed) { let s = seed >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }
-function buildWorld(scene, kind, seed = 7) {
+function buildWorld(scene, kind, seed = 7, dims) {
+  const [BW, BH] = dims || BSIZE;   // the roaming field is larger than a battle arena
   const Z = ZONE3[kind], R = seeded(seed), rr = (a, b) => a + R() * (b - a);
   scene.background = srgb(Z.sky); scene.fog = new THREE.Fog(srgb(Z.fog), 380, 950);
   scene.add(new THREE.HemisphereLight(0xfff2dc, 0x4a3a28, 0.75));
@@ -1060,7 +1101,7 @@ function render3D(dt) {
     const spread = Math.max(x1 - x0, (z1 - z0) * (w / h)), want = clamp(spread * 1.25 / (w / h < 0.8 ? 0.62 : 1), 200, 620) / bZoom;
     g.look.lerp(new THREE.Vector3((x0 + x1) / 2, 0, (z0 + z1) / 2 + 10), 0.05); g.dist += (want - g.dist) * 0.04;
   }
-  g.camera.position.set(g.look.x - g.dist * 0.08, g.dist * 0.82, g.look.z + g.dist * 0.6); g.camera.lookAt(g.look);
+  g.camera.position.set(g.look.x - g.dist * 0.08, g.dist * 0.82, g.look.z + g.dist * 0.6); g.camera.lookAt(g.look); shakeCam(g.camera); updPX(dt);
   g.renderer.render(g.scene, g.camera);
 }
 const _v3 = typeof THREE !== 'undefined' ? new THREE.Vector3() : null;
@@ -1088,6 +1129,7 @@ function renderOverlay() {
     else if (f.kind === 'bite') { c.strokeStyle = `rgba(255,240,220,${f.t * 5})`; c.lineWidth = 2; c.beginPath(); c.arc(b.x, b.y - 6, 8, 0.5, 2.6); c.stroke(); c.beginPath(); c.arc(b.x, b.y - 6, 8, 3.6, 5.8); c.stroke(); }
   }
   c.font = '700 13px "IBM Plex Sans KR", sans-serif'; c.textAlign = 'center';
+  drawPX(c);
   for (const n of B.nums) { const p = toScreen(n.x, 22 + (0.8 - n.t) * 30, n.y0 ?? n.y); c.globalAlpha = Math.min(1, n.t * 2); c.fillStyle = 'rgba(0,0,0,.7)'; c.fillText(n.s, p.x + 1, p.y + 1); c.fillStyle = n.col; c.fillText(n.s, p.x, p.y); c.globalAlpha = 1; }
 }
 function pick3D(px, py) {
@@ -1095,6 +1137,134 @@ function pick3D(px, py) {
   for (const u of B.units) { if (u.hp <= 0) continue; const p = toScreen(u.x, u.size * 0.8, u.y), d = d2(px, py, p.x, p.y); if (d < bd) { bd = d; best = u; } }
   return best;
 }
+/* ---------------- Roaming hunting field: walk the ground, see the herds, touch one to fight ----------------
+   Wild dinosaurs never attack first. Touching a herd starts the battle, and herds standing close by join in,
+   so pulling a crowded spot is riskier and pays more. After the fight you are back where you stood. */
+const FW = 640, FH = 860, FDIM = [FW, FH];
+const TYPE_LOOT = { Triceratops: { hide: 2, bone: 1 }, Parasaurolophus: { meat: 2 }, Velociraptor: { bone: 1, hide: 1 }, Trex: { meat: 3, bone: 2 }, Stegosaurus: { bone: 2, hide: 1 }, Apatosaurus: { meat: 4 } };
+let F = null;
+function makePack(z, tier, boss) {
+  const Z = ZONES[z], H = HUNTS[tier].boss ? HUNTS[3] : HUNTS[tier];
+  let foes;
+  if (boss) foes = huntFoes(z, 4);
+  else { const n = Math.max(1, H.n[0] - 1 + Math.round(Math.random() * (H.n[1] - H.n[0] + 0.6))); foes = addRare(Array.from({ length: n }, () => ({ type: pick(Z.wild), lv: Z.lv + H.lv[0] + Math.round(rand(0, H.lv[1] - H.lv[0])) })), z, H.rare * 0.5); }
+  let cx, cy, k = 0; do { cx = rand(60, FW - 60); cy = boss ? rand(60, 160) : rand(60, FH - 200); } while (k++ < 30 && F && F.packs.some(p => d2(p.cx, p.cy, cx, cy) < 110 * 110));
+  const pack = { id: Math.random(), boss: !!boss, cx, cy, mons: [] };
+  foes.forEach((f, i) => { const bm = f.boss ? BOSSES[f.boss].size : 1, m = { f, x: cx + rand(-22, 22), y: cy + rand(-22, 22), a: rand(0, 6.28), tx: cx, ty: cy, wait: rand(0, 4), r3: makeDino3(f.type, (UNITS[f.type].size || 11) * 2.4 * bm) }; m.r3.root.position.set(m.x, 0, m.y); playAnim(m.r3, 'idle'); pack.mons.push(m); });
+  return pack;
+}
+function enterField(z, tier) {
+  const g = ensureG3(), scene = new THREE.Scene();
+  buildWorld(scene, ZONES[z].ground, (Math.random() * 1e6) | 0, FDIM);
+  F = { zone: z, tier, scene, packs: [], respawn: [], target: null, lead: { x: FW / 2, y: FH - 50, a: -Math.PI / 2, tx: null, ty: null, moving: false }, crew: [], cam: new THREE.Vector3(FW / 2, 0, FH - 80), bossT: 0 };
+  const marker = new THREE.Mesh(new THREE.RingGeometry(5, 7, 24), new THREE.MeshBasicMaterial({ color: srgb(0xe3a843), transparent: true, opacity: 0.8 })); marker.rotation.x = -Math.PI / 2; marker.position.y = 1.2; marker.visible = false; scene.add(marker); F.marker = marker;
+  // the whole caravan walks in single file behind the leader
+  const P = party().filter(u => !u.ko).sort((a, b) => (b.type === 'leader') - (a.type === 'leader')).slice(0, 7);
+  P.forEach((u, i) => { const D = UNITS[u.type], r3 = D.cls === 'dino' ? makeDino3(u.type, D.size * 2.4 * (1 + 0.07 * (u.tier || 0))) : makeHuman3(u.type); const c = { u, r3, x: FW / 2, y: FH - 50 + i * 16, a: -Math.PI / 2, moving: false, gap: 12 + (D.size || 11) * 0.9 }; r3.root.position.set(c.x, 0, c.y); scene.add(r3.root); F.crew.push(c); });
+  const n = HUNTS[tier].boss ? 5 : 7;
+  for (let i = 0; i < n; i++) { const p = makePack(z, tier, false); F.packs.push(p); p.mons.forEach(m => scene.add(m.r3.root)); }
+  if (HUNTS[tier].boss) { const p = makePack(z, tier, true); F.packs.push(p); p.mons.forEach(m => scene.add(m.r3.root)); sfx('roar'); }
+  showField();
+  toast(`${HUNT_NAMES[z][tier]} · 땅을 눌러 걷고, 공룡 무리를 눌러 사냥해요`);
+}
+function showField() {
+  $('battle').hidden = false; $('bfoot').hidden = true; $('ffoot').hidden = false; $('bSel').hidden = true;
+  $('bTitle').textContent = `${ZONES[F.zone].n} · ${HUNT_NAMES[F.zone][F.tier]}`;
+  $('bTip').textContent = '땅을 눌러 이동 · 공룡 무리를 눌러 사냥'; $('bTip').style.animation = 'none';
+  resizeBattle();
+}
+function leaveField() { F = null; $('battle').hidden = true; save(); renderAll(); }
+const _ray = typeof THREE !== 'undefined' ? new THREE.Raycaster() : null;
+function fieldTap(px, py) {
+  const cv = $('b3d'), L = F.lead;
+  // a tap on (or near) a herd targets it; anywhere else is a walk order
+  let best = null, bd = 46 * 46;
+  for (const p of F.packs) for (const m of p.mons) { const s = toScreen(m.x, 8, m.y), d = d2(px, py, s.x, s.y); if (d < bd) { bd = d; best = p; } }
+  if (best) { F.target = best; sfx('tap'); return; }
+  _ray.setFromCamera({ x: px / cv.clientWidth * 2 - 1, y: -(py / cv.clientHeight) * 2 + 1 }, G3.camera);
+  const o = _ray.ray.origin, d = _ray.ray.direction; if (d.y >= -0.01) return;
+  const t = -o.y / d.y; F.target = null; L.tx = clamp(o.x + d.x * t, 8, FW - 8); L.ty = clamp(o.z + d.z * t, 8, FH - 8); ringFx(L.tx, L.ty, '#e3a843', 16, 0.4); sfx('tap');
+}
+function engage(pack) {
+  // herds standing close to the one you touched come running: up to 8 dinosaurs in one fight
+  const joined = [pack], foes = pack.mons.map(m => m.f);
+  for (const p of [...F.packs].sort((a, b) => d2(a.cx, a.cy, pack.cx, pack.cy) - d2(b.cx, b.cy, pack.cx, pack.cy))) {
+    if (p === pack || p.boss !== pack.boss && pack.boss) continue;
+    if (d2(p.cx, p.cy, pack.cx, pack.cy) < 150 * 150 && foes.length + p.mons.length <= 8) { joined.push(p); foes.push(...p.mons.map(m => m.f)); }
+  }
+  const boss = foes.find(f => f.boss);
+  F.target = null; F.lead.tx = null; F.engaged = joined;
+  if (joined.length > 1) toast(`주변 무리 ${joined.length - 1}떼가 싸움에 끼어들었어요 · 적 ${foes.length}마리`, 'warn');
+  sfx(boss ? 'roar' : 'horn');
+  startBattle({ kind: 'hunt', zone: F.zone, tier: F.tier, foes, boss: boss ? boss.boss : null, field: true });
+}
+function afterFieldBattle(opt) {
+  if (opt.won) for (const p of F.engaged || []) { p.mons.forEach(m => F.scene.remove(m.r3.root)); F.packs = F.packs.filter(x => x !== p); F.respawn.push({ t: p.boss ? 150 : rand(35, 60), boss: p.boss }); }
+  F.engaged = null;
+  if (!party().some(u => !u.ko)) { toast('상단이 모두 쓰러져 정착지로 실려 왔어요', 'warn'); leaveField(); return; }
+  // members who fell stay behind the line; the survivors keep walking
+  F.crew = F.crew.filter(c => { if (c.u.ko) { F.scene.remove(c.r3.root); return false; } return true; });
+  showField(); renderHeader(); save();
+}
+function renderField(dt) {
+  const g = G3, cv = $('b3d'), w = cv.clientWidth, h = cv.clientHeight, L = F.lead; if (!w || !h) return;
+  const pr = Math.min(dpr, 2); if (cv.width !== Math.round(w * pr) || cv.height !== Math.round(h * pr)) { g.renderer.setPixelRatio(pr); g.renderer.setSize(w, h, false); }
+  g.camera.aspect = w / h; g.camera.updateProjectionMatrix();
+  // leader walks to the tapped spot or toward the chosen herd
+  if (F.target) { if (!F.packs.includes(F.target)) F.target = null; else { const m = F.target.mons[0]; L.tx = m.x; L.ty = m.y; } }
+  L.moving = false;
+  if (L.tx !== null) {
+    const d = Math.hypot(L.tx - L.x, L.ty - L.y), stop = F.target ? 26 : 3;
+    if (d > stop) { L.a = Math.atan2(L.ty - L.y, L.tx - L.x); const sp = 62 * dt; L.x += Math.cos(L.a) * sp; L.y += Math.sin(L.a) * sp; L.moving = true; }
+    else if (F.target) { engage(F.target); return; } else L.tx = null;
+  }
+  F.marker.visible = L.tx !== null && !F.target; if (F.marker.visible) F.marker.position.set(L.tx, 1.2, L.ty);
+  let px = L.x, py = L.y;
+  F.crew.forEach((c, i) => {
+    if (i === 0) { c.x = L.x; c.y = L.y; c.a = L.a; c.moving = L.moving; }
+    else { const d = Math.hypot(px - c.x, py - c.y); c.moving = d > c.gap; if (c.moving) { c.a = Math.atan2(py - c.y, px - c.x); const sp = Math.min(d - c.gap, 70 * dt); c.x += Math.cos(c.a) * sp; c.y += Math.sin(c.a) * sp; } }
+    px = c.x; py = c.y;
+    c.r3.root.position.set(c.x, 0, c.y); c.r3.spin.rotation.y = Math.PI / 2 - c.a;
+    if (c.r3.human) c.r3.legs.forEach((l, k) => l.rotation.x = c.moving ? Math.sin(performance.now() / 95 + k * Math.PI) * 0.6 : 0);
+    else { playAnim(c.r3, c.moving ? 'walk' : 'idle'); c.r3.mixer.update(dt); }
+  });
+  // herds graze and wander around their home spot
+  for (const p of F.packs) for (const m of p.mons) {
+    m.wait -= dt;
+    if (m.wait <= 0) { m.tx = p.cx + rand(-38, 38); m.ty = p.cy + rand(-38, 38); m.wait = rand(4, 9); }
+    const d = Math.hypot(m.tx - m.x, m.ty - m.y), mv = d > 3;
+    if (mv) { m.a = Math.atan2(m.ty - m.y, m.tx - m.x); const sp = UNITS[m.f.type].spd * 0.3 * dt; m.x += Math.cos(m.a) * sp; m.y += Math.sin(m.a) * sp; }
+    m.r3.root.position.set(m.x, 0, m.y); m.r3.spin.rotation.y = Math.PI / 2 - m.a; playAnim(m.r3, mv ? 'walk' : 'idle'); m.r3.mixer.update(dt);
+  }
+  for (const r of F.respawn) r.t -= dt;
+  for (const r of F.respawn.filter(r => r.t <= 0)) { const p = makePack(F.zone, F.tier, r.boss); F.packs.push(p); p.mons.forEach(m => F.scene.add(m.r3.root)); if (r.boss) { toast(`${BOSSES[ZONES[F.zone].boss].n}가 다시 나타났어요`, 'warn'); sfx('roar'); } }
+  F.respawn = F.respawn.filter(r => r.t > 0);
+  const dist = 470 / bZoom;
+  F.cam.lerp(new THREE.Vector3(L.x, 0, L.y - 20), 0.08);
+  g.camera.position.set(F.cam.x - dist * 0.08, dist * 0.82, F.cam.z + dist * 0.6); g.camera.lookAt(F.cam); shakeCam(g.camera); updPX(dt);
+  if (L.moving) { F.stepT = (F.stepT || 0) - dt; if (F.stepT <= 0) { F.stepT = 0.3; sfx('step'); const c = F.crew[F.crew.length - 1] || L; burst(c.x, c.y, 1, 3, 'rgba(200,180,140,.8)', { spd: 12, up: 16, g: 30, life: 0.6, r: 3 }); } }
+  F.callT = (F.callT ?? 5) - dt; if (F.callT <= 0) { F.callT = rand(6, 13); sfx(Math.random() < 0.3 ? 'callBig' : 'call'); }
+  g.renderer.render(F.scene, g.camera);
+  // labels over each herd
+  const c = bc; c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, bcv.width, bcv.height); c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  c.textAlign = 'center';
+  for (const p of F.packs) {
+    const m = p.mons[0], s = toScreen(m.x, UNITS[m.f.type].size * 2.2 * (m.f.boss ? 1.3 : 1), m.y);
+    if (!s.vis || s.x < 0 || s.x > w || s.y < 30 || s.y > h) {   // off screen: an arrow on the edge shows which way the herd is
+      const s0 = toScreen(p.cx, 0, p.cy), a = Math.atan2((s.vis ? s.y : -s0.y) - h / 2, (s.vis ? s.x : -s0.x) - w / 2), ex = clamp(w / 2 + Math.cos(a) * w, 22, w - 22), ey = clamp(h / 2 + Math.sin(a) * h, 64, h - 22);
+      c.save(); c.translate(ex, ey); c.rotate(a); c.fillStyle = m.f.boss ? '#ff8a6a' : p === F.target ? '#e3a843' : 'rgba(236,227,212,.8)'; c.beginPath(); c.moveTo(11, 0); c.lineTo(-7, -8); c.lineTo(-3, 0); c.lineTo(-7, 8); c.closePath(); c.fill(); c.restore();
+      continue;
+    }
+    const rare = p.mons.some(x => UNITS[x.f.type].rare && !x.f.boss), name = m.f.boss ? BOSSES[m.f.boss].n : UNITS[m.f.type].n, txt = `${name} Lv${m.f.lv}${p.mons.length > 1 ? ' ×' + p.mons.length : ''}`;
+    c.font = '700 12px "IBM Plex Sans KR", sans-serif'; const tw = c.measureText(txt).width + 14;
+    c.fillStyle = p === F.target ? 'rgba(227,168,67,.95)' : 'rgba(18,14,10,.78)'; c.beginPath(); c.roundRect ? c.roundRect(s.x - tw / 2, s.y - 22, tw, 19, 9) : c.rect(s.x - tw / 2, s.y - 22, tw, 19); c.fill();
+    c.fillStyle = p === F.target ? '#1c120a' : m.f.boss ? '#ff8a6a' : rare ? '#f0b94a' : '#ece3d4'; c.fillText(txt, s.x, s.y - 8);
+  }
+  drawPX(c);
+}
+$('fLeave').onclick = () => F && !B && leaveField();
+$('fZoom').onclick = () => $('bZoom').click();
+$('fNearest').onclick = () => { if (!F || B || !F.packs.length) return; const L = F.lead; F.target = [...F.packs].filter(p => !p.boss || F.packs.length === 1).sort((a, b) => d2(a.cx, a.cy, L.x, L.y) - d2(b.cx, b.cy, L.x, L.y))[0] || F.packs[0]; sfx('tap'); };
 /* ---------------- 3D world map: three biomes, settlements, roads, and the caravan walking between them ---------------- */
 const MW = 1000, MH = 840;
 let M3 = null;
@@ -1261,6 +1431,7 @@ bcv.addEventListener('pointerup', bUp); bcv.addEventListener('pointercancel', bU
 bcv.addEventListener('pointerdown', e => {
   bPtr.set(e.pointerId, { x: e.clientX, y: e.clientY });
   if (bPtr.size === 2) { const [a, b] = [...bPtr.values()]; bPinch = { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, z: bZoom }; return; }
+  if (F && !B) { const r = bcv.getBoundingClientRect(); fieldTap(e.clientX - r.left, e.clientY - r.top); return; }
   if (!B || B.over) return;
   const r = bcv.getBoundingClientRect(), x = (e.clientX - r.left - bView.ox) / bView.s, y = (e.clientY - r.top - bView.oy) / bView.s;
   if (USE3D && G3 && G3.scene) { B.sel = pick3D(e.clientX - r.left, e.clientY - r.top); if (B.sel && B.sel.side === 1) { B.focus = B.sel; sfx('tap'); } return; }
@@ -1272,7 +1443,7 @@ bcv.addEventListener('pointerdown', e => {
 $('bCapture').onclick = () => B && !B.over && tryCapture();
 $('bRetreat').onclick = () => { if (!B || B.over) return; B.opt.retreat = true; B.loot = {}; endBattle(false); };
 const ZOOMS = [[1, '보통'], [1.3, '크게'], [1.9, '아주 크게']];
-$('bZoom').onclick = () => { const i = (ZOOMS.findIndex(z => z[0] === bZoom) + 1) % ZOOMS.length; bZoom = ZOOMS[i][0]; $('bZoom').textContent = ZOOMS[i][1]; };
+$('bZoom').onclick = () => { const i = (ZOOMS.findIndex(z => z[0] === bZoom) + 1) % ZOOMS.length; bZoom = ZOOMS[i][0]; $('bZoom').textContent = $('fZoom').textContent = ZOOMS[i][1]; };
 $('bSpeed').onclick = () => { bSpeed = bSpeed === 1 ? 2 : 1; $('bSpeed').textContent = '×' + bSpeed; };
 
 /* ================================================================
@@ -1297,6 +1468,21 @@ function tone(f, dur, o = {}) { const C = SND.ctx; if (!C) return; const t = C.c
 function noiseHit(dur, o = {}) { const C = SND.ctx; if (!C) return; const t = C.currentTime + (o.at || 0), src = C.createBufferSource(), f = C.createBiquadFilter(), g = C.createGain(); src.buffer = SND.noise; f.type = o.type || 'bandpass'; f.frequency.value = o.freq || 2000; f.Q.value = o.q || 1; if (o.sweep) f.frequency.exponentialRampToValueAtTime(o.sweep, t + dur); g.gain.setValueAtTime(o.vol || 0.2, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); src.connect(f).connect(g).connect(o.dest || SND.fx); src.start(t, Math.random()); src.stop(t + dur + 0.05); }
 const SFX = {
   tap: () => tone(800, 0.05, { type: 'triangle', vol: 0.04 }),
+  step: () => noiseHit(0.07, { freq: 240, type: 'lowpass', vol: 0.16 }),
+  miss: () => noiseHit(0.13, { freq: 2200, sweep: 700, q: 4, vol: 0.07 }),
+  crit: () => { noiseHit(0.16, { freq: 3200, q: 1.2, vol: 0.3 }); tone(220, 0.18, { type: 'square', vol: 0.07, slide: 0.4 }); },
+  stun: () => [1400, 1750, 1400].forEach((f, i) => tone(f, 0.09, { type: 'sine', vol: 0.05, at: i * 0.07 })),
+  heal: () => [660, 880, 1320].forEach((f, i) => tone(f, 0.22, { type: 'sine', vol: 0.05, at: i * 0.06 })),
+  cry: () => { tone(620, 0.32, { type: 'sawtooth', vol: 0.07, slide: 0.45, attack: 0.02 }); noiseHit(0.25, { freq: 1500, q: 2, vol: 0.08 }); },
+  cryBig: () => { tone(150, 0.8, { type: 'sawtooth', vol: 0.13, slide: 0.45, attack: 0.05 }); tone(158, 0.8, { type: 'sawtooth', vol: 0.09, slide: 0.42, attack: 0.05 }); noiseHit(0.7, { freq: 420, type: 'lowpass', vol: 0.22 }); },
+  down: () => [330, 262, 196].forEach((f, i) => tone(f, 0.25, { type: 'triangle', vol: 0.08, at: i * 0.1 })),
+  call: () => { const f = rand(700, 1100); tone(f, 0.18, { type: 'triangle', vol: 0.025, slide: 1.25 }); tone(f * 1.1, 0.2, { type: 'triangle', vol: 0.02, slide: 0.8, at: 0.22 }); },
+  callBig: () => { tone(110, 1.4, { type: 'sawtooth', vol: 0.03, slide: 1.4, attack: 0.4 }); noiseHit(1.2, { freq: 300, type: 'lowpass', vol: 0.05 }); },
+  horn: () => { tone(196, 0.5, { type: 'sawtooth', vol: 0.07, attack: 0.06 }); tone(294, 0.6, { type: 'sawtooth', vol: 0.06, attack: 0.06, at: 0.18 }); },
+  levelup: () => [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, 0.28, { type: 'square', vol: 0.045, at: i * 0.08 })),
+  loot: () => [988, 1319, 1976].forEach((f, i) => tone(f, 0.18, { type: 'triangle', vol: 0.07, at: i * 0.06 })),
+  open: () => noiseHit(0.08, { freq: 1200, sweep: 2600, q: 2, vol: 0.05 }),
+  deny: () => { tone(180, 0.1, { type: 'square', vol: 0.05 }); tone(150, 0.14, { type: 'square', vol: 0.05, at: 0.1 }); },
   coin: () => { tone(1320, 0.06, { type: 'square', vol: 0.035 }); tone(1760, 0.1, { type: 'square', vol: 0.035, at: 0.05 }); },
   shot: () => { noiseHit(0.09, { freq: 1600, q: 0.6, vol: 0.32 }); tone(120, 0.08, { type: 'square', vol: 0.05, slide: 0.5 }); },
   bow: () => noiseHit(0.12, { freq: 900, sweep: 3000, q: 2, vol: 0.12 }),
@@ -1508,6 +1694,7 @@ document.body.addEventListener('click', e => {
   else if (act === 'hunt') {
     const tier = +b.dataset.tier; if (tier > (S.cleared[z] || 0)) return;
     if (!party().some(u => !u.ko && u.type !== 'leader') && party().find(u => u.type === 'leader').ko) { toast('싸울 수 있는 대원이 없어요. 여관에서 쉬세요', 'warn'); return; }
+    if (USE3D) { enterField(z, tier); return; }
     const foes = huntFoes(z, tier); startBattle({ kind: 'hunt', zone: z, tier, foes, boss: HUNTS[tier].boss ? ZONES[z].boss : null }); if (HUNTS[tier].boss) sfx('roar');
   }
   else if (act === 'toggle') { const u = S.units.find(x => x.id === +b.dataset.id); if (!u) return; if (!u.inParty && party().length >= partyCap()) { toast(`지금은 대장 포함 ${partyCap()}명까지예요. 상단 레벨을 올리면 늘어나요 (최대 12명)`); return; } u.inParty = !u.inParty; if (cargoUsed() > capacity()) toast('짐칸이 모자라요. 출발 전에 짐을 줄이세요', 'warn'); }
@@ -1571,6 +1758,7 @@ function frame(now) {
   tick(dt);
   if (B && !B.over) { acc += dt * bSpeed; let k = 0; while (acc >= 1 / 30 && k < 8) { bStep(1 / 30); acc -= 1 / 30; k++; } if (k >= 8) acc = 0; }
   if (B) renderBattle(dt);
+  else if (F) renderField(dt);
   else if (view === 'map' && M3 && M3.canvas.isConnected) renderMap3D(dt);
   uiAcc += dt;
   if (uiAcc > 0.5) { uiAcc = 0; renderHeader(); if (view === 'map' && S.travel) { const bar = $('tBar'); if (bar) bar.style.width = (S.travel.p * 100) + '%'; drawMap(); } }
@@ -1591,7 +1779,7 @@ loadModels((n, t) => { const el = $('loadTxt'); if (el) el.textContent = `공룡
   setTimeout(() => setView('town'), 50);
 });
 if (S.stats.battles === 0) setTimeout(() => toast('잿빛 평원에서 시작해요 · 곡물을 싸게 사서 무너진 도시에 팔아 보세요'), 600);
-window.__dino = { get S() { return S; }, get B() { return B; } };
+window.__dino = { get S() { return S; }, get B() { return B; }, get F() { return F; } };
 requestAnimationFrame(frame);
 })();
 </script>
