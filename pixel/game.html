@@ -384,7 +384,32 @@ const UNITS = {
   raptorVenom:  { n: '독니 랩터', cls: 'dino', role: '약화', rare: true, hp: 150, atk: 15, def: 4, spd: 72, range: 15, as: 1.6, carry: 4, size: 17, pack: true, shred: 3, ds: '희귀종. 물린 자리가 썩어 들어가 장갑이 약해져요.' },
   stegoRust:    { n: '녹슨등 스테고사우루스', cls: 'dino', role: '가시', rare: true, hp: 460, atk: 28, def: 17, spd: 24, range: 24, as: 0.6, carry: 20, size: 34, taunt: true, thorns: 0.35, ds: '희귀종. 고철 더미에서 자라 골판이 쇠처럼 날카로워요. 물어뜯는 적이 다쳐요.' },
   trexYoung:    { n: '어린 티라노사우루스', cls: 'dino', role: '포식자', rare: true, hp: 380, atk: 32, def: 10, spd: 52, range: 22, as: 0.9, carry: 15, size: 28, ds: '희귀종. 어미를 잃은 어린 폭군. 길들일 수 있는 유일한 티라노예요.' },
+  // more species: built from the six base models with their own colours, proportions and add-ons
+  iguan:   { n: '이구아노돈', cls: 'dino', role: '균형', hp: 380, atk: 24, def: 12, spd: 40, range: 22, as: 0.8, carry: 18, size: 30, ds: '엄지 가시로 찌르는 든든한 초식 공룡. 공격과 방어가 고르게 좋아요.' },
+  pachyc:  { n: '파키케팔로사우루스', cls: 'dino', role: '기절', hp: 200, atk: 20, def: 8, spd: 56, range: 18, as: 0.9, carry: 6, size: 20, stun: 1.6, ds: '돌 같은 머리로 들이받아 적을 오래 기절시켜요.' },
+  micro:   { n: '미크로랍토르', cls: 'dino', role: '떼', hp: 70, atk: 9, def: 1, spd: 80, range: 11, as: 2.0, carry: 1, size: 11, crit: 0.18, ds: '깃털 달린 작은 사냥꾼. 아주 빠르고 급소를 잘 노려요.' },
+  utah:    { n: '유타랍토르', cls: 'dino', role: '돌격', hp: 240, atk: 24, def: 6, spd: 70, range: 18, as: 1.4, carry: 8, size: 24, pack: true, ds: '랩터 중 가장 큰 종. 무리 지으면 더 강해져요.' },
+  kentro:  { n: '켄트로사우루스', cls: 'dino', role: '가시', hp: 340, atk: 30, def: 13, spd: 30, range: 22, as: 0.7, carry: 14, size: 28, thorns: 0.3, ds: '온몸이 가시라 물어뜯는 적이 다쳐요.' },
+  anky:    { n: '안킬로사우루스', cls: 'dino', role: '탱커', hp: 520, atk: 20, def: 24, spd: 22, range: 22, as: 0.6, carry: 30, size: 30, taunt: true, thorns: 0.15, ds: '살아 있는 갑옷. 가장 단단한 방패예요.' },
+  styra:   { n: '스티라코사우루스', cls: 'dino', role: '돌격', hp: 400, atk: 30, def: 14, spd: 34, range: 24, as: 0.8, carry: 28, size: 30, ds: '가시 왕관을 쓴 뿔공룡. 방어보다 돌격이 특기예요.' },
+  carno:   { n: '카르노타우루스', cls: 'dino', role: '돌격', hp: 300, atk: 34, def: 8, spd: 62, range: 22, as: 1.0, carry: 10, size: 28, crit: 0.2, ds: '뿔 달린 날쌘 육식 공룡. 치명타가 자주 터져요.' },
+  allo:    { n: '알로사우루스', cls: 'dino', role: '포식자', hp: 460, atk: 34, def: 11, spd: 48, range: 24, as: 0.8, carry: 20, size: 34, shred: 3, ds: '톱니 이빨로 장갑을 찢어 놓는 사냥꾼.' },
+  spino:   { n: '스피노사우루스', cls: 'dino', role: '포식자', hp: 560, atk: 38, def: 12, spd: 40, range: 26, as: 0.75, carry: 25, size: 40, regen: 6, ds: '등에 돛을 단 거대한 포식자. 싸우는 중에도 상처가 아물어요.' },
+  diplo:   { n: '디플로도쿠스', cls: 'dino', role: '짐꾼', hp: 800, atk: 18, def: 11, spd: 22, range: 30, as: 0.5, carry: 140, size: 48, ds: '채찍 같은 긴 꼬리를 가진 짐꾼. 짐을 140칸 져요.' },
+  brachio: { n: '브라키오사우루스', cls: 'dino', role: '짐꾼', hp: 900, atk: 16, def: 13, spd: 18, range: 28, as: 0.5, carry: 160, size: 46, taunt: true, ds: '가장 큰 짐꾼. 짐을 160칸이나 지고 적의 눈길도 끌어요.' },
+  // more people for hire
+  scout:    { n: '척후병', cls: 'human', role: '돌격', hp: 90, atk: 14, def: 3, spd: 60, range: 22, as: 1.5, carry: 6, cost: 200, crit: 0.25, ds: '가장 빠른 대원. 쌍검으로 급소를 노려요.' },
+  shield:   { n: '방패병', cls: 'human', role: '탱커', hp: 240, atk: 7, def: 18, spd: 30, range: 20, as: 0.8, carry: 6, cost: 280, taunt: true, ds: '큰 방패로 맨 앞을 지켜요. 창잡이보다 훨씬 단단해요.' },
+  gladiator:{ n: '검투사', cls: 'human', role: '돌격', hp: 150, atk: 18, def: 7, spd: 46, range: 20, as: 1.2, carry: 6, cost: 260, crit: 0.2, ds: '공룡과 맨몸으로 싸워 온 투사. 근접 피해가 커요.' },
+  crossbow: { n: '석궁수', cls: 'human', role: '원거리', hp: 85, atk: 20, def: 3, spd: 38, range: 150, as: 0.7, carry: 6, cost: 300, bow: true, shred: 2, ds: '무거운 석궁으로 장갑을 뚫어요.' },
+  gunner:   { n: '총잡이', cls: 'human', role: '원거리', hp: 95, atk: 9, def: 4, spd: 42, range: 110, as: 2.0, carry: 6, cost: 320, gun: true, ds: '쌍권총을 아주 빠르게 쏴요.' },
+  bomber:   { n: '폭파병', cls: 'human', role: '지원', hp: 100, atk: 12, def: 5, spd: 32, range: 95, as: 0.6, carry: 6, cost: 380, gun: true, ds: '폭탄을 자주 던져 여러 적을 한꺼번에 날려요.' },
+  tamer:    { n: '조련사', cls: 'human', role: '지원', hp: 110, atk: 8, def: 5, spd: 40, range: 100, as: 1.0, carry: 6, cost: 340, bow: true, ds: '휘파람과 채찍으로 무리의 기세를 올려요. 스킬로 아군 공격을 높여요.' },
+  shaman:   { n: '주술사', cls: 'human', role: '회복', hp: 95, atk: 5, def: 4, spd: 36, range: 110, as: 1.0, carry: 6, cost: 360, heal: 10, ds: '약초 연기로 동료를 치료하고, 독안개로 적의 장갑을 녹여요.' },
 };
+{ const add = (z, wild, people) => { ZONES[z].wild.push(...wild); ZONES[z].tame.push(...wild.filter(t => !ZONES[z].tame.includes(t))); ZONES[z].recruit.push(...people); };
+  add('plain', ['iguan', 'pachyc'], ['scout', 'shield']); add('city', ['micro', 'micro', 'utah'], ['gunner', 'bomber']); add('swamp', ['kentro', 'allo'], ['shaman']);
+  add('waste', ['anky', 'styra', 'carno'], ['gladiator', 'crossbow']); add('snow', ['iguan', 'utah', 'diplo'], ['tamer', 'shield']); add('volcano', ['allo', 'carno', 'kentro'], ['gladiator', 'shaman', 'bomber']); add('abyss', ['spino', 'allo', 'brachio', 'styra'], ['gunner', 'crossbow', 'tamer', 'scout']); }
 const zl = (Z, off) => Z.lv + Math.round(off * (Z.far ? 8 : Z.span || 6) / 6);   // later zones stretch the same five grounds over more levels
 const BOSSES = {
   trikeKing: { base: 'trike', n: '늙은 우두머리 트리케라톱스', hp: 4.5, atk: 1.6, size: 1.35 },
@@ -418,14 +443,14 @@ const SK = { volley: { n: '일제 사격', cd: 12, ds: '적 셋을 한꺼번에 
   grenade: { n: '수류탄', cd: 12, ds: '주변 적 모두에게 피해' }, firstaid: { n: '응급 처치', cd: 16, ds: '아군 모두 체력 20% 회복' }, mist: { n: '독안개', cd: 14, ds: '모든 적의 장갑을 녹여요' },
   charge: { n: '돌진', cd: 11, ds: '들이받아 큰 피해와 기절' }, boom: { n: '굉음', cd: 13, ds: '주변 적을 기절시켜요' }, stomp: { n: '지진 밟기', cd: 13, ds: '주변 적 모두에게 피해' }, pounce: { n: '급습', cd: 8, ds: '빠르게 두 번 물어요' },
   acid: { n: '산성 분사', cd: 12, ds: '주변 적의 장갑을 녹이고 피해' }, tail: { n: '꼬리 휘두르기', cd: 11, ds: '주변 적 모두에게 큰 피해' }, roar: { n: '포효', cd: 16, ds: '6초 동안 아군 공격 +25%' } };
-const SK_OF = { leader: 'volley', hunter: 'multishot', spear: 'guard', sniper: 'snipe', mechanic: 'grenade', medic: 'firstaid', venomer: 'mist', dilo: 'acid', paraGold: 'firstaid' };
+const SK_OF = { leader: 'volley', hunter: 'multishot', spear: 'guard', sniper: 'snipe', mechanic: 'grenade', medic: 'firstaid', venomer: 'mist', dilo: 'acid', paraGold: 'firstaid', scout: 'pounce', shield: 'guard', gladiator: 'charge', crossbow: 'snipe', gunner: 'volley', bomber: 'grenade', tamer: 'roar', shaman: 'mist', anky: 'guard', diplo: 'tail', allo: 'acid', carno: 'charge', spino: 'roar', pachyc: 'charge', micro: 'pounce' };
 const SK_MODEL = { Triceratops: 'charge', Parasaurolophus: 'boom', Apatosaurus: 'stomp', Velociraptor: 'pounce', Stegosaurus: 'tail', Trex: 'roar' };
 const SKN = { volley: ['일제 사격', '집중 포화', '포격 명령'], multishot: ['연속 사격', '속사', '화살비'], guard: ['철벽', '강철 의지', '수호의 벽'], snipe: ['급소 저격', '관통탄', '처형 사격'], grenade: ['수류탄', '고폭탄', '집속 폭탄'], firstaid: ['응급 처치', '야전 수술', '기적의 손'], mist: ['독안개', '부식 안개', '역병 구름'],
   charge: ['돌진', '분노의 돌진', '대지 가르기'], boom: ['굉음', '천둥 울음', '폭풍의 포효'], stomp: ['지진 밟기', '대지 진동', '산사태'], pounce: ['급습', '연쇄 급습', '피의 축제'], acid: ['산성 분사', '부식 분사', '녹아내리는 비'], tail: ['꼬리 휘두르기', '가시 회오리', '파멸의 꼬리'], roar: ['포효', '폭군의 포효', '지배자의 포효'] };
 const SKX = { volley: ['적 셋을 쏴요', '적 다섯을 더 세게 쏴요', '모든 적을 쏴요'], multishot: ['화살 세 발', '화살 네 발', '모든 적에게 화살비'], guard: ['5초 동안 방어 2배', '방어 2배에 체력도 회복', '아군 모두 방어 2배'], snipe: ['3배 피해', '4배 피해', '5배 피해와 기절'], grenade: ['주변 적에게 피해', '더 넓고 강하게', '아주 넓은 폭발'], firstaid: ['아군 체력 20% 회복', '30% 회복', '45% 회복'], mist: ['적의 장갑을 녹여요', '더 많이 녹여요', '장갑을 녹이고 기절'],
   charge: ['들이받아 기절', '더 강한 돌진', '주변 적까지 함께 쓰러뜨려요'], boom: ['주변 적 기절', '더 넓게 더 오래', '아주 넓게 기절'], stomp: ['주변 적에게 피해', '더 넓고 강하게', '아주 넓고 강하게'], pounce: ['두 번 물어요', '세 번 물어요', '네 번 물어요'], acid: ['장갑을 녹이고 피해', '더 넓고 강하게', '아주 넓게'], tail: ['주변 적에게 큰 피해', '더 넓고 강하게', '아주 넓고 강하게'], roar: ['6초간 아군 공격 +25%', '8초간 지속', '10초간 지속하고 체력 회복'] };
 const skName = (k, t) => SKN[k][Math.min(2, t || 0)], skDesc = (k, t) => SKX[k][Math.min(2, t || 0)];
-const JOBS = { leader: ['상단 대장', '행수', '대행수'], hunter: ['사냥꾼', '명사수', '신궁'], spear: ['창잡이', '중갑 창병', '철벽 수호자'], sniper: ['저격수', '명저격수', '유령 저격수'], mechanic: ['정비공', '기술자', '병기 장인'], medic: ['의사', '군의관', '명의'], porter: ['짐꾼', '보부상', '거상'], venomer: ['독침술사', '독술사', '역병술사'] };
+const JOBS = { leader: ['상단 대장', '행수', '대행수'], hunter: ['사냥꾼', '명사수', '신궁'], spear: ['창잡이', '중갑 창병', '철벽 수호자'], sniper: ['저격수', '명저격수', '유령 저격수'], mechanic: ['정비공', '기술자', '병기 장인'], medic: ['의사', '군의관', '명의'], porter: ['짐꾼', '보부상', '거상'], scout: ['척후병', '추적자', '그림자 추적자'], shield: ['방패병', '중장 방패병', '움직이는 성벽'], gladiator: ['검투사', '투사', '검투왕'], crossbow: ['석궁수', '연발 석궁수', '관통 사수'], gunner: ['총잡이', '쌍권총', '속사왕'], bomber: ['폭파병', '공병', '파괴 전문가'], tamer: ['조련사', '수석 조련사', '공룡 조련 대가'], shaman: ['주술사', '대주술사', '정령 주술사'], venomer: ['독침술사', '독술사', '역병술사'] };
 const skillOf = type => SK_OF[type] || SK_MODEL[MODEL_FILES[type]] || null;
 function skHit(u, t, mult, crit) { const def = Math.max(0, t.def * (t.guardT > 0 ? 2 : 1) - t.shred * 2.5), dmg = u.atk * (u.roarT > 0 ? 1.25 : 1) * mult * lvEdge(u, t) * (1 + 0.08 * (u.skLv || 0)) * (u.plv >= 15 ? 1.2 : 1) * 40 / (40 + def); t.hp -= dmg; t.hitT = 0.2; num(t, Math.round(dmg) + '!', '#ffd870'); burst(t.x, t.y, 10, 7, '#ffd870', { spd: 65, life: 0.4, r: 2.6 }); if (t.hp <= 0) onKill(u, t); }
 function castSkill(u) {
@@ -800,7 +825,7 @@ const DINO_LOOK = {
 };
 function drawDino(c, type, x, y, a, L, ph, o = {}) {
   type = ({ para: 'pachy', stego: 'sarco', apato: 'trike', trex: 'raptor', trikeIron: 'trike', trikeRed: 'trike', paraGold: 'pachy', apatoMoss: 'trike', raptorShadow: 'raptor', raptorVenom: 'raptor', stegoRust: 'sarco', trexYoung: 'raptor' })[type] || type;
-  const K = DINO_LOOK[type], base = o.tint || K.col, dk = shade(base, -0.45), lt = shade(base, 0.35);
+  const K = DINO_LOOK[type] || DINO_LOOK[DINO_AS[type]] || DINO_LOOK.trike, base = o.tint || K.col, dk = shade(base, -0.45), lt = shade(base, 0.35);
   c.save(); c.translate(x + L * 0.06, y + L * 0.09); c.rotate(a);
   c.fillStyle = 'rgba(8,5,2,.3)'; c.beginPath(); c.ellipse(-L * 0.05, 0, L * 0.5, L * (K.body[1] + 0.08), 0, 0, 7); c.fill(); c.restore();
   c.save(); c.translate(x, y); c.rotate(a); c.lineCap = 'round'; c.lineJoin = 'round';
@@ -850,7 +875,7 @@ const HUMAN_LOOK = {
   sniper:   { col: '#4a4e52', hood: '#2e3236' }, mechanic: { col: '#7a5a30', hood: '#c8a040' }, medic: { col: '#d8d0c0', hood: '#e8e4da', cross: true }, porter: { col: '#8a7a5a', hood: '#c8b070' }, venomer: { col: '#4e5a3a', hood: '#2e3a22' },
 };
 function drawHuman(c, type, x, y, a, L, ph, o = {}) {
-  const K = HUMAN_LOOK[type];
+  const K = HUMAN_LOOK[type] || HUMAN_LOOK[HUMAN_AS[type]] || HUMAN_LOOK.hunter;
   c.save(); c.translate(x + 2, y + 3); c.fillStyle = 'rgba(8,5,2,.3)'; c.beginPath(); c.ellipse(0, 0, L * 0.38, L * 0.3, a, 0, 7); c.fill(); c.restore();
   c.save(); c.translate(x, y); c.rotate(a); c.lineCap = 'round';
   const st = o.still ? 0 : Math.sin(ph * 5) * L * 0.12;
@@ -933,9 +958,12 @@ function groundTex(kind) {
    3D — low-poly CC0 dinosaurs (Quaternius) rendered with three.js.
    The battle simulation stays 2D (x, y on the field); here x→X, y→Z.
    ================================================================ */
-const MODEL_FILES = { trike: 'Triceratops', para: 'Parasaurolophus', raptor: 'Velociraptor', compy: 'Velociraptor', dilo: 'Trex', stego: 'Stegosaurus', apato: 'Apatosaurus', trex: 'Trex',
+const MODEL_FILES = { iguan: 'Parasaurolophus', pachyc: 'Parasaurolophus', micro: 'Velociraptor', utah: 'Velociraptor', kentro: 'Stegosaurus', anky: 'Stegosaurus', styra: 'Triceratops', carno: 'Trex', allo: 'Trex', spino: 'Trex', diplo: 'Apatosaurus', brachio: 'Apatosaurus', trike: 'Triceratops', para: 'Parasaurolophus', raptor: 'Velociraptor', compy: 'Velociraptor', dilo: 'Trex', stego: 'Stegosaurus', apato: 'Apatosaurus', trex: 'Trex',
   trikeIron: 'Triceratops', trikeRed: 'Triceratops', paraGold: 'Parasaurolophus', apatoMoss: 'Apatosaurus', raptorShadow: 'Velociraptor', raptorVenom: 'Velociraptor', stegoRust: 'Stegosaurus', trexYoung: 'Trex' };
-const MODEL_TINT = { compy: [0x8a9a50, 0.5], dilo: [0x9aa040, 0.4], trikeIron: [0x7a8694, 0.6], trikeRed: [0xb04428, 0.5], paraGold: [0xe0b030, 0.55], apatoMoss: [0x5a8a40, 0.5],
+const MODEL_SHAPE = { anky: [1.2, 0.72, 0.95], kentro: [0.85, 0.9, 0.92], brachio: [1, 1.38, 0.96], diplo: [0.8, 0.82, 1.22], spino: [0.95, 1, 1.18], carno: [0.9, 0.92, 1], pachyc: [1, 0.92, 0.86], iguan: [1.12, 1.08, 1], utah: [1.08, 1.05, 1], micro: [0.9, 0.9, 1] };   // width, height, length
+const HUMAN_AS = { scout: 'sniper', shield: 'spear', gladiator: 'spear', crossbow: 'hunter', gunner: 'leader', bomber: 'mechanic', tamer: 'hunter', shaman: 'medic' };
+const DINO_AS = { iguan: 'para', pachyc: 'para', micro: 'raptor', utah: 'raptor', kentro: 'stego', anky: 'stego', styra: 'trike', carno: 'trex', allo: 'trex', spino: 'trex', diplo: 'apato', brachio: 'apato' };
+const MODEL_TINT = { iguan: [0x5a7a4a, 0.55], pachyc: [0x9a6a3a, 0.55], micro: [0x2a4a8a, 0.65], utah: [0xb0a070, 0.5], kentro: [0x5a3a2a, 0.6], anky: [0x8a7a5a, 0.55], styra: [0x6a4a8a, 0.5], carno: [0xa03a28, 0.55], allo: [0x7a6a3a, 0.5], spino: [0x3a6a7a, 0.55], diplo: [0x7a8a9a, 0.5], brachio: [0xb09a50, 0.5], compy: [0x8a9a50, 0.5], dilo: [0x9aa040, 0.4], trikeIron: [0x7a8694, 0.6], trikeRed: [0xb04428, 0.5], paraGold: [0xe0b030, 0.55], apatoMoss: [0x5a8a40, 0.5],
   raptorShadow: [0x141c30, 0.7], raptorVenom: [0x8a3a9a, 0.5], stegoRust: [0xc0601c, 0.55], trexYoung: [0xd0c8b0, 0.45] };
 const MODELS = {}, PORTRAIT = {}, PROPS = {}, ZONESHOT = {};
 let G3 = null;
@@ -977,7 +1005,7 @@ function loadModels(onProgress) {
       lambertize(o);
       const clips = {}; for (const a of o.animations) clips[a.name.split('_').pop().toLowerCase()] = a;
       const sz = new THREE.Box3().setFromObject(o).getSize(new THREE.Vector3());
-      MODELS[f] = { obj: o, clips, len: Math.max(sz.x, sz.z), h: sz.y };
+      MODELS[f] = { obj: o, clips, len: Math.max(sz.x, sz.z), h: sz.y, ax: sz.x > sz.z ? 'x' : 'z' };
       fin();
     }).catch(() => { ok = false; fin(); }));
   });
@@ -985,10 +1013,11 @@ function loadModels(onProgress) {
 const srgb = c => new THREE.Color(c).convertSRGBToLinear();
 const lam = (col, extra = {}) => new THREE.MeshLambertMaterial(Object.assign({ color: srgb(col), flatShading: true }, extra));
 // people for hire, built from simple low-poly shapes to match the dinosaurs
-const HUMAN3 = { leader: [0x7a6448, 0x3a2e22], hunter: [0x56633a, 0x3a3020], spear: [0x6c5c4a, 0x3a3026], sniper: [0x444a44, 0x2a2e2a],
+const HUMAN3 = { leader: [0x7a6448, 0x3a2e22], hunter: [0x56633a, 0x3a3020], spear: [0x6c5c4a, 0x3a3026], scout: [0x3e5236, 0x2a2a24], shield: [0x5a6470, 0x30343a], gladiator: [0x8a3a2a, 0x3a2a20], crossbow: [0x6a6a66, 0x2e2e2c], gunner: [0x3a4a6a, 0x2a2420], bomber: [0x3a3a38, 0x4a3a26], tamer: [0x8a6a3a, 0x4a3422], shaman: [0x5a3a7a, 0x2a2030], sniper: [0x444a44, 0x2a2e2a],
                  porter: [0x8a7a5a, 0x4a4030], mechanic: [0xc06a20, 0x34405a], medic: [0xe2ddd0, 0x6a6a70], venomer: [0x3e4a34, 0x24281c] };
 function makeHuman3(type, tier = 0) {
-  const [body, pants] = HUMAN3[type], g = new THREE.Group(), s = new THREE.Group(); g.add(s);
+  const type0 = type; type = HUMAN_AS[type] || type;
+  const [body, pants] = HUMAN3[type0] || HUMAN3[type], g = new THREE.Group(), s = new THREE.Group(); g.add(s);
   const M = (geo, col, x, y, z, parent = s) => { const m = new THREE.Mesh(geo, typeof col === 'number' ? lam(col) : col); m.position.set(x, y, z); m.castShadow = true; parent.add(m); return m; };
   const B = (w, h, d) => new THREE.BoxGeometry(w, h, d), skin = lam(0xd9a47c), legs = [];
   for (const sd of [-1, 1]) { const geo = B(2.5, 7, 2.7); geo.translate(0, -3.5, 0); const l = M(geo, pants, sd * 1.7, 7, 0); M(B(2.7, 1.6, 3.6), 0x241a12, 0, -6.4, 0.5, l); legs.push(l); }
@@ -1037,6 +1066,14 @@ function makeHuman3(type, tier = 0) {
     M(cyl(1.5, 1.5, 6, 8), 0x7ab030, 2, 11.6, -4.9); M(cyl(1.5, 1.5, 6, 8), 0x5a9024, -2, 11.6, -4.9);
     W(cyl(0.5, 0.5, 15, 6), 0x8a7a4a, 0, 0, 5, Math.PI / 2);
   }
+  if (type0 === 'scout') { M(B(8, 10, 0.8), 0x3a5a34, 0, 10, -4.8); M(B(0.8, 8, 0.8), 0xc8c8c0, -4.4, 9, 3).rotation.x = 0.9; }
+  else if (type0 === 'shield') { M(B(1.2, 15, 10), 0x5a6a7a, -5.8, 10, 2.4); M(B(1.4, 4, 4), 0xd0a040, -6, 10.5, 2.4); }
+  else if (type0 === 'gladiator') { M(B(1.2, 5, 4), 0xc03028, 0, 21, -0.5); M(B(7, 1.4, 4.2), 0xc8a040, 0, 13.6, 0); }
+  else if (type0 === 'crossbow') { M(B(13, 1, 1.2), 0x4a3422, 4.2, 11.2, 9); }
+  else if (type0 === 'gunner') { M(B(6.6, 1.6, 4.2), 0x2a5a8a, 0, 15.4, 0.3); M(B(1, 1.4, 5), 0x2a2a2a, -4.4, 8, 3); }
+  else if (type0 === 'bomber') { M(new THREE.SphereGeometry(2.6, 7, 5), 0x1e1e1e, 0, 12, -5.4); M(B(0.6, 2.4, 0.6), 0xe08030, 0, 15.2, -5.4); }
+  else if (type0 === 'tamer') { M(B(1.4, 6, 1.4), 0xe04a30, 1.6, 21, -0.6); M(B(1.4, 5, 1.4), 0xe0c040, -1.2, 20.6, -0.6); M(B(7, 1.6, 4.2), 0x7a4a2a, 0, 9.4, 0); }
+  else if (type0 === 'shaman') { M(B(7.4, 10, 1), 0x5a3a7a, 0, 9.6, -4.8); M(new THREE.SphereGeometry(1.6, 6, 4), 0xe8e0d0, 0, 9, 0, arm); }
   if (tier >= 1) { for (const sd of [-1, 1]) M(B(3.2, 2.4, 4.6), tier >= 2 ? 0xe3a843 : 0x9a9a94, sd * 4.6, 15.3, 0); M(B(7, 2.2, 4.2), 0x8a6a3a, 0, 8.4, 0); M(B(6.9, 3, 0.8), tier >= 2 ? 0xe3a843 : 0x8a8a84, 0, 12.4, 2.1); }
   if (tier >= 2) { M(B(8, 13, 0.8), 0xa02a20, 0, 9, -5.3); M(B(1.3, 5.5, 3.2), 0xe3a843, 0, 22, -0.4); M(B(1.6, 1.6, 1.6), 0x8fe0ff, 0, 0.6, 9, arm); }
   return { root: g, spin: s, legs, arm, human: true };
@@ -1054,7 +1091,14 @@ function makeDino3(type, len, tier = 0) {
   if (MODEL_TINT[type]) { const [col, t] = MODEL_TINT[type], tc = srgb(col); inst.traverse(c => { if (c.isMesh) { const tint = m => { const k = m.clone(); k.color.lerp(tc, t); return k; }; c.material = Array.isArray(c.material) ? c.material.map(tint) : tint(c.material); } }); }
   if (tier >= 1) { const tc = srgb(tier >= 2 ? 0xd8a030 : 0x3a2a20), amt = tier >= 2 ? 0.22 : 0.18; inst.traverse(c => { if (c.isMesh) { const f = m => { const k = m.clone(); k.color.lerp(tc, amt); return k; }; c.material = Array.isArray(c.material) ? c.material.map(f) : f(c.material); } }); }
   inst.scale.setScalar(len / M.len);
+  const SH = MODEL_SHAPE[type]; if (SH) { const k = len / M.len; inst.scale.set(k * (M.ax === 'x' ? SH[2] : SH[0]), k * SH[1], k * (M.ax === 'x' ? SH[0] : SH[2])); }
   const g = new THREE.Group(), s = new THREE.Group(); s.add(inst); g.add(s);
+  { // add-ons that make a species read at a glance: a sail, back armour, a crown of spikes
+    const hgt = (M.h || M.len * 0.4) * (len / M.len) * (SH ? SH[1] : 1), put = (w, h, l, col, along, up, side = 0) => { const m = new THREE.Mesh(new THREE.BoxGeometry(M.ax === 'x' ? l : w, h, M.ax === 'x' ? w : l), lam(col)); m.position.set(M.ax === 'x' ? along : side, up, M.ax === 'x' ? side : along); s.add(m); return m; };
+    if (type === 'spino') for (let k = -3; k <= 3; k++) put(len * 0.012 + 0.6, len * (0.2 - Math.abs(k) * 0.035), len * 0.07, k % 2 ? 0xc0603a : 0xa84a2c, k * len * 0.07, hgt * 0.78 + len * 0.07);
+    else if (type === 'anky') { for (let k = -2; k <= 2; k++) for (const sd of [-1, 1]) put(len * 0.07, len * 0.05, len * 0.07, 0x4a4030, k * len * 0.1, hgt * 0.72, sd * len * 0.08); }
+    else if (type === 'styra' || type === 'kentro') for (let k = -2; k <= 2; k++) put(len * 0.02 + 0.5, len * 0.11, len * 0.02 + 0.5, 0xe0d6c0, k * len * 0.07, hgt * 0.5 + len * 0.03);
+  }
   if (tier >= 1) {   // a pack saddle once grown, a war banner on the pack leader
     const by = (M.h || M.len * 0.4) * (len / M.len) * 0.66, w = len * 0.17, sad = new THREE.Mesh(new THREE.BoxGeometry(w, len * 0.07, len * 0.2), lam(tier >= 2 ? 0xa02a20 : 0x6a4a2a)); sad.position.y = by; s.add(sad);
     for (const sd of [-1, 1]) { const bag = new THREE.Mesh(new THREE.BoxGeometry(len * 0.05, len * 0.09, len * 0.13), lam(0x8a6a3a)); bag.position.set(sd * w * 0.6, by - len * 0.04, 0); s.add(bag); }
@@ -1165,7 +1209,7 @@ const BIO = {}, bioOf = z => BIO[z] || z;
     const k = 'x' + i, col = Math.floor(i / 3), r = i % 3, x = cols[col], y = rows[col % 2 ? 2 - r : r], lv = 51 + i * 10, src = ZONES[bios[i % 7]], src2 = ZONES[base[(i * 3 + 2) % 7]], R = seeded(977 + i * 131), price = {};
     for (const g of Object.keys(GOODS)) if (!GOODS[g].made) price[g] = Math.round((0.55 + R() * 1.4) * 20) / 20;
     BIO[k] = bios[i % 7]; BOSSES['xb' + i] = { base: bossBase[i % 7], n: `${nm}의 지배자`, hp: 4.5 + i * 0.12, atk: 1.8 + i * 0.03, size: 1.4 }; TOKEN_N['xb' + i] = `${nm}의 증표`;
-    ZONES[k] = { n: nm, lv, span: 6, bossLv: lv + 9, danger: 8, ground: BIO[k], mx: 0, my: 0, far: true, ds: `야생 레벨 ${lv}~${lv + 9}. 먼 동쪽, 살아 돌아온 상단이 드문 땅이에요.`, recruit: ['hunter', 'spear', 'sniper', 'mechanic', 'medic', 'venomer', 'porter'], tame: [...new Set(src.wild)], rare: [...new Set([...src.rare, ...src2.rare])], wild: [...src.wild, ...src2.wild.slice(0, 2)], boss: 'xb' + i, loot: src.loot, price };
+    ZONES[k] = { n: nm, lv, span: 6, bossLv: lv + 9, danger: 8, ground: BIO[k], mx: 0, my: 0, far: true, ds: `야생 레벨 ${lv}~${lv + 9}. 먼 동쪽, 살아 돌아온 상단이 드문 땅이에요.`, recruit: Object.keys(UNITS).filter(t => UNITS[t].cls === 'human' && t !== 'leader' && (t.length + i) % 3 !== 0).concat('porter').filter((t, k, a) => a.indexOf(t) === k), tame: [...new Set(src.wild)], rare: [...new Set([...src.rare, ...src2.rare])], wild: [...src.wild, ...src2.wild.slice(0, 2)], boss: 'xb' + i, loot: src.loot, price };
     HUNT_NAMES[k] = ['외곽', '폐허', '협곡', '심부', '지배자의 둥지'].map(t => `${nm} ${t}`); RIVALS[k] = [`${nm} 상회`, 40000 + i * 15000];
     TOWNS[k] = { x, y }; GROUNDS[k] = [[x + 500, y - 380], [x - 540, y - 320], [x + 580, y + 380], [x - 420, y + 520], [x + 60, y - 700]]; ROADS.push([prev, k]); prev = k;
   });
@@ -1539,7 +1583,7 @@ function usePotion() {
 function updPots() { $('fPot').textContent = $('bPot').textContent = `회복약 ${S.pots}`; }
 function autoEat() { if (S.food > 20) return; const g = ['grain', 'meat', 'jerky'].find(g => S.cargo[g] > 0); if (!g) return; S.cargo[g]--; if (!S.cargo[g]) delete S.cargo[g]; S.food = Math.min(100, S.food + FOODS[g]); toast(`배가 고파 ${GOODS[g].n}을(를) 먹었어요 · 포만감 ${Math.ceil(S.food)}`); }
 $('fPot').onclick = usePotion; $('bPot').onclick = usePotion;
-const TRIAL_TYPES = ['para', 'trike', 'raptor', 'compy', 'dilo', 'stego', 'apato', 'trex', 'raptorShadow', 'trikeRed', 'stegoRust', 'trexYoung'];
+const TRIAL_TYPES = ['para', 'trike', 'raptor', 'compy', 'pachyc', 'micro', 'iguan', 'dilo', 'stego', 'utah', 'kentro', 'apato', 'styra', 'carno', 'anky', 'trex', 'allo', 'diplo', 'raptorShadow', 'trikeRed', 'spino', 'stegoRust', 'brachio', 'trexYoung'];
 const trialBoss = f => { const ks = Object.keys(BOSSES); return ks[Math.min(ks.length - 1, Math.floor(f / 10) - 1)]; };
 function startTrial() {   // one floor of the tower: a set fight at the floor's level, a boss every tenth floor
   if (B || !W.crew.length) return; const f = (S.tower || 0) + 1; if (f > 200) return;
@@ -1555,7 +1599,7 @@ const ACH = [   // goals with five steps each
   ['kills', '공룡 사냥꾼', () => S.stats.kills || 0, [50, 300, 1500, 6000, 20000], '마리 처치'], ['caps', '조련사', () => S.stats.captures, [3, 10, 30, 80, 200], '마리 포획·부화'],
   ['trade', '장사꾼', () => S.stats.trades, [10, 50, 200, 800, 3000], '번 거래'], ['earn', '큰손', () => S.stats.earned, [5000, 50000, 500000, 3000000, 20000000], '크레딧 벌기'],
   ['lv', '단련', () => Math.max(...S.units.map(u => u.lv)), [10, 30, 60, 120, 200], '레벨 달성'], ['tower', '탑 등반가', () => S.tower || 0, [10, 30, 60, 120, 200], '층 돌파'],
-  ['dex', '수집가', () => Object.keys(UNITS).filter(t => UNITS[t].cls === 'dino' && S.dex[t] === 2).length, [4, 7, 10, 13, 16], '종 보유'], ['boss', '우두머리 사냥', () => Object.values(S.bossKills || {}).length, [1, 3, 7, 14, 22], '종류 처치'],
+  ['dex', '수집가', () => Object.keys(UNITS).filter(t => UNITS[t].cls === 'dino' && S.dex[t] === 2).length, [5, 10, 15, 22, 28], '종 보유'], ['boss', '우두머리 사냥', () => Object.values(S.bossKills || {}).length, [1, 3, 7, 14, 22], '종류 처치'],
   ['town', '탐험가', () => Object.keys(S.seen || {}).length, [3, 7, 12, 17, 22], '곳 방문'], ['head', '대방', () => Object.keys(ZONES).filter(isHead).length, [1, 3, 6, 12, 22], '개 마을의 대방'],
 ];
 const achPrize = (i, t) => 300 * Math.pow(4, t) * (1 + (i % 3) * 0.25) | 0;
@@ -2118,7 +2162,7 @@ loadModels((n, t) => { const el = $('loadTxt'); if (el) el.textContent = `공룡
   const el = $('loadTxt'); if (el) el.textContent = '픽셀 월드 그리는 중…';
   setTimeout(() => { setView('party'); showWorld(); if (S.stats.battles === 0) toast('땅을 눌러 걷고, 건물을 누르면 시장·여관을 쓸 수 있어요'); }, 60);
 });
-window.__dino = { get S() { return S; }, get B() { return B; }, get W() { return W; }, set speed(v) { bSpeed = v; }, addUnit, xpNeed, partyPower, groundPower, VO: () => VO, walkTo, TOWNS, GROUNDS, SPR };
+window.__dino = { get S() { return S; }, get B() { return B; }, get W() { return W; }, UNITS, ZONES, set speed(v) { bSpeed = v; }, addUnit, xpNeed, partyPower, groundPower, VO: () => VO, walkTo, TOWNS, GROUNDS, SPR };
 requestAnimationFrame(frame);
 })();
 </script>
