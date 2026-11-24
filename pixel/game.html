@@ -609,7 +609,7 @@ function startBattle(opt) {
   $('bInfo').innerHTML = `<span class="hud warn"><i>적</i>${opt.foes.length}</span><span class="hud"><i>아군</i>${ours.length}</span>`;
   for (const f of opt.foes) { S.dex[f.type] = Math.max(S.dex[f.type] || 0, 1); if (UNITS[f.type].rare && !f.boss) setTimeout(() => toast(`희귀종 발견: ${UNITS[f.type].n}!`, 'good'), 900); }
   $('bfoot').hidden = false; $('ffoot').hidden = true; $('joy').hidden = true; JOY.on = false; $('bTip').hidden = false; $('bTip').textContent = '적: 눌러서 집중 공격 · 대원: 끌어서 자리 배치'; updCapture();
-  SND.mood = 'battle'; SND.step = 0; sfx('drums'); flash(0.3);
+  SND.mood = opt.boss || opt.trialBoss ? 'boss' : 'battle'; sfx('drums'); flash(0.3);
 }
 function spawn(side, type, lv, x, y, ref, boss) {
   const D = UNITS[type], st = unitStats(type, lv, boss);
@@ -2073,8 +2073,13 @@ function sndInit() {
     const C = new (window.AudioContext || window.webkitAudioContext)(); SND.ctx = C;
     SND.master = C.createGain(); SND.master.connect(C.destination);
     SND.music = C.createGain(); SND.music.connect(SND.master); SND.fx = C.createGain(); SND.fx.connect(SND.master); SND.amb = C.createGain(); SND.amb.connect(SND.master);
+    { // a generated room: everything gets a little air, the music a little more
+      const rl = Math.floor(C.sampleRate * 2.4), ib = C.createBuffer(2, rl, C.sampleRate); for (let ch = 0; ch < 2; ch++) { const dd = ib.getChannelData(ch); for (let i = 0; i < rl; i++) dd[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / rl, 2.6); }
+      const cv = C.createConvolver(); cv.buffer = ib; const wet = C.createGain(); wet.gain.value = 0.9; cv.connect(wet).connect(SND.master);
+      const ms = C.createGain(); ms.gain.value = 0.34; SND.music.connect(ms).connect(cv); const fs = C.createGain(); fs.gain.value = 0.12; SND.fx.connect(fs).connect(cv); const as = C.createGain(); as.gain.value = 0.3; SND.amb.connect(as).connect(cv);
+      const cmp = C.createDynamicsCompressor(); cmp.threshold.value = -16; cmp.ratio.value = 3.5; SND.master.disconnect(); SND.master.connect(cmp).connect(C.destination); }
     const len = C.sampleRate * 2, buf = C.createBuffer(1, len, C.sampleRate), d = buf.getChannelData(0); for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1; SND.noise = buf;
-    const w = C.createBufferSource(); w.buffer = buf; w.loop = true; const f = C.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 380; const wg = C.createGain(); wg.gain.value = 0.05; w.connect(f).connect(wg).connect(SND.amb); w.start();
+    const w = C.createBufferSource(); w.buffer = buf; w.loop = true; const f = C.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 380; const wg = C.createGain(); wg.gain.value = 0.05; SND.wind = wg; SND.windF = f; w.connect(f).connect(wg).connect(SND.amb); w.start();
     const lfo = C.createOscillator(); lfo.frequency.value = 0.05; const lg = C.createGain(); lg.gain.value = 200; lfo.connect(lg).connect(f.frequency); lfo.start();
     applySnd(); setInterval(sndTick, 100);
   } catch (e) { SND.ctx = null; }
@@ -2115,21 +2120,114 @@ const SFX = {
   march: () => [0, 0.3, 0.6].forEach(at => noiseHit(0.15, { freq: 200, type: 'lowpass', vol: 0.35, at })),
   arrive: () => [523, 659, 784].forEach((f, i) => tone(f, 0.4, { vol: 0.07, at: i * 0.1 })),
 };
+{ const fx = (f, d, o) => synth(f * (0.96 + Math.random() * 0.08), d, Object.assign({ dest: SND.fx }, o)), nz = (d, o) => noiseHit(d, o);
+  Object.assign(SFX, {
+    tap: () => { fx(900, 0.05, { type: 'triangle', vol: 0.035 }); fx(1800, 0.03, { type: 'sine', vol: 0.012 }); },
+    open: () => { nz(0.09, { freq: 1400, sweep: 3200, q: 2, vol: 0.05 }); fx(520, 0.08, { type: 'triangle', vol: 0.02, slide: 1.4 }); },
+    deny: () => { fx(170, 0.11, { type: 'square', cut: 800, vol: 0.05 }); fx(140, 0.16, { type: 'square', cut: 700, vol: 0.05, at: 0.1 }); },
+    coin: () => [1320, 1760, 2640].forEach((f, q) => { fx(f, 0.16, { type: 'triangle', vol: 0.04, at: q * 0.045 }); fx(f * 2.01, 0.1, { type: 'sine', vol: 0.012, at: q * 0.045 }); }),
+    step: () => { const m = SND.cur; if (m === 'snow') nz(0.09, { freq: 2600, q: 1.2, vol: 0.07 }); else if (m === 'town') { nz(0.04, { freq: 900, q: 2, vol: 0.09 }); fx(150, 0.04, { type: 'sine', vol: 0.03 }); } else if (m === 'swamp' || m === 'abyss') { nz(0.08, { freq: 420, type: 'lowpass', vol: 0.12 }); fx(300, 0.05, { type: 'sine', slide: 0.5, vol: 0.02 }); } else nz(0.07, { freq: 230 + Math.random() * 60, type: 'lowpass', vol: 0.15 }); },
+    shot: () => { nz(0.05, { freq: 3200, q: 0.5, vol: 0.34 }); nz(0.22, { freq: 900, sweep: 240, q: 0.7, vol: 0.2 }); fx(140, 0.12, { type: 'square', cut: 900, slide: 0.4, vol: 0.07 }); },
+    bow: () => { nz(0.1, { freq: 1100, sweep: 3600, q: 3, vol: 0.11 }); fx(240, 0.09, { type: 'triangle', slide: 0.7, vol: 0.05 }); },
+    spit: () => { nz(0.16, { freq: 700, sweep: 220, q: 3, vol: 0.14 }); fx(320, 0.14, { type: 'sine', slide: 0.5, vol: 0.03 }); },
+    bite: () => { nz(0.05, { freq: 2800, q: 2, vol: 0.14 }); nz(0.07, { freq: 500, type: 'lowpass', vol: 0.12, at: 0.02 }); },
+    crit: () => { nz(0.14, { freq: 3400, q: 1.2, vol: 0.28 }); fx(230, 0.2, { type: 'square', cut: 1400, slide: 0.4, vol: 0.07 }); fx(2400, 0.5, { type: 'sine', vol: 0.02 }); fx(3170, 0.4, { type: 'sine', vol: 0.012 }); },
+    miss: () => nz(0.14, { freq: 2400, sweep: 600, q: 4, vol: 0.07 }),
+    stun: () => [1400, 1750, 1400, 1750].forEach((f, q) => fx(f, 0.09, { type: 'sine', vol: 0.045, at: q * 0.06 })),
+    heal: () => [523, 659, 784, 1047, 1319].forEach((f, q) => fx(f, 0.5, { type: 'sine', vol: 0.04, at: q * 0.05 })),
+    crunch: () => { nz(0.12, { freq: 1200, q: 0.7, vol: 0.28 }); nz(0.2, { freq: 200, type: 'lowpass', vol: 0.2, at: 0.03 }); fx(120, 0.16, { type: 'square', cut: 600, slide: 0.5, vol: 0.06 }); },
+    crunchBig: () => { nz(0.4, { freq: 520, q: 0.6, vol: 0.42 }); nz(0.7, { freq: 90, type: 'lowpass', vol: 0.4, at: 0.04 }); fx(70, 0.6, { type: 'sawtooth', cut: 400, slide: 0.4, vol: 0.12 }); },
+    cry: () => { const f = 520 + Math.random() * 260; fx(f, 0.34, { type: 'sawtooth', cut: 2600, cut2: 700, slide: 0.45, vol: 0.07, attack: 0.02, vib: 0.02 }); nz(0.24, { freq: 1700, q: 2, vol: 0.07 }); },
+    cryBig: () => { fx(150, 0.9, { type: 'sawtooth', det: 14, cut: 900, cut2: 260, slide: 0.42, vol: 0.13, attack: 0.05, vib: 0.03 }); nz(0.8, { freq: 420, type: 'lowpass', vol: 0.22 }); },
+    roar: () => { fx(92, 1.3, { type: 'sawtooth', det: 18, cut: 500, cut2: 1300, slide: 1.6, vol: 0.14, attack: 0.16, hold: true, rel: 0.5, vib: 0.04 }); fx(184, 1.1, { type: 'square', cut: 800, slide: 1.5, vol: 0.04, attack: 0.2, vib: 0.05 }); nz(1.1, { freq: 360, type: 'lowpass', vol: 0.26 }); nz(0.9, { freq: 1400, q: 1.5, vol: 0.06, at: 0.15 }); },
+    down: () => [330, 262, 196, 147].forEach((f, q) => fx(f, 0.3, { type: 'triangle', vol: 0.08, at: q * 0.1 })),
+    horn: () => { fx(196, 0.7, { type: 'sawtooth', det: 8, cut: 900, vol: 0.07, attack: 0.07, hold: true, rel: 0.2 }); fx(294, 0.8, { type: 'sawtooth', det: 8, cut: 1100, vol: 0.06, attack: 0.07, hold: true, rel: 0.25, at: 0.2 }); },
+    drums: () => [0, 0.2, 0.4, 0.5, 0.6].forEach((a, q) => { nz(0.2, { freq: 120, type: 'lowpass', vol: 0.5, at: a }); fx(q > 2 ? 110 : 80, 0.2, { type: 'sine', slide: 0.5, vol: 0.14, at: a }); }),
+    capture: () => [523, 659, 784, 1047, 1319, 1568].forEach((f, q) => { fx(f, 0.34, { type: 'triangle', vol: 0.07, at: q * 0.06 }); fx(f * 2, 0.2, { type: 'sine', vol: 0.015, at: q * 0.06 }); }),
+    levelup: () => { [523, 659, 784, 1047].forEach((f, q) => fx(f, 0.3, { type: 'square', cut: 2400, vol: 0.04, at: q * 0.08 })); [1047, 1319, 1568].forEach(f => fx(f, 0.9, { type: 'triangle', vol: 0.035, at: 0.34 })); },
+    loot: () => [988, 1319, 1976, 2637].forEach((f, q) => { fx(f, 0.22, { type: 'triangle', vol: 0.06, at: q * 0.055 }); fx(f * 1.5, 0.12, { type: 'sine', vol: 0.012, at: q * 0.055 }); }),
+    win: () => { [[392, 0], [392, 0.14], [392, 0.28], [523, 0.42], [659, 0.7], [784, 0.84]].forEach(([f, a]) => { fx(f, a > 0.6 ? 0.7 : 0.2, { type: 'sawtooth', det: 6, cut: 1800, vol: 0.05, at: a, attack: 0.02 }); fx(f / 2, a > 0.6 ? 0.7 : 0.2, { type: 'triangle', vol: 0.04, at: a }); }); nz(0.5, { freq: 6000, type: 'highpass', vol: 0.03, at: 0.7 }); },
+    lose: () => [392, 370, 330, 294, 247].forEach((f, q) => fx(f, 0.6, { type: 'triangle', vol: 0.07, at: q * 0.17, vib: 0.01 })),
+    march: () => [0, 0.28, 0.56].forEach(a => { nz(0.14, { freq: 200, type: 'lowpass', vol: 0.3, at: a }); nz(0.05, { freq: 2600, q: 1, vol: 0.05, at: a + 0.14 }); }),
+    arrive: () => [523, 659, 784, 1047].forEach((f, q) => fx(f, 0.6, { type: 'sine', vol: 0.06, at: q * 0.09 })),
+    dart: () => { nz(0.1, { freq: 4200, sweep: 1800, q: 3, vol: 0.1 }); fx(1800, 0.06, { type: 'sine', slide: 0.6, vol: 0.02 }); },
+    call: () => { const f = 700 + Math.random() * 500; fx(f, 0.2, { type: 'triangle', slide: 1.25, vol: 0.024, vib: 0.02 }); fx(f * 1.1, 0.24, { type: 'triangle', slide: 0.8, vol: 0.02, at: 0.24 }); },
+    callBig: () => { fx(110, 1.6, { type: 'sawtooth', det: 12, cut: 500, slide: 1.4, vol: 0.03, attack: 0.5 }); nz(1.3, { freq: 300, type: 'lowpass', vol: 0.05 }); },
+  }); }
 function sfx(n, throttle = 0) { if (!SND.ctx || !S.snd) return; const now = performance.now(); if (throttle && now - (SND.last[n] || 0) < throttle) return; SND.last[n] = now; try { SFX[n](); } catch (e) { /* ignore */ } }
 // wasteland score: low drones and a slow pentatonic guitar-like pluck in town; pounding drums in battle
+// One synth voice: an oscillator (or two, detuned) through a low-pass that can close as the note decays, with optional vibrato.
+function synth(f, dur, o = {}) {
+  const C = SND.ctx; if (!C) return; const t = C.currentTime + (o.at || 0), g = C.createGain(), lp = C.createBiquadFilter(), vol = o.vol || 0.03, at = o.attack || 0.006;
+  lp.type = 'lowpass'; lp.Q.value = o.q || 0.7; lp.frequency.setValueAtTime(o.cut || 4000, t); if (o.cut2) lp.frequency.exponentialRampToValueAtTime(o.cut2, t + dur);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + at); if (o.hold) g.gain.setValueAtTime(vol, t + Math.max(at, dur - (o.rel || 0.3))); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  for (const dt of o.det ? [-o.det, o.det] : [0]) { const os = C.createOscillator(); os.type = o.type || 'sine'; os.frequency.setValueAtTime(f, t); os.detune.value = dt; if (o.slide) os.frequency.exponentialRampToValueAtTime(Math.max(20, f * o.slide), t + dur);
+    if (o.vib) { const l = C.createOscillator(), lg = C.createGain(); l.frequency.value = 5.2; lg.gain.value = f * o.vib; l.connect(lg).connect(os.frequency); l.start(t + 0.12); l.stop(t + dur + 0.05); }
+    os.connect(lp); os.start(t); os.stop(t + dur + 0.05); }
+  lp.connect(g).connect(o.dest || SND.music);
+}
+const INST = {
+  pluck: (f, at, b, v) => { synth(f, 0.9, { type: 'sawtooth', cut: Math.min(6000, f * 6), cut2: f * 1.2, vol: 0.034 * v, at }); synth(f * 2, 0.4, { type: 'triangle', vol: 0.01 * v, at }); },
+  flute: (f, at, b, v) => synth(f, b * 3.2, { type: 'sine', vol: 0.034 * v, at, attack: 0.09, hold: true, rel: 0.5, vib: 0.006 }),
+  bell: (f, at, b, v) => { synth(f, 1.9, { type: 'sine', vol: 0.03 * v, at }); synth(f * 2.76, 0.9, { type: 'sine', vol: 0.009 * v, at }); synth(f * 5.4, 0.3, { type: 'sine', vol: 0.004 * v, at }); },
+  brass: (f, at, b, v) => synth(f, b * 1.7, { type: 'sawtooth', det: 7, cut: 1500, cut2: 700, vol: 0.022 * v, at, attack: 0.03, hold: true, rel: 0.14 }),
+};
+const kick = (at, v = 1) => { synth(130, 0.26, { type: 'sine', slide: 0.3, vol: 0.2 * v, at }); noiseHit(0.03, { freq: 1200, q: 0.5, vol: 0.06 * v, at, dest: SND.music }); };
+const snare = (at, v = 1) => { noiseHit(0.16, { freq: 1900, q: 0.6, vol: 0.13 * v, at, dest: SND.music }); synth(190, 0.1, { type: 'triangle', slide: 0.6, vol: 0.06 * v, at }); };
+const hat = (at, v = 1) => noiseHit(0.035, { freq: 7500, q: 0.8, type: 'highpass', vol: 0.035 * v, at, dest: SND.music });
+const tom = (at, f, v = 1) => synth(f, 0.3, { type: 'sine', slide: 0.6, vol: 0.12 * v, at });
+// Each land has its own key, pace, lead instrument and percussion. Battle and boss fights have theirs.
+const MUS = {
+  town: { bpm: 88, sc: [0, 2, 4, 7, 9], roots: [48, 53, 55, 48, 45, 53, 55, 48], lead: 'pluck', dens: 0.55, perc: 'light', pad: 0.011 },
+  plain: { bpm: 72, sc: [0, 2, 3, 5, 7, 9, 10], roots: [45, 45, 43, 41, 45, 48, 43, 45], lead: 'flute', dens: 0.3, perc: 'none', pad: 0.015 },
+  city: { bpm: 66, sc: [0, 2, 3, 5, 7, 8, 10], roots: [38, 38, 36, 41, 38, 34, 36, 38], lead: 'bell', dens: 0.24, perc: 'pulse', pad: 0.014 },
+  swamp: { bpm: 60, sc: [0, 1, 3, 5, 7, 8, 10], roots: [40, 40, 41, 40, 38, 40, 41, 40], lead: 'flute', dens: 0.22, perc: 'none', pad: 0.017, low: 1 },
+  waste: { bpm: 78, sc: [0, 1, 4, 5, 7, 8, 10], roots: [38, 38, 43, 41, 38, 36, 41, 38], lead: 'pluck', dens: 0.45, perc: 'tom', pad: 0.012 },
+  snow: { bpm: 64, sc: [0, 2, 4, 6, 7, 9, 11], roots: [48, 43, 45, 41, 48, 52, 45, 43], lead: 'bell', dens: 0.4, perc: 'none', pad: 0.015 },
+  volcano: { bpm: 70, sc: [0, 1, 3, 5, 6, 8, 10], roots: [36, 36, 34, 35, 36, 39, 34, 36], lead: 'brass', dens: 0.22, perc: 'tom', pad: 0.018, low: 1 },
+  abyss: { bpm: 68, sc: [0, 3, 5, 7, 10], roots: [41, 39, 36, 39, 41, 44, 36, 41], lead: 'flute', dens: 0.42, perc: 'shaker', pad: 0.014 },
+  battle: { bpm: 132, sc: [0, 2, 3, 5, 7, 8, 10], roots: [40, 40, 36, 38, 40, 43, 36, 38], lead: 'brass', dens: 0.5, perc: 'drums', pad: 0.007 },
+  boss: { bpm: 150, sc: [0, 1, 3, 5, 6, 8, 10], roots: [38, 38, 39, 37, 38, 41, 39, 37], lead: 'brass', dens: 0.62, perc: 'heavy', pad: 0.009 },
+};
+function musPattern(k) {   // an eight-bar tune that repeats: phrase, variation, answer, return
+  const M = MUS[k]; if (M.pat) return M.pat; let sd = 7; for (const ch of k) sd = sd * 31 + ch.charCodeAt(0); const R = seeded(sd), n = M.sc.length;
+  const phrase = start => { const a = []; let d = start; for (let q = 0; q < 16; q++) { const strong = q % 4 === 0; if (R() < M.dens * (strong ? 1.5 : 0.8)) { d = clamp(d + Math.round((R() - 0.5) * 4), 0, n * 2 - 1); a.push(d); } else a.push(-1); } return a; };
+  const A = phrase(n), A2 = A.slice(0, 10).concat(phrase(n + 1).slice(10)), Bp = phrase(n + 2), A3 = A.slice(0, 12).concat([n, -1, -1, -1]); A[0] = n; A3[0] = n;
+  return M.pat = [...A, ...A2, ...Bp, ...A3];
+}
+const curMood = () => (B ? SND.mood : !W ? 'town' : inTown() ? 'town' : bioOf(zoneAt(W.lead.x, W.lead.y)));
+// Short sounds that place you somewhere: birds, frogs, wind, a hammer on an anvil.
+const AMB = {
+  town: () => { const r = Math.random(); if (r < 0.4) [0, 0.22, 0.5].forEach(a => { synth(1900, 0.09, { type: 'triangle', vol: 0.016, at: a, dest: SND.amb }); noiseHit(0.03, { freq: 3200, q: 3, vol: 0.02, at: a, dest: SND.amb }); }); else if (r < 0.8) for (let q = 0; q < 5; q++) noiseHit(0.03, { freq: 2400 + Math.random() * 2000, q: 2, vol: 0.02, at: Math.random() * 0.8, dest: SND.amb }); else noiseHit(1.4, { freq: 420, q: 1.2, vol: 0.022, dest: SND.amb }); },
+  plain: () => (Math.random() < 0.6 ? noiseHit(2.6, { freq: 300, sweep: 800, q: 1.1, vol: 0.05, dest: SND.amb }) : [0, 0.28].forEach(a => synth(760, 0.2, { type: 'sawtooth', cut: 1500, slide: 0.8, vol: 0.012, at: a, dest: SND.amb }))),
+  city: () => { const r = Math.random(); if (r < 0.4) synth(180, 1.1, { type: 'sawtooth', cut: 600, slide: 1.25, vol: 0.014, attack: 0.3, dest: SND.amb }); else if (r < 0.7) synth(1300, 0.5, { type: 'sine', slide: 0.7, vol: 0.012, dest: SND.amb }); else noiseHit(2, { freq: 240, sweep: 500, q: 1, vol: 0.04, dest: SND.amb }); },
+  swamp: () => { const r = Math.random(); if (r < 0.45) [0, 0.16, 0.5, 0.66].forEach(a => synth(150, 0.1, { type: 'square', cut: 500, vol: 0.02, at: a, dest: SND.amb })); else if (r < 0.8) for (let q = 0; q < 10; q++) synth(4200, 0.03, { type: 'sine', vol: 0.008, at: q * 0.055, dest: SND.amb }); else synth(900, 0.16, { type: 'sine', slide: 2.2, vol: 0.02, dest: SND.amb }); },
+  waste: () => noiseHit(3, { freq: 500, sweep: 1400, q: 1.6, vol: 0.055, dest: SND.amb }),
+  snow: () => { noiseHit(3.4, { freq: 700, sweep: 1500, q: 3, vol: 0.05, dest: SND.amb }); if (Math.random() < 0.4) synth(520, 2.4, { type: 'sine', slide: 1.3, vol: 0.006, attack: 0.8, dest: SND.amb }); },
+  volcano: () => (Math.random() < 0.6 ? noiseHit(2.2, { freq: 70, type: 'lowpass', vol: 0.16, dest: SND.amb }) : [0, 0.12].forEach(a => noiseHit(0.08, { freq: 600, q: 1.5, vol: 0.05, at: a, dest: SND.amb }))),
+  abyss: () => { const r = Math.random(), f = 1500 + Math.random() * 1400; if (r < 0.55) [0, 0.13, 0.26].forEach((a, q) => synth(f * (q === 1 ? 1.2 : 1), 0.1, { type: 'sine', slide: q % 2 ? 0.85 : 1.25, vol: 0.016, at: a, dest: SND.amb })); else if (r < 0.85) for (let q = 0; q < 14; q++) synth(5200, 0.025, { type: 'sine', vol: 0.006, at: q * 0.045, dest: SND.amb }); else synth(420, 0.5, { type: 'triangle', slide: 0.6, vol: 0.014, dest: SND.amb }); },
+};
 function sndTick() {
   const C = SND.ctx; if (!C || S.snd < 2) return;
-  const battle = SND.mood === 'battle', beat = 60 / (battle ? 120 : 70) / 2;
+  const mood = curMood(), M = MUS[mood] || MUS.plain;
+  if (mood !== SND.cur) { SND.cur = mood; SND.step = 0; SND.next = C.currentTime + 0.5; if (SND.wind) { SND.wind.gain.setTargetAtTime({ snow: 0.12, waste: 0.1, plain: 0.07, volcano: 0.07, town: 0.02 }[mood] || 0.04, C.currentTime, 0.8); SND.windF.frequency.setTargetAtTime({ snow: 900, volcano: 160, swamp: 260 }[mood] || 380, C.currentTime, 0.8); } }
+  if (!B && AMB[mood] && (SND.ambNext || 0) < C.currentTime) { SND.ambNext = C.currentTime + 2.5 + Math.random() * 6; try { AMB[mood](); } catch (e) { /* ignore */ } }
+  const beat = 60 / M.bpm / 2, pat = musPattern(mood), n = M.sc.length;
   if (SND.next < C.currentTime) SND.next = C.currentTime + 0.05;
   while (SND.next < C.currentTime + 0.35) {
-    const st = SND.step++, at = SND.next - C.currentTime, root = [40, 43, 38, 40][Math.floor(st / 16) % 4];
-    if (st % 16 === 0) [0, 7, 12].forEach(iv => tone(mtof(root + iv), beat * 16, { type: 'sawtooth', vol: battle ? 0.012 : 0.016, at, attack: 1, dest: SND.music }));
-    if (!battle && st % 2 === 0 && Math.random() < 0.4) tone(mtof(root + 24 + [0, 3, 5, 7, 10][Math.random() * 5 | 0]), beat * 4, { type: 'triangle', vol: 0.03, at, dest: SND.music });
-    if (battle) {
-      if (st % 4 === 0 || st % 16 === 10) noiseHit(0.2, { freq: 100, type: 'lowpass', vol: 0.55, at, dest: SND.music });
-      if (st % 8 === 4) noiseHit(0.14, { freq: 1800, q: 0.7, vol: 0.16, at, dest: SND.music });
-      tone(mtof(root + [0, 0, 12, 0, 3, 0, 7, 10][st % 8]), beat * 0.9, { type: 'square', vol: 0.016, at, dest: SND.music });
+    const st = SND.step++, at = SND.next - C.currentTime, bar = Math.floor(st / 8) % 8, q = st % 8, root = M.roots[bar], hot = M.perc === 'drums' || M.perc === 'heavy';
+    if (q === 0) {   // a soft chord under each bar, and the bass
+      for (const iv of [0, 7, 12, 12 + M.sc[2]]) synth(mtof(root + iv), beat * 8.4, { type: 'sawtooth', det: 6, cut: 700, vol: M.pad, at, attack: beat * 2, hold: true, rel: beat * 2 });
+      if (!hot) synth(mtof(root - 12), beat * 6, { type: 'sine', vol: 0.05, at, attack: 0.03 });
     }
+    if (hot) synth(mtof(root - 12 + [0, 0, 12, 0, 0, 12, 0, 7][q]), beat * 0.9, { type: 'sawtooth', cut: 520, vol: 0.05, at });
+    const d = pat[st % 64]; if (d >= 0) INST[M.lead](mtof(root + (M.low ? 12 : 24) + M.sc[d % n] + 12 * Math.floor(d / n)), at, beat, q % 4 === 0 ? 1 : 0.75);
+    if (M.perc === 'light') { if (q % 2) hat(at, 0.55); if (q === 0) kick(at, 0.35); }
+    else if (M.perc === 'pulse') { if (q === 0 || q === 5) kick(at, 0.5); }
+    else if (M.perc === 'tom') { if (q === 0) tom(at, 110, 0.8); else if (q === 3) tom(at, 150, 0.6); else if (q === 6) tom(at, 130, 0.6); }
+    else if (M.perc === 'shaker') hat(at, q % 2 ? 0.7 : 0.35);
+    else if (M.perc === 'drums') { if (q === 0 || q === 4 || (bar % 2 && q === 6)) kick(at); if (q === 2 || q === 6) snare(at); hat(at, q % 2 ? 0.9 : 0.5); if (bar === 7 && q >= 5) tom(at, 190 - q * 14, 0.7); }
+    else if (M.perc === 'heavy') { if (q === 0 || q === 1 || q === 4 || q === 5) kick(at, 1.1); if (q === 2 || q === 6) snare(at, 1.1); hat(at, 0.8); if (bar % 4 === 3 && q >= 4) tom(at, 200 - q * 16, 0.9); if (q === 0 && bar % 2 === 0) synth(mtof(root - 12), beat * 4, { type: 'sawtooth', det: 9, cut: 900, cut2: 300, vol: 0.05, at }); }
     SND.next += beat;
   }
 }
@@ -2465,7 +2563,7 @@ loadModels((n, t) => { const el = $('loadTxt'); if (el) el.textContent = `공룡
   const el = $('loadTxt'); if (el) el.textContent = '픽셀 월드 그리는 중…';
   setTimeout(() => { setView('party'); showWorld(); if (freshRun && !S.cls) { classModal(); return; } if (S.stats.battles === 0) toast('혼자 시작해요 · 정착지 가까이의 작은 공룡부터 사냥해 돈을 모으고, 고용소에서 첫 동료를 구하세요'); }, 60);
 });
-window.__dino = { get S() { return S; }, get B() { return B; }, get W() { return W; }, UNITS, ZONES, TD, unitArt, icon, ICONS, set speed(v) { bSpeed = v; }, addUnit, xpNeed, partyPower, groundPower, VO: () => VO, walkTo, TOWNS, GROUNDS, SPR };
+window.__dino = { get S() { return S; }, get B() { return B; }, get W() { return W; }, UNITS, ZONES, TD, unitArt, icon, ICONS, SND, SFX, set speed(v) { bSpeed = v; }, addUnit, xpNeed, partyPower, groundPower, VO: () => VO, walkTo, TOWNS, GROUNDS, SPR };
 requestAnimationFrame(frame);
 })();
 </script>
