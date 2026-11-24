@@ -460,7 +460,7 @@ const UNITS = {
   spear:   { n: '창잡이', cls: 'human', role: '탱커', hp: 160, atk: 9, def: 11, spd: 36, range: 20, as: 0.9, carry: 6, cost: 150, taunt: true, ds: '앞줄에서 적을 붙잡아 둬요.' },
   sniper:  { n: '저격수', cls: 'human', role: '원거리', hp: 70, atk: 34, def: 2, spd: 34, range: 210, as: 0.42, carry: 6, cost: 340, gun: true, ds: '아주 멀리서 강한 한 발을 쏴요.' },
   mechanic:{ n: '정비공', cls: 'human', role: '지원', hp: 100, atk: 8, def: 6, spd: 36, range: 100, as: 1, carry: 8, cost: 300, turret: true, ds: '전투가 시작되면 자동 포탑을 설치해요.' },
-  medic:   { n: '의사', cls: 'human', role: '회복', hp: 90, atk: 4, def: 4, spd: 38, range: 110, as: 1, carry: 6, cost: 260, heal: 16, ds: '공격은 약하지만 다친 동료를 계속 치료하고, 스킬로 모두를 한꺼번에 회복시켜요.' },
+  medic:   { n: '의사', cls: 'human', role: '회복', hp: 90, atk: 4, def: 4, spd: 38, range: 110, as: 1, carry: 6, cost: 260, heal: 16, ds: '공격은 약하지만 다친 동료를 계속 치료하고, 스킬로 모두를 한꺼번에 회복시켜요. 전투 중 쓰러진 사람 대원을 다시 일으켜요.' },
   porter:  { n: '짐꾼', cls: 'human', role: '짐꾼', hp: 120, atk: 4, def: 6, spd: 38, range: 20, as: 0.8, carry: 25, cost: 180, ds: '싸움은 못하지만 짐을 25칸 져요. 레벨이 오를 때마다 2칸씩 늘고, 전직하면 훨씬 많이 져요.' },
   venomer: { n: '독침술사', cls: 'human', role: '약화', hp: 85, atk: 7, def: 3, spd: 40, range: 115, as: 0.9, carry: 6, cost: 360, shred: 4, ds: '독침으로 적의 장갑을 녹여 모두의 피해를 늘려요.' },
   trike:   { n: '트리케라톱스', cls: 'dino', role: '탱커', hp: 440, atk: 22, def: 16, spd: 27, range: 24, as: 0.7, carry: 40, size: 30, taunt: true, ds: '짐을 40칸 지는 단단한 방패. 상단의 기둥이에요.' },
@@ -499,8 +499,8 @@ const UNITS = {
   crossbow: { n: '석궁수', cls: 'human', role: '원거리', hp: 85, atk: 20, def: 3, spd: 38, range: 150, as: 0.7, carry: 6, cost: 300, bow: true, shred: 2, ds: '무거운 석궁으로 장갑을 뚫어요.' },
   gunner:   { n: '총잡이', cls: 'human', role: '원거리', hp: 95, atk: 9, def: 4, spd: 42, range: 110, as: 2.0, carry: 6, cost: 320, gun: true, ds: '쌍권총을 아주 빠르게 쏴요.' },
   bomber:   { n: '폭파병', cls: 'human', role: '지원', hp: 100, atk: 12, def: 5, spd: 32, range: 95, as: 0.6, carry: 6, cost: 380, gun: true, ds: '폭탄을 자주 던져 여러 적을 한꺼번에 날려요.' },
-  tamer:    { n: '조련사', cls: 'human', role: '지원', hp: 110, atk: 8, def: 5, spd: 40, range: 100, as: 1.0, carry: 6, cost: 340, bow: true, ds: '휘파람과 채찍으로 무리의 기세를 올려요. 스킬로 아군 공격을 높여요.' },
-  shaman:   { n: '주술사', cls: 'human', role: '회복', hp: 95, atk: 5, def: 4, spd: 36, range: 110, as: 1.0, carry: 6, cost: 360, heal: 10, ds: '약초 연기로 동료를 치료하고, 독안개로 적의 장갑을 녹여요.' },
+  tamer:    { n: '조련사', cls: 'human', role: '지원', hp: 110, atk: 8, def: 5, spd: 40, range: 100, as: 1.0, carry: 6, cost: 340, bow: true, ds: '휘파람과 채찍으로 무리의 기세를 올려요. 스킬로 아군 공격을 높여요. 전투 중 쓰러진 공룡을 다시 일으켜요.' },
+  shaman:   { n: '주술사', cls: 'human', role: '회복', hp: 95, atk: 5, def: 4, spd: 36, range: 110, as: 1.0, carry: 6, cost: 360, heal: 10, ds: '약초 연기로 동료를 치료하고, 독안개로 적의 장갑을 녹여요. 전투 중 쓰러진 사람 대원을 다시 일으켜요.' },
 };
 { const add = (z, wild, people) => { ZONES[z].wild.push(...wild); ZONES[z].tame.push(...wild.filter(t => !ZONES[z].tame.includes(t))); ZONES[z].recruit.push(...people); };
   add('plain', ['iguan', 'pachyc'], ['scout', 'shield']); add('city', ['micro', 'micro', 'utah'], ['gunner', 'bomber']); add('swamp', ['kentro', 'allo'], ['shaman']);
@@ -743,6 +743,16 @@ function bStep(dt) {
     if (UNITS[u.type] && UNITS[u.type].regen) u.hp = Math.min(u.max, u.hp + UNITS[u.type].regen * lvMul(u.lv) * dt);
     if (u.stun > 0) { u.stun -= dt; u.moving = false; continue; }
     const D = UNITS[u.type] || {};
+    // doctors bring fallen people back, tamers bring fallen dinosaurs back
+    if (u.side === 0 && u.ref) {
+      const rv = D.heal && D.cls === 'human' ? 'human' : (u.type === 'tamer' || (u.type === 'leader' && S.cls === 'tamer') || (u.type === 'hunter' && u.elite)) ? 'dino' : null;
+      if (rv) { u.rvCd = (u.rvCd === undefined ? 6 : u.rvCd) - dt;
+        if (u.rvCd <= 0) { const m = B.units.find(o => o.side === 0 && o.ref && o.hp <= 0 && (o.deadT || 0) > 0.8 && (UNITS[o.type] || {}).cls === rv);
+          if (m) { u.rvCd = [30, 24, 18][u.tier || 0]; m.hp = m.max * [0.3, 0.45, 0.6][u.tier || 0]; m.deadT = 0; m.stun = 0; m.hitT = 0; m.ref.ko = false; m.ref.hp = Math.round(m.hp);
+            B.fx.push({ t: 0.5, kind: 'heal', x: m.x, y: m.y }, { t: 0.3, kind: 'bullet', x: u.x, y: u.y, x2: m.x, y2: m.y }); ringFx(m.x, m.y, rv === 'dino' ? '#f0c060' : '#8fd36a', m.size * 1.8, 0.8); burst(m.x, m.y, 6, 14, rv === 'dino' ? '#ffd27a' : '#a8f08a', { spd: 30, up: 80, g: 0, life: 1 });
+            num(m, '소생!', rv === 'dino' ? '#ffd27a' : '#8fbf6a'); sfx('heal'); toast(`${unitName(u.ref)}${rv === 'dino' ? '가 휘파람으로' : '가 응급 처치로'} ${unitName(m.ref)}를 일으켜 세웠어요`, 'good'); }
+          else u.rvCd = 0.5; } }
+    }
     // medics heal instead of attacking when someone is hurt
     if (D.heal) {
       const hurt = alive(u.side).filter(o => o !== u && o.hp < o.max * 0.85).sort((a, b) => a.hp / a.max - b.hp / b.max)[0];
@@ -2829,7 +2839,7 @@ requestAnimationFrame(frame);
 <button id="upd" hidden>새 패치가 있어요 · 눌러서 적용</button>
 <script>
 (function () {
-  var VER = "20261124-023637";
+  var VER = "20261124-074839";
   if (!/^https?:$/.test(location.protocol)) return;
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
   var btn = document.getElementById('upd');
