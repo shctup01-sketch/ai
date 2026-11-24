@@ -296,7 +296,7 @@ const trainCost = u => 400 * ((u.skLv || 0) + 1) ** 2;
 const gearMul = u => {
   const t = 1 + 0.3 * (u.tier || 0), b = { atk: 0, hp: 0, def: 0 };
   for (const it of Object.values(u.eq || {})) if (it) { const s = itemStat(it); for (const k in s) b[k] += s[k]; }
-  const st = u.st || {}, m = mastery(u), ex = (u.elite ? (u.type === 'leader' ? 1.35 : 1.25) : 1) * (u.famed ? 1.15 : 1) * (1 + 0.22 * (u.asc || 0));   // trained stats and time spent fighting together both count
+  const st = u.st || {}, m = mastery(u), ex = (u.elite ? (u.type === 'leader' ? 1.35 : 1.25) : 1) * (u.famed ? 1.3 : 1) * (1 + 0.22 * (u.asc || 0));   // trained stats and time spent fighting together both count
   return { hp: t * (1 + 0.1 * (u.ga || 0)) * (1 + b.hp) * (1 + 0.012 * (st.h || 0)) * (1 + 0.02 * m) * ex, atk: t * (1 + 0.15 * (u.gw || 0)) * (1 + b.atk) * (1 + 0.01 * (st.a || 0)) * (1 + 0.03 * m) * ex, def: (1 + 0.25 * (u.ga || 0)) * (1 + b.def) * (1 + 0.015 * (st.d || 0)) };
 };
 // Rare paths. Boss tokens open a mutation for dinosaurs and a special job for people; eggs hatch; famed wanderers visit one town a day.
@@ -305,13 +305,13 @@ const MUT = { trike: [['trikeIron', 'trikeKing'], ['trikeRed', 'emberKing']], pa
 const ELITE = { hunter: { n: '맹수 조련사', token: 'oneEye', sk: 'roar', ds: '포효로 아군의 공격을 끌어올려요' }, spear: { n: '용기사', token: 'trikeKing', sk: 'charge', ds: '적진으로 돌진해 쓰러뜨려요' }, sniper: { n: '폭군 사냥꾼', token: 'swampKing', sk: 'snipe', ds: '저격이 더 자주, 더 세게 들어가요' },
   mechanic: { n: '포격 기술자', token: 'ironHorn', sk: 'grenade', ds: '폭탄을 더 자주 던져요' }, medic: { n: '생명의 손', token: 'frostTitan', sk: 'firstaid', ds: '회복 스킬을 더 자주 써요' }, venomer: { n: '역병 군주', token: 'emberKing', sk: 'acid', ds: '넓은 산성 구름으로 장갑을 녹여요' },
   porter: { n: '전설의 거상', token: 'trikeKing', sk: null, ds: '짐칸이 1.5배가 돼요' }, leader: { n: '공룡왕', token: 'origin', sk: 'volley', ds: '모든 능력이 크게 올라요' } };
-const FAMED = { hunter: ['은빛 화살 세라', '폭풍 사수 유나'], spear: ['백발 창수 고르', '철의 여인 타샤'], sniper: ['잿눈 카이', '그림자 넬라'], mechanic: ['고철의 손 벤', '무쇠팔 도건'], medic: ['늪의 의원 모아', '약초꾼 이든'], venomer: ['붉은 망토 리브', '독안개 실'], porter: ['외다리 한', '천 리 길 보로'] };
+const FAMED = { hunter: ['은빛 화살 세라', '폭풍 사수 유나'], spear: ['백발 창수 고르', '철의 여인 타샤'], sniper: ['잿눈 카이', '그림자 넬라'], mechanic: ['고철의 손 벤', '무쇠팔 도건'], medic: ['늪의 의원 모아', '약초꾼 이든'], venomer: ['붉은 망토 리브', '독안개 실'], porter: ['외다리 한', '천 리 길 보로'],
+  scout: ['바람발 시아'], shield: ['철문 바르가'], gladiator: ['투기장의 왕 도란'], crossbow: ['외눈 사수 켈'], gunner: ['쌍권총 레아'], bomber: ['불꽃 손 미로'], tamer: ['공룡의 벗 유카'], shaman: ['안개 무녀 소하'] };
+const HEROES = Object.entries(FAMED).flatMap(([type, names]) => names.map(name => ({ type, name })));
+const heroCost = h => UNITS[h.type].cost * 500;   // heroes are a long-term goal, not an early purchase
+const hireAll = () => Object.keys(UNITS).filter(t => UNITS[t].cls === 'human' && t !== 'leader').sort((a, b) => UNITS[a].cost - UNITS[b].cost);
 const unitSkill = u => u.elite && ELITE[u.type] ? ELITE[u.type].sk : skillOf(u.type);
-function rollWanderer() {
-  if (S.wander && S.wander.day === S.day) return;
-  const z = pick(Object.keys(ZONES)), type = pick(['hunter', 'spear', 'sniper', 'mechanic', 'medic', 'venomer', 'porter']), lv = ZONES[z].lv + 3;
-  S.wander = { day: S.day, z, type, name: pick(FAMED[type]), lv, cost: Math.round((UNITS[type].cost * 14 + lv * 400) / 10) * 10, gone: false };
-}
+function rollWanderer() { S.wander = null; }
 function hatchEgg(e) {
   const Z = ZONES[e.z], rare = Math.random() < 0.25, type = rare ? pick(Z.rare) : pick(Z.tame), inP = party().length < partyCap(), u = addUnit(type, Math.max(1, Z.lv), inP);
   S.dex[type] = 2; S.stats.captures++; return { u, rare, inP };
@@ -533,8 +533,8 @@ function ensureQuests() {
   }
 }
 function newDay() {
-  S.day++; ensureQuests(); rollWanderer();
-  { const w = wages(); if (w > 0) { if (S.money >= w) { S.money -= w; S.unpaid = false; } else { S.unpaid = true; setTimeout(() => toast(`[${S.day}일차] 일당 ${fmt(w)} 크레딧을 못 줘서 용병들의 사기가 떨어졌어요 · 공격 -20%`, 'warn'), 9000); } } } if (S.wander) setTimeout(() => toast(`[${S.day}일차] 이름난 용병 ${S.wander.name}이(가) ${ZONES[S.wander.z].n} 고용소에 하루 머물러요`), 6000);
+  S.day++; ensureQuests();
+  { const w = wages(); if (w > 0) { if (S.money >= w) { S.money -= w; S.unpaid = false; } else { S.unpaid = true; setTimeout(() => toast(`[${S.day}일차] 일당 ${fmt(w)} 크레딧을 못 줘서 용병들의 사기가 떨어졌어요 · 공격 -20%`, 'warn'), 9000); } } }
   { const int = Math.floor(S.bank * 0.01); let div = 0; for (const z of Object.keys(ZONES)) { div += Math.floor((S.invest[z] || 0) * 0.03); if (Math.random() < 0.5) S.rival[z] += Math.round(rand(20, 90) * ZONES[z].danger); }
     S.bank += int; S.money += div; if (int || div) setTimeout(() => toast(`[${S.day}일차] ${int ? `전장 이자 +${int}` : ''}${int && div ? ' · ' : ''}${div ? `마을 투자 배당 +${div}` : ''}`, 'good'), 3000); }
   for (const z of Object.keys(ZONES)) for (const g of Object.keys(GOODS)) S.drift[z][g] = clamp(S.drift[z][g] * rand(0.88, 1.14) + (1 - S.drift[z][g]) * 0.25, 0.6, 1.6);
@@ -1431,7 +1431,7 @@ const TOWN_SPOTS = [['market', '시장', -62, -40], ['shop', '공방', 4, -58], 
 function openTown(k) { townSec = k; sfx('open'); hideWorld('town'); }
 function spotBadges() {
   const z = inTown(); if (!z) return {};
-  return { quest: (S.quests[z] || []).some(q => (q.type === 'deliver' ? (S.cargo[q.g] || 0) : q.prog) >= q.n), shop: Object.values(S.out[z] || {}).some(k => k > 0), inn: S.units.some(u => u.ko || u.hp < maxHp(u) * 0.6) || S.food <= 30, trial: (S.tower || 0) < Math.max(...S.units.map(u => u.lv)) - 2, store: S.pots < 1, hire: S.eggs.some(e => e.t <= 0) || (S.eggs.length < 3 && Object.values(S.eggBag).some(k => k > 0)) || !!(S.wander && S.wander.z === z && !S.wander.gone && S.wander.day === S.day) };
+  return { quest: (S.quests[z] || []).some(q => (q.type === 'deliver' ? (S.cargo[q.g] || 0) : q.prog) >= q.n), shop: Object.values(S.out[z] || {}).some(k => k > 0), inn: S.units.some(u => u.ko || u.hp < maxHp(u) * 0.6) || S.food <= 30, trial: (S.tower || 0) < Math.max(...S.units.map(u => u.lv)) - 2, store: S.pots < 1, hire: S.eggs.some(e => e.t <= 0) || (S.eggs.length < 3 && Object.values(S.eggBag).some(k => k > 0))  };
 }
 const CELL = 220, CELLS = new Map();
 function cellProps(cx, cy) {
@@ -1956,7 +1956,7 @@ function renderTown() {
   }).join('');
   const jobRow = job ? `<div class="row"><div class="info"><b>작업 중: ${RECIPES[job.r].n}</b><div class="bar"><i style="width:${(1 - job.left / job.total) * 100}%;background:var(--amber)"></i></div><small>${job.total - job.left}/${job.total}회 완료 · 다른 구역에 다녀와도 계속 만들어요</small></div></div>` : '';
   const outRow = outs.length ? `<div class="row"><div class="info"><b>완성품</b><small>${outs.map(([g, k]) => `${g === 'dart' ? '마취 다트' : GOODS[g].n} ${k}개`).join(' · ')}</small></div><button class="btn small primary" data-act="collect">찾기</button></div>` : '';
-  const recruit = Z.recruit.map(t => { const D = UNITS[t]; return `<div class="row"><canvas data-u="${t}" width="104" height="80"></canvas><div class="info"><b>${D.n} <span class="tag">${D.role}</span></b><small>${D.ds}</small><small>체력 ${D.hp} · 공격 ${D.atk} · 짐 ${D.carry}칸 · Lv${Math.max(1, Z.lv - 1)}로 합류 · 일당 ${wageOf({ type: t, lv: Math.max(1, Z.lv - 1) })}</small></div><button class="btn small primary" data-act="hire" data-t="${t}" ${S.money < hireCost(t, z) ? 'disabled' : ''}>${fmt(hireCost(t, z))}</button></div>`; }).join('');
+  const recruit = hireAll().map(t => { const D = UNITS[t]; return `<div class="row"><canvas data-u="${t}" width="104" height="80"></canvas><div class="info"><b>${D.n} <span class="tag">${D.role}</span></b><small>${D.ds}</small><small>체력 ${D.hp} · 공격 ${D.atk} · 짐 ${D.carry}칸 · Lv${Math.max(1, Z.lv - 1)}로 합류 · 일당 ${wageOf({ type: t, lv: Math.max(1, Z.lv - 1) })}</small></div><button class="btn small primary" data-act="hire" data-t="${t}" ${S.money < hireCost(t, z) ? 'disabled' : ''}>${fmt(hireCost(t, z))}</button></div>`; }).join('');
   const tame = Z.tame.map(t => `${UNITS[t].n}(${UNITS[t].role})`).join(', ') + ` · 희귀종: ${Z.rare.map(t => S.dex[t] ? UNITS[t].n : '???').join(', ')} (깊은 곳에서 가끔 나와요)`;
   const hurt = S.units.filter(u => u.hp < maxHp(u) || u.ko), healCost = Math.round(S.units.reduce((s, u) => s + (maxHp(u) - u.hp), 0) * 0.12) + (hurt.length ? 5 : 0);
   const qReady = (S.quests[z] || []).filter(q => (q.type === 'deliver' ? (S.cargo[q.g] || 0) : q.prog) >= q.n).length;
@@ -1972,12 +1972,13 @@ function renderTown() {
     <div class="card">${quests}</div>` : ''}
     ${townSec === 'shop' ? `<h2>공방<small>재료를 맡기면 시간이 지나 가공품이 돼요 · 장비와 비싼 교역품을 만들어요</small></h2>
     <div class="card">${jobRow}${outRow}${shop}</div>` : ''}
-    ${townSec === 'hire' ? `${(() => { rollWanderer(); const w = S.wander; return w && w.z === z && !w.gone ? `<h2>오늘의 이름난 용병<small>내일이면 떠나요</small></h2><div class="card"><div class="row"><canvas data-u="${w.type}" data-t="1" width="104" height="80"></canvas><div class="info"><b style="color:var(--amber)">${w.name}</b><small>${JOBS[w.type][1]} Lv${w.lv} · 모든 능력 +15% · 1차 전직을 마친 상태로 합류</small></div><button class="btn small primary" data-act="famed" ${S.money < w.cost ? 'disabled' : ''}>${fmt(w.cost)}</button></div></div>` : w ? `<div class="sub">오늘 이름난 용병 ${w.gone ? '은 이미 고용했어요' : `${w.name}은(는) ${ZONES[w.z].n} 고용소에 있어요`}</div>` : ''; })()}
+    ${townSec === 'hire' ? `<h2>희귀 영웅<small>어느 정착지에서나 만날 수 있어요 · 한 명씩만 있어요 · 모든 능력 +30%, 1차 전직을 마친 상태로 합류</small></h2>
+    <div class="card">${HEROES.map((h, i) => { const got = S.heroes[h.name], c = heroCost(h); return `<div class="row"><canvas data-u="${h.type}" data-t="1" width="104" height="80"></canvas><div class="info"><b style="color:var(--amber)">${h.name}</b><small>${JOBS[h.type][1]} · Lv${Math.max(5, Z.lv + 3)}로 합류 · ${SK[skillOf(h.type)] ? '스킬 ' + skName(skillOf(h.type), 1) : '짐꾼'}</small></div><button class="btn small ${got ? '' : 'primary'}" data-act="famed" data-i="${i}" ${got || S.money < c ? 'disabled' : ''}>${got ? '고용함' : fmt(c)}</button></div>`; }).join('')}</div>
     <h2>부화장<small>사냥터에서 주운 알을 맡기면 시간이 지나 새끼가 태어나요 · 4번에 1번꼴로 희귀종</small></h2>
     <div class="card">${S.eggs.map((e, i) => `<div class="row"><div class="info"><b>${ZONES[e.z].n}의 알</b><div class="bar"><i style="width:${(1 - Math.max(0, e.t) / 150) * 100}%;background:var(--amber)"></i></div><small>${e.t > 0 ? `부화까지 ${Math.ceil(e.t)}초 · 다른 곳에 다녀와도 계속 품어요` : '껍질에 금이 갔어요'}</small></div><button class="btn small primary" data-act="hatch" data-i="${i}" ${e.t > 0 ? 'disabled' : ''}>깨우기</button></div>`).join('')}
       ${Object.entries(S.eggBag).filter(([, k]) => k > 0).map(([ez, k]) => `<div class="row"><div class="info"><b>${ZONES[ez].n}의 알 ${k}개</b><small>가지고 있어요 · 한 번에 3개까지 품을 수 있어요</small></div><button class="btn small" data-act="incubate" data-z="${ez}" ${S.eggs.length >= 3 ? 'disabled' : ''}>맡기기</button></div>`).join('')}
       ${S.eggs.length || Object.values(S.eggBag).some(k => k > 0) ? '' : '<div class="row"><div class="info"><small>알이 없어요 · 우두머리(60%)와 희귀종 무리(15%), 깊은 사냥터에서 가끔 나와요</small></div></div>'}</div>
-    <h2>고용소<small>이 구역에서만 구할 수 있는 대원</small></h2>
+    <h2>고용소<small>모든 정착지에서 같은 용병을 고용할 수 있어요 · 높은 구역일수록 높은 레벨로 합류하고 값도 비싸요</small></h2>
     <div class="card">${recruit}</div>` : ''}
     ${townSec === 'bank' ? (() => { const inv = S.invest[z] || 0, head = isHead(z), st = Object.entries(S.store[z] || {}).filter(([, k]) => k > 0), cg = Object.entries(S.cargo);
       const amt = (act, max) => [100, 1000].filter(n => n <= max).map(n => `<button class="btn small" data-act="${act}" data-n="${n}">${n}</button>`).join('') + `<button class="btn small primary" data-act="${act}" data-n="${max}" ${max > 0 ? '' : 'disabled'}>전부</button>`;
@@ -2064,7 +2065,7 @@ const nearestTown = () => ZKEYS.map(z => ({ z, d: Math.round(Math.hypot(TOWNS[z]
 function renderMap() {
   const el = $('v-map');
   const rows = ZKEYS.map(z => { const d = Math.round(Math.hypot(TOWNS[z].x - S.pos.x, TOWNS[z].y - S.pos.y) / 10); return `<div class="row"><div class="info"><b>${ZONES[z].n} 정착지</b><small>거리 ${d}m · 야생 Lv${ZONES[z].lv}~${(ZONES[z].bossLv || zl(ZONES[z], 6))} · <span class="danger">${stars(ZONES[z].danger + 1)}</span></small></div>${S.seen[z] && inTown() && inTown() !== z ? `<button class="btn small" data-act="coach" data-z="${z}" ${S.money < coachCost(z) ? 'disabled' : ''}>역마차 ${fmt(coachCost(z))}</button>` : ''}<button class="btn small primary" data-act="walk" data-x="${TOWNS[z].x}" data-y="${TOWNS[z].y + 60}" data-l="${ZONES[z].n} 정착지">걸어가기</button></div>`; }).join('');
-  el.innerHTML = `<div id="mapwrap"><canvas id="mapcv" width="${Math.round(720 * WW / WH)}" height="720" style="touch-action:pan-x"></canvas></div><h2>월드 지도<small>옆으로 밀어서 넓은 세계를 보세요 · 누른 곳으로 걸어가요 · 가 본 정착지는 정착지 안에서 역마차로 바로 갈 수 있어요</small></h2><div class="card">${(() => { rollWanderer(); const w = S.wander; return w && !w.gone ? `<div class="row"><div class="info"><b style="color:var(--amber)">오늘의 이름난 용병: ${w.name}</b><small>${ZONES[w.z].n} 고용소에 오늘 하루 머물러요 · ${JOBS[w.type][1]} Lv${w.lv}</small></div><button class="btn small" data-act="walk" data-x="${TOWNS[w.z].x + 98}" data-y="${TOWNS[w.z].y + 68}" data-l="${ZONES[w.z].n} 고용소">가기</button></div>` : ''; })()}${S.stones ? `<div class="row"><div class="info"><b>귀환석 ${S.stones}개</b><small>가장 가까운 정착지로 바로 돌아가요</small></div><button class="btn small primary" data-act="recall">사용</button></div>` : ''}${rows}</div>`;
+  el.innerHTML = `<div id="mapwrap"><canvas id="mapcv" width="${Math.round(720 * WW / WH)}" height="720" style="touch-action:pan-x"></canvas></div><h2>월드 지도<small>옆으로 밀어서 넓은 세계를 보세요 · 누른 곳으로 걸어가요 · 가 본 정착지는 정착지 안에서 역마차로 바로 갈 수 있어요</small></h2><div class="card">${S.stones ? `<div class="row"><div class="info"><b>귀환석 ${S.stones}개</b><small>가장 가까운 정착지로 바로 돌아가요</small></div><button class="btn small primary" data-act="recall">사용</button></div>` : ''}${rows}</div>`;
   drawMap(); { const wr = $('mapwrap'); wr.scrollLeft = S.pos.x / WW * wr.scrollWidth - wr.clientWidth / 2; }
   $('mapcv').onclick = e => { const cv = $('mapcv'), r = cv.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * WW, y = (e.clientY - r.top) / r.height * WH, g = groundAt(x, y), t = nearTown(x, y, 260); if (t) walkTo(TOWNS[t].x, TOWNS[t].y + 60, ZONES[t].n + ' 정착지'); else walkTo(x, y, g ? HUNT_NAMES[g.z][g.i] : '표시한 곳'); showWorld(); };
 }
@@ -2125,7 +2126,7 @@ document.body.addEventListener('click', e => {
   else if (act === 'elite') { const u = S.units.find(x => x.id === +b.dataset.id), E = u && ELITE[u.type]; if (!E || u.elite || (u.tier || 0) < 2 || !(S.tokens[E.token] > 0) || S.money < 20000) return; S.tokens[E.token]--; S.money -= 20000; u.elite = true; u.hp = maxHp(u); u.ko = false; sfx('win'); flash(0.7); toast(`${E.n}(으)로 특수 전직했어요!`, 'good'); syncCrew(); checkRank(); save(); renderAll(); unitModal(u.id); return; }
   else if (act === 'incubate') { const ez = b.dataset.z; if (!(S.eggBag[ez] > 0) || S.eggs.length >= 3) return; S.eggBag[ez]--; S.eggs.push({ z: ez, t: 150 }); sfx('tap'); }
   else if (act === 'hatch') { const e = S.eggs[+b.dataset.i]; if (!e || e.t > 0) return; S.eggs.splice(+b.dataset.i, 1); const r = hatchEgg(e); sfx(r.rare ? 'win' : 'capture'); if (r.rare) flash(0.7); toast(`${r.rare ? '희귀종! ' : ''}${UNITS[r.u.type].n} 새끼가 태어났어요${r.inP ? '' : ' (대기)'}`, 'good'); syncCrew(); }
-  else if (act === 'famed') { const w = S.wander; if (!w || w.gone || w.z !== z || S.money < w.cost) return; S.money -= w.cost; const u = addUnit(w.type, w.lv, party().length < partyCap()); u.name = w.name; u.famed = true; u.tier = 1; u.hp = maxHp(u); w.gone = true; sfx('win'); toast(`${w.name}이(가) 상단에 합류했어요${u.inParty ? '' : ' (대기)'}`, 'good'); syncCrew(); checkRank(); }
+  else if (act === 'famed') { const h = HEROES[+b.dataset.i], c = h && heroCost(h); if (!h || S.heroes[h.name] || S.money < c) return; S.money -= c; S.heroes[h.name] = 1; const u = addUnit(h.type, Math.max(5, ZONES[z].lv + 3), party().length < partyCap()); u.name = h.name; u.famed = true; u.tier = 1; u.hp = maxHp(u); sfx('win'); flash(0.7); toast(`영웅 ${h.name}이(가) 상단에 합류했어요${u.inParty ? '' : ' (대기)'}`, 'good'); syncCrew(); checkRank(); }
   else if (act === 'enh') { const u = S.units.find(x => x.id === +b.dataset.id), it = u && (u.eq || {})[b.dataset.slot]; if (!it || (it.en || 0) >= ENH_MAX) return; const c = enhCost(it); if (S.money < c) return; S.money -= c; const r = u.hp / maxHp(u); if (Math.random() < enhRate(it)) { it.en = (it.en || 0) + 1; sfx('win'); toast(`강화 성공! ${it.n} +${it.en}`, 'good'); } else { sfx('deny'); toast('강화에 실패했어요 · 장비는 그대로예요', 'warn'); } u.hp = Math.round(maxHp(u) * r); checkRank(); save(); renderAll(); unitModal(u.id); return; }
   else if (act === 'train') { const u = S.units.find(x => x.id === +b.dataset.id); if (!u || (u.skLv || 0) >= 10) return; const c = trainCost(u); if (S.money < c) return; S.money -= c; u.skLv = (u.skLv || 0) + 1; sfx('capture'); toast(`스킬 수련 ${u.skLv}단계 · 위력 +${u.skLv * 8}%`, 'good'); save(); renderAll(); unitModal(u.id); return; }
   else if (act === 'ord') {   // marching order: whoever walks nearest the front meets the herd first
@@ -2221,7 +2222,7 @@ for (const u of S.units) { if (u.type === 'pachy') u.type = 'para'; if (u.type =
 S.items = S.items || []; S.cleared = S.cleared || {}; if (S.food === undefined) S.food = 100; if (S.pots === undefined) S.pots = 2; S.tokens = S.tokens || {}; S.eggBag = S.eggBag || {}; S.eggs = S.eggs || []; S.tower = S.tower || 0; S.ach = S.ach || {}; S.seen = S.seen || { [S.zone]: 1 }; S.bossKills = S.bossKills || {}; S.auto = Object.assign({ skill: true, pot: true, hunt: false }, S.auto || {}); for (const u of S.units) { u.st = u.st || { a: 0, h: 0, d: 0 }; if (u.pts === undefined) u.pts = 3 * (u.lv - 1); u.wins = u.wins || 0; } S.stones = S.stones || 0; S.bank = S.bank || 0; S.invest = S.invest || {}; S.store = S.store || {}; S.form = S.form || 'bal'; S.rival = S.rival || {}; for (const [z, r] of Object.entries(RIVALS)) { if (S.rival[z] === undefined) S.rival[z] = r[1]; S.drift[z] = S.drift[z] || {}; S.press[z] = S.press[z] || {}; } if (!S.pos) { const T0 = TOWNS[S.zone] || TOWNS.plain; S.pos = { x: T0.x, y: T0.y + 70 }; }
 S.clv = S.clv || 1; S.cxp = S.cxp || 0; S.sp = S.sp || 0; S.skills = S.skills || {}; S.jobs = S.jobs || {}; S.out = S.out || {}; S.quests = S.quests || {};
 for (const z of Object.keys(ZONES)) for (const g of Object.keys(GOODS)) { if (S.drift[z][g] === undefined) S.drift[z][g] = 1; if (S.press[z][g] === undefined) S.press[z][g] = 1; }
-ensureQuests(); rollWanderer();
+ensureQuests(); S.wander = null; S.heroes = S.heroes || {};
 S.dex = S.dex || {}; for (const u of S.units) if (UNITS[u.type].cls === 'dino') S.dex[u.type] = 2;
 $('v-town').innerHTML = '<div id="loading"><b style="font-family:var(--f-display);font-size:20px;color:var(--rust)">공룡 상단</b><span id="loadTxt">불러오는 중…</span></div>';
 loadModels((n, t) => { const el = $('loadTxt'); if (el) el.textContent = `공룡 모델 불러오는 중 ${n}/${t}`; }).then(ok => {
