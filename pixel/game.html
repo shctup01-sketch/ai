@@ -62,7 +62,8 @@ h2 small { font-family: var(--f-body); font-size: 11px; color: var(--muted); mar
 .tag.on { background: var(--rust); color: #1c120a; border-color: var(--rust); }
 #mapHost { width: 100%; aspect-ratio: 1 / 1.08; border-radius: 12px; border: 1px solid var(--line); overflow: hidden; background: #2a231b; }
 #map3d { width: 100%; height: 100%; display: block; }
-#mapcv { width: 100%; aspect-ratio: 86 / 60; max-width: 100%; border-radius: 12px; border: 1px solid var(--line); display: block; }
+#mapwrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--line); -webkit-overflow-scrolling: touch; }
+#mapcv { height: 300px; width: auto; aspect-ratio: 210 / 60; max-width: none; border: 0 !important; x-old: 1; max-width: 100%; border-radius: 12px; border: 1px solid var(--line); display: block; }
 .travel { display: flex; flex-direction: column; gap: 6px; }
 .travel .bar { height: 8px; } .travel .bar i { background: var(--amber); }
 #tabs { display: flex; background: var(--panel); border-top: 1px solid var(--line); padding: 5px max(8px, env(safe-area-inset-right, 0px)) 6px max(8px, env(safe-area-inset-left, 0px)); gap: 4px; }
@@ -279,12 +280,13 @@ const PROMO = [{ lv: 10, clv: 3, cost: 2500 }, { lv: 20, clv: 6, cost: 12000 }];
 const hireCost = (t, z) => Math.round(UNITS[t].cost * 4 * (1 + ZONES[z].lv * 0.25) / 10) * 10;   // better recruits in harder zones cost far more
 const wageOf = u => UNITS[u.type].cls === 'human' && u.type !== 'leader' ? 8 + u.lv * 4 + (u.tier || 0) * 20 : 0;
 const wages = () => S.units.reduce((s, u) => s + wageOf(u), 0);
+const ASC = [40, 60, 90, 120, 160], ascCost = u => 30000 * ((u.asc || 0) + 1) ** 2;
 const ENH_MAX = 10, enhCost = it => Math.round(120 * (1 + it.r) * Math.pow((it.en || 0) + 1, 1.8) * (1 + it.lv * 0.05) / 10) * 10, enhRate = it => Math.max(0.3, 1 - (it.en || 0) * 0.08);
 const trainCost = u => 400 * ((u.skLv || 0) + 1) ** 2;
 const gearMul = u => {
   const t = 1 + 0.3 * (u.tier || 0), b = { atk: 0, hp: 0, def: 0 };
   for (const it of Object.values(u.eq || {})) if (it) { const s = itemStat(it); for (const k in s) b[k] += s[k]; }
-  const st = u.st || {}, m = mastery(u), ex = (u.elite ? (u.type === 'leader' ? 1.35 : 1.25) : 1) * (u.famed ? 1.15 : 1);   // trained stats and time spent fighting together both count
+  const st = u.st || {}, m = mastery(u), ex = (u.elite ? (u.type === 'leader' ? 1.35 : 1.25) : 1) * (u.famed ? 1.15 : 1) * (1 + 0.22 * (u.asc || 0));   // trained stats and time spent fighting together both count
   return { hp: t * (1 + 0.1 * (u.ga || 0)) * (1 + b.hp) * (1 + 0.012 * (st.h || 0)) * (1 + 0.02 * m) * ex, atk: t * (1 + 0.15 * (u.gw || 0)) * (1 + b.atk) * (1 + 0.01 * (st.a || 0)) * (1 + 0.03 * m) * ex, def: (1 + 0.25 * (u.ga || 0)) * (1 + b.def) * (1 + 0.015 * (st.d || 0)) };
 };
 // Rare paths. Boss tokens open a mutation for dinosaurs and a special job for people; eggs hatch; famed wanderers visit one town a day.
@@ -383,7 +385,7 @@ const UNITS = {
   stegoRust:    { n: '녹슨등 스테고사우루스', cls: 'dino', role: '가시', rare: true, hp: 460, atk: 28, def: 17, spd: 24, range: 24, as: 0.6, carry: 20, size: 34, taunt: true, thorns: 0.35, ds: '희귀종. 고철 더미에서 자라 골판이 쇠처럼 날카로워요. 물어뜯는 적이 다쳐요.' },
   trexYoung:    { n: '어린 티라노사우루스', cls: 'dino', role: '포식자', rare: true, hp: 380, atk: 32, def: 10, spd: 52, range: 22, as: 0.9, carry: 15, size: 28, ds: '희귀종. 어미를 잃은 어린 폭군. 길들일 수 있는 유일한 티라노예요.' },
 };
-const zl = (Z, off) => Z.lv + Math.round(off * (Z.span || 6) / 6);   // later zones stretch the same five grounds over more levels
+const zl = (Z, off) => Z.lv + Math.round(off * (Z.far ? 8 : Z.span || 6) / 6);   // later zones stretch the same five grounds over more levels
 const BOSSES = {
   trikeKing: { base: 'trike', n: '늙은 우두머리 트리케라톱스', hp: 4.5, atk: 1.6, size: 1.35 },
   oneEye:    { base: 'raptor', n: '외눈 랩터', hp: 5, atk: 2.1, size: 1.35 },
@@ -394,10 +396,10 @@ const BOSSES = {
   origin:    { base: 'trex', n: '태초의 폭군', hp: 4.5, atk: 1.8, size: 1.45 },
 };
 const lvMul = lv => 1 + 0.12 * (lv - 1);
-const xpNeed = lv => Math.round(16 * Math.pow(lv, 2.2)) + 24;
+const xpNeed = lv => lv <= 50 ? Math.round(16 * Math.pow(lv, 2.2)) + 24 : Math.round(87384 * (1 + (lv - 50) * 0.012));
 const xpDiff = d => d <= -8 ? 0.1 : d < -3 ? 1 + (d + 3) * 0.18 : Math.min(1.3, 1 + d * 0.03);   // d = enemy level minus yours
 const lvEdge = (a, t) => clamp(1 + 0.07 * ((a.lv || 1) - (t.lv || 1)), 0.3, 1.6);                // fighting above your level hurts both ways
-const wildMul = lv => (1 + 0.05 * (lv - 1)) * (lv >= 20 ? 1.6 : lv >= 10 ? 1.25 : 1) * Math.min(1, 0.62 + 0.05 * lv) * 0.72 * (1 + Math.max(0, lv - 14) * 0.04);                                                      // wild things grow tougher than level alone
+const wildMul = lv => (1 + 0.05 * (lv - 1)) * (lv >= 20 ? 1.6 : lv >= 10 ? 1.25 : 1) * Math.min(1, 0.62 + 0.05 * lv) * 0.72 * (1 + clamp(lv - 14, 0, 36) * 0.04 + Math.max(0, lv - 50) * 0.01) * (1 + Math.max(0, lv - 45) * 0.008);                                                      // wild things grow tougher than level alone
 const STUN_HP_LIMIT = 700;   // like monster grades: big creatures shrug off stuns
 const DAY_LEN = 90;
 
@@ -556,7 +558,7 @@ function startBattle(opt) {
 }
 function spawn(side, type, lv, x, y, ref, boss) {
   const D = UNITS[type], st = unitStats(type, lv, boss);
-  if (!ref && side === 1) { const wm = wildMul(lv) * (boss ? 1.9 : 1); st.hp *= wm; st.atk *= wm * (boss ? 0.8 : 1); }
+  if (!ref && side === 1) { const wm = wildMul(lv) * (boss ? 1.9 : 1); st.hp *= wm; st.atk *= wm * (boss ? 0.8 : 1) * (1 + Math.max(0, lv - 45) * 0.014); }
   if (ref) { const fm = FORMS[S.form] || FORMS.bal; st.atk *= fm.atk * (hungry() ? 0.7 : 1) * (S.unpaid && UNITS[type].cls === 'human' ? 0.8 : 1); st.def *= fm.def; }
   if (ref) { const gm = gearMul(ref); st.hp *= gm.hp; st.atk *= gm.atk; st.def *= gm.def; st.size *= 1 + 0.07 * (ref.tier || 0); }
   const u = { id: B.idSeq++, side, type, lv, ref, boss, x, y, a: side ? Math.PI / 2 : -Math.PI / 2, hp: ref ? Math.min(ref.hp, st.hp) : st.hp, max: st.hp, atk: st.atk, def: st.def, size: st.size,
@@ -575,7 +577,7 @@ function bStep(dt) {
   const us = B.units;
   for (const u of us) {
     if (u.hp <= 0) continue;
-    u.hitT = Math.max(0, u.hitT - dt); u.atkT = Math.max(0, (u.atkT || 0) - dt); if (u.plv >= 25) u.hp = Math.min(u.max, u.hp + u.max * 0.008 * dt); if (u.skCd > 0) u.skCd -= dt; if (u.guardT > 0) u.guardT -= dt; if (u.roarT > 0) u.roarT -= dt;
+    u.hitT = Math.max(0, u.hitT - dt); u.atkT = Math.max(0, (u.atkT || 0) - dt); if (u.plv >= 25) u.hp = Math.min(u.max, u.hp + u.max * 0.004 * dt); if (u.skCd > 0) u.skCd -= dt; if (u.guardT > 0) u.guardT -= dt; if (u.roarT > 0) u.roarT -= dt;
     if (u.shredT > 0) { u.shredT -= dt; if (u.shredT <= 0) u.shred = 0; }
     if (UNITS[u.type] && UNITS[u.type].regen) u.hp = Math.min(u.max, u.hp + UNITS[u.type].regen * lvMul(u.lv) * dt);
     if (u.stun > 0) { u.stun -= dt; u.moving = false; continue; }
@@ -692,6 +694,7 @@ function onKill(u, t) {
     if (t.boss) { SHAKE = 1; flash(0.55); } else if (big) SHAKE = Math.max(SHAKE, 0.6);
     if (t.side === 0) { flash(0.25, '212,87,60'); sfx('down', 300); } }
   if (t.side === 1) {
+    S.stats.kills = (S.stats.kills || 0) + 1;
     B.xp += 9 * t.lv * (t.boss ? 8 : 1);
     if (B.opt.kind !== 'escort') for (const [g, k] of Object.entries(ZONES[B.opt.zone].loot)) { const x = k * (t.size / 20) * rand(0.6, 1.3) * (1 + 0.15 * sk('loot')) * 0.18 * (t.boss ? 5 : 1), n = Math.floor(x) + (Math.random() < x % 1 ? 1 : 0); if (n) B.loot[g] = (B.loot[g] || 0) + n; }
     B.money = (B.money || 0) + Math.round((t.size * 1.2 + t.lv * 2.2) * (t.boss ? 8 : 1) * rand(0.8, 1.2) * (1 + 0.1 * sk('loot')));
@@ -732,6 +735,9 @@ function endBattle(win) {
   if (win) {
     gainCxp(B.xp / 6 + B.captured.length * 15);
     if (opt.kind === 'hunt') S.cleared[opt.zone] = Math.max(S.cleared[opt.zone] || 0, opt.tier + 1);
+    if (opt.trial) { S.tower = Math.max(S.tower || 0, opt.trial); const prize = 60 * opt.trial + (opt.trial % 10 === 0 ? 800 * opt.trial / 10 : 0); S.money += prize; lines.push(`<b style="color:var(--amber)">시련의 탑 ${opt.trial}층 돌파!</b> 상금 ${fmt(prize)} 크레딧`);
+      if (opt.trialBoss) { S.tokens[opt.trialBoss] = (S.tokens[opt.trialBoss] || 0) + 1; S.eggBag[opt.zone] = (S.eggBag[opt.zone] || 0) + 1; S.pots += 3; lines.push(`10층 보상: ${TOKEN_N[opt.trialBoss]}, 공룡 알, 회복약 3개`); } gotItem = true; }
+    if (opt.boss) S.bossKills[opt.boss] = 1;
     if (opt.boss) { S.tokens[opt.boss] = (S.tokens[opt.boss] || 0) + 1; lines.push(`<b style="color:var(--amber)">${TOKEN_N[opt.boss]}</b>를 얻었어요 · 변이 진화와 특수 전직에 써요`); gotItem = true; }
     { const rareIn = opt.foes.some(f => UNITS[f.type].rare && !f.boss), ch = opt.boss ? 0.6 : rareIn ? 0.15 : opt.tier >= 2 ? 0.05 : 0.015; if (Math.random() < ch) { S.eggBag[opt.zone] = (S.eggBag[opt.zone] || 0) + 1; lines.push(`<b style="color:var(--amber)">공룡 알</b>을 주웠어요 (${ZONES[opt.zone].n}) · 고용소 부화장에 맡기세요`); gotItem = true; } }
     {   // loot roll: deeper grounds, rare dinosaurs and bosses drop better gear
@@ -746,7 +752,7 @@ function endBattle(win) {
     for (const u of ours) {
       { const elv = opt.foes.reduce((s, f) => s + f.lv, 0) / opt.foes.length, got = Math.max(1, Math.round(share * xpDiff(elv - u.lv))); u.xp += u.ko ? Math.round(got * 0.3) : got; }
       if (!u.ko) { const m0 = mastery(u); u.wins = (u.wins || 0) + 1; if (mastery(u) > m0) lines.push(`${unitName(u)}의 ${UNITS[u.type].cls === 'dino' ? '친밀도' : '숙련도'}가 '${MAST_N[mastery(u)]}'(으)로 올랐어요 · 공격 +3%, 체력 +2%`); }
-      while (u.xp >= xpNeed(u.lv) && u.lv < 60) { u.xp -= xpNeed(u.lv); u.lv++; u.hp = Math.min(maxHp(u), u.hp + Math.round(maxHp(u) * 0.3)); u.pts = (u.pts || 0) + 3; { const pk = PERKS.find(p => p[0] === u.lv); lines.push(`${unitName(u)} Lv${u.lv} 달성 · 능력치 포인트 +3${pk ? ` · <b style="color:var(--amber)">${pk[1]}</b>` : ''}`); } lvUp = true; if (PROMO[u.tier || 0] && u.lv === PROMO[u.tier || 0].lv) lines.push(`<b style="color:var(--amber)">${unitName(u)}: ${UNITS[u.type].cls === 'dino' ? '진화' : '전직'}할 수 있어요</b> (상단 창에서)`); }
+      while (u.xp >= xpNeed(u.lv) && u.lv < 200) { u.xp -= xpNeed(u.lv); u.lv++; u.hp = Math.min(maxHp(u), u.hp + Math.round(maxHp(u) * 0.3)); u.pts = (u.pts || 0) + 3; { const pk = PERKS.find(p => p[0] === u.lv); lines.push(`${unitName(u)} Lv${u.lv} 달성 · 능력치 포인트 +3${pk ? ` · <b style="color:var(--amber)">${pk[1]}</b>` : ''}`); } lvUp = true; if (PROMO[u.tier || 0] && u.lv === PROMO[u.tier || 0].lv) lines.push(`<b style="color:var(--amber)">${unitName(u)}: ${UNITS[u.type].cls === 'dino' ? '진화' : '전직'}할 수 있어요</b> (상단 창에서)`); }
     }
     let sold = 0; for (const [g, k] of Object.entries(B.loot)) { const got = addCargo(g, k); if (got < k) sold += Math.round((k - got) * GOODS[g].base * 0.5); lines.unshift(`${GOODS[g].n} +${got}${got < k ? ` (${k - got}개는 짐칸이 없어 그 자리에서 처분)` : ''}`); }
     { const m = (B.money || 0) + sold; if (m) { S.money += m; S.stats.earned += m; lines.unshift(`<b style="color:var(--amber)">크레딧 +${m}</b>${sold ? ` (넘친 전리품 처분 ${sold} 포함)` : ''}`); } }
@@ -1138,7 +1144,7 @@ function renderOverlay() {
    PIXEL WORLD — one continuous map you walk across, MMORPG style.
    3D models are baked once into small pixel sprites; everything on screen is then drawn in 2D.
    ================================================================ */
-const WW = 8600, WH = 6000, GR = 300, TOWN_R = 150;
+const WW = 21000, WH = 6000, GR = 300, TOWN_R = 150;
 const TOWNS = { plain: { x: 1000, y: 5100 }, city: { x: 3300, y: 3100 }, swamp: { x: 1100, y: 1200 }, waste: { x: 5600, y: 4600 }, snow: { x: 7300, y: 3200 }, volcano: { x: 5500, y: 1300 }, abyss: { x: 7500, y: 800 } };
 const GROUNDS = {
   plain: [[1500, 4700], [500, 4400], [2000, 5300], [700, 3800], [1500, 3500]],
@@ -1150,6 +1156,20 @@ const GROUNDS = {
   abyss: [[8000, 420], [6950, 420], [8150, 1250], [7050, 1450], [7650, 1750]],
 };
 const ROADS = [['plain', 'city'], ['city', 'swamp'], ['plain', 'swamp'], ['city', 'waste'], ['waste', 'snow'], ['city', 'volcano'], ['snow', 'volcano'], ['volcano', 'abyss'], ['snow', 'abyss']];
+// The far lands: fifteen more zones in a winding chain to the east, wild levels 51 to 200. Each borrows the look of an earlier land.
+const BIO = {}, bioOf = z => BIO[z] || z;
+{ const NAMES = ['부서진 해안', '유리 사막', '검은 숲', '무너진 댐', '소금 평원', '잿더미 산맥', '침수 도시', '거대 뼈 계곡', '번개 고원', '얼음 균열', '독안개 분지', '강철 묘지', '용의 척추', '하늘 구멍', '세계의 끝'];
+  const bios = ['waste', 'snow', 'abyss', 'city', 'plain', 'volcano', 'swamp'], bossBase = ['stego', 'apato', 'trex', 'raptor', 'trike', 'trike', 'trex'], base = ['plain', 'city', 'swamp', 'waste', 'snow', 'volcano', 'abyss'], cols = [10200, 12600, 15000, 17400, 19800], rows = [1200, 3000, 4800];
+  let prev = 'abyss';
+  NAMES.forEach((nm, i) => {
+    const k = 'x' + i, col = Math.floor(i / 3), r = i % 3, x = cols[col], y = rows[col % 2 ? 2 - r : r], lv = 51 + i * 10, src = ZONES[bios[i % 7]], src2 = ZONES[base[(i * 3 + 2) % 7]], R = seeded(977 + i * 131), price = {};
+    for (const g of Object.keys(GOODS)) if (!GOODS[g].made) price[g] = Math.round((0.55 + R() * 1.4) * 20) / 20;
+    BIO[k] = bios[i % 7]; BOSSES['xb' + i] = { base: bossBase[i % 7], n: `${nm}의 지배자`, hp: 4.5 + i * 0.12, atk: 1.8 + i * 0.03, size: 1.4 }; TOKEN_N['xb' + i] = `${nm}의 증표`;
+    ZONES[k] = { n: nm, lv, span: 6, bossLv: lv + 9, danger: 8, ground: BIO[k], mx: 0, my: 0, far: true, ds: `야생 레벨 ${lv}~${lv + 9}. 먼 동쪽, 살아 돌아온 상단이 드문 땅이에요.`, recruit: ['hunter', 'spear', 'sniper', 'mechanic', 'medic', 'venomer', 'porter'], tame: [...new Set(src.wild)], rare: [...new Set([...src.rare, ...src2.rare])], wild: [...src.wild, ...src2.wild.slice(0, 2)], boss: 'xb' + i, loot: src.loot, price };
+    HUNT_NAMES[k] = ['외곽', '폐허', '협곡', '심부', '지배자의 둥지'].map(t => `${nm} ${t}`); RIVALS[k] = [`${nm} 상회`, 40000 + i * 15000];
+    TOWNS[k] = { x, y }; GROUNDS[k] = [[x + 500, y - 380], [x - 540, y - 320], [x + 580, y + 380], [x - 420, y + 520], [x + 60, y - 700]]; ROADS.push([prev, k]); prev = k;
+  });
+}
 const ZKEYS = Object.keys(TOWNS);
 const hash2 = (x, y) => { let h = Math.imul(x | 0, 374761393) + Math.imul(y | 0, 668265263); h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
 function vnoise(x, y) { const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy, sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy); const a = hash2(ix, iy), b = hash2(ix + 1, iy), c = hash2(ix, iy + 1), d = hash2(ix + 1, iy + 1); return a + (b - a) * sx + (c - a) * sy + (a - b - c + d) * sx * sy; }
@@ -1172,10 +1192,10 @@ const PAL = {
   water: ['#1e3032', '#24383a', '#2c4446'].map(hex), road: ['#3e3a36', '#46423c', '#4c4842'].map(hex), street: ['#333336', '#3a3a3e', '#404044'].map(hex), plaza: ['#8a7a5c', '#94846a', '#9e8e72'].map(hex),
   dash: hex('#b8a458'), moss: hex('#56743a'), crack: hex('#26262a'), tuft: { plain: hex('#a89858'), city: hex('#5a7a3c'), swamp: hex('#6a7a3a'), waste: hex('#b88a50'), snow: hex('#f4f8f8'), volcano: hex('#6a3a26'), abyss: hex('#5a8a4a') },
 };
-const isWater = (x, y) => vnoise(x / 150 + 31, y / 150 + 17) > 0.64 && zoneAt(x, y) === 'swamp' && roadDist(x, y) > 40 && !nearTown(x, y, TOWN_R + 40);
+const isWater = (x, y) => vnoise(x / 150 + 31, y / 150 + 17) > 0.64 && bioOf(zoneAt(x, y)) === 'swamp' && roadDist(x, y) > 40 && !nearTown(x, y, TOWN_R + 40);
 function makeChunk(cx, cy) {
   const cv = document.createElement('canvas'); cv.width = cv.height = CH; const g = cv.getContext('2d'), im = g.createImageData(CH, CH), d = im.data, x0 = cx * CH, y0 = cy * CH;
-  const zg = []; for (let j = 0; j <= 16; j++) for (let i = 0; i <= 16; i++) zg.push(zoneAt(x0 + i * 16, y0 + j * 16));
+  const zg = []; for (let j = 0; j <= 16; j++) for (let i = 0; i <= 16; i++) zg.push(bioOf(zoneAt(x0 + i * 16, y0 + j * 16)));
   for (let py = 0; py < CH; py++) for (let px = 0; px < CH; px++) {
     const x = x0 + px, y = y0 + py, h = hash2(x, y), h2 = hash2(x + 911, y - 37);
     const z = zg[Math.min(16, Math.max(0, Math.round((px + (h - 0.5) * 22) / 16))) + 17 * Math.min(16, Math.max(0, Math.round((py + (h2 - 0.5) * 22) / 16)))];
@@ -1313,16 +1333,16 @@ const ZPROPS = {
 };
 const TOWN_LAYOUT = [['flag', 0, -96], ['stall', -62, -40], ['stall2', 4, -58], ['stall', 66, -36], ['tent', -100, 34], ['tent2', -58, 84], ['tent', 98, 40], ['tent2', 52, 92], ['fire', 0, 22], ['tower', -112, -66], ['tower', 112, -70], ['crate', 30, -28], ['crate', -34, -22],
   ['stall2', 0, 112], ['fence', -70, -118], ['fence', 70, -118], ['fence', -136, 0], ['fence', 136, 4], ['fence', -86, 128], ['fence', 86, 128]];
-const TOWN_SPOTS = [['market', '시장', -62, -40], ['shop', '공방', 4, -58], ['bank', '전장·창고', 66, -36], ['inn', '여관', -100, 34], ['hire', '고용소', 98, 40], ['quest', '의뢰', 0, -96], ['hunt', '사냥 안내', -112, -66], ['store', '잡화점', 0, 112]];
+const TOWN_SPOTS = [['market', '시장', -62, -40], ['shop', '공방', 4, -58], ['bank', '전장·창고', 66, -36], ['inn', '여관', -100, 34], ['hire', '고용소', 98, 40], ['quest', '의뢰', 0, -96], ['hunt', '사냥 안내', -112, -66], ['store', '잡화점', 0, 112], ['trial', '시련의 탑', 112, -70]];
 function openTown(k) { townSec = k; sfx('open'); hideWorld('town'); }
 function spotBadges() {
   const z = inTown(); if (!z) return {};
-  return { quest: (S.quests[z] || []).some(q => (q.type === 'deliver' ? (S.cargo[q.g] || 0) : q.prog) >= q.n), shop: Object.values(S.out[z] || {}).some(k => k > 0), inn: S.units.some(u => u.ko || u.hp < maxHp(u) * 0.6) || S.food <= 30, store: S.pots < 1, hire: S.eggs.some(e => e.t <= 0) || (S.eggs.length < 3 && Object.values(S.eggBag).some(k => k > 0)) || !!(S.wander && S.wander.z === z && !S.wander.gone && S.wander.day === S.day) };
+  return { quest: (S.quests[z] || []).some(q => (q.type === 'deliver' ? (S.cargo[q.g] || 0) : q.prog) >= q.n), shop: Object.values(S.out[z] || {}).some(k => k > 0), inn: S.units.some(u => u.ko || u.hp < maxHp(u) * 0.6) || S.food <= 30, trial: (S.tower || 0) < Math.max(...S.units.map(u => u.lv)) - 2, store: S.pots < 1, hire: S.eggs.some(e => e.t <= 0) || (S.eggs.length < 3 && Object.values(S.eggBag).some(k => k > 0)) || !!(S.wander && S.wander.z === z && !S.wander.gone && S.wander.day === S.day) };
 }
 const CELL = 220, CELLS = new Map();
 function cellProps(cx, cy) {
   const k = cx + ',' + cy; let list = CELLS.get(k); if (list) return list; list = [];
-  const R = seeded(Math.imul(cx + 1000, 7919) ^ Math.imul(cy + 1000, 104729)), x0 = cx * CELL, y0 = cy * CELL, z = zoneAt(x0 + CELL / 2, y0 + CELL / 2), tab = ZPROPS[z], gr = groundAt(x0 + CELL / 2, y0 + CELL / 2);
+  const R = seeded(Math.imul(cx + 1000, 7919) ^ Math.imul(cy + 1000, 104729)), x0 = cx * CELL, y0 = cy * CELL, z = bioOf(zoneAt(x0 + CELL / 2, y0 + CELL / 2)), tab = ZPROPS[z], gr = groundAt(x0 + CELL / 2, y0 + CELL / 2);
   for (let i = 0, n = z === 'plain' ? 9 : 11; i < n; i++) {
     const key = tab[(R() * tab.length) | 0], x = x0 + R() * CELL, y = y0 + R() * CELL, r = PDEF[key][1], big = r > 9;
     if (x < 20 || y < 20 || x > WW - 20 || y > WH - 20 || nearTown(x, y, TOWN_R + (big ? 70 : 20))) continue;
@@ -1359,7 +1379,7 @@ function initWorld() {
       for (let n = 0, k = 0; n < (i === 4 ? 6 : 13) && k < 400; k++) { const a = R() * 6.28, r = (i === 4 ? 110 : 30) + R() * (GR - 60), x = gx + Math.cos(a) * r, y = gy + Math.sin(a) * r; if (!free(x, y, 84) || isWater(x, y)) continue; const p = { z, g: i === 4 ? 3 : i, cx: x, cy: y }; fillPack(p); W.packs.push(p); n++; }
     });
   }
-  for (let n = 0, k = 0; n < 210 && k < 14000; k++) {   // lone herds out in the wilds between the named grounds
+  for (let n = 0, k = 0; n < 520 && k < 30000; k++) {   // lone herds out in the wilds between the named grounds
     const x = 120 + R() * (WW - 240), y = 120 + R() * (WH - 240); if (nearTown(x, y, 420) || groundAt(x, y) || roadDist(x, y) < 70 || !free(x, y, 170) || isWater(x, y)) continue;
     const z = zoneAt(x, y), T = TOWNS[z], p = { z, g: clamp(Math.floor(Math.hypot(x - T.x, y - T.y) / 700), 0, 2), cx: x, cy: y }; fillPack(p); W.packs.push(p); n++;
   }
@@ -1388,7 +1408,7 @@ function updField() {
   const here = t ? `${ZONES[t].n} 정착지` : g ? `${ZONES[g.z].n} · ${HUNT_NAMES[g.z][g.i]}` : `${ZONES[z].n} · 황무지`;
   if (here !== W.here) {
     W.here = here; $('bTitle').textContent = here;
-    if (t) { if (S.zone !== t || W.out) { S.zone = t; toast(`${ZONES[t].n} 정착지에 도착했어요`, 'good'); sfx('arrive'); } W.out = false; }
+    if (t) { S.seen[t] = 1; if (S.zone !== t || W.out) { S.zone = t; toast(`${ZONES[t].n} 정착지에 도착했어요`, 'good'); sfx('arrive'); } W.out = false; }
     else { W.out = true; if (g) { const H = HUNTS[Math.min(3, g.i)], Z = ZONES[g.z]; const need = groundPower(g.z, g.i), weak = partyPower() < need; toast(`${g.i === 4 ? `${HUNT_NAMES[g.z][4]} · ${BOSSES[Z.boss].n}의 영역` : `${HUNT_NAMES[g.z][g.i]} · 야생 Lv${zl(Z, H.lv[0])}~${zl(Z, H.lv[1])}`} · 권장 전투력 ${fmt(need)}${weak ? ' (내 상단이 약해요)' : ''}`, g.i === 4 || weak ? 'warn' : ''); if (g.i === 4) sfx('roar'); } }
   }
   const lv = party().filter(u => !u.ko).length; { const cu = cargoUsed(), cp = capacity(); $('bInfo').innerHTML = `<span class="hud m"><i>크레딧</i>${fmt(S.money)}</span><span class="hud${S.food <= 20 ? ' warn' : ''}"><i>포만감</i>${Math.ceil(S.food)}</span><span class="hud${cu >= cp ? ' warn' : ''}"><i>짐</i>${cu}/${cp}</span>`; }
@@ -1519,6 +1539,28 @@ function usePotion() {
 function updPots() { $('fPot').textContent = $('bPot').textContent = `회복약 ${S.pots}`; }
 function autoEat() { if (S.food > 20) return; const g = ['grain', 'meat', 'jerky'].find(g => S.cargo[g] > 0); if (!g) return; S.cargo[g]--; if (!S.cargo[g]) delete S.cargo[g]; S.food = Math.min(100, S.food + FOODS[g]); toast(`배가 고파 ${GOODS[g].n}을(를) 먹었어요 · 포만감 ${Math.ceil(S.food)}`); }
 $('fPot').onclick = usePotion; $('bPot').onclick = usePotion;
+const TRIAL_TYPES = ['para', 'trike', 'raptor', 'compy', 'dilo', 'stego', 'apato', 'trex', 'raptorShadow', 'trikeRed', 'stegoRust', 'trexYoung'];
+const trialBoss = f => { const ks = Object.keys(BOSSES); return ks[Math.min(ks.length - 1, Math.floor(f / 10) - 1)]; };
+function startTrial() {   // one floor of the tower: a set fight at the floor's level, a boss every tenth floor
+  if (B || !W.crew.length) return; const f = (S.tower || 0) + 1; if (f > 200) return;
+  const L = W.lead, cx = L.x, cy = L.y - 130, n = Math.min(10, 3 + Math.floor(f / 12)), bossK = f % 10 === 0 ? trialBoss(f) : null, R = seeded(f * 7919);
+  const foes = Array.from({ length: n }, (x, i) => ({ type: TRIAL_TYPES[Math.floor(R() * Math.min(TRIAL_TYPES.length, 3 + f / 8))], lv: f }));
+  if (bossK) foes[0] = { type: BOSSES[bossK].base, lv: f, boss: bossK };
+  const mons = foes.map((fo, i) => ({ f: fo, x: cx + (i - (n - 1) / 2) * 30, y: cy - (i % 2) * 26, a: Math.PI / 2, len: Math.round((UNITS[fo.type].size || 11) * 2.4 * (fo.boss ? BOSSES[fo.boss].size : 1)) }));
+  const pk = { z: S.zone, g: 3, cx, cy, mons, temp: true };
+  showWorld(); L.tx = null; W.target = null; W.dest = null; sfx(bossK ? 'roar' : 'horn');
+  startBattle({ kind: 'trial', zone: S.zone, tier: 3, foes, mons, boss: null, packs: [pk], trial: f, trialBoss: bossK });
+}
+const ACH = [   // goals with five steps each
+  ['kills', '공룡 사냥꾼', () => S.stats.kills || 0, [50, 300, 1500, 6000, 20000], '마리 처치'], ['caps', '조련사', () => S.stats.captures, [3, 10, 30, 80, 200], '마리 포획·부화'],
+  ['trade', '장사꾼', () => S.stats.trades, [10, 50, 200, 800, 3000], '번 거래'], ['earn', '큰손', () => S.stats.earned, [5000, 50000, 500000, 3000000, 20000000], '크레딧 벌기'],
+  ['lv', '단련', () => Math.max(...S.units.map(u => u.lv)), [10, 30, 60, 120, 200], '레벨 달성'], ['tower', '탑 등반가', () => S.tower || 0, [10, 30, 60, 120, 200], '층 돌파'],
+  ['dex', '수집가', () => Object.keys(UNITS).filter(t => UNITS[t].cls === 'dino' && S.dex[t] === 2).length, [4, 7, 10, 13, 16], '종 보유'], ['boss', '우두머리 사냥', () => Object.values(S.bossKills || {}).length, [1, 3, 7, 14, 22], '종류 처치'],
+  ['town', '탐험가', () => Object.keys(S.seen || {}).length, [3, 7, 12, 17, 22], '곳 방문'], ['head', '대방', () => Object.keys(ZONES).filter(isHead).length, [1, 3, 6, 12, 22], '개 마을의 대방'],
+];
+const achPrize = (i, t) => 300 * Math.pow(4, t) * (1 + (i % 3) * 0.25) | 0;
+const achReady = () => ACH.filter(([k, , fn, th]) => (S.ach[k] || 0) < 5 && fn() >= th[S.ach[k] || 0]).length;
+const coachCost = z => Math.round((Math.hypot(TOWNS[z].x - S.pos.x, TOWNS[z].y - S.pos.y) * 0.12 + ZONES[z].lv * 12) / 10) * 10;
 function openCrate(p) {
   W.looted[p.loot] = W.t + 240; const r = Math.random(); sfx('loot'); burst(p.x, p.y, 6, 12, '#ffe9a0', { spd: 40, up: 60, life: 0.8 });
   if (r < 0.12) { S.pots++; toast('상자에서 회복약 1개를 찾았어요', 'good'); }
@@ -1591,13 +1633,13 @@ function renderWorld(dt) {
   } else { renderOverlay(true); drawOrders(bc); updSel(); }
   updSkbar(dt);
 }
-function drawMini(c, cw) {   // corner minimap of the whole world
-  const mw = 96, mh = Math.round(mw * WH / WW), x0 = cw - mw - 8, y0 = isLand() ? 50 : 34, sx = mw / WW, sy = mh / WH;
-  c.fillStyle = 'rgba(18,14,10,.7)'; c.fillRect(x0 - 2, y0 - 2, mw + 4, mh + 4);
-  c.lineWidth = 1; c.strokeStyle = 'rgba(184,164,88,.6)'; for (const [a, b] of ROADS) { c.beginPath(); c.moveTo(x0 + TOWNS[a].x * sx, y0 + TOWNS[a].y * sy); c.lineTo(x0 + TOWNS[b].x * sx, y0 + TOWNS[b].y * sy); c.stroke(); }
-  for (const z of ZKEYS) { GROUNDS[z].forEach(([gx, gy], i) => { c.fillStyle = i === 4 ? '#d4573c' : 'rgba(236,227,212,.45)'; c.fillRect(x0 + gx * sx - 1, y0 + gy * sy - 1, 3, 3); }); c.fillStyle = '#e3a843'; c.fillRect(x0 + TOWNS[z].x * sx - 2.5, y0 + TOWNS[z].y * sy - 2.5, 5, 5); }
-  if (W.dest) { c.fillStyle = '#8fcf6a'; c.fillRect(x0 + W.dest.x * sx - 1.5, y0 + W.dest.y * sy - 1.5, 3, 3); }
-  c.fillStyle = '#fff'; c.beginPath(); c.arc(x0 + W.lead.x * sx, y0 + W.lead.y * sy, 2.6, 0, 7); c.fill(); c.strokeStyle = '#1c120a'; c.stroke();
+function drawMini(c, cw) {   // corner minimap: the stretch of world around you
+  const mw = 84, mh = 84, x0 = cw - mw - 8, y0 = isLand() ? 50 : 34, span = WH, wx0 = clamp(W.lead.x - span / 2, 0, WW - span), k = mw / span, X = x => x0 + (x - wx0) * k, Y = y => y0 + y * k, inX = x => x >= wx0 && x <= wx0 + span;
+  c.fillStyle = 'rgba(18,14,10,.7)'; c.fillRect(x0 - 2, y0 - 2, mw + 4, mh + 4); c.save(); c.beginPath(); c.rect(x0, y0, mw, mh); c.clip();
+  c.lineWidth = 1; c.strokeStyle = 'rgba(184,164,88,.6)'; for (const [a, b] of ROADS) { c.beginPath(); c.moveTo(X(TOWNS[a].x), Y(TOWNS[a].y)); c.lineTo(X(TOWNS[b].x), Y(TOWNS[b].y)); c.stroke(); }
+  for (const z of ZKEYS) { if (!inX(TOWNS[z].x) && !GROUNDS[z].some(g => inX(g[0]))) continue; GROUNDS[z].forEach(([gx, gy], i) => { c.fillStyle = i === 4 ? '#d4573c' : 'rgba(236,227,212,.45)'; c.fillRect(X(gx) - 1, Y(gy) - 1, 3, 3); }); c.fillStyle = '#e3a843'; c.fillRect(X(TOWNS[z].x) - 2.5, Y(TOWNS[z].y) - 2.5, 5, 5); }
+  if (W.dest) { c.fillStyle = '#8fcf6a'; c.fillRect(X(W.dest.x) - 1.5, Y(W.dest.y) - 1.5, 3, 3); }
+  c.fillStyle = '#fff'; c.beginPath(); c.arc(X(W.lead.x), Y(W.lead.y), 2.6, 0, 7); c.fill(); c.strokeStyle = '#1c120a'; c.stroke(); c.restore();
 }
 // virtual stick: drag to walk, let go to stop
 const JOY = { on: false, x: 0, y: 0, id: null };
@@ -1682,7 +1724,7 @@ $('bCapture').onclick = () => B && !B.over && tryCapture();
 $('bRetreat').onclick = () => { if (!B || B.over) return; B.opt.retreat = true; B.loot = {}; endBattle(false); };
 const ZOOMS = [[1, '보통'], [1.3, '크게'], [1.9, '아주 크게']];
 $('bZoom').onclick = () => { const i = (ZOOMS.findIndex(z => z[0] === bZoom) + 1) % ZOOMS.length; bZoom = ZOOMS[i][0]; };
-$('bSpeed').onclick = () => { bSpeed = bSpeed === 1 ? 2 : 1; $('bSpeed').textContent = '×' + bSpeed; };
+$('bSpeed').onclick = () => { bSpeed = bSpeed % 3 + 1; $('bSpeed').textContent = '×' + bSpeed; };
 
 /* ================================================================
    SOUND — synthesized
@@ -1765,7 +1807,7 @@ function showModal(h) { $('mcard').innerHTML = h; $('modal').hidden = false; $('
 function closeModal() { $('modal').hidden = true; }
 const tierNameOf = (type, t) => JOBS[type] ? JOBS[type][t] : TIER_DINO[t] + UNITS[type].n;
 const tierName = u => u.elite && ELITE[u.type] ? ELITE[u.type].n : tierNameOf(u.type, u.tier || 0);
-const unitName = u => u.name ? `${u.name}(${tierName(u)})` : tierName(u);
+const unitName = u => (u.name ? `${u.name}(${tierName(u)})` : tierName(u)) + (u.asc ? ` ◆${u.asc}` : '');
 const stars = n => { n = clamp(Math.round(n * 5 / 8), 1, 5); return '★'.repeat(n) + '☆'.repeat(5 - n); };
 let townSec = 'hunt', partySec = 'crew';
 const chips = (list, cur, act) => `<div class="chips">${list.map(([k, n, badge]) => `<button class="chip${k === cur ? ' on' : ''}" data-act="${act}" data-k="${k}">${n}${badge ? `<i>${badge}</i>` : ''}</button>`).join('')}</div>`;
@@ -1834,6 +1876,8 @@ function renderTown() {
       <div class="card"><div class="row"><div class="info"><b>${head ? '당신이 이 마을의 대방이에요' : `현재 대방: ${RIVALS[z][0]}`}</b><small>내 투자 ${fmt(inv)} · ${head ? `2위 ${RIVALS[z][0]} ${fmt(S.rival[z])}` : `대방까지 ${fmt(S.rival[z] - inv + 1)} 더`} · 대방 혜택: 이 마을에서 5% 싸게 사고 5% 비싸게 팔아요</small></div>${amt('inv', S.money)}</div></div>
       <h2>여각 (창고)<small>짐을 이 정착지에 맡겨 둬요 · 다른 정착지에서는 찾을 수 없어요</small></h2>
       <div class="card">${cg.length ? cg.map(([g, k]) => `<div class="row"><div class="info"><b>${GOODS[g].n} ${k}개</b><small>짐칸에 있어요</small></div><button class="btn small" data-act="stIn" data-g="${g}">맡기기</button></div>`).join('') : ''}${st.map(([g, k]) => `<div class="row"><div class="info"><b>${GOODS[g].n} ${k}개</b><small>창고에 있어요</small></div><button class="btn small primary" data-act="stOut" data-g="${g}">찾기</button></div>`).join('')}${cg.length || st.length ? '' : '<div class="row"><div class="info"><small>맡긴 짐이 없어요</small></div></div>'}</div>`; })() : ''}
+    ${townSec === 'trial' ? `<h2>시련의 탑<small>층마다 그 층 레벨의 공룡이 나와요 · 10층마다 우두머리 · 한 번 넘은 층은 다시 오르지 않아요</small></h2>
+    <div class="card"><div class="row"><div class="info"><b>${S.tower >= 200 ? '꼭대기에 올랐어요 (200층)' : `다음: ${S.tower + 1}층`}</b><div class="bar"><i style="width:${S.tower / 2}%;background:var(--amber)"></i></div><small>최고 ${S.tower}/200층${S.tower < 200 ? ` · 적 Lv${S.tower + 1} · ${Math.min(10, 3 + Math.floor((S.tower + 1) / 12))}마리${(S.tower + 1) % 10 === 0 ? ` · <b style="color:var(--bad)">우두머리 ${BOSSES[trialBoss(S.tower + 1)].n}</b>` : ''} · 상금 ${fmt(60 * (S.tower + 1))}${(S.tower + 1) % 10 === 0 ? ' + 증표·알·회복약' : ''}` : ''}</small><small>내 대원 최고 Lv${Math.max(...S.units.map(u => u.lv))} · 정착지 바로 옆에서 싸워요</small></div><button class="btn small primary" data-act="trial" ${S.tower >= 200 ? 'disabled' : ''}>도전</button></div></div>` : ''}
     ${townSec === 'store' ? `<h2>잡화점<small>필드에서 쓰는 물건을 팔아요</small></h2>
     <div class="card">
       <div class="row"><div class="info"><b>회복약</b><small>필드나 전투 중에 쓰면 모두의 체력을 30% 채워요 · 전투 중에는 15초에 한 번 · 전투 밖에서는 쓰러진 대원도 일어나요 · 대원 레벨이 오르면 값도 올라요 · 보유 ${S.pots}개</small></div><button class="btn small" data-act="pot" data-n="1" ${S.money < potPrice() ? 'disabled' : ''}>${potPrice()}</button><button class="btn small primary" data-act="pot" data-n="5" ${S.money < potPrice() * 5 ? 'disabled' : ''}>5개 ${potPrice() * 5}</button></div>
@@ -1859,11 +1903,13 @@ function renderParty() {
       ${u.inParty && u.type !== 'leader' ? `<span class="ord"><button class="btn small" data-act="ord" data-id="${u.id}" data-d="-1" aria-label="앞으로">▲</button><button class="btn small" data-act="ord" data-id="${u.id}" data-d="1" aria-label="뒤로">▼</button></span>` : ''}
       ${u.type === 'leader' ? '<span class="tag on">대장</span>' : `<button class="btn small ${u.inParty ? '' : 'primary'}" data-act="toggle" data-id="${u.id}">${u.inParty ? '대기' : '참전'}</button>`}</div>`; };
   const reserve = S.units.filter(u => !u.inParty);
-  const psecs = [['crew', '대원', S.units.filter(u => u.inParty && u.pts > 0).length], ['rank', '순위'], ['bag', '가방', S.items.length], ['dex', '도감'], ['skill', '스킬', S.sp], ['cargo', '짐']];
+  const psecs = [['crew', '대원', S.units.filter(u => u.inParty && u.pts > 0).length], ['rank', '순위'], ['ach', '업적', achReady()], ['bag', '가방', S.items.length], ['dex', '도감'], ['skill', '스킬', S.sp], ['cargo', '짐']];
   el.innerHTML = `<div class="card"><div class="row"><div class="info"><b>상단 Lv${S.clv} · ${P.length}/${partyCap()}명</b><div class="bar"><i style="width:${S.cxp / cxpNeed(S.clv) * 100}%;background:var(--amber)"></i></div><small>상단 경험치 ${S.cxp}/${cxpNeed(S.clv)} · 장사, 사냥, 의뢰로 올라요 · 레벨마다 인원 +1(최대 12)</small><small>짐칸 ${cargoUsed()}/${capacity()} · 전투 ${S.stats.battles} · 포획 ${S.stats.captures}</small></div><button class="btn small" data-act="snd">${['소리 끔', '효과음만', '소리 켬'][S.snd]}</button></div></div>${chips(psecs, partySec, 'psec')}
     ${partySec === 'crew' ? `<h2>자동 설정</h2><div class="card">${[['skill', '스킬 자동 사용', '대원이 준비된 스킬을 알아서 써요 · 끄면 전투 중에 스킬 버튼이 나와요'], ['pot', '회복약 자동 사용', '누군가 체력 30% 아래로 떨어지면 알아서 마셔요 (전투 중 15초에 한 번)'], ['hunt', '자동 사냥', '가까운 무리를 계속 찾아가 사냥해요']].map(([k, n, d]) => `<div class="row"><div class="info"><b>${n}</b><small>${d}</small></div><button class="btn small ${S.auto[k] ? 'primary' : ''}" data-act="auto" data-k="${k}">${S.auto[k] ? '켜짐' : '꺼짐'}</button></div>`).join('')}</div><h2>진형<small>${FORMS[S.form].ds}</small></h2>${chips(Object.entries(FORMS).map(([k, f]) => [k, f.n]), S.form, 'form')}<h2>출전 대원</h2><div class="sub" style="margin:0">▲▼로 줄 서는 순서를 바꿔요. 전투 중에는 대원을 끌어서 자리를 정할 수 있고, 그 자리는 다음 전투에도 기억돼요.${S.units.some(u => u.pos) ? ' <button class="btn small" data-act="resetPos" style="margin-left:6px">배치 초기화</button>' : ''}</div><h2 style="display:none"><small>${''}</small></h2><div class="sub" style="margin:0">상단 전투력 ${fmt(partyPower())} · 용병 일당 하루 ${fmt(wages())}${S.unpaid ? ' <b style="color:var(--bad)">(밀림 · 공격 -20%)</b>' : ''}</div><div class="card">${P.map(row).join('')}</div>
     <h2>대기 대원<small>정착지 우리에서 쉬어요</small></h2><div class="card">${reserve.length ? reserve.map(row).join('') : '<div class="row"><div class="info"><small>없어요. 사냥터에서 공룡을 포획하거나 고용소에서 대원을 구하세요</small></div></div>'}</div>` : ''}
     ${partySec === 'bag' ? `<h2>우두머리 증표<small>변이 진화와 특수 전직에 써요 · 우두머리를 잡으면 하나씩 얻어요</small></h2><div class="card"><div class="row"><div class="info"><small style="color:var(--text)">${Object.entries(S.tokens).filter(([, k]) => k > 0).map(([k, n]) => `${TOKEN_N[k]} ${n}개`).join(' · ') || '아직 없어요'}</small><small>공룡 알: ${Object.entries(S.eggBag).filter(([, k]) => k > 0).map(([ez, k]) => `${ZONES[ez].n} ${k}개`).join(' · ') || '없음'}</small></div></div></div><h2>가방<small>장비 ${S.items.length}/${BAG_MAX} · 대원의 관리 버튼에서 착용해요</small></h2><div class="card">${S.items.length ? [...S.items].sort((a, b) => b.r - a.r || b.lv - a.lv).map(it => `<div class="row"><div class="info"><b>${itemName(it)}</b><small>${SLOTS[it.slot]} · Lv${it.lv} · ${itemText(it)}</small></div><button class="btn small" data-act="sellItem" data-it="${it.id}">${itemPrice(it)}에 팔기</button></div>`).join('') : '<div class="row"><div class="info"><small>아직 얻은 장비가 없어요. 사냥에서 이기면 가끔 떨어져요</small></div></div>'}</div>` : ''}
+    ${partySec === 'ach' ? `<h2>업적<small>단계를 채우면 상금을 받아요</small></h2><div class="card">${ACH.map(([k, n, fn, th, unit], i) => { const t = S.ach[k] || 0, v = fn(), done = t >= 5, ok = !done && v >= th[t];
+      return `<div class="row"><span class="num${done ? ' done' : ''}">${done ? '★' : t + 1}</span><div class="info"><b>${n}</b>${done ? '<small>모든 단계를 마쳤어요</small>' : `<div class="bar"><i style="width:${Math.min(100, v / th[t] * 100)}%;background:var(--amber)"></i></div><small>${fmt(Math.min(v, th[t]))}/${fmt(th[t])} ${unit} · 상금 ${fmt(achPrize(i, t))}</small>`}</div><button class="btn small ${ok ? 'primary' : ''}" data-act="ach" data-k="${k}" ${ok ? '' : 'disabled'}>${done ? '완료' : '받기'}</button></div>`; }).join('')}</div>` : ''}
     ${partySec === 'rank' ? (() => { const me = partyPower(), list = [...RANKS.map(r => [r[0], r[1], 0]), ['내 상단', me, 1]].sort((a, b) => b[1] - a[1]), up = list[list.findIndex(r => r[2]) - 1];
       return `<h2>상단 순위<small>출전 대원의 전투력 합계로 겨뤄요 · 한 계단 오를 때마다 상금을 받아요</small></h2><div class="card">${list.map((r, i) => `<div class="row"><span class="num${r[2] ? ' done' : ''}">${i + 1}</span><div class="info"><b style="${r[2] ? 'color:var(--amber)' : ''}">${r[0]}</b><small>전투력 ${fmt(r[1])}</small></div></div>`).join('')}</div>
       <div class="sub">${up ? `${up[0]}까지 전투력 ${fmt(up[1] - me + 1)} 남았어요 · 레벨, 능력치 포인트, 전직·진화, 장비, 숙련도·친밀도가 모두 전투력을 올려요` : '모든 상단을 제쳤어요'}</div>`; })() : ''}
@@ -1896,6 +1942,7 @@ function unitModal(id) {
     ${Object.entries(SLOTS).map(([sl, sn]) => { const it = (u.eq || {})[sl], n = S.items.filter(x => x.slot === sl).length; return `<div class="row"><div class="info"><b>착용 ${sn}: ${it ? itemName(it) : '<span style="color:var(--muted)">비어 있음</span>'}</b><small>${it ? itemText(it) + ` · Lv${it.lv}${(it.en || 0) < ENH_MAX ? ` · 강화 성공률 ${Math.round(enhRate(it) * 100)}%` : ''}` : '사냥터에서 얻은 장비를 착용해요'} · 가방에 ${n}개</small></div>${it ? `<button class="btn small primary" data-act="enh" data-id="${u.id}" data-slot="${sl}" ${(it.en || 0) >= ENH_MAX || S.money < enhCost(it) ? 'disabled' : ''}>${(it.en || 0) >= ENH_MAX ? '최고' : `강화 ${fmt(enhCost(it))}`}</button>` : ''}<button class="btn small" data-act="pickItem" data-id="${u.id}" data-slot="${sl}" ${n || it ? '' : 'disabled'}>교체</button></div>`; }).join('')}
     ${unitSkill(u) ? `<div class="row"><div class="info"><b>스킬 수련 ${u.skLv || 0}/10</b><small>${skName(unitSkill(u), tier)}의 위력이 단계마다 +8% · 지금 +${(u.skLv || 0) * 8}%</small></div><button class="btn small primary" data-act="train" data-id="${u.id}" ${(u.skLv || 0) >= 10 || S.money < trainCost(u) ? 'disabled' : ''}>${(u.skLv || 0) >= 10 ? '최고' : fmt(trainCost(u))}</button></div>` : ''}
     <div class="row"><div class="info"><b>${dino ? '진화' : '전직'}: ${tier >= 2 ? '최고 단계' : tierNameOf(u.type, tier + 1)}</b><small>${tier >= 2 ? '더 오를 단계가 없어요' : `체력과 공격 +30% · 겉모습이 바뀌어요${u.type === 'porter' ? ` · 짐칸 ${carryOf(u)} → ${carryOf({ ...u, tier: tier + 1 })}칸` : ''}${skillOf(u.type) ? ` · 스킬이 ${skName(skillOf(u.type), tier + 1)}(으)로 바뀌어요: ${skDesc(skillOf(u.type), tier + 1)}` : ''} · 조건: Lv${P.lv}, 상단 Lv${P.clv}, ${P.cost} 크레딧`}</small></div><button class="btn small primary" data-act="promote" data-id="${u.id}" ${tier >= 2 || u.lv < P.lv || S.clv < P.clv || S.money < P.cost ? 'disabled' : ''}>${tier >= 2 ? '완료' : dino ? '진화' : '전직'}</button></div></div>
+    ${(u.asc || 0) < ASC.length ? `<div class="row"><div class="info"><b style="color:var(--amber)">초월 ${(u.asc || 0) + 1}단계</b><small>체력과 공격 +22% · 지금 ${u.asc || 0}/${ASC.length}단계 · 조건: Lv${ASC[u.asc || 0]}, ${fmt(ascCost(u))} 크레딧</small></div><button class="btn small primary" data-act="asc" data-id="${u.id}" ${u.lv < ASC[u.asc || 0] || S.money < ascCost(u) ? 'disabled' : ''}>초월</button></div>` : `<div class="row"><div class="info"><b style="color:var(--amber)">초월 완료 (${ASC.length}/${ASC.length})</b></div></div>`}
     ${dino && MUT[u.type] ? MUT[u.type].map(([to, tk]) => `<div class="row"><div class="info"><b style="color:var(--amber)">변이 진화: ${UNITS[to].n}</b><small>${UNITS[to].ds} · 레벨과 능력치는 그대로 · 조건: Lv20, ${TOKEN_N[tk]} 1개 (보유 ${S.tokens[tk] || 0}), 8,000 크레딧</small></div><button class="btn small primary" data-act="mutate" data-id="${u.id}" data-to="${to}" data-tk="${tk}" ${u.lv < 20 || !(S.tokens[tk] > 0) || S.money < 8000 ? 'disabled' : ''}>변이</button></div>`).join('') : ''}
     ${!dino && ELITE[u.type] && !u.elite ? `<div class="row"><div class="info"><b style="color:var(--amber)">특수 전직: ${ELITE[u.type].n}</b><small>${ELITE[u.type].ds} · 체력과 공격 +25% · 스킬을 30% 더 자주 써요 · 조건: 2차 전직 완료, ${TOKEN_N[ELITE[u.type].token]} 1개 (보유 ${S.tokens[ELITE[u.type].token] || 0}), 20,000 크레딧</small></div><button class="btn small primary" data-act="elite" data-id="${u.id}" ${tier < 2 || !(S.tokens[ELITE[u.type].token] > 0) || S.money < 20000 ? 'disabled' : ''}>전직</button></div>` : ''}
     <div class="sub" style="margin:0">강철 무기는 무너진 도시 공방, 가죽 갑옷은 잿빛 평원 공방에서 만들어요</div>
@@ -1904,9 +1951,9 @@ function unitModal(id) {
 const nearestTown = () => ZKEYS.map(z => ({ z, d: Math.round(Math.hypot(TOWNS[z].x - S.pos.x, TOWNS[z].y - S.pos.y) / 10) })).sort((a, b) => a.d - b.d)[0];
 function renderMap() {
   const el = $('v-map');
-  const rows = ZKEYS.map(z => { const d = Math.round(Math.hypot(TOWNS[z].x - S.pos.x, TOWNS[z].y - S.pos.y) / 10); return `<div class="row"><div class="info"><b>${ZONES[z].n} 정착지</b><small>거리 ${d}m · 야생 Lv${ZONES[z].lv}~${(ZONES[z].bossLv || zl(ZONES[z], 6))} · <span class="danger">${stars(ZONES[z].danger + 1)}</span></small></div><button class="btn small primary" data-act="walk" data-x="${TOWNS[z].x}" data-y="${TOWNS[z].y + 60}" data-l="${ZONES[z].n} 정착지">걸어가기</button></div>`; }).join('');
-  el.innerHTML = `<canvas id="mapcv" width="720" height="${Math.round(720 * WH / WW)}" style="touch-action:manipulation"></canvas><h2>월드 지도<small>지도를 누르면 그곳으로 걸어가요 · 길 위에서는 더 빨리 걸어요</small></h2><div class="card">${(() => { rollWanderer(); const w = S.wander; return w && !w.gone ? `<div class="row"><div class="info"><b style="color:var(--amber)">오늘의 이름난 용병: ${w.name}</b><small>${ZONES[w.z].n} 고용소에 오늘 하루 머물러요 · ${JOBS[w.type][1]} Lv${w.lv}</small></div><button class="btn small" data-act="walk" data-x="${TOWNS[w.z].x + 98}" data-y="${TOWNS[w.z].y + 68}" data-l="${ZONES[w.z].n} 고용소">가기</button></div>` : ''; })()}${S.stones ? `<div class="row"><div class="info"><b>귀환석 ${S.stones}개</b><small>가장 가까운 정착지로 바로 돌아가요</small></div><button class="btn small primary" data-act="recall">사용</button></div>` : ''}${rows}</div>`;
-  drawMap();
+  const rows = ZKEYS.map(z => { const d = Math.round(Math.hypot(TOWNS[z].x - S.pos.x, TOWNS[z].y - S.pos.y) / 10); return `<div class="row"><div class="info"><b>${ZONES[z].n} 정착지</b><small>거리 ${d}m · 야생 Lv${ZONES[z].lv}~${(ZONES[z].bossLv || zl(ZONES[z], 6))} · <span class="danger">${stars(ZONES[z].danger + 1)}</span></small></div>${S.seen[z] && inTown() && inTown() !== z ? `<button class="btn small" data-act="coach" data-z="${z}" ${S.money < coachCost(z) ? 'disabled' : ''}>역마차 ${fmt(coachCost(z))}</button>` : ''}<button class="btn small primary" data-act="walk" data-x="${TOWNS[z].x}" data-y="${TOWNS[z].y + 60}" data-l="${ZONES[z].n} 정착지">걸어가기</button></div>`; }).join('');
+  el.innerHTML = `<div id="mapwrap"><canvas id="mapcv" width="${Math.round(720 * WW / WH)}" height="720" style="touch-action:pan-x"></canvas></div><h2>월드 지도<small>옆으로 밀어서 넓은 세계를 보세요 · 누른 곳으로 걸어가요 · 가 본 정착지는 정착지 안에서 역마차로 바로 갈 수 있어요</small></h2><div class="card">${(() => { rollWanderer(); const w = S.wander; return w && !w.gone ? `<div class="row"><div class="info"><b style="color:var(--amber)">오늘의 이름난 용병: ${w.name}</b><small>${ZONES[w.z].n} 고용소에 오늘 하루 머물러요 · ${JOBS[w.type][1]} Lv${w.lv}</small></div><button class="btn small" data-act="walk" data-x="${TOWNS[w.z].x + 98}" data-y="${TOWNS[w.z].y + 68}" data-l="${ZONES[w.z].n} 고용소">가기</button></div>` : ''; })()}${S.stones ? `<div class="row"><div class="info"><b>귀환석 ${S.stones}개</b><small>가장 가까운 정착지로 바로 돌아가요</small></div><button class="btn small primary" data-act="recall">사용</button></div>` : ''}${rows}</div>`;
+  drawMap(); { const wr = $('mapwrap'); wr.scrollLeft = S.pos.x / WW * wr.scrollWidth - wr.clientWidth / 2; }
   $('mapcv').onclick = e => { const cv = $('mapcv'), r = cv.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * WW, y = (e.clientY - r.top) / r.height * WH, g = groundAt(x, y), t = nearTown(x, y, 260); if (t) walkTo(TOWNS[t].x, TOWNS[t].y + 60, ZONES[t].n + ' 정착지'); else walkTo(x, y, g ? HUNT_NAMES[g.z][g.i] : '표시한 곳'); showWorld(); };
 }
 let MAPBG = null;
@@ -1914,7 +1961,7 @@ function drawMap() {
   const cv = $('mapcv'); if (!cv) return; const g = cv.getContext('2d'), w = cv.width, h = cv.height, k = w / WW;
   if (!MAPBG) {   // coarse picture of the terrain, drawn once
     MAPBG = document.createElement('canvas'); MAPBG.width = Math.ceil(WW / 40); MAPBG.height = Math.ceil(WH / 40); const m = MAPBG.getContext('2d'), col = { plain: ['#8f7c50', '#7a6844'], city: ['#5e605c', '#4c4e50'], swamp: ['#4e5634', '#3e4628'], waste: ['#a26440', '#8a4e34'], snow: ['#d0dade', '#b4c0c8'], volcano: ['#48403c', '#34302e'], abyss: ['#364e3a', '#26382c'] };
-    for (let y = 0; y < MAPBG.height; y++) for (let x = 0; x < MAPBG.width; x++) { const wx = x * 40 + 20, wy = y * 40 + 20, z = zoneAt(wx, wy); m.fillStyle = roadDist(wx, wy) < 24 ? '#b8a458' : isWater(wx, wy) ? '#24383a' : col[z][hash2(x, y) < 0.5 ? 0 : 1]; m.fillRect(x, y, 1, 1); }
+    for (let y = 0; y < MAPBG.height; y++) for (let x = 0; x < MAPBG.width; x++) { const wx = x * 40 + 20, wy = y * 40 + 20, z = bioOf(zoneAt(wx, wy)); m.fillStyle = roadDist(wx, wy) < 24 ? '#b8a458' : isWater(wx, wy) ? '#24383a' : col[z][hash2(x, y) < 0.5 ? 0 : 1]; m.fillRect(x, y, 1, 1); }
   }
   g.imageSmoothingEnabled = false; g.drawImage(MAPBG, 0, 0, w, h); g.textAlign = 'center';
   for (const z of ZKEYS) GROUNDS[z].forEach(([gx, gy], i) => { g.fillStyle = i === 4 ? 'rgba(212,87,60,.35)' : 'rgba(18,14,10,.28)'; g.beginPath(); g.arc(gx * k, gy * k, GR * k, 0, 7); g.fill(); g.font = "700 12px \"IBM Plex Sans KR\", sans-serif"; g.lineWidth = 3; g.strokeStyle = "rgba(18,14,10,.75)"; g.strokeText(HUNT_NAMES[z][i], gx * k, gy * k + 6); g.fillStyle = i === 4 ? '#ff9a7a' : '#ece3d4'; g.fillText(HUNT_NAMES[z][i], gx * k, gy * k + 6); });
@@ -1974,6 +2021,10 @@ document.body.addEventListener('click', e => {
     const a = S.units.indexOf(u), c = S.units.indexOf(P[j]); S.units[a] = P[j]; S.units[c] = u; sfx('tap'); if (W) { W.crew = []; syncCrew(); }
   }
   else if (act === 'resetPos') { for (const u of S.units) delete u.pos; sfx('tap'); toast('전투 배치를 초기화했어요'); }
+  else if (act === 'trial') { closeModal(); startTrial(); return; }
+  else if (act === 'ach') { const i = ACH.findIndex(a => a[0] === b.dataset.k), A = ACH[i], t = S.ach[A[0]] || 0; if (t >= 5 || A[2]() < A[3][t]) return; const pz = achPrize(i, t); S.money += pz; S.ach[A[0]] = t + 1; sfx('win'); toast(`업적 달성: ${A[1]} ${t + 1}단계 · 상금 ${fmt(pz)} 크레딧`, 'good'); }
+  else if (act === 'coach') { const zt = b.dataset.z, c = coachCost(zt); if (B || !inTown() || !S.seen[zt] || S.money < c) return; S.money -= c; const T = TOWNS[zt]; W.lead.x = T.x; W.lead.y = T.y + 60; W.lead.tx = null; W.dest = null; W.target = null; for (const cr of W.crew) { cr.x = T.x; cr.y = T.y + 60; } W.cam.x = T.x; W.cam.y = T.y; S.pos = { x: T.x, y: T.y + 60 }; S.zone = zt; W.here = ''; flash(0.8); sfx('march'); toast(`역마차로 ${ZONES[zt].n}에 도착했어요`, 'good'); showWorld(); return; }
+  else if (act === 'asc') { const u = S.units.find(x => x.id === +b.dataset.id); if (!u || (u.asc || 0) >= ASC.length || u.lv < ASC[u.asc || 0] || S.money < ascCost(u)) return; S.money -= ascCost(u); u.asc = (u.asc || 0) + 1; u.hp = maxHp(u); u.ko = false; sfx('win'); flash(0.7); toast(`${unitName(u)} · 초월 ${u.asc}단계!`, 'good'); checkRank(); save(); renderAll(); unitModal(u.id); return; }
   else if (act === 'stat') { const u = S.units.find(x => x.id === +b.dataset.id); if (!u || !(u.pts > 0)) return; const r = u.hp / maxHp(u); if (b.dataset.k === 'auto') { const pref = { '탱커': 'h', '짐꾼': 'h', '회복': 'h' }[UNITS[u.type].role] || 'a'; while (u.pts > 0) { const k = u.pts % 3 === 0 ? 'd' : u.pts % 3 === 1 ? pref : (pref === 'a' ? 'h' : 'a'); u.st[k]++; u.pts--; } } else { u.st[b.dataset.k]++; u.pts--; } u.hp = Math.round(maxHp(u) * r); sfx('capture'); checkRank(); save(); renderAll(); unitModal(u.id); return; }
   else if (act === 'feed') { const u = S.units.find(x => x.id === +b.dataset.id); if (!u || !(S.cargo.meat >= 3)) return; S.cargo.meat -= 3; if (!S.cargo.meat) delete S.cargo.meat; u.wins = (u.wins || 0) + 1; sfx('heal'); save(); renderAll(); unitModal(u.id); return; }
   else if (act === 'form') { S.form = b.dataset.k; sfx('tap'); }
@@ -2055,7 +2106,7 @@ function frame(now) {
 S = load() || freshState();
 if (!S.units || !S.units.length) freshState();
 for (const u of S.units) { if (u.type === 'pachy') u.type = 'para'; if (u.type === 'sarco') u.type = 'stego'; }
-S.items = S.items || []; S.cleared = S.cleared || {}; if (S.food === undefined) S.food = 100; if (S.pots === undefined) S.pots = 2; S.tokens = S.tokens || {}; S.eggBag = S.eggBag || {}; S.eggs = S.eggs || []; S.auto = Object.assign({ skill: true, pot: true, hunt: false }, S.auto || {}); for (const u of S.units) { u.st = u.st || { a: 0, h: 0, d: 0 }; if (u.pts === undefined) u.pts = 3 * (u.lv - 1); u.wins = u.wins || 0; } S.stones = S.stones || 0; S.bank = S.bank || 0; S.invest = S.invest || {}; S.store = S.store || {}; S.form = S.form || 'bal'; S.rival = S.rival || {}; for (const [z, r] of Object.entries(RIVALS)) { if (S.rival[z] === undefined) S.rival[z] = r[1]; S.drift[z] = S.drift[z] || {}; S.press[z] = S.press[z] || {}; } if (!S.pos) { const T0 = TOWNS[S.zone] || TOWNS.plain; S.pos = { x: T0.x, y: T0.y + 70 }; }
+S.items = S.items || []; S.cleared = S.cleared || {}; if (S.food === undefined) S.food = 100; if (S.pots === undefined) S.pots = 2; S.tokens = S.tokens || {}; S.eggBag = S.eggBag || {}; S.eggs = S.eggs || []; S.tower = S.tower || 0; S.ach = S.ach || {}; S.seen = S.seen || { [S.zone]: 1 }; S.bossKills = S.bossKills || {}; S.auto = Object.assign({ skill: true, pot: true, hunt: false }, S.auto || {}); for (const u of S.units) { u.st = u.st || { a: 0, h: 0, d: 0 }; if (u.pts === undefined) u.pts = 3 * (u.lv - 1); u.wins = u.wins || 0; } S.stones = S.stones || 0; S.bank = S.bank || 0; S.invest = S.invest || {}; S.store = S.store || {}; S.form = S.form || 'bal'; S.rival = S.rival || {}; for (const [z, r] of Object.entries(RIVALS)) { if (S.rival[z] === undefined) S.rival[z] = r[1]; S.drift[z] = S.drift[z] || {}; S.press[z] = S.press[z] || {}; } if (!S.pos) { const T0 = TOWNS[S.zone] || TOWNS.plain; S.pos = { x: T0.x, y: T0.y + 70 }; }
 S.clv = S.clv || 1; S.cxp = S.cxp || 0; S.sp = S.sp || 0; S.skills = S.skills || {}; S.jobs = S.jobs || {}; S.out = S.out || {}; S.quests = S.quests || {};
 for (const z of Object.keys(ZONES)) for (const g of Object.keys(GOODS)) { if (S.drift[z][g] === undefined) S.drift[z][g] = 1; if (S.press[z][g] === undefined) S.press[z][g] = 1; }
 ensureQuests(); rollWanderer();
