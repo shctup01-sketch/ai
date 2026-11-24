@@ -442,6 +442,23 @@ const FORMS = { bal: { n: '균형진', ds: '기본 대형', atk: 1, def: 1 }, at
 const RIVALS = { plain: ['곡물상 하르', 900], city: ['고철왕 베크', 2600], swamp: ['약초꾼 모리', 4200], waste: ['철탑주 가론', 7000], snow: ['항구장 이레', 11000], volcano: ['잿불 상회', 17000], abyss: ['요람의 은자', 26000] };
 const isHead = z => (S.invest[z] || 0) > S.rival[z];
 const hungry = () => S.food <= 0;
+// The leader's calling, chosen once at the start. It sets how you fight and gives one lasting edge.
+const CLASSES = {
+  gunner: { n: '총잡이', look: null, role: '원거리', ds: '소총으로 멀리서 꾸준히 쏴요. 다루기 쉬운 균형형이에요.', perk: '고른 능력 · 스킬: 일제 사격', st: { hp: 190, atk: 17, def: 8, spd: 40, range: 120, as: 1.0 }, flags: { gun: true }, sk: 'volley' },
+  warrior: { n: '검투사', look: 'gladiator', role: '탱커', ds: '맨 앞에서 맞으며 싸워요. 체력과 방어가 가장 높고 적의 눈길을 끌어요.', perk: '체력 300, 방어 14 · 스킬: 돌진', st: { hp: 300, atk: 19, def: 14, spd: 44, range: 20, as: 1.1 }, flags: { taunt: true }, sk: 'charge' },
+  archer: { n: '사냥꾼', look: 'hunter', role: '원거리', ds: '가장 멀리서 쏘고 치명타가 잘 터져요. 몸은 약해요.', perk: '사거리 150, 치명타 20% · 스킬: 연속 사격', st: { hp: 150, atk: 21, def: 5, spd: 44, range: 150, as: 0.9 }, flags: { bow: true, crit: 0.2 }, sk: 'multishot' },
+  tamer: { n: '조련사', look: 'tamer', role: '지원', ds: '공룡을 다루는 데 능해요. 혼자서는 약하지만 공룡을 모을수록 강해져요.', perk: '포획 확률 +20% · 공룡 대원 공격 +12% · 다트 3개 추가 · 스킬: 포효', st: { hp: 170, atk: 12, def: 6, spd: 42, range: 100, as: 1.0 }, flags: { bow: true }, sk: 'roar' },
+  merchant: { n: '상인', look: 'porter', role: '지원', ds: '장사에 능해요. 싸움은 평범하지만 돈이 빨리 모여요.', perk: '5% 싸게 사고 5% 비싸게 팔기 · 짐칸 +30 · 800 크레딧으로 시작 · 스킬: 일제 사격', st: { hp: 170, atk: 13, def: 7, spd: 40, range: 110, as: 1.0 }, flags: { gun: true }, sk: 'volley' },
+};
+let LEADER_LOOK = null;
+function applyClass() {
+  const C = CLASSES[S.cls] || CLASSES.gunner, U = UNITS.leader; for (const k of ['gun', 'bow', 'taunt', 'crit']) delete U[k];
+  Object.assign(U, C.st, C.flags, { role: C.role, n: C.n + ' 대장' }); LEADER_LOOK = C.look; SK_OF.leader = C.sk; JOBS.leader = [C.n + ' 대장', C.n + ' 행수', C.n + ' 대행수'];
+  if (typeof SPR !== 'undefined') for (const k of Object.keys(SPR)) if (k.startsWith('leader|')) delete SPR[k];
+}
+function classModal() {
+  showModal(`<h3>어떤 대장으로 시작할까요</h3><div class="sub">처음 한 번만 고를 수 있어요</div><div class="card">${Object.entries(CLASSES).map(([k, C]) => `<div class="row"><canvas data-u="${C.look || 'leader'}" width="104" height="80"></canvas><div class="info"><b>${C.n} <span class="tag">${C.role}</span></b><small>${C.ds}</small><small style="color:var(--amber)">${C.perk}</small></div><button class="btn small primary" data-act="pickClass" data-k="${k}">선택</button></div>`).join('')}</div>`);
+}
 // Every caravan member has one battle skill on a cooldown. With auto on they use it themselves.
 const SK = { volley: { n: '일제 사격', cd: 12, ds: '적 셋을 한꺼번에 쏴요' }, multishot: { n: '연속 사격', cd: 10, ds: '한 적에게 화살 세 발' }, guard: { n: '철벽', cd: 14, ds: '5초 동안 방어 2배' }, snipe: { n: '급소 저격', cd: 14, ds: '3배 피해의 한 발' },
   grenade: { n: '수류탄', cd: 12, ds: '주변 적 모두에게 피해' }, firstaid: { n: '응급 처치', cd: 16, ds: '아군 모두 체력 20% 회복' }, mist: { n: '독안개', cd: 14, ds: '모든 적의 장갑을 녹여요' },
@@ -498,17 +515,17 @@ function addUnit(type, lv, inParty) {
 const maxHp = u => Math.round(UNITS[u.type].hp * lvMul(u.lv) * gearMul(u).hp);
 const party = () => S.units.filter(u => u.inParty);
 // porters carry more with every level, and far more once promoted
-const carryOf = u => u.type === 'porter' ? Math.round((UNITS.porter.carry + 2 * (u.lv - 1)) * [1, 1.5, 2.2][u.tier || 0] * (u.elite ? 1.5 : 1)) : UNITS[u.type].carry;
+const carryOf = u => u.type === 'porter' ? Math.round((UNITS.porter.carry + 2 * (u.lv - 1)) * [1, 1.5, 2.2][u.tier || 0] * (u.elite ? 1.5 : 1)) : UNITS[u.type].carry + (u.type === 'leader' && S.cls === 'merchant' ? 30 : 0);
 const capacity = () => party().reduce((s, u) => s + carryOf(u), 0);
 const cargoUsed = () => Object.values(S.cargo).reduce((a, b) => a + b, 0);
 function load() { try { const r = localStorage.getItem(SAVE); return r ? JSON.parse(r) : null; } catch (e) { return null; } }
-function save() { try { localStorage.setItem(SAVE, JSON.stringify(S)); } catch (e) { /* storage unavailable */ } }
+function save() { if (!S) return; try { localStorage.setItem(SAVE, JSON.stringify(S)); } catch (e) { /* storage unavailable */ } }
 
 /* market: zone price × daily drift × buying/selling pressure */
 const zp = (z, g) => ZONES[z].price[g] ?? (GOODS[g].zp ? GOODS[g].zp[z] ?? 1.3 : 1);
 const rawPrice = (z, g) => GOODS[g].base * zp(z, g) * S.drift[z][g] * S.press[z][g];
-const price = (z, g) => Math.max(1, Math.round(rawPrice(z, g) * (1 - 0.03 * sk('trade')) * (isHead(z) ? 0.95 : 1)));
-const sellPrice = (z, g) => Math.max(1, Math.round(rawPrice(z, g) * 0.9 * (1 + 0.03 * sk('trade')) * (isHead(z) ? 1.05 : 1)));
+const price = (z, g) => Math.max(1, Math.round(rawPrice(z, g) * (1 - 0.03 * sk('trade')) * (isHead(z) ? 0.95 : 1) * (S.cls === 'merchant' ? 0.95 : 1)));
+const sellPrice = (z, g) => Math.max(1, Math.round(rawPrice(z, g) * 0.9 * (1 + 0.03 * sk('trade')) * (isHead(z) ? 1.05 : 1) * (S.cls === 'merchant' ? 1.05 : 1)));
 function ensureQuests() {
   if (S.qday === S.day && Object.keys(S.quests).length) return;
   S.qday = S.day;
@@ -587,7 +604,7 @@ function startBattle(opt) {
 function spawn(side, type, lv, x, y, ref, boss) {
   const D = UNITS[type], st = unitStats(type, lv, boss);
   if (!ref && side === 1) { const wm = wildMul(lv) * (boss ? 1.9 : 1); st.hp *= wm; st.atk *= wm * (boss ? 0.8 : 1) * (1 + Math.max(0, lv - 45) * 0.014); }
-  if (ref) { const fm = FORMS[S.form] || FORMS.bal; st.atk *= fm.atk * (hungry() ? 0.7 : 1) * (S.unpaid && UNITS[type].cls === 'human' ? 0.8 : 1); st.def *= fm.def; }
+  if (ref) { const fm = FORMS[S.form] || FORMS.bal; st.atk *= fm.atk * (S.cls === 'tamer' && UNITS[type].cls === 'dino' ? 1.12 : 1) * (hungry() ? 0.7 : 1) * (S.unpaid && UNITS[type].cls === 'human' ? 0.8 : 1); st.def *= fm.def; }
   if (ref) { const gm = gearMul(ref); st.hp *= gm.hp; st.atk *= gm.atk; st.def *= gm.def; st.size *= 1 + 0.07 * (ref.tier || 0); }
   const u = { id: B.idSeq++, side, type, lv, ref, boss, x, y, a: side ? Math.PI / 2 : -Math.PI / 2, hp: ref ? Math.min(ref.hp, st.hp) : st.hp, max: st.hp, atk: st.atk, def: st.def, size: st.size,
               tier: ref ? ref.tier || 0 : 0, plv: ref ? ref.lv : 0, skLv: ref ? ref.skLv || 0 : 0, elite: !!(ref && ref.elite), sk: side === 0 ? (ref ? unitSkill(ref) : skillOf(type)) : null, skCd: rand(2, 6), guardT: 0, roarT: 0,
@@ -745,7 +762,7 @@ function tryCapture() {
   if (S.darts <= 0) { toast('마취 다트가 없어요. 정착지 상점에서 사세요', 'warn'); return; }
   S.darts--; sfx('dart');
   const leader = party().find(u => u.type === 'leader');
-  const chance = clamp(0.55 + (1 - t.hp / (t.max * 0.3)) * 0.4 - Math.max(0, t.lv - leader.lv) * 0.04 - (UNITS[t.type].rare ? 0.15 : 0) + 0.05 * sk('tame'), 0.15, 0.95);
+  const chance = clamp(0.55 + (1 - t.hp / (t.max * 0.3)) * 0.4 - Math.max(0, t.lv - leader.lv) * 0.04 - (UNITS[t.type].rare ? 0.15 : 0) + 0.05 * sk('tame') + (S.cls === 'tamer' ? 0.2 : 0), 0.15, 0.95);
   B.fx.push({ t: 0.3, kind: 'dart', x: W.lead.x, y: W.lead.y, x2: t.x, y2: t.y });
   setTimeout(() => {
     if (!B || t.hp <= 0) return;
@@ -913,7 +930,7 @@ function portrait(cv, type, tint) {
   const g = cv.getContext('2d'), w = cv.width, h = cv.height; g.clearRect(0, 0, w, h);
   try {   // same pixel sprite as in the field, enlarged with hard edges
     const D = UNITS[type], dino = D.cls === 'dino', tier = +cv.dataset.t || 0, len = dino ? Math.round(D.size * 2.4 * (1 + 0.07 * tier)) : 22, spr = unitSprite(type, len, tier), A = spr.an.idle, row = DIRROW[1];
-    const k = dino ? Math.min(w / (len * 0.86), h / (len * 0.64)) : h / 29, dx = Math.round(w / 2 - spr.ax * k), dy = Math.round(h * (dino ? 0.74 : 0.9) - spr.ay * k);
+    const k = dino ? Math.min(w / (len * 0.86), h / (len * 0.64)) : h / 37, dx = Math.round(w / 2 - spr.ax * k), dy = Math.round(h * (dino ? 0.74 : 0.9) - spr.ay * k);
     cv.style.imageRendering = 'pixelated'; g.imageSmoothingEnabled = false;
     const gr = g.createRadialGradient(w / 2, h * 0.6, 0, w / 2, h * 0.6, h * 0.7); gr.addColorStop(0, 'rgba(210,190,150,.3)'); gr.addColorStop(1, 'rgba(210,190,150,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
     g.drawImage(A.cv, 0, row * spr.fh, spr.fw, spr.fh, dx, dy, spr.fw * k, spr.fh * k);
@@ -1020,14 +1037,23 @@ const lam = (col, extra = {}) => new THREE.MeshLambertMaterial(Object.assign({ c
 const HUMAN3 = { leader: [0x7a6448, 0x3a2e22], hunter: [0x56633a, 0x3a3020], spear: [0x6c5c4a, 0x3a3026], scout: [0x3e5236, 0x2a2a24], shield: [0x5a6470, 0x30343a], gladiator: [0x8a3a2a, 0x3a2a20], crossbow: [0x6a6a66, 0x2e2e2c], gunner: [0x3a4a6a, 0x2a2420], bomber: [0x3a3a38, 0x4a3a26], tamer: [0x8a6a3a, 0x4a3422], shaman: [0x5a3a7a, 0x2a2030], sniper: [0x444a44, 0x2a2e2a],
                  porter: [0x8a7a5a, 0x4a4030], mechanic: [0xc06a20, 0x34405a], medic: [0xe2ddd0, 0x6a6a70], venomer: [0x3e4a34, 0x24281c] };
 function makeHuman3(type, tier = 0) {
+  const orig = type; if (type === 'leader' && LEADER_LOOK) type = LEADER_LOOK;
   const type0 = type; type = HUMAN_AS[type] || type;
   const [body, pants] = HUMAN3[type0] || HUMAN3[type], g = new THREE.Group(), s = new THREE.Group(); g.add(s);
   const M = (geo, col, x, y, z, parent = s) => { const m = new THREE.Mesh(geo, typeof col === 'number' ? lam(col) : col); m.position.set(x, y, z); m.castShadow = true; parent.add(m); return m; };
   const B = (w, h, d) => new THREE.BoxGeometry(w, h, d), skin = lam(0xd9a47c), legs = [];
-  for (const sd of [-1, 1]) { const geo = B(2.5, 7, 2.7); geo.translate(0, -3.5, 0); const l = M(geo, pants, sd * 1.7, 7, 0); M(B(2.7, 1.6, 3.6), 0x241a12, 0, -6.4, 0.5, l); legs.push(l); }
+  const shade = (c, k) => { const m = lam(c); m.color.multiplyScalar(k); return m; };
+  for (const sd of [-1, 1]) { const geo = B(2.5, 7, 2.7); geo.translate(0, -3.5, 0); const l = M(geo, pants, sd * 1.7, 7, 0); M(B(2.9, 2.2, 3.8), 0x241a12, 0, -6.1, 0.5, l); M(B(2.7, 1.3, 2.9), shade(pants, 0.72), 0, -3.3, 0.15, l); legs.push(l); }
   M(B(6.6, 7.4, 3.8), body, 0, 10.7, 0); M(B(6.8, 1, 4), 0x2a2018, 0, 7.6, 0);
   M(B(4.8, 5.4, 2.6), 0x4a3a28, 0, 11.4, -3.1);   // backpack
   const head = M(new THREE.IcosahedronGeometry(2.5, 1), skin, 0, 16.9, 0);
+  { // a face and a body that read as a person: hair, eyes, a neck, broad shoulders, a shaded waist, a belt buckle
+    const hairC = [0x2a1c12, 0x4a3422, 0x7a5a34, 0xb89a50, 0x1c1c1c, 0x8a8a84][(type0.length * 7 + type0.charCodeAt(0)) % 6];
+    M(B(5, 2.4, 4.4), hairC, 0, 18.5, -0.5); M(B(5, 3.8, 1.5), hairC, 0, 17, -2.1);
+    M(B(0.8, 0.9, 0.5), 0x1c1410, -1, 17.1, 2.35); M(B(0.8, 0.9, 0.5), 0x1c1410, 1, 17.1, 2.35);
+    M(B(2.2, 1.5, 2.2), skin, 0, 14.5, 0); M(B(8.6, 2.2, 4.2), shade(body, 0.82), 0, 13.5, 0); M(B(6.7, 2.4, 3.9), shade(body, 0.8), 0, 8.9, 0); M(B(1.7, 1.2, 0.5), 0xc8a040, 0, 7.6, 2.05);
+    if (orig === 'leader') M(B(8.8, 1.3, 4.4), 0xb03a24, 0, 14.4, 0.1);   // the leader always wears the red scarf
+  }
   // arms: the right one reaches forward to hold the weapon, the left one hangs or carries
   const armGeo = () => { const a = B(1.9, 6.6, 1.9); a.translate(0, -3.3, 0); return a; };
   const la = M(armGeo(), body, -4.2, 14, 0), ra = M(armGeo(), body, 4.2, 14, 0); la.rotation.x = -0.35; ra.rotation.x = -1.15;
@@ -1080,7 +1106,7 @@ function makeHuman3(type, tier = 0) {
   else if (type0 === 'shaman') { M(B(7.4, 10, 1), 0x5a3a7a, 0, 9.6, -4.8); M(new THREE.SphereGeometry(1.6, 6, 4), 0xe8e0d0, 0, 9, 0, arm); }
   if (tier >= 1) { for (const sd of [-1, 1]) M(B(3.2, 2.4, 4.6), tier >= 2 ? 0xe3a843 : 0x9a9a94, sd * 4.6, 15.3, 0); M(B(7, 2.2, 4.2), 0x8a6a3a, 0, 8.4, 0); M(B(6.9, 3, 0.8), tier >= 2 ? 0xe3a843 : 0x8a8a84, 0, 12.4, 2.1); }
   if (tier >= 2) { M(B(8, 13, 0.8), 0xa02a20, 0, 9, -5.3); M(B(1.3, 5.5, 3.2), 0xe3a843, 0, 22, -0.4); M(B(1.6, 1.6, 1.6), 0x8fe0ff, 0, 0.6, 9, arm); }
-  return { root: g, spin: s, legs, arm, human: true };
+  return { root: g, spin: s, legs, arm, la, head, human: true };
 }
 function makeTurret3() {
   const g = new THREE.Group(), m = lam(0x5a5a54);
@@ -1307,11 +1333,11 @@ function pixelize(cv) {   // hard alpha, a reduced palette and a dark one-pixel 
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const i = y * w + x; if (op[i]) continue; if ((x > 0 && op[i - 1]) || (x < w - 1 && op[i + 1]) || (y > 0 && op[i - w]) || (y < h - 1 && op[i + w])) { const k = i * 4; d[k] = 26; d[k + 1] = 20; d[k + 2] = 16; d[k + 3] = 255; } }
   g.putImageData(im, 0, 0); return cv;
 }
-const ANIMS = { dino: [['idle', 3], ['walk', 6], ['attack', 5], ['death', 5]], human: [['idle', 1], ['walk', 4], ['attack', 2], ['death', 2]], turret: [['idle', 1]] };
+const ANIMS = { dino: [['idle', 3], ['walk', 6], ['attack', 5], ['death', 5]], human: [['idle', 2], ['walk', 6], ['attack', 3], ['death', 2]], turret: [['idle', 1]] };
 function unitSprite(type, len, tier = 0) {
   const D = UNITS[type], kind = type === 'turret' ? 'turret' : D.cls === 'dino' ? 'dino' : 'human'; len = Math.round(kind === 'dino' ? len : 22);
   const key = type + '|' + len + '|' + tier; if (SPR[key]) return SPR[key];
-  const fw = kind === 'dino' ? Math.ceil(len * 1.5) + 8 : kind === 'human' ? 56 : 30, fh = fw, spr = { fw, fh, an: {}, kind };
+  const fw = kind === 'dino' ? Math.ceil(len * 1.5) + 8 : kind === 'human' ? 74 : 30, fh = fw, spr = { fw, fh, an: {}, kind };
   if (!USE3D) {   // no WebGL: fall back to the hand-drawn shapes
     spr.ax = fw >> 1; spr.ay = fh >> 1;
     for (const [name, n] of ANIMS[kind]) { const cv = document.createElement('canvas'); cv.width = fw * n; cv.height = fh * 5; const g = cv.getContext('2d'); BD.forEach((k, row) => { for (let f = 0; f < n; f++) { const x = f * fw + fw / 2, y = row * fh + fh / 2, a = k * Math.PI / 4; if (kind === 'dino') drawDino(g, type, x, y, a, len, f * 1.1, { still: name !== 'walk', dead: name === 'death' }); else if (kind === 'human') drawHuman(g, type, x, y, a, 11, f * 1.6, { still: name !== 'walk' }); else { g.fillStyle = '#6a6a62'; g.fillRect(x - 5, y - 5, 10, 10); } } }); spr.an[name] = { cv, n }; }
@@ -1319,7 +1345,7 @@ function unitSprite(type, len, tier = 0) {
   }
   const b = baker(), obj = kind === 'dino' ? makeDino3(type, len, tier) : kind === 'human' ? makeHuman3(type, tier) : makeTurret3();
   obj.root.traverse(o => { o.frustumCulled = false; }); b.sc.add(obj.root);
-  Object.assign(spr, bakeSetup(fw, fh, kind === 'dino' ? len * 0.2 : 9));
+  Object.assign(spr, bakeSetup(fw, fh, kind === 'dino' ? len * 0.2 : kind === 'human' ? 12 : 9)); if (kind === 'human') obj.root.scale.setScalar(1.3);
   for (const [name, n] of ANIMS[kind]) {
     const cv = document.createElement('canvas'); cv.width = fw * n; cv.height = fh * 5; const g = cv.getContext('2d');
     let clip = null; if (kind === 'dino') { obj.mixer.stopAllAction(); const a = obj.acts[name] || obj.acts.idle; if (a) { a.reset(); a.setLoop(THREE.LoopRepeat); a.play(); clip = a.getClip(); } }
@@ -1327,8 +1353,9 @@ function unitSprite(type, len, tier = 0) {
       if (kind === 'dino' && clip) obj.mixer.setTime(name === 'death' ? clip.duration * Math.min(0.995, (f + 1) / n) : clip.duration * (f / n));
       if (kind === 'human') {
         obj.legs.forEach((l, i) => l.rotation.x = name === 'walk' ? Math.sin(f / n * Math.PI * 2 + i * Math.PI) * 0.7 : 0);
-        obj.arm.position.z = 5.6 - (name === 'attack' ? [1.8, 0.4][f] : 0); obj.spin.rotation.x = name === 'attack' && f === 0 ? -0.12 : 0;
-        obj.spin.rotation.z = name === 'death' ? [0.8, Math.PI / 2][f] : 0; obj.spin.position.y = name === 'death' ? 2 : 0;
+        obj.arm.position.z = 5.6 - (name === 'attack' ? [1.9, 1, 0.2][f] : 0); obj.spin.rotation.x = name === 'attack' && f === 0 ? -0.14 : 0;
+        obj.la.rotation.x = name === 'walk' ? -0.35 + Math.sin(f / n * Math.PI * 2) * 0.6 : -0.35; obj.head.position.y = 16.9 + (name === 'idle' && f === 1 ? 0.3 : 0);
+        obj.spin.rotation.z = name === 'death' ? [0.8, Math.PI / 2][f] : 0; obj.spin.position.y = name === 'death' ? 2 : name === 'idle' && f === 1 ? 0.3 : name === 'walk' && f % 3 === 1 ? 0.4 : 0;
       }
       BD.forEach((k, row) => { obj.spin.rotation.y = Math.PI / 2 - k * Math.PI / 4; snap(g, f * fw, row * fh); });
     }
@@ -1780,7 +1807,7 @@ function drawScene(c, ox, oy, w, h, ents) {
     drawSpr(c, spr, e.anim, e.fi, e.a, x + (e.jit || 0), y);
   }
 }
-const animOf = (kind, moving, ph, T, fast) => moving ? ['walk', (T * (kind === 'dino' ? (fast ? 11 : 7) : 8) + ph) % (kind === 'dino' ? 6 : 4)] : ['idle', kind === 'dino' ? (T * 2.2 + ph) % 3 : 0];
+const animOf = (kind, moving, ph, T, fast) => moving ? ['walk', (T * (kind === 'dino' ? (fast ? 11 : 7) : 8) + ph) % 6] : ['idle', kind === 'dino' ? (T * 2.2 + ph) % 3 : (T * 1.5 + ph) % 2];
 function renderWorld(dt) {
   const cw = wcv.clientWidth, ch = wcv.clientHeight; if (!cw || !ch) return;
   PSZ = bZoom; const w = Math.ceil(cw / PSZ), h = Math.ceil(ch / PSZ); if (wcv.width !== w || wcv.height !== h) { wcv.width = w; wcv.height = h; }
@@ -1792,7 +1819,7 @@ function renderWorld(dt) {
   for (const f of W.folk) if (vis(f.x, f.y)) { const dn = !!f.len, [anim, fi] = animOf(dn ? 'dino' : 'human', f.moving, f.ph, T); ents.push({ x: f.x, y: f.y, a: f.a, type: f.type, len: f.len || 0, size: dn ? f.len / 2.4 : 11, tier: f.tier || 0, anim, fi }); }
   for (const n of W.npcs) for (const m of n.mem) if (vis(m.x, m.y)) { const dn = UNITS[m.type].cls === 'dino', [anim, fi] = animOf(dn ? 'dino' : 'human', m.moving, m.ph, T); ents.push({ x: m.x, y: m.y, a: m.a, type: m.type, len: dn ? UNITS[m.type].size * 2.4 : 0, size: UNITS[m.type].size || 11, anim, fi }); }
   if (B) for (const u of B.units) {
-    const D = UNITS[u.type] || {}, kind = u.turret ? 'turret' : D.cls === 'dino' ? 'dino' : 'human', n = kind === 'dino' ? [5, 5] : [2, 2]; let anim, fi;
+    const D = UNITS[u.type] || {}, kind = u.turret ? 'turret' : D.cls === 'dino' ? 'dino' : 'human', n = kind === 'dino' ? [5, 5] : [3, 2]; let anim, fi;
     if (u.hp <= 0) { u.deadT = (u.deadT || 0) + dt; anim = 'death'; fi = Math.min(n[1] - 1, u.deadT * 9); }
     else if (u.atkT > 0) { anim = 'attack'; fi = (1 - u.atkT / 0.5) * n[0]; }
     else [anim, fi] = animOf(kind, u.moving, u.id * 1.7, T, u.spd > 50);
@@ -2111,7 +2138,7 @@ function renderParty() {
       ${u.type === 'leader' ? '<span class="tag on">대장</span>' : `<button class="btn small ${u.inParty ? '' : 'primary'}" data-act="toggle" data-id="${u.id}">${u.inParty ? '대기' : '참전'}</button>`}</div>`; };
   const reserve = S.units.filter(u => !u.inParty);
   const psecs = [['crew', '대원', S.units.filter(u => u.inParty && u.pts > 0).length], ['rank', '순위'], ['ach', '업적', achReady()], ['bag', '가방', S.items.length], ['dex', '도감'], ['skill', '스킬', S.sp], ['cargo', '짐']];
-  el.innerHTML = `<div class="card"><div class="row"><div class="info"><b>상단 Lv${S.clv} · ${P.length}/${partyCap()}명</b><div class="bar"><i style="width:${S.cxp / cxpNeed(S.clv) * 100}%;background:var(--amber)"></i></div><small>상단 경험치 ${S.cxp}/${cxpNeed(S.clv)} · 장사, 사냥, 의뢰로 올라요 · 레벨마다 인원 +1(최대 12)</small><small>짐칸 ${cargoUsed()}/${capacity()} · 전투 ${S.stats.battles} · 포획 ${S.stats.captures}</small></div><button class="btn small" data-act="snd">${['소리 끔', '효과음만', '소리 켬'][S.snd]}</button></div></div>${chips(psecs, partySec, 'psec')}
+  el.innerHTML = `<div class="card"><div class="row"><div class="info"><b>상단 Lv${S.clv} · ${P.length}/${partyCap()}명</b><div class="bar"><i style="width:${S.cxp / cxpNeed(S.clv) * 100}%;background:var(--amber)"></i></div><small>상단 경험치 ${S.cxp}/${cxpNeed(S.clv)} · 장사, 사냥, 의뢰로 올라요 · 레벨마다 인원 +1(최대 12)</small><small>짐칸 ${cargoUsed()}/${capacity()} · 전투 ${S.stats.battles} · 포획 ${S.stats.captures}</small></div><button class="btn small" data-act="snd">${['소리 끔', '효과음만', '소리 켬'][S.snd]}</button><button class="btn small" data-act="newGame">새 게임</button></div></div>${chips(psecs, partySec, 'psec')}
     ${partySec === 'crew' ? `<h2>자동 설정</h2><div class="card">${[['skill', '스킬 자동 사용', '대원이 준비된 스킬을 알아서 써요 · 끄면 전투 중에 스킬 버튼이 나와요'], ['pot', '회복약 자동 사용', '누군가 체력 30% 아래로 떨어지면 알아서 마셔요 (전투 중 15초에 한 번)'], ['hunt', '자동 사냥', '가까운 무리를 계속 찾아가 사냥해요']].map(([k, n, d]) => `<div class="row"><div class="info"><b>${n}</b><small>${d}</small></div><button class="btn small ${S.auto[k] ? 'primary' : ''}" data-act="auto" data-k="${k}">${S.auto[k] ? '켜짐' : '꺼짐'}</button></div>`).join('')}</div><h2>진형<small>${FORMS[S.form].ds}</small></h2>${chips(Object.entries(FORMS).map(([k, f]) => [k, f.n]), S.form, 'form')}<h2>출전 대원</h2><div class="sub" style="margin:0">▲▼로 줄 서는 순서를 바꿔요. 전투 중에는 대원을 끌어서 자리를 정할 수 있고, 그 자리는 다음 전투에도 기억돼요.${S.units.some(u => u.pos) ? ' <button class="btn small" data-act="resetPos" style="margin-left:6px">배치 초기화</button>' : ''}</div><h2 style="display:none"><small>${''}</small></h2><div class="sub" style="margin:0">상단 전투력 ${fmt(partyPower())} · 용병 일당 하루 ${fmt(wages())}${S.unpaid ? ' <b style="color:var(--bad)">(밀림 · 공격 -20%)</b>' : ''}</div><div class="card">${P.map(row).join('')}</div>
     <h2>대기 대원<small>정착지 우리에서 쉬어요</small></h2><div class="card">${reserve.length ? reserve.map(row).join('') : '<div class="row"><div class="info"><small>없어요. 사냥터에서 공룡을 포획하거나 고용소에서 대원을 구하세요</small></div></div>'}</div>` : ''}
     ${partySec === 'bag' ? `<h2>우두머리 증표<small>변이 진화와 특수 전직에 써요 · 우두머리를 잡으면 하나씩 얻어요</small></h2><div class="card"><div class="row"><div class="info"><small style="color:var(--text)">${Object.entries(S.tokens).filter(([, k]) => k > 0).map(([k, n]) => `${TOKEN_N[k]} ${n}개`).join(' · ') || '아직 없어요'}</small><small>공룡 알: ${Object.entries(S.eggBag).filter(([, k]) => k > 0).map(([ez, k]) => `${ZONES[ez].n} ${k}개`).join(' · ') || '없음'}</small></div></div></div><h2>가방<small>장비 ${S.items.length}/${BAG_MAX} · 대원의 관리 버튼에서 착용해요</small></h2><div class="card">${S.items.length ? [...S.items].sort((a, b) => b.r - a.r || b.lv - a.lv).map(it => `<div class="row"><div class="info"><b>${itemName(it)}</b><small>${SLOTS[it.slot]} · Lv${it.lv} · ${itemText(it)}</small></div><button class="btn small" data-act="sellItem" data-it="${it.id}">${itemPrice(it)}에 팔기</button></div>`).join('') : '<div class="row"><div class="info"><small>아직 얻은 장비가 없어요. 사냥에서 이기면 가끔 떨어져요</small></div></div>'}</div>` : ''}
@@ -2232,6 +2259,8 @@ document.body.addEventListener('click', e => {
   else if (act === 'ach') { const i = ACH.findIndex(a => a[0] === b.dataset.k), A = ACH[i], t = S.ach[A[0]] || 0; if (t >= 5 || A[2]() < A[3][t]) return; const pz = achPrize(i, t); S.money += pz; S.ach[A[0]] = t + 1; sfx('win'); toast(`업적 달성: ${A[1]} ${t + 1}단계 · 상금 ${fmt(pz)} 크레딧`, 'good'); }
   else if (act === 'coach') { const zt = b.dataset.z, c = coachCost(zt); if (B || !inTown() || !S.seen[zt] || S.money < c) return; S.money -= c; const T = TOWNS[zt]; W.lead.x = T.x; W.lead.y = T.y + 60; W.lead.tx = null; W.dest = null; W.target = null; for (const cr of W.crew) { cr.x = T.x; cr.y = T.y + 60; } W.cam.x = T.x; W.cam.y = T.y; S.pos = { x: T.x, y: T.y + 60 }; S.zone = zt; W.here = ''; flash(0.8); sfx('march'); toast(`역마차로 ${ZONES[zt].n}에 도착했어요`, 'good'); showWorld(); return; }
   else if (act === 'asc') { const u = S.units.find(x => x.id === +b.dataset.id); if (!u || (u.asc || 0) >= ASC.length || u.lv < ASC[u.asc || 0] || S.money < ascCost(u)) return; S.money -= ascCost(u); u.asc = (u.asc || 0) + 1; u.hp = maxHp(u); u.ko = false; sfx('win'); flash(0.7); toast(`${unitName(u)} · 초월 ${u.asc}단계!`, 'good'); checkRank(); save(); renderAll(); unitModal(u.id); return; }
+  else if (act === 'pickClass') { S.cls = b.dataset.k; applyClass(); const u = S.units.find(x => x.type === 'leader'); if (u) { u.hp = maxHp(u); u.ko = false; } if (S.cls === 'merchant') S.money = Math.max(S.money, 800); if (S.cls === 'tamer') S.darts += 3; closeModal(); if (W) { W.crew = []; syncCrew(); } sfx('win'); toast(`${CLASSES[S.cls].n} 대장으로 시작해요 · 정착지 가까이의 작은 공룡부터 사냥하세요`, 'good'); save(); renderAll(); return; }
+  else if (act === 'newGame') { if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = '정말 처음부터? 한 번 더'; b.classList.add('primary'); return; } try { localStorage.removeItem(SAVE); } catch (e) { /* nothing stored */ } S = null; location.reload(); return; }
   else if (act === 'stat') { const u = S.units.find(x => x.id === +b.dataset.id); if (!u || !(u.pts > 0)) return; const r = u.hp / maxHp(u); if (b.dataset.k === 'auto') { const pref = { '탱커': 'h', '짐꾼': 'h', '회복': 'h' }[UNITS[u.type].role] || 'a'; while (u.pts > 0) { const k = u.pts % 3 === 0 ? 'd' : u.pts % 3 === 1 ? pref : (pref === 'a' ? 'h' : 'a'); u.st[k]++; u.pts--; } } else { u.st[b.dataset.k]++; u.pts--; } u.hp = Math.round(maxHp(u) * r); sfx('capture'); checkRank(); save(); renderAll(); unitModal(u.id); return; }
   else if (act === 'feed') { const u = S.units.find(x => x.id === +b.dataset.id); if (!u || !(S.cargo.meat >= 3)) return; S.cargo.meat -= 3; if (!S.cargo.meat) delete S.cargo.meat; u.wins = (u.wins || 0) + 1; sfx('heal'); save(); renderAll(); unitModal(u.id); return; }
   else if (act === 'form') { S.form = b.dataset.k; sfx('tap'); }
@@ -2292,7 +2321,7 @@ document.body.addEventListener('click', e => {
 });
 $('tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { sfx('tap'); showWorld(); } });
 document.addEventListener('pointerdown', sndInit);
-$('modal').addEventListener('click', e => { if (e.target.id === 'modal' && !$('mcard').querySelector('[data-act="closeBattle"]')) closeModal(); });
+$('modal').addEventListener('click', e => { if (e.target.id === 'modal' && !$('mcard').querySelector('[data-act="closeBattle"]') && !$('mcard').querySelector('[data-act="pickClass"]')) closeModal(); });
 window.addEventListener('resize', () => { if (worldLive()) resizeBattle(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
 
@@ -2316,14 +2345,14 @@ for (const u of S.units) { if (u.type === 'pachy') u.type = 'para'; if (u.type =
 S.items = S.items || []; S.cleared = S.cleared || {}; if (S.food === undefined) S.food = 100; if (S.pots === undefined) S.pots = 2; S.tokens = S.tokens || {}; S.eggBag = S.eggBag || {}; S.eggs = S.eggs || []; S.tower = S.tower || 0; S.ach = S.ach || {}; S.seen = S.seen || { [S.zone]: 1 }; S.bossKills = S.bossKills || {}; S.auto = Object.assign({ skill: true, pot: true, hunt: false }, S.auto || {}); for (const u of S.units) { u.st = u.st || { a: 0, h: 0, d: 0 }; if (u.pts === undefined) u.pts = 3 * (u.lv - 1); u.wins = u.wins || 0; } S.stones = S.stones || 0; S.bank = S.bank || 0; S.invest = S.invest || {}; S.store = S.store || {}; S.form = S.form || 'bal'; S.rival = S.rival || {}; for (const [z, r] of Object.entries(RIVALS)) { if (S.rival[z] === undefined) S.rival[z] = r[1]; S.drift[z] = S.drift[z] || {}; S.press[z] = S.press[z] || {}; } if (!S.pos) { const T0 = TOWNS[S.zone] || TOWNS.plain; S.pos = { x: T0.x, y: T0.y + 70 }; }
 S.clv = S.clv || 1; S.cxp = S.cxp || 0; S.sp = S.sp || 0; S.skills = S.skills || {}; S.jobs = S.jobs || {}; S.out = S.out || {}; S.quests = S.quests || {};
 for (const z of Object.keys(ZONES)) for (const g of Object.keys(GOODS)) { if (S.drift[z][g] === undefined) S.drift[z][g] = 1; if (S.press[z][g] === undefined) S.press[z][g] = 1; }
-ensureQuests(); S.wander = null; S.heroes = S.heroes || {};
+ensureQuests(); S.wander = null; S.heroes = S.heroes || {}; const freshRun = !S.cls && S.stats.battles === 0 && S.units.length === 1; if (!S.cls && !freshRun) S.cls = 'gunner'; applyClass();
 S.dex = S.dex || {}; for (const u of S.units) if (UNITS[u.type].cls === 'dino') S.dex[u.type] = 2;
 $('v-town').innerHTML = '<div id="loading"><b style="font-family:var(--f-display);font-size:20px;color:var(--rust)">공룡 상단</b><span id="loadTxt">불러오는 중…</span></div>';
 loadModels((n, t) => { const el = $('loadTxt'); if (el) el.textContent = `공룡 모델 불러오는 중 ${n}/${t}`; }).then(ok => {
   USE3D = ok;
   if (ok) { try { makePortraits(); } catch (e) { USE3D = false; } }
   const el = $('loadTxt'); if (el) el.textContent = '픽셀 월드 그리는 중…';
-  setTimeout(() => { setView('party'); showWorld(); if (S.stats.battles === 0) toast('혼자 시작해요 · 정착지 가까이의 작은 공룡부터 사냥해 돈을 모으고, 고용소에서 첫 동료를 구하세요'); }, 60);
+  setTimeout(() => { setView('party'); showWorld(); if (freshRun && !S.cls) { classModal(); return; } if (S.stats.battles === 0) toast('혼자 시작해요 · 정착지 가까이의 작은 공룡부터 사냥해 돈을 모으고, 고용소에서 첫 동료를 구하세요'); }, 60);
 });
 window.__dino = { get S() { return S; }, get B() { return B; }, get W() { return W; }, UNITS, ZONES, TD, set speed(v) { bSpeed = v; }, addUnit, xpNeed, partyPower, groundPower, VO: () => VO, walkTo, TOWNS, GROUNDS, SPR };
 requestAnimationFrame(frame);
