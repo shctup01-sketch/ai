@@ -157,7 +157,7 @@ h2 { margin-top: 2px; } h2 small { display: block; margin: 3px 0 0; line-height:
 .bfoot .btn { min-height: 46px; } #bCapture { flex: 1.6; font-size: 14px; } #fNearest { flex: 1.5; }
 .dexg { gap: 8px; } .dexc { border-radius: 10px; }
 #menu { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.ic { flex: none; width: 40px; height: 40px; image-rendering: pixelated; border-radius: 8px; border: 1px solid var(--line); }
+.ic { flex: none; width: 42px; height: 42px; image-rendering: pixelated; border-radius: 8px; border: 1px solid var(--line); }
 .artg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .artc { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 6px 6px 8px; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .artc canvas { width: 100%; height: auto; aspect-ratio: 5 / 4; border-radius: 8px; display: block; }
@@ -965,43 +965,80 @@ const ICONS = {
 const ICON_URL = {};
 function icon(key, rar) {
   const id = key + '|' + (rar ?? ''); if (ICON_URL[id]) return ICON_URL[id];
-  const cv = document.createElement('canvas'); cv.width = cv.height = 40; const g = cv.getContext('2d'), rc = rar !== undefined && rar !== null ? RAR[rar].c : null;
-  g.fillStyle = '#1a1510'; g.fillRect(0, 0, 40, 40); if (rc) { g.fillStyle = rc; g.globalAlpha = 0.16; g.fillRect(0, 0, 40, 40); g.globalAlpha = 1; }
-  for (const t of (ICONS[key] || ICONS.token).split(' ')) { const [x, y, w, h] = t.slice(1).split(',').map(Number); g.fillStyle = 'rgba(0,0,0,.45)'; g.fillRect(x * 2 + 2, y * 2 + 2, w * 2, h * 2); }
-  for (const t of (ICONS[key] || ICONS.token).split(' ')) { const [x, y, w, h] = t.slice(1).split(',').map(Number); g.fillStyle = IC_COL[t[0]]; g.fillRect(x * 2, y * 2, w * 2, h * 2); }
-  if (rc) { g.strokeStyle = rc; g.lineWidth = 2; g.strokeRect(1, 1, 38, 38); }
+  const cv = document.createElement('canvas'); cv.width = cv.height = 60; const g = cv.getContext('2d'), rc = rar !== undefined && rar !== null ? RAR[rar].c : null, parts = (ICONS[key] || ICONS.token).split(' ').map(t => [t[0], ...t.slice(1).split(',').map(Number)]);
+  g.fillStyle = '#17120d'; g.fillRect(0, 0, 60, 60);
+  const gl = g.createRadialGradient(30, 30, 2, 30, 30, 40); gl.addColorStop(0, rc ? rc : '#6a5a44'); gl.addColorStop(1, 'rgba(0,0,0,0)'); g.globalAlpha = rc ? 0.34 : 0.22; g.fillStyle = gl; g.fillRect(0, 0, 60, 60); g.globalAlpha = 1;
+  for (const [c, x, y, w, h] of parts) { g.fillStyle = 'rgba(0,0,0,.5)'; g.fillRect(x * 3 + 3, y * 3 + 3, w * 3, h * 3); }
+  for (const [c, x, y, w, h] of parts) {   // each piece gets a lit edge and a shaded edge
+    g.fillStyle = IC_COL[c]; g.fillRect(x * 3, y * 3, w * 3, h * 3);
+    if (w * 3 > 3 && h * 3 > 3) { g.fillStyle = 'rgba(255,255,255,.26)'; g.fillRect(x * 3, y * 3, w * 3, 1); g.fillRect(x * 3, y * 3, 1, h * 3); g.fillStyle = 'rgba(0,0,0,.3)'; g.fillRect(x * 3, y * 3 + h * 3 - 1, w * 3, 1); g.fillRect(x * 3 + w * 3 - 1, y * 3, 1, h * 3); }
+  }
+  if (rar >= 3) { g.fillStyle = '#fff'; for (const [x, y] of [[9, 9], [48, 14], [44, 46]]) { g.fillRect(x, y - 2, 1, 5); g.fillRect(x - 2, y, 5, 1); } }
+  if (rc) { g.strokeStyle = rc; g.lineWidth = 3; g.strokeRect(1.5, 1.5, 57, 57); g.strokeStyle = 'rgba(0,0,0,.5)'; g.lineWidth = 1; g.strokeRect(3.5, 3.5, 53, 53); }
   let url = ''; try { url = cv.toDataURL(); } catch (e) { url = ''; } return ICON_URL[id] = url;
 }
 const ic = (key, rar) => `<img class="ic" alt="" src="${icon(key, rar)}">`;
 const itemIc = it => ic(it.slot + it.r, it.r);
 // Illustrations: each dinosaur and person rendered large, in the pixel style, standing in the land they belong to.
 const ART = {}, ART_BG = { plain: ['#d8b878', '#8f7c50', '#7a6844'], city: ['#98a0a8', '#5e605c', '#4c4e50'], swamp: ['#7a9a78', '#4e5634', '#3e4628'], waste: ['#e09a66', '#a26440', '#8a4e34'], snow: ['#c4dcec', '#d0dade', '#b4c0c8'], volcano: ['#8a4030', '#48403c', '#34302e'], abyss: ['#4a7a58', '#364e3a', '#26382c'], town: ['#a88a5a', '#8e8a80', '#6e6a62'] };
-function unitArt(type, tier = 0) {
-  const key = type + '|' + tier + (type === 'leader' ? S.cls : ''); if (ART[key]) return ART[key];
-  const W0 = 200, H0 = 160, cv = document.createElement('canvas'); cv.width = W0; cv.height = H0; const g = cv.getContext('2d'), D = UNITS[type], dino = D.cls === 'dino';
-  const zk = dino ? (Object.keys(ZONES).find(z => !ZONES[z].far && (ZONES[z].wild.includes(type) || ZONES[z].rare.includes(type))) || 'plain') : null, BG = ART_BG[zk ? bioOf(zk) : 'town'];
-  g.fillStyle = BG[0]; g.fillRect(0, 0, W0, H0);
-  for (let y = 0; y < 104; y += 2) { g.fillStyle = `rgba(255,255,255,${0.2 * (1 - y / 104)})`; g.fillRect(0, y, W0, 2); }
-  g.fillStyle = 'rgba(255,244,214,.55)'; g.fillRect(150, 18, 22, 22); g.fillRect(146, 22, 30, 14); g.fillRect(154, 14, 14, 30);
-  g.fillStyle = BG[2]; for (let x = 0; x < W0; x += 4) { const hh = 14 + Math.round(vnoise(x / 26 + type.length, 3.3) * 22); g.fillRect(x, 104 - hh, 4, hh); }
-  g.fillStyle = BG[1]; g.fillRect(0, 104, W0, 56); for (let q = 0; q < 90; q++) { g.fillStyle = q % 2 ? BG[2] : 'rgba(255,255,255,.1)'; g.fillRect(Math.floor(hash2(q, type.length) * W0), 106 + Math.floor(hash2(q, 9) * 52), 3, 1); }
-  pxEllipse(g, 100, 136, dino ? 74 : 26, dino ? 12 : 7, 'rgba(0,0,0,.32)');
+const ART_SKY = { plain: ['#f0c070', '#e8a868', '#c88a5a'], city: ['#8a9aac', '#a8a8a0', '#c8b490'], swamp: ['#5a7a6a', '#7a9a78', '#a8b488'], waste: ['#f08a4a', '#f0a860', '#f4c880'], snow: ['#9ab8d8', '#c0d8ea', '#e8f0f4'], volcano: ['#2a1418', '#6a2420', '#c8502a'], abyss: ['#1e3a34', '#2e5a44', '#5a8a58'], town: ['#3a4a6a', '#8a6a5a', '#e0a060'] };
+function artScene(g, W0, H0, bio, seed) {   // sky, far shapes, ground, all in the land's colours
+  const SK = ART_SKY[bio], BG = ART_BG[bio], hz = Math.round(H0 * 0.68), R = seeded(seed * 131 + 7), rr = (a, b) => a + R() * (b - a), mix = (a, b, t) => { const x = hex(a), y = hex(b); return `rgb(${x.map((v, k) => Math.round(v + (y[k] - v) * t)).join(',')})`; };
+  for (let y = 0; y < hz; y += 2) { const t = y / hz, c = t < 0.5 ? mix(SK[0], SK[1], t * 2) : mix(SK[1], SK[2], (t - 0.5) * 2); g.fillStyle = c; g.fillRect(0, y, W0, 2); if ((y >> 1) % 2) for (let x = (y >> 1) % 4; x < W0; x += 4) { g.fillStyle = 'rgba(255,255,255,.05)'; g.fillRect(x, y, 2, 2); } }
+  const sx = Math.round(W0 * (bio === 'volcano' ? 0.5 : 0.76)), sy = Math.round(hz * (bio === 'town' ? 0.72 : 0.34)), sc = bio === 'volcano' ? '255,120,40' : bio === 'snow' ? '255,255,255' : bio === 'abyss' || bio === 'swamp' ? '220,255,200' : '255,236,190';
+  for (let r = 46; r > 0; r -= 6) { g.fillStyle = `rgba(${sc},${r > 16 ? 0.06 : 0.9})`; g.beginPath(); g.arc(sx, sy, r, 0, 7); g.fill(); }
+  const far = mix(SK[2], BG[2], 0.55), mid = mix(SK[2], BG[2], 0.85);
+  const ridge = (base, amp, col, f) => { g.fillStyle = col; for (let x = 0; x < W0; x += 2) { const hh = base + Math.round((vnoise(x / f + seed, seed * 0.7) * 0.7 + vnoise(x / (f / 3) + seed, 9.1) * 0.3) * amp); g.fillRect(x, hz - hh, 2, hh); } };
+  if (bio === 'city') { g.fillStyle = far; for (let x = -6; x < W0; x += rr(16, 30)) { const w = rr(12, 24), hh = rr(34, 118); g.fillRect(x, hz - hh, w, hh); g.fillStyle = mix(SK[1], '#000000', 0.5); for (let q = 0; q < 5; q++) g.fillRect(x + 3 + (q % 2) * 7, hz - hh + 8 + q * 12, 3, 5); g.fillStyle = SK[2]; g.fillRect(x + rr(0, w - 5), hz - hh - 1, 5, rr(4, 14)); g.fillStyle = far; } ridge(6, 16, mid, 40); }
+  else if (bio === 'volcano') { g.fillStyle = far; g.beginPath(); g.moveTo(W0 * 0.14, hz); g.lineTo(W0 * 0.42, hz - 118); g.lineTo(W0 * 0.58, hz - 118); g.lineTo(W0 * 0.9, hz); g.fill(); g.fillStyle = '#f08a30'; g.fillRect(W0 * 0.46, hz - 118, W0 * 0.08, 5); g.fillRect(W0 * 0.5, hz - 114, 4, 60); g.fillRect(W0 * 0.5 + 4, hz - 70, 4, 40); for (let q = 0; q < 14; q++) { g.fillStyle = `rgba(90,70,70,${0.35 - q * 0.02})`; g.fillRect(W0 * 0.44 + Math.sin(q) * 16 + q * 3, hz - 126 - q * 9, 34 + q * 3, 10); } ridge(8, 22, mid, 34); }
+  else if (bio === 'snow') { g.fillStyle = far; for (let q = 0; q < 5; q++) { const cx = q * W0 / 4 + rr(-20, 20), hh = rr(60, 126), w = rr(50, 90); g.beginPath(); g.moveTo(cx - w, hz); g.lineTo(cx, hz - hh); g.lineTo(cx + w, hz); g.fill(); g.fillStyle = '#f4f8fa'; g.beginPath(); g.moveTo(cx - w * 0.26, hz - hh * 0.74); g.lineTo(cx, hz - hh); g.lineTo(cx + w * 0.26, hz - hh * 0.74); g.lineTo(cx + 6, hz - hh * 0.66); g.lineTo(cx - 8, hz - hh * 0.8); g.fill(); g.fillStyle = far; } ridge(6, 14, mid, 50); }
+  else if (bio === 'waste') { g.fillStyle = far; for (let q = 0; q < 4; q++) { const x = rr(-20, W0 - 60), w = rr(50, 110), hh = rr(40, 96); g.fillRect(x, hz - hh, w, hh); g.fillRect(x - 8, hz - hh * 0.5, w + 16, hh * 0.5); } g.fillStyle = mid; g.fillRect(W0 * 0.2, hz - 96, 3, 96); for (let q = 0; q < 6; q++) g.fillRect(W0 * 0.2 - 7, hz - 90 + q * 15, 17, 2); ridge(4, 14, mid, 60); }
+  else if (bio === 'abyss' || bio === 'swamp') { for (let l = 0; l < 3; l++) { g.fillStyle = mix(SK[2], BG[2], 0.4 + l * 0.25); for (let x = -20; x < W0; x += rr(22, 40)) { const hh = rr(50, 120) - l * 20, r = rr(18, 34); g.fillRect(x + r - 3, hz - hh, 6, hh); for (let q = 0; q < 5; q++) { g.beginPath(); g.arc(x + r + rr(-r, r) * 0.7, hz - hh + rr(-14, 12), r * rr(0.5, 0.9), 0, 7); g.fill(); } if (bio === 'swamp') for (let q = 0; q < 4; q++) g.fillRect(x + r + rr(-r, r), hz - hh + 6, 2, rr(14, 40)); } } if (bio === 'abyss') for (let q = 0; q < 5; q++) { g.fillStyle = 'rgba(220,255,190,.07)'; g.beginPath(); g.moveTo(W0 * 0.2 + q * 46, 0); g.lineTo(W0 * 0.2 + q * 46 + 22, 0); g.lineTo(W0 * 0.2 + q * 46 - 40, hz); g.lineTo(W0 * 0.2 + q * 46 - 78, hz); g.fill(); } else for (let q = 0; q < 4; q++) { g.fillStyle = 'rgba(210,230,200,.12)'; g.fillRect(0, hz - 22 - q * 16, W0, 7); } }
+  else if (bio === 'town') { ridge(18, 26, far, 60); g.fillStyle = mid; for (let x = 4; x < W0; x += 9) g.fillRect(x, hz - 30 - (x % 18 ? 0 : 4), 6, 34); g.fillRect(0, hz - 20, W0, 3); for (const [x, c] of [[W0 * 0.14, '#9a8a5a'], [W0 * 0.86, '#6a7a5a']]) { g.fillStyle = c; g.beginPath(); g.moveTo(x - 40, hz); g.lineTo(x, hz - 62); g.lineTo(x + 40, hz); g.fill(); g.fillStyle = '#2a1c14'; g.fillRect(x - 6, hz - 20, 12, 20); } for (const x of [W0 * 0.32, W0 * 0.7]) { g.fillStyle = '#3a2e22'; g.fillRect(x, hz - 54, 3, 54); g.fillStyle = 'rgba(255,216,112,.35)'; g.beginPath(); g.arc(x + 1, hz - 58, 14, 0, 7); g.fill(); g.fillStyle = '#ffd870'; g.fillRect(x - 3, hz - 62, 9, 8); } }
+  else { ridge(20, 44, far, 70); g.fillStyle = mid; for (let q = 0; q < 6; q++) { const x = rr(6, W0 - 10), hh = rr(34, 70); g.fillRect(x, hz - hh, 3, hh); for (let b2 = 0; b2 < 4; b2++) { const yy = hz - hh + b2 * 9 + 4, dir = b2 % 2 ? 1 : -1; g.fillRect(dir > 0 ? x : x - 12 + b2, yy, 12 - b2, 2); g.fillRect(x + dir * (12 - b2), yy - 6, 2, 7); } } ridge(6, 16, mid, 44); }
+  // ground: bands that widen toward the viewer, then scattered detail
+  for (let y = hz; y < H0; y += 2) { const t = (y - hz) / (H0 - hz); g.fillStyle = mix(BG[2], BG[1], Math.min(1, t * 1.6)); g.fillRect(0, y, W0, 2); }
+  for (let q = 0; q < 9; q++) { const y = hz + Math.round(Math.pow(q / 9, 1.7) * (H0 - hz)); g.fillStyle = 'rgba(0,0,0,.08)'; g.fillRect(0, y, W0, 1 + (q >> 2)); }
+  for (let q = 0; q < 110; q++) { const t = R(), y = hz + 3 + Math.round(t * t * (H0 - hz - 4)), x = Math.round(R() * W0), k = 1 + Math.round(t * 2); g.fillStyle = q % 3 === 0 ? 'rgba(255,255,255,.14)' : 'rgba(0,0,0,.18)'; g.fillRect(x, y, 2 * k, k); }
+  if (bio === 'volcano') for (let q = 0; q < 5; q++) { g.fillStyle = '#f08a30'; let x = rr(0, W0), y = hz + rr(6, H0 - hz - 8); for (let k = 0; k < 9; k++) { g.fillRect(x, y, 5, 2); x += rr(3, 8); y += rr(-2, 3); } }
+  if (bio === 'swamp' || bio === 'abyss') for (let q = 0; q < 4; q++) { g.fillStyle = 'rgba(30,60,70,.55)'; const y = hz + rr(8, H0 - hz - 12); g.fillRect(rr(0, W0 - 60), y, rr(40, 90), 4); }
+  if (bio === 'snow') for (let q = 0; q < 60; q++) { g.fillStyle = 'rgba(255,255,255,.75)'; g.fillRect(R() * W0, R() * H0, 2, 2); }
+  if (bio === 'plain' || bio === 'waste') for (let q = 0; q < 24; q++) { const x = R() * W0, y = hz + 4 + R() * (H0 - hz - 8); g.fillStyle = bio === 'plain' ? '#b8a058' : '#c88a50'; g.fillRect(x, y - 5, 1, 6); g.fillRect(x + 2, y - 3, 1, 4); g.fillRect(x - 2, y - 4, 1, 5); }
+  return hz;
+}
+function unitArt(type, tier = 0, dark = false) {
+  const key = type + '|' + tier + (type === 'leader' ? S.cls : '') + (dark ? '|d' : ''); if (ART[key]) return ART[key];
+  const W0 = 280, H0 = 224, cv = document.createElement('canvas'); cv.width = W0; cv.height = H0; const g = cv.getContext('2d'), D = UNITS[type], dino = D.cls === 'dino';
+  const zk = dino ? (Object.keys(ZONES).find(z => !ZONES[z].far && (ZONES[z].wild.includes(type) || ZONES[z].rare.includes(type))) || 'plain') : null, bio = zk ? bioOf(zk) : 'town';
+  let seed = 0; for (let q = 0; q < type.length; q++) seed = (seed * 31 + type.charCodeAt(q)) % 997;
+  const hz = artScene(g, W0, H0, bio, seed), gy = Math.round(H0 * 0.86);
+  pxEllipse(g, W0 / 2, gy + 2, dino ? 96 : 34, dino ? 9 : 6, 'rgba(0,0,0,.42)');
   let drawn = false;
   if (USE3D) try {
-    const b = baker(), obj = dino ? makeDino3(type, 168, tier) : makeHuman3(type, tier), tmp = document.createElement('canvas'); tmp.width = W0; tmp.height = H0;
-    if (!dino) obj.root.scale.setScalar(5.2); obj.root.traverse(o => { o.frustumCulled = false; });
-    if (dino && obj.acts.idle) { obj.acts.idle.play(); obj.mixer.setTime(0.5); }
-    obj.spin.rotation.y = Math.PI / 2 - 0.72; b.sc.add(obj.root); const an = bakeSetup(W0, H0, dino ? 40 : 56); snap(tmp.getContext('2d'), 0, 0); b.sc.remove(obj.root);
-    g.drawImage(pixelize(tmp), 100 - an.ax, 136 - an.ay); drawn = true;
+    const b = baker(), obj = dino ? makeDino3(type, 212, tier) : makeHuman3(type, tier), tmp = document.createElement('canvas'); tmp.width = W0; tmp.height = H0;
+    if (!dino) { obj.root.scale.setScalar(7); obj.arm.position.z = 5.6 - 1.2; obj.legs.forEach((l, q) => l.rotation.x = q ? 0.28 : -0.28); obj.la.rotation.x = -0.6; }
+    obj.root.traverse(o => { o.frustumCulled = false; });
+    if (dino) { const calm = D.role === '짐꾼' || D.role === '균형', a = (calm ? obj.acts.walk : obj.acts.attack) || obj.acts.idle; if (a) { a.play(); obj.mixer.setTime(a.getClip().duration * (calm ? 0.3 : 0.42)); } }
+    obj.spin.rotation.y = Math.PI / 2 - (dino ? 0.42 : 0.62);
+    const rim = new THREE.DirectionalLight(srgb(bio === 'volcano' ? 0xff7030 : bio === 'snow' ? 0xb8dcff : bio === 'abyss' || bio === 'swamp' ? 0x9affb0 : 0xffd8a0), 0.9); rim.position.set(160, 70, -200); b.sc.add(rim, obj.root);
+    const an = bakeSetup(W0, H0, dino ? 60 : 78, 0.24); snap(tmp.getContext('2d'), 0, 0); b.sc.remove(obj.root, rim); pixelize(tmp);
+    if (dark) { const t2 = tmp.getContext('2d'); t2.globalCompositeOperation = 'source-in'; t2.fillStyle = '#0c0a08'; t2.fillRect(0, 0, W0, H0); }
+    g.drawImage(tmp, Math.round(W0 / 2 - an.ax), gy - an.ay); drawn = true;
   } catch (e) { drawn = false; }
-  if (!drawn) { const spr = unitSprite(type, dino ? Math.round(D.size * 2.4) : 22, tier), A = spr.an.idle, k = dino ? 120 / Math.max(40, D.size * 2.4) : 3.4; g.imageSmoothingEnabled = false; g.drawImage(A.cv, 0, DIRROW[1] * spr.fh, spr.fw, spr.fh, 100 - spr.ax * k, 136 - spr.ay * k, spr.fw * k, spr.fh * k); }
-  const gold = D.rare || tier >= 2; g.strokeStyle = gold ? '#e3a843' : '#2a2018'; g.lineWidth = 4; g.strokeRect(2, 2, W0 - 4, H0 - 4); if (gold) { g.fillStyle = '#ffe9a0'; for (const [x, y] of [[10, 10], [186, 10], [10, 146], [186, 146]]) g.fillRect(x, y, 4, 4); }
+  if (!drawn) { const spr = unitSprite(type, dino ? Math.round(D.size * 2.4) : 22, tier), A = spr.an.idle, k = dino ? 170 / Math.max(40, D.size * 2.4) : 4.6; g.imageSmoothingEnabled = false; g.drawImage(A.cv, 0, DIRROW[1] * spr.fh, spr.fw, spr.fh, W0 / 2 - spr.ax * k, gy - spr.ay * k, spr.fw * k, spr.fh * k); }
+  // foreground blades, an edge of shadow, then the frame
+  const R = seeded(seed + 5); for (let q = 0; q < 26; q++) { const x = Math.round(R() * W0), hh = 6 + Math.round(R() * 16); g.fillStyle = ART_BG[bio][2]; g.fillRect(x, H0 - hh, 2, hh); g.fillRect(x + 3, H0 - hh + 4, 2, hh - 4); }
+  const vg = g.createRadialGradient(W0 / 2, H0 * 0.55, H0 * 0.35, W0 / 2, H0 * 0.55, H0 * 0.86); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.55)'); g.fillStyle = vg; g.fillRect(0, 0, W0, H0);
+  if (dark) { g.fillStyle = 'rgba(8,6,4,.62)'; g.fillRect(0, 0, W0, H0); g.fillStyle = 'rgba(236,227,212,.5)'; g.font = '700 54px sans-serif'; g.textAlign = 'center'; g.fillText('?', W0 / 2, 64); }
+  const gold = !dark && (D.rare || tier >= 2), fc = gold ? '#e3a843' : '#3a2e22';
+  g.fillStyle = '#120e0a'; g.fillRect(0, 0, W0, 4); g.fillRect(0, H0 - 4, W0, 4); g.fillRect(0, 0, 4, H0); g.fillRect(W0 - 4, 0, 4, H0);
+  g.fillStyle = fc; g.fillRect(4, 4, W0 - 8, 3); g.fillRect(4, H0 - 7, W0 - 8, 3); g.fillRect(4, 4, 3, H0 - 8); g.fillRect(W0 - 7, 4, 3, H0 - 8);
+  g.fillStyle = gold ? '#fff0b0' : '#6a5a44'; for (const [x, y] of [[4, 4], [W0 - 13, 4], [4, H0 - 13], [W0 - 13, H0 - 13]]) { g.fillRect(x, y, 9, 9); g.fillStyle = '#120e0a'; g.fillRect(x + 3, y + 3, 3, 3); g.fillStyle = gold ? '#fff0b0' : '#6a5a44'; }
+  if (!dark && tier > 0) for (let q = 0; q < tier; q++) { g.fillStyle = '#e3a843'; g.fillRect(16 + q * 14, 14, 10, 10); g.fillStyle = '#fff0b0'; g.fillRect(19 + q * 14, 17, 4, 4); }
   return ART[key] = cv;
 }
 function portrait(cv, type, tint) {
-  if (cv.dataset.art) { const g0 = cv.getContext('2d'); cv.width = 200; cv.height = 160; cv.style.imageRendering = 'pixelated'; g0.imageSmoothingEnabled = false;
-    if (cv.dataset.art === 'unk') { g0.fillStyle = '#16120e'; g0.fillRect(0, 0, 200, 160); g0.fillStyle = '#3a2e22'; g0.font = '700 90px sans-serif'; g0.textAlign = 'center'; g0.fillText('?', 100, 112); g0.strokeStyle = '#2a2018'; g0.lineWidth = 4; g0.strokeRect(2, 2, 196, 156); }
-    else g0.drawImage(unitArt(type, +cv.dataset.t || 0), 0, 0); return; }
+  if (cv.dataset.art) { const g0 = cv.getContext('2d'); cv.width = 280; cv.height = 224; g0.imageSmoothingEnabled = false; g0.drawImage(unitArt(type, +cv.dataset.t || 0, cv.dataset.art === 'unk'), 0, 0); return; }
   const g = cv.getContext('2d'), w = cv.width, h = cv.height; g.clearRect(0, 0, w, h);
   try {   // same pixel sprite as in the field, enlarged with hard edges
     const D = UNITS[type], dino = D.cls === 'dino', tier = +cv.dataset.t || 0, len = dino ? Math.round(D.size * 2.4 * (1 + 0.07 * tier)) : 22, spr = unitSprite(type, len, tier), A = spr.an.idle, row = DIRROW[1];
@@ -1056,6 +1093,7 @@ function groundTex(kind) {
    ================================================================ */
 const MODEL_FILES = { iguan: 'Parasaurolophus', pachyc: 'Parasaurolophus', micro: 'Velociraptor', utah: 'Velociraptor', kentro: 'Stegosaurus', anky: 'Stegosaurus', styra: 'Triceratops', carno: 'Trex', allo: 'Trex', spino: 'Trex', diplo: 'Apatosaurus', brachio: 'Apatosaurus', trike: 'Triceratops', para: 'Parasaurolophus', raptor: 'Velociraptor', compy: 'Velociraptor', dilo: 'Trex', stego: 'Stegosaurus', apato: 'Apatosaurus', trex: 'Trex',
   trikeIron: 'Triceratops', trikeRed: 'Triceratops', paraGold: 'Parasaurolophus', apatoMoss: 'Apatosaurus', raptorShadow: 'Velociraptor', raptorVenom: 'Velociraptor', stegoRust: 'Stegosaurus', trexYoung: 'Trex' };
+const BACK_H = { Trex: 0.5, Velociraptor: 0.5, Parasaurolophus: 0.52, Triceratops: 0.4, Stegosaurus: 0.5, Apatosaurus: 0.4 };   // where the back is, as a share of full height
 const MODEL_SHAPE = { anky: [1.2, 0.72, 0.95], kentro: [0.85, 0.9, 0.92], brachio: [1, 1.38, 0.96], diplo: [0.8, 0.82, 1.22], spino: [0.95, 1, 1.18], carno: [0.9, 0.92, 1], pachyc: [1, 0.92, 0.86], iguan: [1.12, 1.08, 1], utah: [1.08, 1.05, 1], micro: [0.9, 0.9, 1] };   // width, height, length
 const HUMAN_AS = { scout: 'sniper', shield: 'spear', gladiator: 'spear', crossbow: 'hunter', gunner: 'leader', bomber: 'mechanic', tamer: 'hunter', shaman: 'medic' };
 const DINO_AS = { iguan: 'para', pachyc: 'para', micro: 'raptor', utah: 'raptor', kentro: 'stego', anky: 'stego', styra: 'trike', carno: 'trex', allo: 'trex', spino: 'trex', diplo: 'apato', brachio: 'apato' };
@@ -1199,13 +1237,13 @@ function makeDino3(type, len, tier = 0) {
   const SH = MODEL_SHAPE[type]; if (SH) { const k = len / M.len; inst.scale.set(k * (M.ax === 'x' ? SH[2] : SH[0]), k * SH[1], k * (M.ax === 'x' ? SH[0] : SH[2])); }
   const g = new THREE.Group(), s = new THREE.Group(); s.add(inst); g.add(s);
   { // add-ons that make a species read at a glance: a sail, back armour, a crown of spikes
-    const hgt = (M.h || M.len * 0.4) * (len / M.len) * (SH ? SH[1] : 1), put = (w, h, l, col, along, up, side = 0) => { const m = new THREE.Mesh(new THREE.BoxGeometry(M.ax === 'x' ? l : w, h, M.ax === 'x' ? w : l), lam(col)); m.position.set(M.ax === 'x' ? along : side, up, M.ax === 'x' ? side : along); s.add(m); return m; };
-    if (type === 'spino') for (let k = -3; k <= 3; k++) put(len * 0.012 + 0.6, len * (0.2 - Math.abs(k) * 0.035), len * 0.07, k % 2 ? 0xc0603a : 0xa84a2c, k * len * 0.07, hgt * 0.78 + len * 0.07);
-    else if (type === 'anky') { for (let k = -2; k <= 2; k++) for (const sd of [-1, 1]) put(len * 0.07, len * 0.05, len * 0.07, 0x4a4030, k * len * 0.1, hgt * 0.72, sd * len * 0.08); }
-    else if (type === 'styra' || type === 'kentro') for (let k = -2; k <= 2; k++) put(len * 0.02 + 0.5, len * 0.11, len * 0.02 + 0.5, 0xe0d6c0, k * len * 0.07, hgt * 0.5 + len * 0.03);
+    const hgt = (M.h || M.len * 0.4) * (len / M.len) * (SH ? SH[1] : 1) * (BACK_H[MODEL_FILES[type]] || 0.55), put = (w, h, l, col, along, up, side = 0) => { const m = new THREE.Mesh(new THREE.BoxGeometry(M.ax === 'x' ? l : w, h, M.ax === 'x' ? w : l), lam(col)); m.position.set(M.ax === 'x' ? along : side, up, M.ax === 'x' ? side : along); s.add(m); return m; };
+    if (type === 'spino') for (let k = -3; k <= 3; k++) put(len * 0.012 + 0.6, len * (0.2 - Math.abs(k) * 0.035), len * 0.07, k % 2 ? 0xc0603a : 0xa84a2c, k * len * 0.07, hgt + len * 0.06);
+    else if (type === 'anky') { for (let k = -2; k <= 2; k++) for (const sd of [-1, 1]) put(len * 0.07, len * 0.05, len * 0.07, 0x4a4030, k * len * 0.1, hgt * 0.98, sd * len * 0.08); }
+    else if (type === 'styra' || type === 'kentro') for (let k = -2; k <= 2; k++) put(len * 0.02 + 0.5, len * 0.11, len * 0.02 + 0.5, 0xe0d6c0, k * len * 0.07, hgt * 0.9 + len * 0.03);
   }
   if (tier >= 1) {   // a pack saddle once grown, a war banner on the pack leader
-    const by = (M.h || M.len * 0.4) * (len / M.len) * 0.66, w = len * 0.17, sad = new THREE.Mesh(new THREE.BoxGeometry(w, len * 0.07, len * 0.2), lam(tier >= 2 ? 0xa02a20 : 0x6a4a2a)); sad.position.y = by; s.add(sad);
+    const by = (M.h || M.len * 0.4) * (len / M.len) * (SH ? SH[1] : 1) * (BACK_H[MODEL_FILES[type]] || 0.55) * 0.98, w = len * 0.17, sad = new THREE.Mesh(new THREE.BoxGeometry(w, len * 0.07, len * 0.2), lam(tier >= 2 ? 0xa02a20 : 0x6a4a2a)); sad.position.y = by; s.add(sad);
     for (const sd of [-1, 1]) { const bag = new THREE.Mesh(new THREE.BoxGeometry(len * 0.05, len * 0.09, len * 0.13), lam(0x8a6a3a)); bag.position.set(sd * w * 0.6, by - len * 0.04, 0); s.add(bag); }
     if (tier >= 2) { const pole = new THREE.Mesh(new THREE.BoxGeometry(1.2, len * 0.36, 1.2), lam(0x4a3a2a)); pole.position.set(0, by + len * 0.18, -len * 0.06); s.add(pole); const fl = new THREE.Mesh(new THREE.BoxGeometry(len * 0.02 + 0.6, len * 0.12, len * 0.17), lam(0xe3a843)); fl.position.set(0, by + len * 0.3, -len * 0.06 - len * 0.09); s.add(fl); }
   }
@@ -1396,9 +1434,9 @@ function baker() {
   const sc = new THREE.Scene(); sc.add(new THREE.HemisphereLight(0xfff2dc, 0x5a4a38, 0.9)); const sun = new THREE.DirectionalLight(0xfff4e0, 0.85); sun.position.set(-70, 120, 90); sc.add(sun);
   return BK = { cv, r, sc, cam: new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 3000) };
 }
-function bakeSetup(fw, fh, cy) {
+function bakeSetup(fw, fh, cy, pitch = PITCH) {
   const b = baker(), c = b.cam; b.r.setSize(fw, fh, false);
-  c.left = -fw / 2; c.right = fw / 2; c.top = fh / 2; c.bottom = -fh / 2; c.position.set(0, cy + Math.sin(PITCH) * 900, Math.cos(PITCH) * 900); c.lookAt(0, cy, 0); c.updateProjectionMatrix(); c.updateMatrixWorld(true);
+  c.left = -fw / 2; c.right = fw / 2; c.top = fh / 2; c.bottom = -fh / 2; c.position.set(0, cy + Math.sin(pitch) * 900, Math.cos(pitch) * 900); c.lookAt(0, cy, 0); c.updateProjectionMatrix(); c.updateMatrixWorld(true);
   const v = new THREE.Vector3(0, 0, 0).project(c); return { ax: Math.round((v.x * 0.5 + 0.5) * fw), ay: Math.round((-v.y * 0.5 + 0.5) * fh) };
 }
 function snap(g, dx, dy) { const b = baker(); b.r.setClearColor(0x000000, 0); b.r.clear(); b.r.render(b.sc, b.cam); g.drawImage(b.cv, dx, dy); }
@@ -2437,7 +2475,7 @@ loadModels((n, t) => { const el = $('loadTxt'); if (el) el.textContent = `공룡
   const el = $('loadTxt'); if (el) el.textContent = '픽셀 월드 그리는 중…';
   setTimeout(() => { setView('party'); showWorld(); if (freshRun && !S.cls) { classModal(); return; } if (S.stats.battles === 0) toast('혼자 시작해요 · 정착지 가까이의 작은 공룡부터 사냥해 돈을 모으고, 고용소에서 첫 동료를 구하세요'); }, 60);
 });
-window.__dino = { get S() { return S; }, get B() { return B; }, get W() { return W; }, UNITS, ZONES, TD, set speed(v) { bSpeed = v; }, addUnit, xpNeed, partyPower, groundPower, VO: () => VO, walkTo, TOWNS, GROUNDS, SPR };
+window.__dino = { get S() { return S; }, get B() { return B; }, get W() { return W; }, UNITS, ZONES, TD, unitArt, icon, ICONS, set speed(v) { bSpeed = v; }, addUnit, xpNeed, partyPower, groundPower, VO: () => VO, walkTo, TOWNS, GROUNDS, SPR };
 requestAnimationFrame(frame);
 })();
 </script>
