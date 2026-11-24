@@ -157,6 +157,16 @@ h2 { margin-top: 2px; } h2 small { display: block; margin: 3px 0 0; line-height:
 .bfoot .btn { min-height: 46px; } #bCapture { flex: 1.6; font-size: 14px; } #fNearest { flex: 1.5; }
 .dexg { gap: 8px; } .dexc { border-radius: 10px; }
 #menu { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.ic { flex: none; width: 40px; height: 40px; image-rendering: pixelated; border-radius: 8px; border: 1px solid var(--line); }
+.artg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.artc { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 6px 6px 8px; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.artc canvas { width: 100%; height: auto; aspect-ratio: 5 / 4; border-radius: 8px; display: block; }
+.artc b { font-size: 13px; } .artc small { color: var(--muted); font-size: 11px; line-height: 1.35; } .artc.unk b { color: var(--muted); }
+.artc.own { border-color: var(--amber); }
+.itg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.itc { display: flex; gap: 8px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 6px; min-width: 0; }
+.itc .ic { width: 48px; height: 48px; } .itc b { font-size: 12px; display: block; } .itc small { color: var(--muted); font-size: 10.5px; line-height: 1.3; display: block; }
+canvas.bigart { width: min(100%, 300px); height: auto; aspect-ratio: 5 / 4; align-self: center; border-radius: 10px; }
 .ord { display: flex; flex-direction: column; gap: 3px; } .ord .btn { padding: 3px 8px; min-height: 0; font-size: 11px; line-height: 1.2; }
 #bInfo { display: flex; gap: 5px; flex-shrink: 0; }
 .hud { display: inline-flex; align-items: baseline; gap: 5px; background: rgba(18,14,10,.88); border: 1px solid #5a4a38; border-radius: 9px; padding: 4px 9px; font-size: 14px; font-weight: 700; color: #fff; white-space: nowrap; }
@@ -936,7 +946,62 @@ function drawUnit(c, u, L, ph, o) {
   if (UNITS[u.type].cls === 'dino') drawDino(c, u.type, u.x, u.y, u.a, L, ph, o);
   else drawHuman(c, u.type, u.x, u.y, u.a, L, ph, o);
 }
+// Icons: every item, trade good and consumable gets its own small picture, drawn from rectangles on a 20x20 grid.
+const IC_COL = { m: '#c8c8c0', M: '#6a6a70', w: '#8a5a30', W: '#4a3422', b: '#ece2cc', B: '#b8ac90', l: '#9a6a3a', L: '#5a3e24', g: '#6ab04a', G: '#2e6a34', y: '#e3a843', r: '#c8402e', u: '#3a7ab8', k: '#1c1612', s: '#c8b078', a: '#e08a20', c: '#f0e8d4', o: '#a0603a', p: '#8a5ab0' };
+const ICONS = {
+  weapon0: 'W9,8,2,11 b8,3,4,6 b9,1,2,2 B10,3,1,6 L8,9,4,1', weapon1: 'L9,13,2,5 M7,12,6,1 b9,5,3,7 b10,3,2,3 b11,2,1,2 B9,5,1,7', weapon2: 'W4,14,3,4 M4,13,4,1 o5,10,3,4 o7,7,3,5 o9,4,3,5 o11,2,3,4 m7,10,1,3 m9,7,1,3 m11,4,1,3',
+  weapon3: 'M2,8,14,2 k6,10,8,3 w13,10,5,4 M8,6,4,2 k9,13,2,4 m2,8,3,1 y12,11,1,1', weapon4: 'y7,15,6,2 L9,17,2,3 b8,4,4,11 b9,2,2,2 B8,5,1,2 B11,8,1,2 B8,11,1,2 r9,15,2,2',
+  armor0: 'l5,5,10,12 k8,5,4,2 k5,7,1,4 k14,7,1,4 L5,12,10,1 L9,7,1,5 o6,13,3,3', armor1: 'k4,5,12,3 k4,9,12,3 k4,13,12,3 M5,6,10,1 M5,10,10,1 M5,14,10,1 W9,3,2,14', armor2: 'b5,4,10,12 b4,6,12,8 B5,4,10,1 B4,13,12,1 M8,8,4,4 m9,9,2,2 L4,9,1,2 L15,9,1,2',
+  armor3: 'M5,6,10,11 m6,7,8,1 b6,3,2,3 b9,2,2,4 b12,3,2,3 B5,11,10,1 y9,10,2,2 k8,6,4,1', armor4: 'r7,3,6,3 r6,6,8,4 r5,10,10,4 r4,14,12,3 L4,16,12,1 y9,3,2,2 o7,7,1,9 o12,7,1,9',
+  charm0: 'L4,4,1,6 L15,4,1,6 L5,10,1,2 L14,10,1,2 L6,12,8,1 b7,13,2,4 b11,13,2,4 b9,13,2,5 B9,17,2,1', charm1: 'b10,3,1,14 u7,4,3,9 u11,4,3,9 c8,5,1,6 c12,5,1,6 y9,16,3,2 r7,12,3,1 r11,12,3,1', charm2: 'y5,5,10,10 y7,4,6,12 c6,6,8,8 r9,7,2,3 k9,10,2,3 M9,9,2,2 y9,2,2,2',
+  charm3: 'a6,5,8,11 a5,7,10,7 y7,6,6,1 k9,9,2,3 k8,10,4,1 k7,9,1,1 k12,9,1,1 c7,7,2,2', charm4: 'y5,3,6,2 b6,5,4,3 b7,7,4,4 b9,10,4,3 b11,12,3,4 b12,15,2,2 B6,5,1,3 B8,9,1,3 B11,13,1,3',
+  grain: 's5,7,10,10 s6,6,8,1 L8,4,4,2 y7,10,1,4 y10,9,1,5 y13,10,1,4 W5,16,10,1', meat: 'r5,7,10,8 r6,6,8,1 o6,13,8,2 c7,9,3,2 b14,5,3,3 b3,13,3,3 B15,6,1,1', hide: 'l4,5,12,11 l3,6,1,3 l16,6,1,3 l3,12,1,3 l16,12,1,3 L6,7,8,1 L6,13,8,1 o8,9,4,3',
+  bone: 'b4,9,12,3 b3,7,3,3 b3,11,3,3 b14,7,3,3 b14,11,3,3 B5,11,10,1', water: 'u6,6,8,11 M8,4,4,2 c7,10,6,1 c7,13,6,1 M6,16,8,1 m7,7,1,8', ammo: 'y5,7,2,9 y9,7,2,9 y13,7,2,9 M5,5,2,2 M9,5,2,2 M13,5,2,2 o5,15,2,1 o9,15,2,1 o13,15,2,1',
+  parts: 'M6,6,8,8 M9,4,2,2 M9,14,2,2 M4,9,2,2 M14,9,2,2 m7,7,6,1 k9,9,2,2 M6,5,1,1 M13,5,1,1 M6,14,1,1 M13,14,1,1', herb: 'G9,5,2,12 g5,6,4,3 g11,8,4,3 g6,11,3,3 g10,3,3,3 G6,7,2,1 G12,9,2,1', venom: 'c8,3,4,3 w8,2,4,1 g6,7,8,10 g7,6,6,1 G6,15,8,2 c7,8,1,5 k9,10,2,2 k8,12,4,1',
+  jerky: 'L5,5,3,12 o9,4,3,13 L13,6,3,11 W5,8,3,1 W9,9,3,1 W13,10,3,1 W9,13,3,1', armor: 'l5,5,10,12 k8,5,4,2 y5,5,10,1 y5,16,10,1 M7,8,6,6 m8,9,4,1 k5,7,1,4 k14,7,1,4', weapon: 'm9,2,2,12 c9,2,1,12 y6,14,8,2 L9,16,2,3 y9,19,2,1',
+  medicine: 'c7,6,6,11 w8,4,4,2 r9,9,2,6 r7,11,6,2 B7,16,6,1', potion: 'c8,3,4,2 w8,2,4,1 M8,5,4,2 r6,8,8,9 r7,7,6,1 o6,15,8,2 c7,9,1,4', dart: 'M3,9,11,2 m13,8,2,4 m15,9,2,2 u2,7,3,2 u2,11,3,2 r6,9,2,2',
+  egg: 'c7,4,6,13 c6,6,8,9 c8,3,4,1 l8,7,2,2 l11,10,2,2 l8,12,2,2 B6,14,8,1', token: 'y5,5,10,10 y4,7,12,6 y7,4,6,12 o6,6,8,8 r8,8,4,4 y9,9,2,2', stone: 'u8,3,4,14 u6,6,8,8 c9,5,1,6 p7,9,2,4 p11,7,2,5 M7,16,6,1',
+};
+const ICON_URL = {};
+function icon(key, rar) {
+  const id = key + '|' + (rar ?? ''); if (ICON_URL[id]) return ICON_URL[id];
+  const cv = document.createElement('canvas'); cv.width = cv.height = 40; const g = cv.getContext('2d'), rc = rar !== undefined && rar !== null ? RAR[rar].c : null;
+  g.fillStyle = '#1a1510'; g.fillRect(0, 0, 40, 40); if (rc) { g.fillStyle = rc; g.globalAlpha = 0.16; g.fillRect(0, 0, 40, 40); g.globalAlpha = 1; }
+  for (const t of (ICONS[key] || ICONS.token).split(' ')) { const [x, y, w, h] = t.slice(1).split(',').map(Number); g.fillStyle = 'rgba(0,0,0,.45)'; g.fillRect(x * 2 + 2, y * 2 + 2, w * 2, h * 2); }
+  for (const t of (ICONS[key] || ICONS.token).split(' ')) { const [x, y, w, h] = t.slice(1).split(',').map(Number); g.fillStyle = IC_COL[t[0]]; g.fillRect(x * 2, y * 2, w * 2, h * 2); }
+  if (rc) { g.strokeStyle = rc; g.lineWidth = 2; g.strokeRect(1, 1, 38, 38); }
+  let url = ''; try { url = cv.toDataURL(); } catch (e) { url = ''; } return ICON_URL[id] = url;
+}
+const ic = (key, rar) => `<img class="ic" alt="" src="${icon(key, rar)}">`;
+const itemIc = it => ic(it.slot + it.r, it.r);
+// Illustrations: each dinosaur and person rendered large, in the pixel style, standing in the land they belong to.
+const ART = {}, ART_BG = { plain: ['#d8b878', '#8f7c50', '#7a6844'], city: ['#98a0a8', '#5e605c', '#4c4e50'], swamp: ['#7a9a78', '#4e5634', '#3e4628'], waste: ['#e09a66', '#a26440', '#8a4e34'], snow: ['#c4dcec', '#d0dade', '#b4c0c8'], volcano: ['#8a4030', '#48403c', '#34302e'], abyss: ['#4a7a58', '#364e3a', '#26382c'], town: ['#a88a5a', '#8e8a80', '#6e6a62'] };
+function unitArt(type, tier = 0) {
+  const key = type + '|' + tier + (type === 'leader' ? S.cls : ''); if (ART[key]) return ART[key];
+  const W0 = 200, H0 = 160, cv = document.createElement('canvas'); cv.width = W0; cv.height = H0; const g = cv.getContext('2d'), D = UNITS[type], dino = D.cls === 'dino';
+  const zk = dino ? (Object.keys(ZONES).find(z => !ZONES[z].far && (ZONES[z].wild.includes(type) || ZONES[z].rare.includes(type))) || 'plain') : null, BG = ART_BG[zk ? bioOf(zk) : 'town'];
+  g.fillStyle = BG[0]; g.fillRect(0, 0, W0, H0);
+  for (let y = 0; y < 104; y += 2) { g.fillStyle = `rgba(255,255,255,${0.2 * (1 - y / 104)})`; g.fillRect(0, y, W0, 2); }
+  g.fillStyle = 'rgba(255,244,214,.55)'; g.fillRect(150, 18, 22, 22); g.fillRect(146, 22, 30, 14); g.fillRect(154, 14, 14, 30);
+  g.fillStyle = BG[2]; for (let x = 0; x < W0; x += 4) { const hh = 14 + Math.round(vnoise(x / 26 + type.length, 3.3) * 22); g.fillRect(x, 104 - hh, 4, hh); }
+  g.fillStyle = BG[1]; g.fillRect(0, 104, W0, 56); for (let q = 0; q < 90; q++) { g.fillStyle = q % 2 ? BG[2] : 'rgba(255,255,255,.1)'; g.fillRect(Math.floor(hash2(q, type.length) * W0), 106 + Math.floor(hash2(q, 9) * 52), 3, 1); }
+  pxEllipse(g, 100, 136, dino ? 74 : 26, dino ? 12 : 7, 'rgba(0,0,0,.32)');
+  let drawn = false;
+  if (USE3D) try {
+    const b = baker(), obj = dino ? makeDino3(type, 168, tier) : makeHuman3(type, tier), tmp = document.createElement('canvas'); tmp.width = W0; tmp.height = H0;
+    if (!dino) obj.root.scale.setScalar(5.2); obj.root.traverse(o => { o.frustumCulled = false; });
+    if (dino && obj.acts.idle) { obj.acts.idle.play(); obj.mixer.setTime(0.5); }
+    obj.spin.rotation.y = Math.PI / 2 - 0.72; b.sc.add(obj.root); const an = bakeSetup(W0, H0, dino ? 40 : 56); snap(tmp.getContext('2d'), 0, 0); b.sc.remove(obj.root);
+    g.drawImage(pixelize(tmp), 100 - an.ax, 136 - an.ay); drawn = true;
+  } catch (e) { drawn = false; }
+  if (!drawn) { const spr = unitSprite(type, dino ? Math.round(D.size * 2.4) : 22, tier), A = spr.an.idle, k = dino ? 120 / Math.max(40, D.size * 2.4) : 3.4; g.imageSmoothingEnabled = false; g.drawImage(A.cv, 0, DIRROW[1] * spr.fh, spr.fw, spr.fh, 100 - spr.ax * k, 136 - spr.ay * k, spr.fw * k, spr.fh * k); }
+  const gold = D.rare || tier >= 2; g.strokeStyle = gold ? '#e3a843' : '#2a2018'; g.lineWidth = 4; g.strokeRect(2, 2, W0 - 4, H0 - 4); if (gold) { g.fillStyle = '#ffe9a0'; for (const [x, y] of [[10, 10], [186, 10], [10, 146], [186, 146]]) g.fillRect(x, y, 4, 4); }
+  return ART[key] = cv;
+}
 function portrait(cv, type, tint) {
+  if (cv.dataset.art) { const g0 = cv.getContext('2d'); cv.width = 200; cv.height = 160; cv.style.imageRendering = 'pixelated'; g0.imageSmoothingEnabled = false;
+    if (cv.dataset.art === 'unk') { g0.fillStyle = '#16120e'; g0.fillRect(0, 0, 200, 160); g0.fillStyle = '#3a2e22'; g0.font = '700 90px sans-serif'; g0.textAlign = 'center'; g0.fillText('?', 100, 112); g0.strokeStyle = '#2a2018'; g0.lineWidth = 4; g0.strokeRect(2, 2, 196, 156); }
+    else g0.drawImage(unitArt(type, +cv.dataset.t || 0), 0, 0); return; }
   const g = cv.getContext('2d'), w = cv.width, h = cv.height; g.clearRect(0, 0, w, h);
   try {   // same pixel sprite as in the field, enlarged with hard edges
     const D = UNITS[type], dino = D.cls === 'dino', tier = +cv.dataset.t || 0, len = dino ? Math.round(D.size * 2.4 * (1 + 0.07 * tier)) : 22, spr = unitSprite(type, len, tier), A = spr.an.idle, row = DIRROW[1];
@@ -2052,7 +2117,7 @@ const tierNameOf = (type, t) => JOBS[type] ? JOBS[type][t] : TIER_DINO[t] + UNIT
 const tierName = u => u.elite && ELITE[u.type] ? ELITE[u.type].n : tierNameOf(u.type, u.tier || 0);
 const unitName = u => (u.name ? `${u.name}(${tierName(u)})` : tierName(u)) + (u.asc ? ` ◆${u.asc}` : '');
 const stars = n => { n = clamp(Math.round(n * 5 / 8), 1, 5); return '★'.repeat(n) + '☆'.repeat(5 - n); };
-let townSec = 'hunt', partySec = 'crew';
+let townSec = 'hunt', partySec = 'crew', dexTab = 'dino';
 const chips = (list, cur, act) => `<div class="chips">${list.map(([k, n, badge]) => `<button class="chip${k === cur ? ' on' : ''}" data-act="${act}" data-k="${k}">${n}${badge ? `<i>${badge}</i>` : ''}</button>`).join('')}</div>`;
 function zoneHead(z) {
   const Z = ZONES[z];
@@ -2068,7 +2133,7 @@ function renderTown() {
     const cls = rel < 0.85 ? 'up' : rel > 1.2 ? 'down' : '';
     const best = others.map(o => [o, sellPrice(o, g)]).sort((a, b) => b[1] - a[1])[0];
     const tip = best[1] > p ? `<span class="up">${ZONES[best[0]].n}에 팔면 개당 +${best[1] - p}</span>` : best[1] > sp ? `${ZONES[best[0]].n}에서 ${best[1]}` : '여기가 가장 비싸요';
-    return `<div class="row"><div class="info"><b>${G.n} <span class="${cls}" style="font-weight:400;font-size:11px">${G.made ? '가공품' : rel < 0.85 ? '싸요' : rel > 1.2 ? '비싸요' : ''}</span></b><small>${G.made ? '' : `살 때 ${p} · `}팔 때 ${sp} · 보유 ${have}</small><small>${tip}</small></div>
+    return `<div class="row">${ic(g)}<div class="info"><b>${G.n} <span class="${cls}" style="font-weight:400;font-size:11px">${G.made ? '가공품' : rel < 0.85 ? '싸요' : rel > 1.2 ? '비싸요' : ''}</span></b><small>${G.made ? '' : `살 때 ${p} · `}팔 때 ${sp} · 보유 ${have}</small><small>${tip}</small></div>
       ${G.made ? '' : `<button class="btn small" data-act="buy" data-g="${g}" data-n="1" ${S.money < p || used >= cap ? 'disabled' : ''}>1개</button>
       <button class="btn small" data-act="buy" data-g="${g}" data-n="max" ${S.money < p || used >= cap ? 'disabled' : ''}>가득</button>`}
       <button class="btn small primary" data-act="sell" data-g="${g}" ${have ? '' : 'disabled'}>모두 팔기</button></div>`;
@@ -2151,23 +2216,30 @@ function renderParty() {
   el.innerHTML = `<div class="card"><div class="row"><div class="info"><b>상단 Lv${S.clv} · ${P.length}/${partyCap()}명</b><div class="bar"><i style="width:${S.cxp / cxpNeed(S.clv) * 100}%;background:var(--amber)"></i></div><small>상단 경험치 ${S.cxp}/${cxpNeed(S.clv)} · 장사, 사냥, 의뢰로 올라요 · 레벨마다 인원 +1(최대 12)</small><small>짐칸 ${cargoUsed()}/${capacity()} · 전투 ${S.stats.battles} · 포획 ${S.stats.captures}</small></div><button class="btn small" data-act="snd">${['소리 끔', '효과음만', '소리 켬'][S.snd]}</button><button class="btn small" data-act="newGame">새 게임</button></div></div>${chips(psecs, partySec, 'psec')}
     ${partySec === 'crew' ? `<h2>자동 설정</h2><div class="card">${[['skill', '스킬 자동 사용', '대원이 준비된 스킬을 알아서 써요 · 끄면 전투 중에 스킬 버튼이 나와요'], ['pot', '회복약 자동 사용', '누군가 체력 30% 아래로 떨어지면 알아서 마셔요 (전투 중 15초에 한 번)'], ['hunt', '자동 사냥', '가까운 무리를 계속 찾아가 사냥해요']].map(([k, n, d]) => `<div class="row"><div class="info"><b>${n}</b><small>${d}</small></div><button class="btn small ${S.auto[k] ? 'primary' : ''}" data-act="auto" data-k="${k}">${S.auto[k] ? '켜짐' : '꺼짐'}</button></div>`).join('')}</div><h2>진형<small>${FORMS[S.form].ds}</small></h2>${chips(Object.entries(FORMS).map(([k, f]) => [k, f.n]), S.form, 'form')}<h2>출전 대원</h2><div class="sub" style="margin:0">▲▼로 줄 서는 순서를 바꿔요. 전투 중에는 대원을 끌어서 자리를 정할 수 있고, 그 자리는 다음 전투에도 기억돼요.${S.units.some(u => u.pos) ? ' <button class="btn small" data-act="resetPos" style="margin-left:6px">배치 초기화</button>' : ''}</div><h2 style="display:none"><small>${''}</small></h2><div class="sub" style="margin:0">상단 전투력 ${fmt(partyPower())} · 용병 일당 하루 ${fmt(wages())}${S.unpaid ? ' <b style="color:var(--bad)">(밀림 · 공격 -20%)</b>' : ''}</div><div class="card">${P.map(row).join('')}</div>
     <h2>대기 대원<small>정착지 우리에서 쉬어요</small></h2><div class="card">${reserve.length ? reserve.map(row).join('') : '<div class="row"><div class="info"><small>없어요. 사냥터에서 공룡을 포획하거나 고용소에서 대원을 구하세요</small></div></div>'}</div>` : ''}
-    ${partySec === 'bag' ? `<h2>우두머리 증표<small>변이 진화와 특수 전직에 써요 · 우두머리를 잡으면 하나씩 얻어요</small></h2><div class="card"><div class="row"><div class="info"><small style="color:var(--text)">${Object.entries(S.tokens).filter(([, k]) => k > 0).map(([k, n]) => `${TOKEN_N[k]} ${n}개`).join(' · ') || '아직 없어요'}</small><small>공룡 알: ${Object.entries(S.eggBag).filter(([, k]) => k > 0).map(([ez, k]) => `${ZONES[ez].n} ${k}개`).join(' · ') || '없음'}</small></div></div></div><h2>가방<small>장비 ${S.items.length}/${BAG_MAX} · 대원의 관리 버튼에서 착용해요</small></h2><div class="card">${S.items.length ? [...S.items].sort((a, b) => b.r - a.r || b.lv - a.lv).map(it => `<div class="row"><div class="info"><b>${itemName(it)}</b><small>${SLOTS[it.slot]} · Lv${it.lv} · ${itemText(it)}</small></div><button class="btn small" data-act="sellItem" data-it="${it.id}">${itemPrice(it)}에 팔기</button></div>`).join('') : '<div class="row"><div class="info"><small>아직 얻은 장비가 없어요. 사냥에서 이기면 가끔 떨어져요</small></div></div>'}</div>` : ''}
+    ${partySec === 'bag' ? `<h2>우두머리 증표<small>변이 진화와 특수 전직에 써요 · 우두머리를 잡으면 하나씩 얻어요</small></h2><div class="card"><div class="row"><div class="info"><small style="color:var(--text)">${Object.entries(S.tokens).filter(([, k]) => k > 0).map(([k, n]) => `${TOKEN_N[k]} ${n}개`).join(' · ') || '아직 없어요'}</small><small>공룡 알: ${Object.entries(S.eggBag).filter(([, k]) => k > 0).map(([ez, k]) => `${ZONES[ez].n} ${k}개`).join(' · ') || '없음'}</small></div></div></div><h2>가방<small>장비 ${S.items.length}/${BAG_MAX} · 대원의 관리 버튼에서 착용해요</small></h2><div class="card">${S.items.length ? [...S.items].sort((a, b) => b.r - a.r || b.lv - a.lv).map(it => `<div class="row">${itemIc(it)}<div class="info"><b>${itemName(it)}</b><small>${SLOTS[it.slot]} · Lv${it.lv} · ${itemText(it)}</small></div><button class="btn small" data-act="sellItem" data-it="${it.id}">${itemPrice(it)}에 팔기</button></div>`).join('') : '<div class="row"><div class="info"><small>아직 얻은 장비가 없어요. 사냥에서 이기면 가끔 떨어져요</small></div></div>'}</div>` : ''}
     ${partySec === 'ach' ? `<h2>업적<small>단계를 채우면 상금을 받아요</small></h2><div class="card">${ACH.map(([k, n, fn, th, unit], i) => { const t = S.ach[k] || 0, v = fn(), done = t >= 5, ok = !done && v >= th[t];
       return `<div class="row"><span class="num${done ? ' done' : ''}">${done ? '★' : t + 1}</span><div class="info"><b>${n}</b>${done ? '<small>모든 단계를 마쳤어요</small>' : `<div class="bar"><i style="width:${Math.min(100, v / th[t] * 100)}%;background:var(--amber)"></i></div><small>${fmt(Math.min(v, th[t]))}/${fmt(th[t])} ${unit} · 상금 ${fmt(achPrize(i, t))}</small>`}</div><button class="btn small ${ok ? 'primary' : ''}" data-act="ach" data-k="${k}" ${ok ? '' : 'disabled'}>${done ? '완료' : '받기'}</button></div>`; }).join('')}</div>` : ''}
     ${partySec === 'rank' ? (() => { const me = partyPower(), list = [...RANKS.map(r => [r[0], r[1], 0]), ['내 상단', me, 1]].sort((a, b) => b[1] - a[1]), up = list[list.findIndex(r => r[2]) - 1];
       return `<h2>상단 순위<small>출전 대원의 전투력 합계로 겨뤄요 · 한 계단 오를 때마다 상금을 받아요</small></h2><div class="card">${list.map((r, i) => `<div class="row"><span class="num${r[2] ? ' done' : ''}">${i + 1}</span><div class="info"><b style="${r[2] ? 'color:var(--amber)' : ''}">${r[0]}</b><small>전투력 ${fmt(r[1])}</small></div></div>`).join('')}</div>
       <div class="sub">${up ? `${up[0]}까지 전투력 ${fmt(up[1] - me + 1)} 남았어요 · 레벨, 능력치 포인트, 전직·진화, 장비, 숙련도·친밀도가 모두 전투력을 올려요` : '모든 상단을 제쳤어요'}</div>`; })() : ''}
-    ${partySec === 'dex' ? `<h2>공룡 도감<small>${Object.keys(UNITS).filter(t => UNITS[t].cls === 'dino').filter(t => S.dex[t] === 2).length} / ${Object.keys(UNITS).filter(t => UNITS[t].cls === 'dino').length}종 포획</small></h2><div class="dexg">${Object.keys(UNITS).filter(t => UNITS[t].cls === 'dino').map(t => { const st = S.dex[t] || 0, D = UNITS[t]; return `<div class="dexc${st ? '' : ' unk'}${st === 2 ? ' own' : ''}"><canvas data-u="${t}" width="104" height="80"></canvas><b>${st ? D.n : '???'}</b><small>${st === 2 ? (D.rare ? '★희귀 · ' : '') + D.role : st ? '미포획' : (D.rare ? '희귀종' : '미발견')}</small></div>`; }).join('')}</div>` : ''}
+    ${partySec === 'dex' ? (() => { const dinos = Object.keys(UNITS).filter(t => UNITS[t].cls === 'dino'), men = Object.keys(UNITS).filter(t => UNITS[t].cls === 'human');
+      const tabs = chips([['dino', '공룡', 0], ['human', '용병', 0], ['item', '아이템', 0]], dexTab, 'dtab');
+      if (dexTab === 'dino') return `<h2>일러스트 도감<small>공룡 ${dinos.filter(t => S.dex[t] === 2).length} / ${dinos.length}종 보유 · 만난 적 있는 공룡만 그림이 보여요</small></h2>${tabs}<div class="artg">${dinos.map(t => { const st = S.dex[t] || 0, D = UNITS[t]; return `<div class="artc${st ? '' : ' unk'}${st === 2 ? ' own' : ''}"><canvas data-u="${t}" data-art="${st ? 1 : 'unk'}"></canvas><b>${st ? D.n : '???'}${st && D.rare ? ' <span class="tag" style="color:var(--amber)">희귀</span>' : ''}</b><small>${st ? `${D.role} · 체력 ${D.hp} · 공격 ${D.atk} · 방어 ${D.def}` : D.rare ? '희귀종 · 아직 만나지 못했어요' : '아직 만나지 못했어요'}</small>${st ? `<small>${D.ds}</small>` : ''}</div>`; }).join('')}</div>`;
+      if (dexTab === 'human') return `<h2>일러스트 도감<small>용병 ${men.length}종 · 전직하면 겉모습이 바뀌어요</small></h2>${tabs}<div class="artg">${men.map(t => { const D = UNITS[t], own = S.units.filter(u => u.type === t), tr = Math.max(0, ...own.map(u => u.tier || 0)); return `<div class="artc${own.length ? ' own' : ''}"><canvas data-u="${t}" data-t="${tr}" data-art="1"></canvas><b>${JOBS[t] ? JOBS[t][tr] : D.n}</b><small>${D.role} · 체력 ${D.hp} · 공격 ${D.atk} · 방어 ${D.def}${SK[skillOf(t)] ? ' · ' + skName(skillOf(t), tr) : ''}</small><small>${t === 'leader' ? CLASSES[S.cls || 'gunner'].ds : D.ds}</small></div>`; }).join('')}</div>`;
+      const eq = Object.keys(SLOTS).flatMap(sl => ITEM_NAMES[sl].map((n, r) => `<div class="itc">${ic(sl + r, r)}<div><b style="color:${RAR[r].c}">${n}</b><small>${SLOTS[sl]} · ${RAR[r].n}${S.items.some(x => x.slot === sl && x.r === r) || S.units.some(u => (u.eq || {})[sl] && u.eq[sl].r === r) ? ' · 보유' : ''}</small></div></div>`)).join('');
+      const gd = Object.keys(GOODS).map(g => `<div class="itc">${ic(g)}<div><b>${GOODS[g].n}</b><small>${GOODS[g].made ? '공방 가공품' : '교역품'} · 기준가 ${GOODS[g].base}${S.cargo[g] ? ` · ${S.cargo[g]}개` : ''}</small></div></div>`).join('');
+      const misc = [['potion', '회복약', `모두 체력 30% 회복 · ${S.pots}개`], ['dart', '마취 다트', `공룡 포획 · ${S.darts}개`], ['stone', '귀환석', `가까운 정착지로 · ${S.stones}개`], ['egg', '공룡 알', `부화장에서 부화 · ${Object.values(S.eggBag).reduce((a, b) => a + b, 0)}개`], ['token', '우두머리 증표', `변이·특수 전직 재료 · ${Object.values(S.tokens).reduce((a, b) => a + b, 0)}개`]].map(([k, n, d]) => `<div class="itc">${ic(k)}<div><b>${n}</b><small>${d}</small></div></div>`).join('');
+      return `<h2>일러스트 도감<small>장비 15종 · 교역품 ${Object.keys(GOODS).length}종 · 소모품 5종</small></h2>${tabs}<h2>장비</h2><div class="itg">${eq}</div><h2>교역품</h2><div class="itg">${gd}</div><h2>소모품과 재료</h2><div class="itg">${misc}</div>`; })() : ''}
     ${partySec === 'skill' ? `<h2>상단 스킬<small>남은 포인트 ${S.sp}</small></h2><div class="card">${Object.entries(SKILLS).map(([k, K]) => { const lv = sk(k); return `<div class="row"><div class="info"><b>${K.n} Lv${lv}</b><small>${lv ? K.ds(lv) : '아직 배우지 않았어요'}${lv < SKILL_MAX ? ` → ${K.ds(lv + 1)}` : ''}</small></div><button class="btn small primary" data-act="skill" data-k="${k}" ${S.sp < 1 || lv >= SKILL_MAX ? 'disabled' : ''}>${lv >= SKILL_MAX ? '최고' : '배우기'}</button></div>`; }).join('')}</div>` : ''}
-    ${partySec === 'cargo' ? `<h2>짐</h2><div class="card">${Object.keys(S.cargo).length ? Object.entries(S.cargo).map(([g, k]) => `<div class="row"><div class="info"><b>${GOODS[g].n} ${k}개</b><small>${ZONES[S.zone].n}에서 팔면 개당 ${sellPrice(S.zone, g)}${FOODS[g] ? ` · 먹으면 포만감 +${FOODS[g]}` : ''}</small></div>${FOODS[g] ? `<button class="btn small" data-act="eat" data-g="${g}" ${S.food >= 100 ? 'disabled' : ''}>먹기</button>` : ''}</div>`).join('') : '<div class="row"><div class="info"><small>짐칸이 비었어요</small></div></div>'}</div>` : ''}`;
+    ${partySec === 'cargo' ? `<h2>짐</h2><div class="card">${Object.keys(S.cargo).length ? Object.entries(S.cargo).map(([g, k]) => `<div class="row">${ic(g)}<div class="info"><b>${GOODS[g].n} ${k}개</b><small>${ZONES[S.zone].n}에서 팔면 개당 ${sellPrice(S.zone, g)}${FOODS[g] ? ` · 먹으면 포만감 +${FOODS[g]}` : ''}</small></div>${FOODS[g] ? `<button class="btn small" data-act="eat" data-g="${g}" ${S.food >= 100 ? 'disabled' : ''}>먹기</button>` : ''}</div>`).join('') : '<div class="row"><div class="info"><small>짐칸이 비었어요</small></div></div>'}</div>` : ''}`;
   el.querySelectorAll('canvas[data-u]').forEach(cv => portrait(cv, cv.dataset.u));
 }
 function itemModal(uid, slot) {
   const u = S.units.find(x => x.id === uid), cur = (u.eq || {})[slot];
   const list = S.items.filter(x => x.slot === slot).sort((a, b) => RAR[b.r].m * (1 + b.lv * 0.03) - RAR[a.r].m * (1 + a.lv * 0.03));
   showModal(`<h3>${SLOTS[slot]} 고르기</h3><div class="sub">${unitName(u)} · 지금: ${cur ? itemName(cur) + ' ' + itemText(cur) : '없음'}</div>
-    <div class="card">${cur ? `<div class="row"><div class="info"><b>${itemName(cur)}</b><small>착용 중 · ${itemText(cur)}</small></div><button class="btn small" data-act="unequip" data-id="${uid}" data-slot="${slot}">해제</button></div>` : ''}
-    ${list.map(it => `<div class="row"><div class="info"><b>${itemName(it)}</b><small>Lv${it.lv} · ${itemText(it)}</small></div><button class="btn small primary" data-act="equip" data-id="${uid}" data-it="${it.id}">착용</button></div>`).join('') || '<div class="row"><div class="info"><small>가방에 맞는 장비가 없어요. 사냥터 깊은 곳일수록 좋은 장비가 나와요</small></div></div>'}</div>
+    <div class="card">${cur ? `<div class="row">${itemIc(cur)}<div class="info"><b>${itemName(cur)}</b><small>착용 중 · ${itemText(cur)}</small></div><button class="btn small" data-act="unequip" data-id="${uid}" data-slot="${slot}">해제</button></div>` : ''}
+    ${list.map(it => `<div class="row">${itemIc(it)}<div class="info"><b>${itemName(it)}</b><small>Lv${it.lv} · ${itemText(it)}</small></div><button class="btn small primary" data-act="equip" data-id="${uid}" data-it="${it.id}">착용</button></div>`).join('') || '<div class="row"><div class="info"><small>가방에 맞는 장비가 없어요. 사냥터 깊은 곳일수록 좋은 장비가 나와요</small></div></div>'}</div>
     <div class="mbtns"><button class="btn" data-act="unit" data-id="${uid}">돌아가기</button></div>`);
 }
 function unitModal(id) {
@@ -2176,14 +2248,14 @@ function unitModal(id) {
   const gearRow = (key, item, label, eff) => { const lv = u[key] || 0, need = lv + 1, have = S.cargo[item] || 0;
     return `<div class="row"><div class="info"><b>${label} ${lv}/3단계</b><small>${eff}${lv < 3 ? ` · 다음 단계: ${GOODS[item].n} ${need}개 (보유 ${have})` : ''}</small></div><button class="btn small primary" data-act="gear" data-id="${u.id}" data-k="${key}" ${lv >= 3 || have < need ? 'disabled' : ''}>${lv >= 3 ? '최고' : '강화'}</button></div>`; };
   const names = dino ? TIER_DINO : TIER_HUMAN;
-  showModal(`<canvas data-u="${u.type}" data-t="${u.tier || 0}" width="156" height="120" style="width:156px;height:120px;align-self:center"></canvas><h3>${unitName(u)}</h3><div class="sub">Lv${u.lv} · ${D.role} · 전투력 <b style="color:var(--amber)">${fmt(powerOf(u))}</b></div>
+  showModal(`<canvas class="bigart" data-u="${u.type}" data-t="${u.tier || 0}" data-art="1"></canvas><h3>${unitName(u)}</h3><div class="sub">Lv${u.lv} · ${D.role} · 전투력 <b style="color:var(--amber)">${fmt(powerOf(u))}</b></div>
     <div class="card"><div class="row"><div class="info"><b>능력치 포인트 ${u.pts || 0}</b><small>레벨이 오를 때마다 3 · 공격 ${u.st.a} (각 +1%) · 체력 ${u.st.h} (각 +1.2%) · 방어 ${u.st.d} (각 +1.5%)</small></div>${[['a', '공격'], ['h', '체력'], ['d', '방어'], ['auto', '알아서']].map(([k, n]) => `<button class="btn small ${k === 'auto' ? 'primary' : ''}" data-act="stat" data-id="${u.id}" data-k="${k}" ${u.pts > 0 ? '' : 'disabled'}>${n}</button>`).join('')}</div>
     <div class="row"><div class="info"><b>${dino ? '친밀도' : '숙련도'}: ${MAST_N[mastery(u)]} (${mastery(u)}/10)</b><div class="bar"><i style="width:${mastery(u) >= 10 ? 100 : Math.min(100, (u.wins || 0) / masteryNext(u) * 100)}%;background:var(--amber)"></i></div><small>함께 이긴 전투 ${u.wins || 0}번${mastery(u) < 10 ? ` · 다음 단계까지 ${masteryNext(u) - (u.wins || 0)}번` : ''} · 지금 효과: 공격 +${mastery(u) * 3}%, 체력 +${mastery(u) * 2}%</small></div>${dino ? `<button class="btn small" data-act="feed" data-id="${u.id}" ${S.cargo.meat >= 3 && mastery(u) < 10 ? '' : 'disabled'}>고기 3개 주기</button>` : ''}</div>
     <div class="row"><div class="info"><b>성장 단계</b>${PERKS.map(([lv, n]) => `<small style="color:${u.lv >= lv ? 'var(--good, #8fbf6a)' : 'var(--muted)'}">${u.lv >= lv ? '✓' : '·'} Lv${lv} ${n}</small>`).join('')}</div></div></div>
     <div class="card"><div class="row"><div class="info"><small style="color:var(--text)">체력 ${maxHp(u)} · 공격 ${Math.round(D.atk * lvMul(u.lv) * gm.atk)} · 방어 ${Math.round(D.def * (1 + 0.05 * (u.lv - 1)) * gm.def)} · 짐 ${carryOf(u)}칸</small></div></div>
     ${gearRow('gw', 'weapon', dino ? '발톱 덮개 단련' : '무기 단련', '공방 제작품으로 강화 · 단계마다 공격 +15%')}
     ${gearRow('ga', 'armor', dino ? '갑주 보강' : '방어구 보강', '공방 제작품으로 강화 · 단계마다 방어 +25%, 체력 +10%')}
-    ${Object.entries(SLOTS).map(([sl, sn]) => { const it = (u.eq || {})[sl], n = S.items.filter(x => x.slot === sl).length; return `<div class="row"><div class="info"><b>착용 ${sn}: ${it ? itemName(it) : '<span style="color:var(--muted)">비어 있음</span>'}</b><small>${it ? itemText(it) + ` · Lv${it.lv}${(it.en || 0) < ENH_MAX ? ` · 강화 성공률 ${Math.round(enhRate(it) * 100)}%` : ''}` : '사냥터에서 얻은 장비를 착용해요'} · 가방에 ${n}개</small></div>${it ? `<button class="btn small primary" data-act="enh" data-id="${u.id}" data-slot="${sl}" ${(it.en || 0) >= ENH_MAX || S.money < enhCost(it) ? 'disabled' : ''}>${(it.en || 0) >= ENH_MAX ? '최고' : `강화 ${fmt(enhCost(it))}`}</button>` : ''}<button class="btn small" data-act="pickItem" data-id="${u.id}" data-slot="${sl}" ${n || it ? '' : 'disabled'}>교체</button></div>`; }).join('')}
+    ${Object.entries(SLOTS).map(([sl, sn]) => { const it = (u.eq || {})[sl], n = S.items.filter(x => x.slot === sl).length; return `<div class="row">${it ? itemIc(it) : ''}<div class="info"><b>착용 ${sn}: ${it ? itemName(it) : '<span style="color:var(--muted)">비어 있음</span>'}</b><small>${it ? itemText(it) + ` · Lv${it.lv}${(it.en || 0) < ENH_MAX ? ` · 강화 성공률 ${Math.round(enhRate(it) * 100)}%` : ''}` : '사냥터에서 얻은 장비를 착용해요'} · 가방에 ${n}개</small></div>${it ? `<button class="btn small primary" data-act="enh" data-id="${u.id}" data-slot="${sl}" ${(it.en || 0) >= ENH_MAX || S.money < enhCost(it) ? 'disabled' : ''}>${(it.en || 0) >= ENH_MAX ? '최고' : `강화 ${fmt(enhCost(it))}`}</button>` : ''}<button class="btn small" data-act="pickItem" data-id="${u.id}" data-slot="${sl}" ${n || it ? '' : 'disabled'}>교체</button></div>`; }).join('')}
     ${unitSkill(u) ? `<div class="row"><div class="info"><b>스킬 수련 ${u.skLv || 0}/10</b><small>${skName(unitSkill(u), tier)}의 위력이 단계마다 +8% · 지금 +${(u.skLv || 0) * 8}%</small></div><button class="btn small primary" data-act="train" data-id="${u.id}" ${(u.skLv || 0) >= 10 || S.money < trainCost(u) ? 'disabled' : ''}>${(u.skLv || 0) >= 10 ? '최고' : fmt(trainCost(u))}</button></div>` : ''}
     <div class="row"><div class="info"><b>${dino ? '진화' : '전직'}: ${tier >= 2 ? '최고 단계' : tierNameOf(u.type, tier + 1)}</b><small>${tier >= 2 ? '더 오를 단계가 없어요' : `체력과 공격 +30% · 겉모습이 바뀌어요${u.type === 'porter' ? ` · 짐칸 ${carryOf(u)} → ${carryOf({ ...u, tier: tier + 1 })}칸` : ''}${skillOf(u.type) ? ` · 스킬이 ${skName(skillOf(u.type), tier + 1)}(으)로 바뀌어요: ${skDesc(skillOf(u.type), tier + 1)}` : ''} · 조건: Lv${P.lv}, 상단 Lv${P.clv}, ${P.cost} 크레딧`}</small></div><button class="btn small primary" data-act="promote" data-id="${u.id}" ${tier >= 2 || u.lv < P.lv || S.clv < P.clv || S.money < P.cost ? 'disabled' : ''}>${tier >= 2 ? '완료' : dino ? '진화' : '전직'}</button></div></div>
     ${(u.asc || 0) < ASC.length ? `<div class="row"><div class="info"><b style="color:var(--amber)">초월 ${(u.asc || 0) + 1}단계</b><small>체력과 공격 +22% · 지금 ${u.asc || 0}/${ASC.length}단계 · 조건: Lv${ASC[u.asc || 0]}, ${fmt(ascCost(u))} 크레딧</small></div><button class="btn small primary" data-act="asc" data-id="${u.id}" ${u.lv < ASC[u.asc || 0] || S.money < ascCost(u) ? 'disabled' : ''}>초월</button></div>` : `<div class="row"><div class="info"><b style="color:var(--amber)">초월 완료 (${ASC.length}/${ASC.length})</b></div></div>`}
@@ -2288,6 +2360,7 @@ document.body.addEventListener('click', e => {
   else if (act === 'toggle') { const u = S.units.find(x => x.id === +b.dataset.id); if (!u) return; if (!u.inParty && party().length >= partyCap()) { toast(`지금은 대장 포함 ${partyCap()}명까지예요. 상단 레벨을 올리면 늘어나요 (최대 12명)`); return; } u.inParty = !u.inParty; if (cargoUsed() > capacity()) toast('짐칸이 모자라요. 출발 전에 짐을 줄이세요', 'warn'); }
   else if (act === 'tsec') { townSec = b.dataset.k; sfx('tap'); }
   else if (act === 'psec') { partySec = b.dataset.k; sfx('tap'); }
+  else if (act === 'dtab') { dexTab = b.dataset.k; sfx('tap'); }
   else if (act === 'quest') {
     const q = S.quests[z][+b.dataset.i]; if (!q) return;
     if (q.type === 'deliver') { if ((S.cargo[q.g] || 0) < q.n) return; S.cargo[q.g] -= q.n; if (!S.cargo[q.g]) delete S.cargo[q.g]; } else if (q.prog < q.n) return;
