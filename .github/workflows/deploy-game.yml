@@ -10,6 +10,8 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 concurrency:
   group: deploy-game
@@ -36,3 +38,11 @@ jobs:
           git add -A
           git commit -q -m "Deploy ${GITHUB_SHA}"
           git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" gh-pages
+      # Also publish through the Pages deploy action, so the site goes live
+      # whichever source is picked in the repository's Pages settings.
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+        continue-on-error: true
+      - uses: actions/deploy-pages@v4
+        continue-on-error: true
