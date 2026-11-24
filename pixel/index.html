@@ -287,7 +287,7 @@ const cxpNeed = lv => Math.round(120 * Math.pow(lv, 1.5));
 const partyCap = () => Math.min(12, 5 + S.clv);
 const TIER_HUMAN = ['', '숙련 ', '정예 '], TIER_DINO = ['', '성체 ', '우두머리 '];
 const PROMO = [{ lv: 10, clv: 3, cost: 2500 }, { lv: 20, clv: 6, cost: 12000 }];
-const hireCost = (t, z) => Math.round(UNITS[t].cost * 4 * (1 + ZONES[z].lv * 0.25) / 10) * 10;   // better recruits in harder zones cost far more
+const hireCost = t => UNITS[t].cost * 4;   // everyone joins at level 1 for the same price in every settlement
 const wageOf = u => UNITS[u.type].cls === 'human' && u.type !== 'leader' ? 8 + u.lv * 4 + (u.tier || 0) * 20 : 0;
 const wages = () => S.units.reduce((s, u) => s + wageOf(u), 0);
 const ASC = [40, 60, 90, 120, 160], ascCost = u => 30000 * ((u.asc || 0) + 1) ** 2;
@@ -1202,7 +1202,7 @@ function renderOverlay() {
    PIXEL WORLD — one continuous map you walk across, MMORPG style.
    3D models are baked once into small pixel sprites; everything on screen is then drawn in 2D.
    ================================================================ */
-const WW = 21000, WH = 6000, GR = 300, TOWN_R = 150;
+const WW = 21000, WH = 6000, GR = 300, TOWN_R = 340;
 const TOWNS = { plain: { x: 1000, y: 5100 }, city: { x: 3300, y: 3100 }, swamp: { x: 1100, y: 1200 }, waste: { x: 5600, y: 4600 }, snow: { x: 7300, y: 3200 }, volcano: { x: 5500, y: 1300 }, abyss: { x: 7500, y: 800 } };
 const GROUNDS = {
   plain: [[1500, 4700], [500, 4400], [2000, 5300], [700, 3800], [1500, 3500]],
@@ -1281,8 +1281,8 @@ function makeChunk(cx, cy) {
       else if (z === 'swamp') { if (far && riv < 0.012) c = PAL.water[1]; }
       else if (z === 'city') { if (vnoise(x / 200 + 71, y / 200 + 23) > 0.66 && !onStreet(x, y)) { c = PAL.street[(h * 3) | 0]; if (x % 22 < 1 && y % 60 < 40) c = PAL.dash; } }
     }
-    if (tn) { const T = TOWNS[tn], dd = Math.hypot(x - T.x, y - T.y); if (dd < TOWN_R - 2) { const ax = Math.abs(x - T.x), ay = Math.abs(y - T.y), road2 = ax < 13 || ay < 13 || Math.abs(dd - 88) < 7 || dd < 34, ti = ((x >> 3) + ((y >> 2) & 1 ? 1 : 0) * 0) , brick = (x + ((y >> 3) & 1) * 4) % 8 === 0 || y % 8 === 0;
-        c = road2 ? (brick ? PAL.cobble[2] : PAL.cobble[(h * 2) | 0]) : PAL.plaza[(h * 3) | 0]; if (!road2 && h2 > 0.9) c = PAL.plaza[0]; if (dd < 34 && Math.abs(dd - 26) < 1.6) c = PAL.cobble[3]; } }
+    if (tn) { const T = TOWNS[tn], dd = Math.hypot(x - T.x, y - T.y); if (dd < TOWN_R - 2) { const ax = Math.abs(x - T.x), ay = Math.abs(y - T.y), road2 = ax < 20 || ay < 20 || Math.abs(dd - 190) < 11 || Math.abs(dd - (TOWN_R - 46)) < 8 || dd < 72, ti = ((x >> 3) + ((y >> 2) & 1 ? 1 : 0) * 0) , brick = (x + ((y >> 3) & 1) * 4) % 8 === 0 || y % 8 === 0;
+        c = road2 ? (brick ? PAL.cobble[2] : PAL.cobble[(h * 2) | 0]) : PAL.plaza[(h * 3) | 0]; if (!road2 && h2 > 0.9) c = PAL.plaza[0]; if (dd < 72 && Math.abs(dd - 60) < 2) c = PAL.cobble[3]; } }
     else if (rd < 15 + n * 5) {
       c = PAL.road[(h * 3) | 0];
       if (rd < 1.6 && ((x + y) >> 4) % 2 === 0) c = PAL.dash; else if (vnoise(x / 9, y / 9) > 0.8) c = PAL[z][1]; else if (h2 > 0.93) c = PAL.moss;
@@ -1428,6 +1428,11 @@ const PDEF = {   // key: [maker, collision radius, fallback colour]
     tlamp: [() => grp(boxM(1.6, 24, 1.6, 0x3a3a3c, 0, 12, 0), boxM(5, 1.4, 5, 0x3a3a3c, 0, 24.6, 0), boxM(3.6, 4.4, 3.6, 0xffd870, 0, 27.4, 0), boxM(5, 1.4, 5, 0x2a2a2c, 0, 30.2, 0)), 2, '#ffd870'],
     stable: [() => grp(boxM(2, 16, 2, 0x4a3422, -17, 8, -9), boxM(2, 16, 2, 0x4a3422, 17, 8, -9), boxM(2, 13, 2, 0x4a3422, -17, 6.5, 9), boxM(2, 13, 2, 0x4a3422, 17, 6.5, 9), rot(boxM(40, 1.6, 24, 0x8a6a3a, 0, 16, 0), 0.16, 0, 0), boxM(36, 1.6, 1.6, 0x5a4630, 0, 6, 9), boxM(12, 6, 9, 0xd8c060, -9, 3, -3), boxM(9, 5, 8, 0xc8b050, 5, 2.5, -4), boxM(8, 4, 5, 0x5a4630, 12, 2, 4)), 16, '#8a6a3a'],
     gate: [() => grp(boxM(6, 34, 6, 0x4e3c2a, 0, 17, 0), boxM(8, 3, 8, 0x3a2e22, 0, 35, 0), boxM(3, 5, 3, 0xffd870, 0, 39, 0), boxM(1.2, 12, 9, 0xc0502a, 3.8, 24, 0)), 4, '#4e3c2a'],
+    house1: [() => grp(boxM(34, 18, 26, 0x9a8a72, 0, 9, 0), roof(34, 26, 12, 0x7a4a34, 18), boxM(7, 11, 1.4, 0x3a2a1c, -7, 5.5, 13.4), boxM(6, 5, 1.6, 0xffd870, 8, 10, 13.4), boxM(6, 16, 6, 0x5e5a56, 10, 26, -6), boxM(8, 5, 5, 0x6a8a4a, 8, 2.5, 17)), 18, '#9a8a72'],
+    house2: [() => grp(boxM(30, 14, 24, 0x7a6a5a, 0, 7, 0), boxM(32, 12, 26, 0xb8a888, 0, 20, 0), roof(32, 26, 11, 0x3e5a6a, 26), boxM(7, 11, 1.4, 0x3a2a1c, 6, 5.5, 12.4), boxM(6, 5, 1.6, 0xffd870, -7, 20, 13.4), boxM(6, 5, 1.6, 0xffd870, 7, 20, 13.4), boxM(6, 14, 6, 0x5e5a56, -9, 34, -6), boxM(9, 7, 9, 0x8a6a3a, -22, 3.5, 6)), 17, '#b8a888'],
+    fountain: [() => { const g = grp(cyl(26, 28, 6, 12, 0x8e8a80, 0, 3, 0), cyl(23, 23, 1.4, 12, 0x3a7a8e, 0, 6.2, 0), cyl(5, 7, 16, 8, 0xa8a498, 0, 12, 0), cyl(11, 4, 4, 10, 0x8e8a80, 0, 21, 0), cyl(9.5, 9.5, 1, 10, 0x4a90a4, 0, 23, 0), cyl(2.4, 3, 9, 6, 0xa8a498, 0, 27, 0)); const orb = new THREE.Mesh(new THREE.IcosahedronGeometry(3.4, 1), lam(0xe3a843)); orb.position.y = 33; g.add(orb); return g; }, 28, '#8e8a80'],
+    dummy: [() => grp(boxM(1.8, 18, 1.8, 0x4a3422, 0, 9, 0), boxM(12, 1.8, 1.8, 0x4a3422, 0, 14, 0), boxM(7, 9, 5, 0xc8b070, 0, 10, 0), boxM(5, 5, 5, 0xc8b070, 0, 19, 0), boxM(3, 3, 0.8, 0xc0302a, 0, 10, 2.8)), 4, '#c8b070'],
+    bench: [() => grp(boxM(16, 1.6, 5, 0x6a4a2a, 0, 5, 0), boxM(16, 5, 1.2, 0x6a4a2a, 0, 8, -2.4), boxM(1.6, 5, 5, 0x3a2a1c, -7, 2.5, 0), boxM(1.6, 5, 5, 0x3a2a1c, 7, 2.5, 0)), 0, '#6a4a2a'],
     wallA: [wall(0), 0, '#5a4630'], wallB: [wall(-Math.PI / 4), 0, '#5a4630'], wallC: [wall(Math.PI / 2), 0, '#5a4630'], wallD: [wall(Math.PI / 4), 0, '#5a4630'],
   });
 }
@@ -1449,12 +1454,8 @@ const ZPROPS = {
   abyss: 'treeJ treeJ treeJ treeJ2 willowJ willowJ fern fern fern fern fern bushG bushG rockM rockM2 stump log ribs grassG grassG grassG'.split(' '),
   swamp: 'grassG grassG grassG grassG grassG plant plant plant bushG willow willow willow willowD willowD3 treeS ruinS1 ruinS2 car1 car2 rockM rockM2 stump log lamp lily lily'.split(' '),
 };
-const TOWN_LAYOUT = [['b_market', -66, -34], ['b_forge', 4, -70, 'smoke'], ['b_bank', 72, -34], ['b_inn', -106, 44, 'smoke'], ['b_hire', 102, 48], ['b_board', -44, -108], ['tower', -116, -60], ['b_cart', 0, 118], ['b_trial', 116, -66, 'orb'],
-  ['well', -34, 4], ['fire', 16, 24], ['stable', 72, 90], ['tent2', -58, 100], ['flag', 34, -110], ['crate', 34, -22], ['crate', -30, -70], ['barrel', 40, -16], ['barrel', -96, -20], ['barrel', 84, 6],
-  ['tlamp', -30, -36, 'glow'], ['tlamp', 36, -40, 'glow'], ['tlamp', -52, 58, 'glow'], ['tlamp', 54, 62, 'glow'], ['tlamp', -24, 126, 'glow'], ['tlamp', 24, -128, 'glow'],
-  ['gate', -18, -146], ['gate', 18, -146], ['gate', -18, 146], ['gate', 18, 146], ['gate', -146, -18], ['gate', -146, 18], ['gate', 146, -18], ['gate', 146, 18],
-  ['wallD', 132, 63], ['wallD', 114, 91], ['wallD', 91, 114], ['wallD', 63, 132], ['wallB', -63, 132], ['wallB', -91, 114], ['wallB', -114, 91], ['wallB', -132, 63], ['wallD', -132, -63], ['wallD', -114, -91], ['wallD', -91, -114], ['wallD', -63, -132], ['wallB', 63, -132], ['wallB', 91, -114], ['wallB', 114, -91], ['wallB', 132, -63]];
-const TOWN_SPOTS = [['market', '시장', -66, -34, 46], ['shop', '공방', 4, -70, 54], ['bank', '전장·창고', 72, -34, 52], ['inn', '여관', -106, 44, 62], ['hire', '고용소', 102, 48, 50], ['quest', '의뢰', -44, -108, 40], ['hunt', '사냥 안내', -116, -60, 66], ['store', '잡화점', 0, 118, 40], ['trial', '시련의 탑', 116, -66, 104]];
+const TOWN_LAYOUT = [['b_market', -139, -71], ['b_forge', 8, -147, 'smoke'], ['b_bank', 151, -71], ['b_inn', -223, 92, 'smoke'], ['b_hire', 214, 101], ['b_board', -92, -227], ['tower', -244, -126], ['b_cart', 0, 248], ['b_trial', 244, -139, 'orb'], ['fountain', 0, 0], ['fire', 46, 96], ['well', -150, 150], ['stable', 150, 196], ['flag', 60, -44], ['flag', -60, -44], ['stall', -212, -66], ['stall2', -140, -150], ['stall', -70, -150], ['stall2', -212, -140], ['crate', -176, -100], ['barrel', -104, -112], ['barrel', -184, -40], ['crate', 112, -110], ['barrel', 196, -96], ['dummy', 250, 40], ['dummy', 276, 78], ['dummy', 240, 150], ['tent', 286, 150], ['tent2', 150, 262], ['tent2', -230, 214], ['tent', -150, 262], ['house1', 248, 100], ['house2', 142, 227, 'smoke'], ['house1', -105, 247], ['house2', -232, 134], ['house2', -243, -113, 'smoke'], ['house1', -142, -227], ['house1', 134, -232], ['house2', 243, -113], ['tree1', -96, 60], ['birch', 104, -6], ['tree1', -40, 190], ['birch', 70, 150], ['tree1', -250, -20], ['birch', 226, -40], ['tree1', -20, -250], ['tree1', 188, 250], ['bench', -80, -80], ['bench', 80, 80], ['bench', -80, 80], ['bench', 80, -80], ['tlamp', 90, 26, 'glow'], ['tlamp', -90, 26, 'glow'], ['tlamp', 26, 90, 'glow'], ['tlamp', 26, -90, 'glow'], ['tlamp', 170, 26, 'glow'], ['tlamp', -170, 26, 'glow'], ['tlamp', 26, 170, 'glow'], ['tlamp', 26, -170, 'glow'], ['tlamp', 250, 26, 'glow'], ['tlamp', -250, 26, 'glow'], ['tlamp', 26, 250, 'glow'], ['tlamp', 26, -250, 'glow'], ['tlamp', 134, 134, 'glow'], ['tlamp', -134, 134, 'glow'], ['tlamp', -134, -134, 'glow'], ['tlamp', 134, -134, 'glow'], ['gate', -30, -334], ['gate', 30, -334], ['gate', -30, 334], ['gate', 30, 334], ['gate', -334, -30], ['gate', -334, 30], ['gate', 334, -30], ['gate', 334, 30], ['wallC', 328, 65], ['wallC', 320, 97], ['wallD', 309, 128], ['wallD', 295, 157], ['wallD', 278, 186], ['wallD', 258, 212], ['wallD', 236, 236], ['wallD', 212, 258], ['wallD', 186, 278], ['wallD', 157, 295], ['wallA', 128, 309], ['wallA', 97, 320], ['wallA', 65, 328], ['wallA', -65, 328], ['wallA', -97, 320], ['wallB', -128, 309], ['wallB', -157, 295], ['wallB', -186, 278], ['wallB', -212, 258], ['wallB', -236, 236], ['wallB', -258, 212], ['wallB', -278, 186], ['wallB', -295, 157], ['wallC', -309, 128], ['wallC', -320, 97], ['wallC', -328, 65], ['wallC', -328, -65], ['wallC', -320, -97], ['wallD', -309, -128], ['wallD', -295, -157], ['wallD', -278, -186], ['wallD', -258, -212], ['wallD', -236, -236], ['wallD', -212, -258], ['wallD', -186, -278], ['wallD', -157, -295], ['wallA', -128, -309], ['wallA', -97, -320], ['wallA', -65, -328], ['wallA', 65, -328], ['wallA', 97, -320], ['wallB', 128, -309], ['wallB', 157, -295], ['wallB', 186, -278], ['wallB', 212, -258], ['wallB', 236, -236], ['wallB', 258, -212], ['wallB', 278, -186], ['wallB', 295, -157], ['wallC', 309, -128], ['wallC', 320, -97], ['wallC', 328, -65]];
+const TOWN_SPOTS = [['market', '시장', -139, -71, 46], ['shop', '공방', 8, -147, 54], ['bank', '전장·창고', 151, -71, 52], ['inn', '여관', -223, 92, 62], ['hire', '고용소', 214, 101, 50], ['quest', '의뢰', -92, -227, 40], ['hunt', '사냥 안내', -244, -126, 66], ['store', '잡화점', 0, 248, 40], ['trial', '시련의 탑', 244, -139, 104]];
 function openTown(k) { townSec = k; sfx('open'); hideWorld('town'); }
 function spotBadges() {
   const z = inTown(); if (!z) return {};
@@ -1475,7 +1476,7 @@ function cellProps(cx, cy) {
   }
   for (const zt of ZKEYS) { const T = TOWNS[zt]; for (const [key, dx, dy, fx] of TOWN_LAYOUT) { const x = T.x + dx, y = T.y + dy; if (Math.floor(x / CELL) === cx && Math.floor(y / CELL) === cy) list.push({ x, y, key, r: PDEF[key][1], fire: key === 'fire', fx }); } }
   for (const zt of ZKEYS) GROUNDS[zt].forEach(([gx, gy], gi) => { const ly = gy - 40; if (Math.floor(gx / CELL) === cx && Math.floor(ly / CELL) === cy) { const key = gi === 4 ? 'nest' : LAND[bioOf(zt)][(gi + zt.length + zt.charCodeAt(zt.length - 1)) % 3]; for (let q = list.length - 1; q >= 0; q--) if (list[q].r > 9 && d2(list[q].x, list[q].y, gx, ly) < 90 * 90) list.splice(q, 1); list.push({ x: gx, y: ly, key, r: PDEF[key][1] }); } });
-  if (hash2(cx * 3 + 7, cy * 5 + 1) < 0.16 && !nearTown(x0 + 110, y0 + 110, 400)) list.push({ x: x0 + 40 + R() * 140, y: y0 + 40 + R() * 140, key: 'crate', r: 0, loot: k });
+  if (hash2(cx * 3 + 7, cy * 5 + 1) < 0.16 && !nearTown(x0 + 110, y0 + 110, TOWN_R + 200)) list.push({ x: x0 + 40 + R() * 140, y: y0 + 40 + R() * 140, key: 'crate', r: 0, loot: k });
   CELLS.set(k, list); return list;
 }
 
@@ -1502,14 +1503,14 @@ function initWorld() {
     });
   }
   for (let n = 0, k = 0; n < 520 && k < 30000; k++) {   // lone herds out in the wilds between the named grounds
-    const x = 120 + R() * (WW - 240), y = 120 + R() * (WH - 240); if (nearTown(x, y, 420) || groundAt(x, y) || roadDist(x, y) < 70 || !free(x, y, 170) || isWater(x, y)) continue;
+    const x = 120 + R() * (WW - 240), y = 120 + R() * (WH - 240); if (nearTown(x, y, TOWN_R + 130) || groundAt(x, y) || roadDist(x, y) < 70 || !free(x, y, 170) || isWater(x, y)) continue;
     const z = zoneAt(x, y), T = TOWNS[z], p = { z, g: clamp(Math.floor(Math.hypot(x - T.x, y - T.y) / 700), 0, 2), cx: x, cy: y }; fillPack(p); W.packs.push(p); n++;
   }
   // other caravans walking the roads, and people going about their day in each settlement
   NPC_NAMES.forEach((name, i) => { const [a, b] = ROADS[i % 3], t = R(), A = TOWNS[a], Bt = TOWNS[b], types = [pick(['hunter', 'spear', 'sniper', 'medic', 'venomer']), pick(['hunter', 'spear', 'mechanic']), pick(['trike', 'para', 'apato', 'stego'])].slice(i % 2 ? 0 : 1);
     W.npcs.push({ name, a, b, dir: i % 2 ? 1 : -1, t, wait: 0, mem: [{ type: 'leader' }, ...types.map(type => ({ type }))].map((m, k) => ({ ...m, x: A.x + (Bt.x - A.x) * t, y: A.y + (Bt.y - A.y) * t + k * 14, a: 0, moving: false, ph: R() * 9 })) }); });
-  for (const z of ZKEYS) { const T = TOWNS[z]; for (const [type, dx, dy] of [['porter', -66, -16], ['mechanic', -8, -48], ['shield', 72, -12], ['medic', -92, 64], ['gladiator', 84, 70], ['tamer', 14, 132], ['shaman', 100, -48], ['spear', -12, 146], ['spear', 12, -146]]) W.folk.push({ z, type, x: T.x + dx, y: T.y + dy, a: Math.PI / 2, still: true, moving: false, ph: 0, wait: 0 }); W.folk.push({ z, type: 'para', len: 53, x: T.x + 60, y: T.y + 112, a: 0.4, still: true, moving: false, ph: 2, wait: 0 }); }
-  for (const z of ZKEYS) for (let i = 0; i < 7; i++) { const T = TOWNS[z]; W.folk.push({ z, type: pick(['hunter', 'spear', 'medic', 'mechanic', 'venomer', 'sniper']), x: T.x + rand(-90, 90), y: T.y + rand(-70, 100), a: rand(0, 6.28), tx: T.x, ty: T.y, wait: rand(0, 6), ph: rand(0, 9), moving: false }); }
+  for (const z of ZKEYS) { const T = TOWNS[z]; for (const [type, dx, dy] of [['porter', -139, -40], ['mechanic', -14, -104], ['shield', 151, -30], ['medic', -196, 128], ['gladiator', 180, 148], ['tamer', 24, 276], ['shaman', 214, -100], ['hunter', -92, -196], ['scout', -220, -96], ['spear', -16, 336], ['spear', 16, -336], ['spear', -336, 16], ['spear', 336, -16], ['porter', -200, -40], ['gunner', -128, -124], ['crossbow', 262, 100]]) W.folk.push({ z, type, x: T.x + dx, y: T.y + dy, a: Math.PI / 2, still: true, moving: false, ph: 0, wait: 0 }); W.folk.push({ z, type: 'para', len: 53, x: T.x + 128, y: T.y + 222, a: 0.4, still: true, moving: false, ph: 2, wait: 0 }); }
+  for (const z of ZKEYS) for (let i = 0; i < 18; i++) { const T = TOWNS[z]; W.folk.push({ z, type: pick(['hunter', 'spear', 'medic', 'mechanic', 'venomer', 'sniper']), x: T.x + rand(-240, 240), y: T.y + rand(-240, 240), a: rand(0, 6.28), tx: T.x, ty: T.y, wait: rand(0, 6), ph: rand(0, 9), moving: false }); }
   syncCrew();
 }
 function syncCrew() {
@@ -1541,7 +1542,7 @@ function worldTap(px, py) {
   let best = null, bd = 34 * 34;
   for (const p of W.packs) { if (p.dead > 0 || d2(p.cx, p.cy, x, y) > 260 * 260) continue; for (const m of p.mons) { const d = d2(x, y, m.x, m.y - m.len * 0.2); if (d < Math.max(bd, (m.len * 0.5) ** 2) && (!best || d < bd)) { bd = d; best = p; } } }
   W.dest = null;
-  { const tz = nearTown(x, y, TOWN_R + 40); if (tz) for (const [k, n, dx, dy] of TOWN_SPOTS) { const T = TOWNS[tz]; if (d2(x, y, T.x + dx, T.y + dy - 14) < 30 * 30) { if (inTown() === tz) openTown(k); else { walkTo(T.x + dx, T.y + dy + 28, `${ZONES[tz].n} ${n}`); W.dest.open = k; } return; } } }
+  { const tz = nearTown(x, y, TOWN_R + 40); if (tz) for (const [k, n, dx, dy] of TOWN_SPOTS) { const T = TOWNS[tz]; if (d2(x, y, T.x + dx, T.y + dy - 14) < 30 * 30) { if (inTown() === tz && d2(L.x, L.y, T.x + dx, T.y + dy) < 110 * 110) openTown(k); else { walkTo(T.x + dx, T.y + dy + 28, `${ZONES[tz].n} ${n}`); W.dest.open = k; } return; } } }
   for (let i = 0; i < W.npcs.length; i++) { const m = W.npcs[i].mem[0]; if (d2(x, y, m.x, m.y - 10) < 26 * 26) { if (d2(L.x, L.y, m.x, m.y) > 170 * 170) { toast(`${W.npcs[i].name}: 가까이 오면 거래할 수 있어요`); L.tx = m.x; L.ty = m.y + 30; W.target = null; } else npcModal(i); return; } }
   if (best) { W.target = best; sfx('tap'); return; }
   if (S.auto.hunt) { S.auto.hunt = false; updAuto(); toast('자동 사냥을 껐어요'); }
@@ -1622,7 +1623,7 @@ function updWorld(dt) {
     if (d2(p.cx, p.cy, W.cam.x, W.cam.y) > 620 * 620 || (B && B.opt.packs.includes(p))) continue;
     for (const m of p.mons) { m.wait -= dt; if (m.wait <= 0) { m.tx = p.cx + rand(-42, 42); m.ty = p.cy + rand(-42, 42); m.wait = rand(4, 10); } const d = Math.hypot(m.tx - m.x, m.ty - m.y); m.moving = d > 3; if (m.moving) { m.a = Math.atan2(m.ty - m.y, m.tx - m.x); const sp = UNITS[m.f.type].spd * 0.3 * dt; m.x += Math.cos(m.a) * sp; m.y += Math.sin(m.a) * sp; } }
   }
-  for (const f of W.folk) { if (f.still || d2(f.x, f.y, W.cam.x, W.cam.y) > 500 * 500) continue; f.wait -= dt; if (f.wait <= 0) { const T = TOWNS[f.z]; f.tx = T.x + rand(-100, 100); f.ty = T.y + rand(-60, 105); f.wait = rand(3, 9); } const d = Math.hypot(f.tx - f.x, f.ty - f.y); f.moving = d > 3; if (f.moving) { f.a = Math.atan2(f.ty - f.y, f.tx - f.x); f.x += Math.cos(f.a) * 24 * dt; f.y += Math.sin(f.a) * 24 * dt; } }
+  for (const f of W.folk) { if (f.still || d2(f.x, f.y, W.cam.x, W.cam.y) > 500 * 500) continue; f.wait -= dt; if (f.wait <= 0) { const T = TOWNS[f.z]; { const a2 = rand(0, 6.283), r2 = rand(20, TOWN_R - 70); f.tx = T.x + Math.cos(a2) * r2; f.ty = T.y + Math.sin(a2) * r2; }; f.wait = rand(3, 9); } const d = Math.hypot(f.tx - f.x, f.ty - f.y); f.moving = d > 3; if (f.moving) { f.a = Math.atan2(f.ty - f.y, f.tx - f.x); f.x += Math.cos(f.a) * 24 * dt; f.y += Math.sin(f.a) * 24 * dt; } }
   for (const n of W.npcs) {
     const A = TOWNS[n.a], Bt = TOWNS[n.b], len = Math.hypot(Bt.x - A.x, Bt.y - A.y), h = n.mem[0];
     if (n.wait > 0) { n.wait -= dt; h.moving = false; } else { n.t += n.dir * 46 * dt / len; if (n.t >= 1 || n.t <= 0) { n.t = clamp(n.t, 0, 1); n.dir *= -1; n.wait = rand(8, 20); } const x = A.x + (Bt.x - A.x) * n.t, y = A.y + (Bt.y - A.y) * n.t, tx = x - Math.sin(y / 170) * 34, ty = y - Math.sin(x / 190) * 34; h.a = Math.atan2(ty - h.y, tx - h.x); h.moving = true; h.x = tx; h.y = ty; }
@@ -1987,7 +1988,7 @@ function renderTown() {
   }).join('');
   const jobRow = job ? `<div class="row"><div class="info"><b>작업 중: ${RECIPES[job.r].n}</b><div class="bar"><i style="width:${(1 - job.left / job.total) * 100}%;background:var(--amber)"></i></div><small>${job.total - job.left}/${job.total}회 완료 · 다른 구역에 다녀와도 계속 만들어요</small></div></div>` : '';
   const outRow = outs.length ? `<div class="row"><div class="info"><b>완성품</b><small>${outs.map(([g, k]) => `${g === 'dart' ? '마취 다트' : GOODS[g].n} ${k}개`).join(' · ')}</small></div><button class="btn small primary" data-act="collect">찾기</button></div>` : '';
-  const recruit = hireAll().map(t => { const D = UNITS[t]; return `<div class="row"><canvas data-u="${t}" width="104" height="80"></canvas><div class="info"><b>${D.n} <span class="tag">${D.role}</span></b><small>${D.ds}</small><small>체력 ${D.hp} · 공격 ${D.atk} · 짐 ${D.carry}칸 · Lv${Math.max(1, Z.lv - 1)}로 합류 · 일당 ${wageOf({ type: t, lv: Math.max(1, Z.lv - 1) })}</small></div><button class="btn small primary" data-act="hire" data-t="${t}" ${S.money < hireCost(t, z) ? 'disabled' : ''}>${fmt(hireCost(t, z))}</button></div>`; }).join('');
+  const recruit = hireAll().map(t => { const D = UNITS[t]; return `<div class="row"><canvas data-u="${t}" width="104" height="80"></canvas><div class="info"><b>${D.n} <span class="tag">${D.role}</span></b><small>${D.ds}</small><small>체력 ${D.hp} · 공격 ${D.atk} · 짐 ${D.carry}칸 · Lv${1}로 합류 · 일당 ${wageOf({ type: t, lv: 1 })}</small></div><button class="btn small primary" data-act="hire" data-t="${t}" ${S.money < hireCost(t, z) ? 'disabled' : ''}>${fmt(hireCost(t, z))}</button></div>`; }).join('');
   const tame = Z.tame.map(t => `${UNITS[t].n}(${UNITS[t].role})`).join(', ') + ` · 희귀종: ${Z.rare.map(t => S.dex[t] ? UNITS[t].n : '???').join(', ')} (깊은 곳에서 가끔 나와요)`;
   const hurt = S.units.filter(u => u.hp < maxHp(u) || u.ko), healCost = Math.round(S.units.reduce((s, u) => s + (maxHp(u) - u.hp), 0) * 0.12) + (hurt.length ? 5 : 0);
   const qReady = (S.quests[z] || []).filter(q => (q.type === 'deliver' ? (S.cargo[q.g] || 0) : q.prog) >= q.n).length;
@@ -2003,13 +2004,13 @@ function renderTown() {
     <div class="card">${quests}</div>` : ''}
     ${townSec === 'shop' ? `<h2>공방<small>재료를 맡기면 시간이 지나 가공품이 돼요 · 장비와 비싼 교역품을 만들어요</small></h2>
     <div class="card">${jobRow}${outRow}${shop}</div>` : ''}
-    ${townSec === 'hire' ? `<h2>희귀 영웅<small>어느 정착지에서나 만날 수 있어요 · 한 명씩만 있어요 · 모든 능력 +30%, 1차 전직을 마친 상태로 합류</small></h2>
-    <div class="card">${HEROES.map((h, i) => { const got = S.heroes[h.name], c = heroCost(h); return `<div class="row"><canvas data-u="${h.type}" data-t="1" width="104" height="80"></canvas><div class="info"><b style="color:var(--amber)">${h.name}</b><small>${JOBS[h.type][1]} · Lv${Math.max(5, Z.lv + 3)}로 합류 · ${SK[skillOf(h.type)] ? '스킬 ' + skName(skillOf(h.type), 1) : '짐꾼'}</small></div><button class="btn small ${got ? '' : 'primary'}" data-act="famed" data-i="${i}" ${got || S.money < c ? 'disabled' : ''}>${got ? '고용함' : fmt(c)}</button></div>`; }).join('')}</div>
+    ${townSec === 'hire' ? `<h2>희귀 영웅<small>어느 정착지에서나 만날 수 있어요 · 한 명씩만 있어요 · 레벨 1로 합류하지만 모든 능력 +30%에 1차 전직을 마친 상태예요</small></h2>
+    <div class="card">${HEROES.map((h, i) => { const got = S.heroes[h.name], c = heroCost(h); return `<div class="row"><canvas data-u="${h.type}" data-t="1" width="104" height="80"></canvas><div class="info"><b style="color:var(--amber)">${h.name}</b><small>${JOBS[h.type][1]} · Lv${1}로 합류 · ${SK[skillOf(h.type)] ? '스킬 ' + skName(skillOf(h.type), 1) : '짐꾼'}</small></div><button class="btn small ${got ? '' : 'primary'}" data-act="famed" data-i="${i}" ${got || S.money < c ? 'disabled' : ''}>${got ? '고용함' : fmt(c)}</button></div>`; }).join('')}</div>
     <h2>부화장<small>사냥터에서 주운 알을 맡기면 시간이 지나 새끼가 태어나요 · 4번에 1번꼴로 희귀종</small></h2>
     <div class="card">${S.eggs.map((e, i) => `<div class="row"><div class="info"><b>${ZONES[e.z].n}의 알</b><div class="bar"><i style="width:${(1 - Math.max(0, e.t) / 150) * 100}%;background:var(--amber)"></i></div><small>${e.t > 0 ? `부화까지 ${Math.ceil(e.t)}초 · 다른 곳에 다녀와도 계속 품어요` : '껍질에 금이 갔어요'}</small></div><button class="btn small primary" data-act="hatch" data-i="${i}" ${e.t > 0 ? 'disabled' : ''}>깨우기</button></div>`).join('')}
       ${Object.entries(S.eggBag).filter(([, k]) => k > 0).map(([ez, k]) => `<div class="row"><div class="info"><b>${ZONES[ez].n}의 알 ${k}개</b><small>가지고 있어요 · 한 번에 3개까지 품을 수 있어요</small></div><button class="btn small" data-act="incubate" data-z="${ez}" ${S.eggs.length >= 3 ? 'disabled' : ''}>맡기기</button></div>`).join('')}
       ${S.eggs.length || Object.values(S.eggBag).some(k => k > 0) ? '' : '<div class="row"><div class="info"><small>알이 없어요 · 우두머리(60%)와 희귀종 무리(15%), 깊은 사냥터에서 가끔 나와요</small></div></div>'}</div>
-    <h2>고용소<small>모든 정착지에서 같은 용병을 고용할 수 있어요 · 높은 구역일수록 높은 레벨로 합류하고 값도 비싸요</small></h2>
+    <h2>고용소<small>어느 정착지에서나 같은 값에 고용해요 · 모두 레벨 1로 합류해서 직접 키워야 해요</small></h2>
     <div class="card">${recruit}</div>` : ''}
     ${townSec === 'bank' ? (() => { const inv = S.invest[z] || 0, head = isHead(z), st = Object.entries(S.store[z] || {}).filter(([, k]) => k > 0), cg = Object.entries(S.cargo);
       const amt = (act, max) => [100, 1000].filter(n => n <= max).map(n => `<button class="btn small" data-act="${act}" data-n="${n}">${n}</button>`).join('') + `<button class="btn small primary" data-act="${act}" data-n="${max}" ${max > 0 ? '' : 'disabled'}>전부</button>`;
@@ -2135,7 +2136,7 @@ document.body.addEventListener('click', e => {
   const act = b.dataset.act, z = S.zone;
   if (act === 'buy') { const g = b.dataset.g; let n = b.dataset.n === 'max' ? 40 : +b.dataset.n, spent = 0; while (n-- > 0 && S.money >= price(z, g) && cargoUsed() < capacity()) { const p = price(z, g); S.money -= p; spent += p; S.cargo[g] = (S.cargo[g] || 0) + 1; S.press[z][g] += 0.025; } if (spent) { sfx('coin'); S.stats.trades++; } }
   else if (act === 'sell') { const g = b.dataset.g; let got = 0; while (S.cargo[g] > 0) { const p = sellPrice(z, g); S.money += p; got += p; S.cargo[g]--; S.press[z][g] = Math.max(0.4, S.press[z][g] - 0.022); } delete S.cargo[g]; S.stats.earned += got; gainCxp(got / 12); sfx('coin'); toast(`${GOODS[g].n}을 팔아 ${got} 크레딧`, 'good'); }
-  else if (act === 'hire') { const t = b.dataset.t, D = UNITS[t], hc = hireCost(t, z); if (S.money < hc) return; S.money -= hc; const u = addUnit(t, Math.max(1, ZONES[z].lv - 1), party().length < partyCap()); sfx('coin'); toast(`${D.n}을 고용했어요${u.inParty ? '' : ' (상단이 가득 차 대기)'}`, 'good'); }
+  else if (act === 'hire') { const t = b.dataset.t, D = UNITS[t], hc = hireCost(t, z); if (S.money < hc) return; S.money -= hc; const u = addUnit(t, 1, party().length < partyCap()); sfx('coin'); toast(`${D.n}을 고용했어요${u.inParty ? '' : ' (상단이 가득 차 대기)'}`, 'good'); }
   else if (act === 'aid') { for (const u of S.units) { const mh = maxHp(u); u.hp = Math.max(u.hp, Math.round(mh * 0.5)); u.ko = false; } toast('구호소에서 쉬고 모두 일어났어요', 'good'); sfx('arrive'); }
   else if (act === 'heal') { const cost = +b.dataset.cost; if (S.money < cost) return; S.money -= cost; for (const u of S.units) { u.hp = maxHp(u); u.ko = false; } toast('모두 푹 쉬었어요', 'good'); sfx('arrive'); }
   else if (act === 'dep') { const n = Math.min(S.money, +b.dataset.n); if (n <= 0) return; S.money -= n; S.bank += n; sfx('coin'); toast(`전장에 ${fmt(n)} 크레딧을 맡겼어요`); }
@@ -2157,7 +2158,7 @@ document.body.addEventListener('click', e => {
   else if (act === 'elite') { const u = S.units.find(x => x.id === +b.dataset.id), E = u && ELITE[u.type]; if (!E || u.elite || (u.tier || 0) < 2 || !(S.tokens[E.token] > 0) || S.money < 20000) return; S.tokens[E.token]--; S.money -= 20000; u.elite = true; u.hp = maxHp(u); u.ko = false; sfx('win'); flash(0.7); toast(`${E.n}(으)로 특수 전직했어요!`, 'good'); syncCrew(); checkRank(); save(); renderAll(); unitModal(u.id); return; }
   else if (act === 'incubate') { const ez = b.dataset.z; if (!(S.eggBag[ez] > 0) || S.eggs.length >= 3) return; S.eggBag[ez]--; S.eggs.push({ z: ez, t: 150 }); sfx('tap'); }
   else if (act === 'hatch') { const e = S.eggs[+b.dataset.i]; if (!e || e.t > 0) return; S.eggs.splice(+b.dataset.i, 1); const r = hatchEgg(e); sfx(r.rare ? 'win' : 'capture'); if (r.rare) flash(0.7); toast(`${r.rare ? '희귀종! ' : ''}${UNITS[r.u.type].n} 새끼가 태어났어요${r.inP ? '' : ' (대기)'}`, 'good'); syncCrew(); }
-  else if (act === 'famed') { const h = HEROES[+b.dataset.i], c = h && heroCost(h); if (!h || S.heroes[h.name] || S.money < c) return; S.money -= c; S.heroes[h.name] = 1; const u = addUnit(h.type, Math.max(5, ZONES[z].lv + 3), party().length < partyCap()); u.name = h.name; u.famed = true; u.tier = 1; u.hp = maxHp(u); sfx('win'); flash(0.7); toast(`영웅 ${h.name}이(가) 상단에 합류했어요${u.inParty ? '' : ' (대기)'}`, 'good'); syncCrew(); checkRank(); }
+  else if (act === 'famed') { const h = HEROES[+b.dataset.i], c = h && heroCost(h); if (!h || S.heroes[h.name] || S.money < c) return; S.money -= c; S.heroes[h.name] = 1; const u = addUnit(h.type, 1, party().length < partyCap()); u.name = h.name; u.famed = true; u.tier = 1; u.hp = maxHp(u); sfx('win'); flash(0.7); toast(`영웅 ${h.name}이(가) 상단에 합류했어요${u.inParty ? '' : ' (대기)'}`, 'good'); syncCrew(); checkRank(); }
   else if (act === 'enh') { const u = S.units.find(x => x.id === +b.dataset.id), it = u && (u.eq || {})[b.dataset.slot]; if (!it || (it.en || 0) >= ENH_MAX) return; const c = enhCost(it); if (S.money < c) return; S.money -= c; const r = u.hp / maxHp(u); if (Math.random() < enhRate(it)) { it.en = (it.en || 0) + 1; sfx('win'); toast(`강화 성공! ${it.n} +${it.en}`, 'good'); } else { sfx('deny'); toast('강화에 실패했어요 · 장비는 그대로예요', 'warn'); } u.hp = Math.round(maxHp(u) * r); checkRank(); save(); renderAll(); unitModal(u.id); return; }
   else if (act === 'train') { const u = S.units.find(x => x.id === +b.dataset.id); if (!u || (u.skLv || 0) >= 10) return; const c = trainCost(u); if (S.money < c) return; S.money -= c; u.skLv = (u.skLv || 0) + 1; sfx('capture'); toast(`스킬 수련 ${u.skLv}단계 · 위력 +${u.skLv * 8}%`, 'good'); save(); renderAll(); unitModal(u.id); return; }
   else if (act === 'ord') {   // marching order: whoever walks nearest the front meets the herd first
