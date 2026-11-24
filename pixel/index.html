@@ -376,7 +376,7 @@ const hireCost = t => UNITS[t].cost * 4;   // everyone joins at level 1 for the 
 const wageOf = u => UNITS[u.type].cls === 'human' && u.type !== 'leader' ? 8 + u.lv * 4 + (u.tier || 0) * 20 : 0;
 const wages = () => S.units.reduce((s, u) => s + wageOf(u), 0);
 const ASC = [40, 60, 90, 120, 160], ascCost = u => 30000 * ((u.asc || 0) + 1) ** 2;
-const ENH_MAX = 10, enhCost = it => Math.round(120 * (1 + it.r) * Math.pow((it.en || 0) + 1, 1.8) * (1 + it.lv * 0.05) / 10) * 10, enhRate = it => Math.max(0.3, 1 - (it.en || 0) * 0.08);
+const ENH_MAX = 10, enhCost = it => Math.round(120 * (1 + it.r) * Math.pow((it.en || 0) + 1, 1.8) * (1 + it.lv * 0.05) / 10) * 10, smithOf = () => S.units.filter(u => u.inParty && u.type === 'smith').sort((a, b) => (b.tier || 0) - (a.tier || 0))[0], smithBonus = () => { const c = smithOf(); return c ? [0.1, 0.15, 0.2][c.tier || 0] : 0; }, enhRate = it => Math.min(1, Math.max(0.3, 1 - (it.en || 0) * 0.08) + smithBonus());
 const trainCost = u => 400 * ((u.skLv || 0) + 1) ** 2;
 const gearMul = u => {
   const t = 1 + 0.3 * (u.tier || 0), b = { atk: 0, hp: 0, def: 0 };
@@ -391,7 +391,7 @@ const ELITE = { hunter: { n: '맹수 조련사', token: 'oneEye', sk: 'roar', ds
   mechanic: { n: '포격 기술자', token: 'ironHorn', sk: 'grenade', ds: '폭탄을 더 자주 던져요' }, medic: { n: '생명의 손', token: 'frostTitan', sk: 'firstaid', ds: '회복 스킬을 더 자주 써요' }, venomer: { n: '역병 군주', token: 'emberKing', sk: 'acid', ds: '넓은 산성 구름으로 장갑을 녹여요' },
   porter: { n: '전설의 거상', token: 'trikeKing', sk: null, ds: '짐칸이 1.5배가 돼요' }, leader: { n: '공룡왕', token: 'origin', sk: 'volley', ds: '모든 능력이 크게 올라요' } };
 const FAMED = { hunter: ['은빛 화살 세라', '폭풍 사수 유나'], spear: ['백발 창수 고르', '철의 여인 타샤'], sniper: ['잿눈 카이', '그림자 넬라'], mechanic: ['고철의 손 벤', '무쇠팔 도건'], medic: ['늪의 의원 모아', '약초꾼 이든'], venomer: ['붉은 망토 리브', '독안개 실'], porter: ['외다리 한', '천 리 길 보로'],
-  scout: ['바람발 시아'], shield: ['철문 바르가'], gladiator: ['투기장의 왕 도란'], crossbow: ['외눈 사수 켈'], gunner: ['쌍권총 레아'], bomber: ['불꽃 손 미로'], tamer: ['공룡의 벗 유카'], cook: ['큰솥의 달인 마루'], shaman: ['안개 무녀 소하'] };
+  scout: ['바람발 시아'], shield: ['철문 바르가'], gladiator: ['투기장의 왕 도란'], crossbow: ['외눈 사수 켈'], gunner: ['쌍권총 레아'], bomber: ['불꽃 손 미로'], tamer: ['공룡의 벗 유카'], cook: ['큰솥의 달인 마루'], smith: ['무쇠팔 고른'], shaman: ['안개 무녀 소하'] };
 const HEROES = Object.entries(FAMED).flatMap(([type, names]) => names.map(name => ({ type, name })));
 const heroCost = h => UNITS[h.type].cost * 500;   // heroes are a long-term goal, not an early purchase
 const hireAll = () => Object.keys(UNITS).filter(t => UNITS[t].cls === 'human' && t !== 'leader').sort((a, b) => UNITS[a].cost - UNITS[b].cost);
@@ -500,6 +500,7 @@ const UNITS = {
   gunner:   { n: '총잡이', cls: 'human', role: '원거리', hp: 95, atk: 9, def: 4, spd: 42, range: 110, as: 2.0, carry: 6, cost: 320, gun: true, ds: '쌍권총을 아주 빠르게 쏴요.' },
   bomber:   { n: '폭파병', cls: 'human', role: '지원', hp: 100, atk: 12, def: 5, spd: 32, range: 95, as: 0.6, carry: 6, cost: 380, gun: true, ds: '폭탄을 자주 던져 여러 적을 한꺼번에 날려요.' },
   cook:     { n: '요리사', cls: 'human', role: '지원', hp: 115, atk: 6, def: 5, spd: 38, range: 24, as: 0.9, carry: 8, cost: 320, ds: '가는 길에 고기나 곡물로 밥을 지어 포만감을 채워요. 함께 있으면 든든하게 먹은 대원들의 공격과 체력이 올라가고, 스킬로 한 끼를 차려 모두를 회복시켜요.' },
+  smith:    { n: '대장장이', cls: 'human', role: '근접', hp: 190, atk: 15, def: 10, spd: 38, range: 22, as: 0.8, carry: 8, cost: 380, ds: '큰 망치로 싸우는 든든한 근접 대원. 함께 있으면 장비 강화 성공률이 올라가요. 스킬로 적을 내리쳐 기절시켜요.' },
   tamer:    { n: '조련사', cls: 'human', role: '지원', hp: 110, atk: 8, def: 5, spd: 40, range: 100, as: 1.0, carry: 6, cost: 340, bow: true, ds: '휘파람과 채찍으로 무리의 기세를 올려요. 스킬로 아군 공격을 높여요. 전투 중 쓰러진 공룡을 다시 일으켜요.' },
   shaman:   { n: '주술사', cls: 'human', role: '회복', hp: 95, atk: 5, def: 4, spd: 36, range: 110, as: 1.0, carry: 6, cost: 360, heal: 10, ds: '약초 연기로 동료를 치료하고, 독안개로 적의 장갑을 녹여요. 전투 중 쓰러진 사람 대원을 다시 일으켜요.' },
 };
@@ -560,14 +561,14 @@ const SK = { volley: { n: '일제 사격', cd: 12, ds: '적 셋을 한꺼번에 
   grenade: { n: '수류탄', cd: 12, ds: '주변 적 모두에게 피해' }, firstaid: { n: '응급 처치', cd: 16, ds: '아군 모두 체력 20% 회복' }, mist: { n: '독안개', cd: 14, ds: '모든 적의 장갑을 녹여요' },
   charge: { n: '돌진', cd: 11, ds: '들이받아 큰 피해와 기절' }, boom: { n: '굉음', cd: 13, ds: '주변 적을 기절시켜요' }, stomp: { n: '지진 밟기', cd: 13, ds: '주변 적 모두에게 피해' }, pounce: { n: '급습', cd: 8, ds: '빠르게 두 번 물어요' },
   acid: { n: '산성 분사', cd: 12, ds: '주변 적의 장갑을 녹이고 피해' }, tail: { n: '꼬리 휘두르기', cd: 11, ds: '주변 적 모두에게 큰 피해' }, roar: { n: '포효', cd: 16, ds: '6초 동안 아군 공격 +25%' }, feast: { n: '든든한 한 끼', cd: 18, ds: '모두의 체력을 회복시키고 8초 동안 공격 +25%' } };
-const SK_OF = { leader: 'volley', hunter: 'multishot', spear: 'guard', sniper: 'snipe', mechanic: 'grenade', medic: 'firstaid', venomer: 'mist', dilo: 'acid', paraGold: 'firstaid', scout: 'pounce', shield: 'guard', gladiator: 'charge', crossbow: 'snipe', gunner: 'volley', bomber: 'grenade', tamer: 'roar', cook: 'feast', shaman: 'mist', anky: 'guard', diplo: 'tail', allo: 'acid', carno: 'charge', spino: 'roar', pachyc: 'charge', micro: 'pounce' };
+const SK_OF = { leader: 'volley', hunter: 'multishot', spear: 'guard', sniper: 'snipe', mechanic: 'grenade', medic: 'firstaid', venomer: 'mist', dilo: 'acid', paraGold: 'firstaid', scout: 'pounce', shield: 'guard', gladiator: 'charge', crossbow: 'snipe', gunner: 'volley', bomber: 'grenade', tamer: 'roar', cook: 'feast', smith: 'charge', shaman: 'mist', anky: 'guard', diplo: 'tail', allo: 'acid', carno: 'charge', spino: 'roar', pachyc: 'charge', micro: 'pounce' };
 const SK_MODEL = { Triceratops: 'charge', Parasaurolophus: 'boom', Apatosaurus: 'stomp', Velociraptor: 'pounce', Stegosaurus: 'tail', Trex: 'roar' };
 const SKN = { volley: ['일제 사격', '집중 포화', '포격 명령'], multishot: ['연속 사격', '속사', '화살비'], guard: ['철벽', '강철 의지', '수호의 벽'], snipe: ['급소 저격', '관통탄', '처형 사격'], grenade: ['수류탄', '고폭탄', '집속 폭탄'], firstaid: ['응급 처치', '야전 수술', '기적의 손'], mist: ['독안개', '부식 안개', '역병 구름'],
   charge: ['돌진', '분노의 돌진', '대지 가르기'], boom: ['굉음', '천둥 울음', '폭풍의 포효'], stomp: ['지진 밟기', '대지 진동', '산사태'], pounce: ['급습', '연쇄 급습', '피의 축제'], acid: ['산성 분사', '부식 분사', '녹아내리는 비'], tail: ['꼬리 휘두르기', '가시 회오리', '파멸의 꼬리'], roar: ['포효', '폭군의 포효', '지배자의 포효'], feast: ['든든한 한 끼', '푸짐한 한 상', '잔칫상'] };
 const SKX = { volley: ['적 셋을 쏴요', '적 다섯을 더 세게 쏴요', '모든 적을 쏴요'], multishot: ['화살 세 발', '화살 네 발', '모든 적에게 화살비'], guard: ['5초 동안 방어 2배', '방어 2배에 체력도 회복', '아군 모두 방어 2배'], snipe: ['3배 피해', '4배 피해', '5배 피해와 기절'], grenade: ['주변 적에게 피해', '더 넓고 강하게', '아주 넓은 폭발'], firstaid: ['아군 체력 20% 회복', '30% 회복', '45% 회복'], mist: ['적의 장갑을 녹여요', '더 많이 녹여요', '장갑을 녹이고 기절'],
   charge: ['들이받아 기절', '더 강한 돌진', '주변 적까지 함께 쓰러뜨려요'], boom: ['주변 적 기절', '더 넓게 더 오래', '아주 넓게 기절'], stomp: ['주변 적에게 피해', '더 넓고 강하게', '아주 넓고 강하게'], pounce: ['두 번 물어요', '세 번 물어요', '네 번 물어요'], acid: ['장갑을 녹이고 피해', '더 넓고 강하게', '아주 넓게'], tail: ['주변 적에게 큰 피해', '더 넓고 강하게', '아주 넓고 강하게'], roar: ['6초간 아군 공격 +25%', '8초간 지속', '10초간 지속하고 체력 회복'], feast: ['모두의 체력 12% 회복 · 8초간 공격 +25%', '체력 18% 회복 · 10초간 지속', '체력 25% 회복 · 12초간 지속'] };
 const skName = (k, t) => SKN[k][Math.min(2, t || 0)], skDesc = (k, t) => SKX[k][Math.min(2, t || 0)];
-const JOBS = { leader: ['상단 대장', '행수', '대행수'], hunter: ['사냥꾼', '명사수', '신궁'], spear: ['창잡이', '중갑 창병', '철벽 수호자'], sniper: ['저격수', '명저격수', '유령 저격수'], mechanic: ['정비공', '기술자', '병기 장인'], medic: ['의사', '군의관', '명의'], porter: ['짐꾼', '보부상', '거상'], scout: ['척후병', '추적자', '그림자 추적자'], shield: ['방패병', '중장 방패병', '움직이는 성벽'], gladiator: ['검투사', '투사', '검투왕'], crossbow: ['석궁수', '연발 석궁수', '관통 사수'], gunner: ['총잡이', '쌍권총', '속사왕'], bomber: ['폭파병', '공병', '파괴 전문가'], tamer: ['조련사', '수석 조련사', '공룡 조련 대가'], cook: ['요리사', '주방장', '전설의 요리장'], shaman: ['주술사', '대주술사', '정령 주술사'], venomer: ['독침술사', '독술사', '역병술사'] };
+const JOBS = { leader: ['상단 대장', '행수', '대행수'], hunter: ['사냥꾼', '명사수', '신궁'], spear: ['창잡이', '중갑 창병', '철벽 수호자'], sniper: ['저격수', '명저격수', '유령 저격수'], mechanic: ['정비공', '기술자', '병기 장인'], medic: ['의사', '군의관', '명의'], porter: ['짐꾼', '보부상', '거상'], scout: ['척후병', '추적자', '그림자 추적자'], shield: ['방패병', '중장 방패병', '움직이는 성벽'], gladiator: ['검투사', '투사', '검투왕'], crossbow: ['석궁수', '연발 석궁수', '관통 사수'], gunner: ['총잡이', '쌍권총', '속사왕'], bomber: ['폭파병', '공병', '파괴 전문가'], tamer: ['조련사', '수석 조련사', '공룡 조련 대가'], cook: ['요리사', '주방장', '전설의 요리장'], smith: ['대장장이', '숙련 대장장이', '명장'], shaman: ['주술사', '대주술사', '정령 주술사'], venomer: ['독침술사', '독술사', '역병술사'] };
 const skillOf = type => SK_OF[type] || SK_MODEL[MODEL_FILES[type]] || null;
 function skHit(u, t, mult, crit) { const def = Math.max(0, t.def * (t.guardT > 0 ? 2 : 1) - t.shred * 2.5), dmg = u.atk * (u.roarT > 0 ? 1.25 : 1) * mult * lvEdge(u, t) * (1 + 0.08 * (u.skLv || 0)) * (u.plv >= 15 ? 1.2 : 1) * 40 / (40 + def); t.hp -= dmg; t.hitT = 0.2; num(t, Math.round(dmg) + '!', '#ffd870'); burst(t.x, t.y, 10, 7, '#ffd870', { spd: 65, life: 0.4, r: 2.6 }); if (t.hp <= 0) onKill(u, t); }
 const fxAdd = (kind, t, o) => { if (B && B.fx.length < 140) B.fx.push(Object.assign({ kind, t, t0: t }, o)); };
@@ -1209,7 +1210,7 @@ const MODEL_FILES = { iguan: 'Parasaurolophus', pachyc: 'Parasaurolophus', micro
   trikeIron: 'Triceratops', trikeRed: 'Triceratops', paraGold: 'Parasaurolophus', apatoMoss: 'Apatosaurus', raptorShadow: 'Velociraptor', raptorVenom: 'Velociraptor', stegoRust: 'Stegosaurus', trexYoung: 'Trex' };
 const BACK_H = { Trex: 0.5, Velociraptor: 0.5, Parasaurolophus: 0.52, Triceratops: 0.4, Stegosaurus: 0.5, Apatosaurus: 0.4 };   // where the back is, as a share of full height
 const MODEL_SHAPE = { anky: [1.2, 0.72, 0.95], kentro: [0.85, 0.9, 0.92], brachio: [1, 1.38, 0.96], diplo: [0.8, 0.82, 1.22], spino: [0.95, 1, 1.18], carno: [0.9, 0.92, 1], pachyc: [1, 0.92, 0.86], iguan: [1.12, 1.08, 1], utah: [1.08, 1.05, 1], micro: [0.9, 0.9, 1] };   // width, height, length
-const HUMAN_AS = { scout: 'sniper', shield: 'spear', gladiator: 'spear', crossbow: 'hunter', gunner: 'leader', bomber: 'mechanic', tamer: 'hunter', cook: 'medic', shaman: 'medic' };
+const HUMAN_AS = { scout: 'sniper', shield: 'spear', gladiator: 'spear', crossbow: 'hunter', gunner: 'leader', bomber: 'mechanic', tamer: 'hunter', cook: 'medic', smith: 'mechanic', shaman: 'medic' };
 const DINO_AS = { iguan: 'para', pachyc: 'para', micro: 'raptor', utah: 'raptor', kentro: 'stego', anky: 'stego', styra: 'trike', carno: 'trex', allo: 'trex', spino: 'trex', diplo: 'apato', brachio: 'apato' };
 const MODEL_TINT = { iguan: [0x5a7a4a, 0.55], pachyc: [0x9a6a3a, 0.55], micro: [0x2a4a8a, 0.65], utah: [0xb0a070, 0.5], kentro: [0x5a3a2a, 0.6], anky: [0x8a7a5a, 0.55], styra: [0x6a4a8a, 0.5], carno: [0xa03a28, 0.55], allo: [0x7a6a3a, 0.5], spino: [0x3a6a7a, 0.55], diplo: [0x7a8a9a, 0.5], brachio: [0xb09a50, 0.5], compy: [0x8a9a50, 0.5], dilo: [0x9aa040, 0.4], trikeIron: [0x7a8694, 0.6], trikeRed: [0xb04428, 0.5], paraGold: [0xe0b030, 0.55], apatoMoss: [0x5a8a40, 0.5],
   raptorShadow: [0x141c30, 0.7], raptorVenom: [0x8a3a9a, 0.5], stegoRust: [0xc0601c, 0.55], trexYoung: [0xd0c8b0, 0.45] };
@@ -1261,7 +1262,7 @@ function loadModels(onProgress) {
 const srgb = c => new THREE.Color(c).convertSRGBToLinear();
 const lam = (col, extra = {}) => new THREE.MeshLambertMaterial(Object.assign({ color: srgb(col), flatShading: true }, extra));
 // people for hire, built from simple low-poly shapes to match the dinosaurs
-const HUMAN3 = { leader: [0x7a6448, 0x3a2e22], hunter: [0x56633a, 0x3a3020], spear: [0x6c5c4a, 0x3a3026], scout: [0x3e5236, 0x2a2a24], shield: [0x5a6470, 0x30343a], gladiator: [0x8a3a2a, 0x3a2a20], crossbow: [0x6a6a66, 0x2e2e2c], gunner: [0x3a4a6a, 0x2a2420], bomber: [0x3a3a38, 0x4a3a26], tamer: [0x8a6a3a, 0x4a3422], cook: [0xe8e4da, 0x4a4038], shaman: [0x5a3a7a, 0x2a2030], sniper: [0x444a44, 0x2a2e2a],
+const HUMAN3 = { leader: [0x7a6448, 0x3a2e22], hunter: [0x56633a, 0x3a3020], spear: [0x6c5c4a, 0x3a3026], scout: [0x3e5236, 0x2a2a24], shield: [0x5a6470, 0x30343a], gladiator: [0x8a3a2a, 0x3a2a20], crossbow: [0x6a6a66, 0x2e2e2c], gunner: [0x3a4a6a, 0x2a2420], bomber: [0x3a3a38, 0x4a3a26], tamer: [0x8a6a3a, 0x4a3422], cook: [0xe8e4da, 0x4a4038], smith: [0x5a4634, 0x2e2620], shaman: [0x5a3a7a, 0x2a2030], sniper: [0x444a44, 0x2a2e2a],
                  porter: [0x8a7a5a, 0x4a4030], mechanic: [0xc06a20, 0x34405a], medic: [0xe2ddd0, 0x6a6a70], venomer: [0x3e4a34, 0x24281c] };
 function makeHuman3(type, tier = 0) {
   const orig = type; if (type === 'leader' && LEADER_LOOK) type = LEADER_LOOK;
@@ -1304,7 +1305,7 @@ function makeHuman3(type, tier = 0) {
   } else if (type === 'sniper') {
     M(B(5, 1.6, 5.4), 0x2e342e, 0, 19, 0.3); M(B(4.6, 0.5, 2.4), 0x2e342e, 0, 18.4, 3.4); M(B(7.4, 10, 1), 0x363c30, 0, 9.8, -4.6);
     W(B(1, 1.3, 24), 0x1e1e1c, 0, 0, 7); W(cyl(0.7, 0.7, 5, 6), 0x1e1e1c, 0, 1.4, 4, Math.PI / 2); W(B(1.2, 2.8, 4.4), 0x4a3422, 0, -0.7, -5.5);
-  } else if (type === 'mechanic') {
+  } else if (type === 'mechanic' && type0 !== 'smith') {
     M(new THREE.SphereGeometry(2.9, 8, 4, 0, 6.3, 0, 1.6), 0xe0b020, 0, 17.3, 0); M(cyl(3.3, 3.3, 0.4, 10), 0xe0b020, 0, 17.6, 0.6);
     M(B(4.2, 1.1, 0.8), 0x2a2a2a, 0, 17, 2.4); M(B(6.9, 2, 4.1), 0x34405a, 0, 8.8, 0);
     W(B(0.9, 0.9, 9), 0x9a9a96, 0, 0, 2); W(B(2.6, 0.9, 2), 0x9a9a96, 0, 0, 7);
@@ -1329,6 +1330,7 @@ function makeHuman3(type, tier = 0) {
   else if (type0 === 'crossbow') { M(B(13, 1, 1.2), 0x4a3422, 4.2, 11.2, 9); }
   else if (type0 === 'gunner') { M(B(6.6, 1.6, 4.2), 0x2a5a8a, 0, 15.4, 0.3); M(B(1, 1.4, 5), 0x2a2a2a, -4.4, 8, 3); }
   else if (type0 === 'bomber') { M(new THREE.SphereGeometry(2.6, 7, 5), 0x1e1e1e, 0, 12, -5.4); M(B(0.6, 2.4, 0.6), 0xe08030, 0, 15.2, -5.4); }
+  else if (type0 === 'smith') { M(B(6.8, 7, 0.8), 0x3a2a20, 0, 11, 2.3); M(B(1, 1, 10), 0x6a4a2a, 0, 0, 3, arm); M(B(3.6, 3.2, 4.4), 0x8a8a8e, 0, 0, 8.6, arm); M(B(5.2, 1.4, 5.2), 0x2e2620, 0, 20.6, 0); }
   else if (type0 === 'cook') { M(B(4.6, 4.4, 4.6), 0xf4f0e8, 0, 22.4, 0); M(B(5.4, 1.2, 5.4), 0xf4f0e8, 0, 24.8, 0); M(B(6.6, 6.4, 0.8), 0xf4f0e8, 0, 11, 2.3); }
   else if (type0 === 'tamer') { M(B(1.4, 6, 1.4), 0xe04a30, 1.6, 21, -0.6); M(B(1.4, 5, 1.4), 0xe0c040, -1.2, 20.6, -0.6); M(B(7, 1.6, 4.2), 0x7a4a2a, 0, 9.4, 0); }
   else if (type0 === 'shaman') { M(B(7.4, 10, 1), 0x5a3a7a, 0, 9.6, -4.8); M(new THREE.SphereGeometry(1.6, 6, 4), 0xe8e0d0, 0, 9, 0, arm); }
@@ -2852,7 +2854,7 @@ requestAnimationFrame(frame);
 <button id="upd" hidden>새 패치가 있어요 · 눌러서 적용</button>
 <script>
 (function () {
-  var VER = "20261124-075952";
+  var VER = "20261124-083612";
   if (!/^https?:$/.test(location.protocol)) return;
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
   var btn = document.getElementById('upd');
