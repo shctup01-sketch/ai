@@ -147,6 +147,38 @@ h2 { margin-top: 2px; } h2 small { display: block; margin: 3px 0 0; line-height:
 .bfoot .btn { min-height: 46px; } #bCapture { flex: 1.6; font-size: 14px; } #fNearest { flex: 1.5; }
 .dexg { gap: 8px; } .dexc { border-radius: 10px; }
 #menu { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+/* left HUD column: the party at a glance, the current goal, auto hunt, the loot feed */
+#hudL { position: absolute; left: 8px; top: 6px; z-index: 2; display: flex; flex-direction: column; align-items: flex-start; gap: 5px; max-width: 66%; pointer-events: none; }
+#hudL > * { pointer-events: auto; } #hudL #feed { pointer-events: none; position: static; max-width: 100%; } #hudL #autoBtn { position: static; }
+#pstrip { display: flex; flex-wrap: wrap; gap: 3px; }
+#hudL.inb #goal, #hudL.inb #autoBtn { display: none; }
+.pc { position: relative; width: 34px; padding: 0; border-radius: 7px; background: rgba(18,14,10,.82); border: 1px solid #5a4a38; overflow: hidden; display: block; }
+.pc.lead { border-color: var(--amber); } .pc canvas { display: block; width: 32px; height: 28px; }
+.pc i { display: block; height: 4px; background: #2a0e0a; } .pc i b { display: block; height: 100%; background: #8fcf6a; transition: width .25s; }
+.pc.low i b { background: #e3a843; } .pc.ko i b { background: #d4573c; } .pc.ko canvas { filter: grayscale(1) brightness(.5); }
+.pc em { position: absolute; right: 1px; top: 0; font-style: normal; font-size: 9px; font-weight: 700; color: #fff; text-shadow: 0 0 2px #000, 0 1px 1px #000; }
+#goal { text-align: left; font-size: 11.5px; line-height: 1.35; padding: 6px 10px; border-radius: 10px; background: rgba(18,14,10,.84); border: 1px solid var(--amber); color: #ece3d4; max-width: 100%; }
+#goal b { color: var(--amber); font-weight: 700; } #goal span { display: block; height: 3px; margin-top: 4px; background: #3a2e22; border-radius: 2px; overflow: hidden; } #goal span u { display: block; height: 100%; background: var(--amber); }
+#menuClose { flex: none; width: 38px; height: 38px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--line); font-size: 16px; color: var(--text); margin-left: 6px; }
+/* alerts stack instead of replacing each other */
+#toast { opacity: 1 !important; background: none !important; border: 0 !important; padding: 0 !important; box-shadow: none !important; transform: translateX(-50%) !important; display: flex; flex-direction: column; align-items: center; gap: 5px; width: max-content; max-width: calc(100% - 20px); }
+.tm { background: rgba(28,23,17,.95); border: 1px solid var(--line); padding: 7px 12px; border-radius: 10px; font-size: 12.5px; line-height: 1.4; text-align: center; box-shadow: 0 4px 14px rgba(0,0,0,.4); animation: tmin .22s ease-out, tmout .4s 2.5s forwards; }
+.tm.warn { border-color: var(--bad); } .tm.good { border-color: var(--amber); }
+@keyframes tmin { from { opacity: 0; transform: translateY(-8px); } } @keyframes tmout { to { opacity: 0; transform: translateY(-6px); } }
+/* field and battle buttons: an icon over a label */
+.bfoot .btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; min-height: 54px; line-height: 1.15; font-size: 12px; }
+.bfoot .btn::before { content: ''; width: 20px; height: 20px; flex: none; background: center / contain no-repeat; }
+#bPot { background-image: linear-gradient(to top, rgba(0,0,0,.55) var(--cd, 0%), rgba(0,0,0,0) var(--cd, 0%)); }
+#fLeave::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ece3d4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='8' cy='8' r='3'/%3E%3Ccircle cx='17' cy='9' r='2.5'/%3E%3Cpath d='M2 20c0-4 3-6 6-6s6 2 6 6M14 20c0-3 1.5-5 4-5s4 2 4 5'/%3E%3C/svg%3E"); }
+#fZoom::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ece3d4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14'/%3E%3C/svg%3E"); }
+#fPot::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ece3d4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 3h6M10 3v5l-4 8a3 3 0 0 0 3 4h6a3 3 0 0 0 3-4l-4-8V3M7.5 14h9'/%3E%3C/svg%3E"); }
+#bPot::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ece3d4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 3h6M10 3v5l-4 8a3 3 0 0 0 3 4h6a3 3 0 0 0 3-4l-4-8V3M7.5 14h9'/%3E%3C/svg%3E"); }
+#bRetreat::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ece3d4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 12h14M10 6l-6 6 6 6M20 5v14'/%3E%3C/svg%3E"); }
+#bSpeed::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ece3d4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l7 6-7 6zM13 6l7 6-7 6z'/%3E%3C/svg%3E"); }
+#fNearest::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231c120a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='8'/%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3Cpath d='M12 2v4M12 18v4M2 12h4M18 12h4'/%3E%3C/svg%3E"); }
+#bCapture::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231c120a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 12h11M14 8l6 4-6 4zM3 8l3 4-3 4'/%3E%3C/svg%3E"); }
+@media (orientation: landscape) { #hudL { top: 40px; max-width: 46%; } .bfoot .btn { min-height: 50px; } }
+@media (orientation: portrait) { #app.wo #toast { top: auto; bottom: 150px; flex-direction: column-reverse; } }
 .ic { flex: none; width: 42px; height: 42px; image-rendering: pixelated; border-radius: 8px; border: 1px solid var(--line); }
 .artg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .artc { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 6px 6px 8px; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
@@ -190,6 +222,7 @@ canvas.bigart { width: min(100%, 300px); height: auto; aspect-ratio: 5 / 4; alig
       <span class="rc"><em>짐칸</em><b id="rCargo">0/0</b></span>
       <span class="rc"><em>날짜</em><b id="rDay">1</b></span>
     </div>
+    <button id="menuClose" aria-label="닫기">✕</button>
   </header>
   <main>
     <section class="view" id="v-town"></section>
@@ -200,7 +233,7 @@ canvas.bigart { width: min(100%, 300px); height: auto; aspect-ratio: 5 / 4; alig
   </div>
   <div id="battle" hidden>
     <div class="bhead"><b id="bTitle"></b><small id="bInfo"></small></div>
-    <div class="bfield"><canvas id="b3d"></canvas><canvas id="bcv"></canvas><div id="bTip">적을 눌러 집중 공격 · 체력 30% 이하면 포획</div><div id="feed"></div><div id="joy"><i></i></div><button id="autoBtn"></button><div id="skbar" hidden></div><div id="bSel" hidden><span id="bSelName"></span><span class="bar"><i id="bSelHp"></i></span></div></div>
+    <div class="bfield"><canvas id="b3d"></canvas><canvas id="bcv"></canvas><div id="bTip">적을 눌러 집중 공격 · 체력 30% 이하면 포획</div><div id="hudL"><div id="pstrip"></div><button id="goal" hidden></button><button id="autoBtn"></button><div id="feed"></div></div><div id="joy"><i></i></div><div id="skbar" hidden></div><div id="bSel" hidden><span id="bSelName"></span><span class="bar"><i id="bSelHp"></i></span></div></div>
     <div class="bfoot" id="ffoot" hidden><button class="btn" id="fLeave">상단</button><button class="btn" id="fZoom">지도</button><button class="btn" id="fPot">회복약</button><button class="btn primary" id="fNearest">가까운 무리 사냥</button></div>
     <div class="bfoot" id="bfoot"><button class="btn" id="bRetreat">후퇴</button><button class="btn primary" id="bCapture">포획</button><button class="btn" id="bPot">회복약</button><button class="btn" id="bZoom" hidden>크게</button><button class="btn" id="bSpeed">×1</button></div>
   </div>
@@ -1852,7 +1885,7 @@ function hideWorld(v) { if (B) return; worldOn = false; $('app').classList.remov
 function walkTo(x, y, label) { if (!W) initWorld(); W.target = null; W.lead.tx = clamp(x, 10, WW - 10); W.lead.ty = clamp(y, 10, WH - 10); W.dest = label ? { x: W.lead.tx, y: W.lead.ty, label } : null; if (label) toast(`${label}(으)로 가는 중 · 땅을 누르면 멈춰요`); }
 function updField() {
   if (!W || B) return; const t = inTown(), L = W.lead, g = groundAt(L.x, L.y), z = zoneAt(L.x, L.y);
-  $('fNearest').textContent = t ? '사냥터 가기' : '가까운 무리 사냥'; W.badges = spotBadges(); updPots(); autoEat(); updAuto();
+  $('fNearest').textContent = t ? '사냥터 가기' : '가까운 무리 사냥'; W.badges = spotBadges(); updPots(); autoEat(); updAuto(); updStrip(); updGoal();
   const here = t ? `${ZONES[t].n} 정착지` : g ? `${ZONES[g.z].n} · ${HUNT_NAMES[g.z][g.i]}` : `${ZONES[z].n} · 황무지`;
   if (here !== W.here) {
     W.here = here; $('bTitle').textContent = here;
@@ -1862,6 +1895,7 @@ function updField() {
   const lv = party().filter(u => !u.ko).length; { const cu = cargoUsed(), cp = capacity(); $('bInfo').innerHTML = `<span class="hud m"><i>크레딧</i>${fmt(S.money)}</span><span class="hud${S.food <= 20 ? ' warn' : ''}"><i>포만감</i>${Math.ceil(S.food)}</span><span class="hud${cu >= cp ? ' warn' : ''}"><i>짐</i>${cu}/${cp}</span>`; }
 }
 function worldTap(px, py) {
+  { const cw0 = bcv.clientWidth, my0 = isLand() ? 50 : 34; if (px > cw0 - 94 && px < cw0 - 6 && py > my0 - 2 && py < my0 + 86) { sfx('open'); hideWorld('map'); return; } }
   const x = VO.x + px / PSZ, y = VO.y + py / PSZ, L = W.lead;
   let best = null, bd = 34 * 34;
   for (const p of W.packs) { if (p.dead > 0 || d2(p.cx, p.cy, x, y) > 260 * 260) continue; for (const m of p.mons) { const d = d2(x, y, m.x, m.y - m.len * 0.2); if (d < Math.max(bd, (m.len * 0.5) ** 2) && (!best || d < bd)) { bd = d; best = p; } } }
@@ -1985,6 +2019,38 @@ function usePotion() {
   S.pots--; sfx('heal'); updPots(); save();
 }
 function updPots() { $('fPot').textContent = $('bPot').textContent = `회복약 ${S.pots}`; }
+let stripKey = '';
+function updStrip() {   // the party at a glance: a face, a level and a health bar for each member
+  $('hudL').classList.toggle('inb', !!B);
+  const el = $('pstrip'), P = party(), key = P.map(u => u.id + ':' + (u.tier || 0) + u.type).join(',') + (S.cls || '');
+  if (key !== stripKey) { stripKey = key; el.innerHTML = P.map(u => `<button class="pc${u.type === 'leader' ? ' lead' : ''}" data-act="unit" data-id="${u.id}"><canvas data-u="${u.type}" data-t="${u.tier || 0}" width="64" height="56"></canvas><i><b></b></i><em></em></button>`).join(''); el.querySelectorAll('canvas').forEach(cv => portrait(cv, cv.dataset.u)); }
+  P.forEach((u, q) => { const c = el.children[q]; if (!c) return; const bu = B && B.units.find(x => x.ref === u), f = bu ? Math.max(0, bu.hp / bu.max) : u.ko ? 0 : u.hp / maxHp(u), ko = bu ? bu.hp <= 0 : u.ko; c.querySelector('b').style.width = (f * 100) + '%'; c.classList.toggle('ko', ko); c.classList.toggle('low', !ko && f < 0.35); c.querySelector('em').textContent = u.lv; });
+}
+// A short chain of goals that shows a new player what to do next. Each pays out once.
+const goSpot = k => { const z = nearestTown().z, T = TOWNS[z], sp = TD[z].spots.find(q => q[0] === k); walkTo(T.x + sp[2], T.y + sp[3] + 28, `${ZONES[z].n} ${sp[1]}`); W.dest.open = k; showWorld(); };
+const goGround = (z, q) => { walkTo(GROUNDS[z][q][0], GROUNDS[z][q][1], HUNT_NAMES[z][q]); showWorld(); };
+const GOALS = [
+  { t: '작은 공룡 3마리 사냥하기', p: () => S.stats.kills || 0, n: 3, r: 100, go: () => goGround('plain', 0) },
+  { t: '시장에서 전리품 팔기', p: () => S.stats.trades, n: 1, r: 100, go: () => goSpot('market') },
+  { t: '대장 레벨 3 만들기', p: () => (S.units.find(u => u.type === 'leader') || {}).lv || 1, n: 3, r: 150, go: () => goGround('plain', 0) },
+  { t: '고용소에서 첫 동료 고용하기', p: () => S.units.length, n: 2, r: 200, go: () => goSpot('hire') },
+  { t: '능력치 포인트 나눠 주기 (상단 → 관리)', p: () => S.units.some(u => u.st && u.st.a + u.st.h + u.st.d > 0) ? 1 : 0, n: 1, r: 100, go: () => hideWorld('party') },
+  { t: '공룡 1마리 포획하기 (체력 30% 이하에서 다트)', p: () => S.stats.captures, n: 1, r: 300, go: () => goGround('plain', 1) },
+  { t: '시련의 탑 3층 오르기', p: () => S.tower || 0, n: 3, r: 300, go: () => goSpot('trial') },
+  { t: '의뢰 1건 끝내기', p: () => S.stats.quests || 0, n: 1, r: 300, go: () => goSpot('quest') },
+  { t: '대원 5명 모으기', p: () => party().length, n: 5, r: 600, go: () => goSpot('hire') },
+  { t: '평원의 우두머리 쓰러뜨리기', p: () => S.bossKills.trikeKing ? 1 : 0, n: 1, r: 1500, go: () => goGround('plain', 4) },
+  { t: '무너진 도시 정착지 찾아가기', p: () => S.seen.city ? 1 : 0, n: 1, r: 800, go: () => { walkTo(TOWNS.city.x, TOWNS.city.y + 60, '무너진 도시 정착지'); showWorld(); } },
+  { t: '1차 전직이나 진화 시키기', p: () => S.units.some(u => (u.tier || 0) >= 1 && !u.famed) ? 1 : 0, n: 1, r: 2000, go: () => hideWorld('party') },
+];
+function updGoal() {
+  const el = $('goal'), g = GOALS[S.goal || 0]; if (!g || !S.cls) { el.hidden = true; return; }
+  const v = Math.min(g.n, g.p());
+  if (v >= g.n) { S.goal = (S.goal || 0) + 1; S.money += g.r; sfx('loot'); toast(`목표 달성: ${g.t} · 보상 ${fmt(g.r)} 크레딧`, 'good'); renderHeader(); updGoal(); return; }
+  el.hidden = false; el.innerHTML = `<b>목표</b> ${g.t}${g.n > 1 ? ` (${v}/${g.n})` : ''} · 보상 ${fmt(g.r)}<span><u style="width:${v / g.n * 100}%"></u></span>`;
+}
+$('goal').onclick = () => { const g = GOALS[S.goal || 0]; if (g && g.go && !B) { sfx('tap'); g.go(); } };
+$('menuClose').onclick = () => { sfx('tap'); showWorld(); };
 function autoEat() { if (S.food > 20) return; const g = ['grain', 'meat', 'jerky'].find(g => S.cargo[g] > 0); if (!g) return; S.cargo[g]--; if (!S.cargo[g]) delete S.cargo[g]; S.food = Math.min(100, S.food + FOODS[g]); toast(`배가 고파 ${GOODS[g].n}을(를) 먹었어요 · 포만감 ${Math.ceil(S.food)}`); }
 $('fPot').onclick = usePotion; $('bPot').onclick = usePotion;
 const TRIAL_TYPES = ['para', 'trike', 'raptor', 'compy', 'pachyc', 'micro', 'iguan', 'dilo', 'stego', 'utah', 'kentro', 'apato', 'styra', 'carno', 'anky', 'trex', 'allo', 'diplo', 'raptorShadow', 'trikeRed', 'spino', 'stegoRust', 'brachio', 'trexYoung'];
@@ -2082,7 +2148,7 @@ function renderWorld(dt) {
       const s = toScreen(W.lead.tx, 0, W.lead.ty); if (s.x < 0 || s.x > cw || s.y < 0 || s.y > ch) { const a = Math.atan2(s.y - ch / 2, s.x - cw / 2), ex = clamp(cw / 2 + Math.cos(a) * cw, 20, cw - 20), ey = clamp(ch / 2 + Math.sin(a) * ch, 40, ch - 20); c.save(); c.translate(ex, ey); c.rotate(a); c.fillStyle = '#8fcf6a'; c.beginPath(); c.moveTo(12, 0); c.lineTo(-7, -8); c.lineTo(-3, 0); c.lineTo(-7, 8); c.closePath(); c.fill(); c.restore(); if (W.dest) tag(`${W.dest.label} ${Math.round(Math.hypot(W.lead.tx - W.lead.x, W.lead.ty - W.lead.y) / 10)}m`, clamp(ex, 70, cw - 70), ey + (ey < ch / 2 ? 34 : -14), '#8fcf6a'); }
     }
     drawWeather(c, cw, ch); drawPX(c); drawMini(c, cw);
-  } else { renderOverlay(true); drawWeather(bc, cw, ch); drawOrders(bc); updSel(); }
+  } else { renderOverlay(true); drawWeather(bc, cw, ch); drawOrders(bc); updSel(); if (((W.t * 4) | 0) !== W.stripT) { W.stripT = (W.t * 4) | 0; updStrip(); $('bPot').style.setProperty('--cd', Math.max(0, Math.min(100, ((W.potCd || 0) - W.t) / 15 * 100)) + '%'); } }
   updSkbar(dt);
 }
 function drawWeather(c, cw, ch) {   // each land has its own air: ash, rain, sand, snow, embers, fireflies
@@ -2369,7 +2435,7 @@ function sndTick() {
    UI
    ================================================================ */
 let view = 'town', toastT;
-function toast(m, k) { const t = $('toast'); t.textContent = m; t.className = 'show ' + (k || ''); clearTimeout(toastT); toastT = setTimeout(() => t.className = '', 2600); }
+function toast(m, k) { const box = $('toast'), el = document.createElement('div'); el.className = 'tm ' + (k || ''); el.textContent = m; box.appendChild(el); while (box.children.length > 3) box.firstChild.remove(); setTimeout(() => el.remove(), 2950); }
 function showModal(h) { $('mcard').innerHTML = h; $('modal').hidden = false; $('mcard').querySelectorAll('canvas[data-u]').forEach(cv => portrait(cv, cv.dataset.u)); }
 function closeModal() { $('modal').hidden = true; }
 const tierNameOf = (type, t) => JOBS[type] ? JOBS[type][t] : TIER_DINO[t] + UNITS[type].n;
@@ -2623,7 +2689,7 @@ document.body.addEventListener('click', e => {
   else if (act === 'quest') {
     const q = S.quests[z][+b.dataset.i]; if (!q) return;
     if (q.type === 'deliver') { if ((S.cargo[q.g] || 0) < q.n) return; S.cargo[q.g] -= q.n; if (!S.cargo[q.g]) delete S.cargo[q.g]; } else if (q.prog < q.n) return;
-    S.money += q.money; S.stats.earned += q.money; gainCxp(q.xp); S.quests[z].splice(+b.dataset.i, 1); sfx('coin'); toast(`의뢰 완료 · ${q.money} 크레딧`, 'good');
+    S.money += q.money; S.stats.earned += q.money; gainCxp(q.xp); S.stats.quests = (S.stats.quests || 0) + 1; S.quests[z].splice(+b.dataset.i, 1); sfx('coin'); toast(`의뢰 완료 · ${q.money} 크레딧`, 'good');
   }
   else if (act === 'craft') {
     const R = RECIPES[b.dataset.r], n = +b.dataset.n; if (S.jobs[z] || n < 1) return;
