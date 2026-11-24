@@ -1233,6 +1233,8 @@ const inTown = () => S.pos && nearTown(S.pos.x, S.pos.y, TOWN_R);
 
 /* ---------- ground: generated chunk by chunk, pixel by pixel, from a small palette ---------- */
 const CH = 256, CHUNKS = new Map();
+const FLOOR = { cobble: [['#8e8a80', '#989488', '#6e6a62'], ['#8a7a5c', '#94846a', '#9e8e72']], concrete: [['#6a6c6e', '#747678', '#4e5052'], ['#585a5c', '#606264', '#525456']], plank: [['#7a5a36', '#84623c', '#4e3a22'], ['#5e5236', '#66593c', '#564a30']], sand: [['#b89a66', '#c2a470', '#9a7e50'], ['#a88a5a', '#b09262', '#a08254']], stone: [['#4a4648', '#545052', '#2e2a2c'], ['#3c383a', '#444042', '#363234']] };
+for (const k of Object.keys(FLOOR)) FLOOR[k] = FLOOR[k].map(a => a.map(h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]));
 const hex = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
 const PAL = {
   plain: ['#7a6844', '#857248', '#8f7c50', '#9a8658', '#6e5c3c'].map(hex), city: ['#4c4e50', '#565858', '#5e605c', '#686a62', '#44464a'].map(hex), swamp: ['#3e4628', '#464e2e', '#4e5634', '#5a6238', '#364024'].map(hex),
@@ -1271,13 +1273,14 @@ function makeChunk(cx, cy) {
       else if (z === 'swamp') { if (far && riv < 0.012) c = PAL.water[1]; }
       else if (z === 'city') { if (vnoise(x / 200 + 71, y / 200 + 23) > 0.66 && !onStreet(x, y)) { c = PAL.street[(h * 3) | 0]; if (x % 22 < 1 && y % 60 < 40) c = PAL.dash; } }
     }
-    if (tn) { const T = TOWNS[tn], dd = Math.hypot(x - T.x, y - T.y); if (dd < TOWN_R - 2) { const ax = Math.abs(x - T.x), ay = Math.abs(y - T.y), road2 = ax < 20 || ay < 20 || Math.abs(dd - 190) < 11 || Math.abs(dd - (TOWN_R - 46)) < 8 || dd < 72, ti = ((x >> 3) + ((y >> 2) & 1 ? 1 : 0) * 0) , brick = (x + ((y >> 3) & 1) * 4) % 8 === 0 || y % 8 === 0;
-        c = road2 ? (brick ? PAL.cobble[2] : PAL.cobble[(h * 2) | 0]) : PAL.plaza[(h * 3) | 0]; if (!road2 && h2 > 0.9) c = PAL.plaza[0]; if (dd < 72 && Math.abs(dd - 60) < 2) c = PAL.cobble[3]; } }
+    if (tn) { const T = TOWNS[tn], D0 = TD[tn], dx0 = x - T.x, dy0 = y - T.y, dd = Math.hypot(dx0, dy0);
+      if (townInside(D0.shape, dx0, dy0, dd)) { const F = FLOOR[D0.floor], road2 = townRoad(D0.shape, dx0, dy0, dd), seam = D0.floor === 'plank' ? y % 6 === 0 || (x + ((y / 6) | 0) * 13) % 34 === 0 : D0.floor === 'concrete' ? x % 18 === 0 || y % 18 === 0 : D0.floor === 'sand' ? false : (x + ((y >> 3) & 1) * 4) % 8 === 0 || y % 8 === 0;
+        c = road2 ? (seam ? F[0][2] : F[0][(h * 2) | 0]) : F[1][(h * 3) | 0]; if (!road2 && h2 > 0.9) c = F[1][0]; if (D0.floor === 'sand' && road2 && h2 > 0.8) c = F[0][2]; if (D0.shape !== 'grid' && dd < 72 && Math.abs(dd - 60) < 2) c = PAL.cobble[3]; } }
     else if (rd < 15 + n * 5) {
       c = PAL.road[(h * 3) | 0];
       if (rd < 1.6 && ((x + y) >> 4) % 2 === 0) c = PAL.dash; else if (vnoise(x / 9, y / 9) > 0.8) c = PAL[z][1]; else if (h2 > 0.93) c = PAL.moss;
     } else if (z === 'city' && onStreet(x, y)) { c = PAL.street[(h * 3) | 0]; if (vnoise(x / 6, y / 6) > 0.83) c = PAL.crack; else if (h2 > 0.95) c = PAL.moss; const mx = (x + 4000) % 430, my = (y + 4000) % 390; if ((mx > 17 && mx < 20 && ((y >> 4) & 1) && my >= 38) || (my > 17 && my < 20 && ((x >> 4) & 1) && mx >= 38)) c = PAL.dash; }
-    const k = (py * CH + px) * 4, zt = tn ? null : ZT[zk]; if (zt) { d[k] = Math.min(255, c[0] * zt[0]); d[k + 1] = Math.min(255, c[1] * zt[1]); d[k + 2] = Math.min(255, c[2] * zt[2]); } else { d[k] = c[0]; d[k + 1] = c[1]; d[k + 2] = c[2]; } d[k + 3] = 255;
+    const k = (py * CH + px) * 4, zt = ZT[zk]; if (zt) { d[k] = Math.min(255, c[0] * zt[0]); d[k + 1] = Math.min(255, c[1] * zt[1]); d[k + 2] = Math.min(255, c[2] * zt[2]); } else { d[k] = c[0]; d[k + 1] = c[1]; d[k + 2] = c[2]; } d[k + 3] = 255;
   }
   g.putImageData(im, 0, 0); return cv;
 }
@@ -1423,8 +1426,23 @@ const PDEF = {   // key: [maker, collision radius, fallback colour]
     fountain: [() => { const g = grp(cyl(26, 28, 6, 12, 0x8e8a80, 0, 3, 0), cyl(23, 23, 1.4, 12, 0x3a7a8e, 0, 6.2, 0), cyl(5, 7, 16, 8, 0xa8a498, 0, 12, 0), cyl(11, 4, 4, 10, 0x8e8a80, 0, 21, 0), cyl(9.5, 9.5, 1, 10, 0x4a90a4, 0, 23, 0), cyl(2.4, 3, 9, 6, 0xa8a498, 0, 27, 0)); const orb = new THREE.Mesh(new THREE.IcosahedronGeometry(3.4, 1), lam(0xe3a843)); orb.position.y = 33; g.add(orb); return g; }, 28, '#8e8a80'],
     dummy: [() => grp(boxM(1.8, 18, 1.8, 0x4a3422, 0, 9, 0), boxM(12, 1.8, 1.8, 0x4a3422, 0, 14, 0), boxM(7, 9, 5, 0xc8b070, 0, 10, 0), boxM(5, 5, 5, 0xc8b070, 0, 19, 0), boxM(3, 3, 0.8, 0xc0302a, 0, 10, 2.8)), 4, '#c8b070'],
     bench: [() => grp(boxM(16, 1.6, 5, 0x6a4a2a, 0, 5, 0), boxM(16, 5, 1.2, 0x6a4a2a, 0, 8, -2.4), boxM(1.6, 5, 5, 0x3a2a1c, -7, 2.5, 0), boxM(1.6, 5, 5, 0x3a2a1c, 7, 2.5, 0)), 0, '#6a4a2a'],
+    cont1: [() => { const g = grp(boxM(36, 15, 15, 0x9a3a2a, 0, 7.5, 0), boxM(36.6, 1, 15.6, 0x6a2a20, 0, 15, 0), boxM(1, 13, 13, 0x7a2e22, 18.2, 7.5, 0), boxM(4, 20, 1, 0x4a7a34, -10, 6, 7.8)); for (let q = -4; q <= 4; q++) g.add(boxM(0.8, 13, 15.4, 0x7a2e22, q * 4, 7.5, 0)); g.rotation.y = 0.25; return g; }, 17, '#9a3a2a'],
+    cont2: [() => { const g = grp(boxM(36, 15, 15, 0x2e5a7a, 0, 7.5, 0), boxM(34, 14, 14, 0x3a7a5a, 2, 22, 1), boxM(36.6, 1, 15.6, 0x1e3e56, 0, 15, 0), boxM(6, 9, 1, 0x1c1c1c, 8, 5, 7.8)); for (let q = -4; q <= 4; q++) g.add(boxM(0.8, 13, 15.4, 0x244a66, q * 4, 7.5, 0)); g.rotation.y = -0.2; return g; }, 17, '#2e5a7a'],
+    stilt: [() => grp(boxM(2, 16, 2, 0x4a3422, -11, 8, -8), boxM(2, 16, 2, 0x4a3422, 11, 8, -8), boxM(2, 16, 2, 0x4a3422, -11, 8, 8), boxM(2, 16, 2, 0x4a3422, 11, 8, 8), boxM(30, 2, 24, 0x6a4a2a, 0, 16, 0), boxM(24, 13, 18, 0x8a7448, 0, 23.5, -1), roof(26, 20, 9, 0x5a6a3a, 30), boxM(6, 9, 1.2, 0x2a1c14, -4, 21.5, 8.6), boxM(5, 4, 1.4, 0xffd870, 6, 24, 8.6), rot(boxM(2, 20, 5, 0x5a4630, 16, 8, 6), 0, 0, -0.5)), 13, '#8a7448'],
+    statue: [() => grp(boxM(20, 8, 20, 0x8e8a80, 0, 4, 0), boxM(15, 6, 15, 0xa8a498, 0, 11, 0), boxM(9, 12, 14, 0x6a7a70, 0, 20, -2), boxM(7, 9, 10, 0x6a7a70, 0, 28, 6), boxM(5, 5, 8, 0x6a7a70, 0, 30, 14), rot(boxM(1.6, 9, 1.6, 0xd8d0b8, -2.6, 36, 9), 0.5, 0, 0), rot(boxM(1.6, 9, 1.6, 0xd8d0b8, 2.6, 36, 9), 0.5, 0, 0), boxM(3, 4, 12, 0x6a7a70, 0, 17, -12), boxM(8, 1.4, 1, 0xe3a843, 0, 11, 7.8)), 14, '#8e8a80'],
+    bonfire: [() => { const g = new THREE.Group(); for (let q = 0; q < 6; q++) { const l = boxM(3, 18, 3, q % 2 ? 0x3a2a1a : 0x4a3422, 0, 7, 0); l.rotation.set(Math.cos(q) * 0.6, 0, Math.sin(q) * 0.6); g.add(l); } for (let q = 0; q < 9; q++) { const a = q / 9 * 6.283; g.add(boxM(4, 3, 4, 0x6a6a66, Math.cos(a) * 13, 1.5, Math.sin(a) * 13)); } g.add(boxM(6, 6, 6, 0xf08a30, 0, 6, 0)); return g; }, 14, '#4a3422'],
     wallA: [wall(0), 0, '#5a4630'], wallB: [wall(-Math.PI / 4), 0, '#5a4630'], wallC: [wall(Math.PI / 2), 0, '#5a4630'], wallD: [wall(Math.PI / 4), 0, '#5a4630'],
   });
+}
+{ // one wall segment in five materials and four directions
+  const mk = (style, ry) => () => { const g = new THREE.Group();
+    if (style === 'wood') { for (let q = -3; q <= 3; q++) { g.add(boxM(4.4, 22 + (q % 2 ? 2 : 0), 4.4, q % 2 ? 0x5a4630 : 0x664e34, q * 4.7, 11, 0)); const tip = new THREE.Mesh(new THREE.ConeGeometry(2.6, 5, 4), lam(0x4a3a28)); tip.position.set(q * 4.7, 25 + (q % 2 ? 2 : 0), 0); g.add(tip); } g.add(boxM(34, 2, 5, 0x3a2e22, 0, 15, 0)); }
+    else if (style === 'stone') { g.add(boxM(34, 20, 8, 0x77736c, 0, 10, 0), boxM(34, 2, 9, 0x5e5a54, 0, 20, 0)); for (let q = -1; q <= 1; q++) g.add(boxM(7, 5, 8, 0x838078, q * 12, 23.5, 0)); g.add(boxM(3, 9, 0.6, 0x4a7a34, 8, 8, 4.2)); }
+    else if (style === 'cont') { g.add(boxM(34, 14, 13, [0x9a3a2a, 0x2e5a7a, 0x3a7a5a, 0xb08a2a][Math.round(Math.abs(ry) * 4) % 4], 0, 7, 0), boxM(34.4, 1, 13.4, 0x2a2a2c, 0, 14, 0)); for (let q = -3; q <= 3; q++) g.add(boxM(0.8, 12, 13.4, 0x2a2a2c, q * 4.6, 7, 0)); }
+    else if (style === 'hedge') { for (let q = -2; q <= 2; q++) { const b = new THREE.Mesh(new THREE.IcosahedronGeometry(8.5, 0), lam([0x2e6638, 0x3a7a40, 0x2a5a34][(q + 2) % 3])); b.position.set(q * 7.4, 8, 0); b.scale.y = 1.1; g.add(b); } g.add(boxM(2, 14, 2, 0x4a3422, -15, 7, 0), boxM(2, 14, 2, 0x4a3422, 15, 7, 0)); }
+    else { g.add(boxM(34, 9, 9, 0x8a8a84, 0, 4.5, 0), boxM(34, 6, 5, 0x9a9a94, 0, 11, 0), boxM(34, 1.4, 5.4, 0xd0a040, 0, 14, 0), boxM(1.4, 16, 1.4, 0x4a4a48, -14, 20, 0), boxM(1.4, 16, 1.4, 0x4a4a48, 14, 20, 0), boxM(30, 0.8, 0.8, 0x6a6a66, 0, 26, 0), boxM(30, 0.8, 0.8, 0x6a6a66, 0, 21, 0)); }
+    g.rotation.y = ry; return g; };
+  for (const st of ['wood', 'stone', 'cont', 'hedge', 'barrier']) [['A', 0], ['B', -Math.PI / 4], ['C', Math.PI / 2], ['D', Math.PI / 4]].forEach(([d, ry]) => { PDEF['w_' + st + '_' + d] = [mk(st, ry), 0, '#5a4630']; });
 }
 function propSprite(key) {
   if (SPR['p:' + key]) return SPR['p:' + key];
@@ -1444,8 +1462,62 @@ const ZPROPS = {
   abyss: 'treeJ treeJ treeJ treeJ2 willowJ willowJ fern fern fern fern fern bushG bushG rockM rockM2 stump log ribs grassG grassG grassG'.split(' '),
   swamp: 'grassG grassG grassG grassG grassG plant plant plant bushG willow willow willow willowD willowD3 treeS ruinS1 ruinS2 car1 car2 rockM rockM2 stump log lamp lily lily'.split(' '),
 };
-const TOWN_LAYOUT = [['b_market', -139, -71], ['b_forge', 8, -147, 'smoke'], ['b_bank', 151, -71], ['b_inn', -223, 92, 'smoke'], ['b_hire', 214, 101], ['b_board', -92, -227], ['tower', -244, -126], ['b_cart', 0, 248], ['b_trial', 244, -139, 'orb'], ['fountain', 0, 0], ['fire', 46, 96], ['well', -150, 150], ['stable', 150, 196], ['flag', 60, -44], ['flag', -60, -44], ['stall', -212, -66], ['stall2', -140, -150], ['stall', -70, -150], ['stall2', -212, -140], ['crate', -176, -100], ['barrel', -104, -112], ['barrel', -184, -40], ['crate', 112, -110], ['barrel', 196, -96], ['dummy', 250, 40], ['dummy', 276, 78], ['dummy', 240, 150], ['tent', 286, 150], ['tent2', 150, 262], ['tent2', -230, 214], ['tent', -150, 262], ['house1', 248, 100], ['house2', 142, 227, 'smoke'], ['house1', -105, 247], ['house2', -232, 134], ['house2', -243, -113, 'smoke'], ['house1', -142, -227], ['house1', 134, -232], ['house2', 243, -113], ['tree1', -96, 60], ['birch', 104, -6], ['tree1', -40, 190], ['birch', 70, 150], ['tree1', -250, -20], ['birch', 226, -40], ['tree1', -20, -250], ['tree1', 188, 250], ['bench', -80, -80], ['bench', 80, 80], ['bench', -80, 80], ['bench', 80, -80], ['tlamp', 90, 26, 'glow'], ['tlamp', -90, 26, 'glow'], ['tlamp', 26, 90, 'glow'], ['tlamp', 26, -90, 'glow'], ['tlamp', 170, 26, 'glow'], ['tlamp', -170, 26, 'glow'], ['tlamp', 26, 170, 'glow'], ['tlamp', 26, -170, 'glow'], ['tlamp', 250, 26, 'glow'], ['tlamp', -250, 26, 'glow'], ['tlamp', 26, 250, 'glow'], ['tlamp', 26, -250, 'glow'], ['tlamp', 134, 134, 'glow'], ['tlamp', -134, 134, 'glow'], ['tlamp', -134, -134, 'glow'], ['tlamp', 134, -134, 'glow'], ['gate', -30, -334], ['gate', 30, -334], ['gate', -30, 334], ['gate', 30, 334], ['gate', -334, -30], ['gate', -334, 30], ['gate', 334, -30], ['gate', 334, 30], ['wallC', 328, 65], ['wallC', 320, 97], ['wallD', 309, 128], ['wallD', 295, 157], ['wallD', 278, 186], ['wallD', 258, 212], ['wallD', 236, 236], ['wallD', 212, 258], ['wallD', 186, 278], ['wallD', 157, 295], ['wallA', 128, 309], ['wallA', 97, 320], ['wallA', 65, 328], ['wallA', -65, 328], ['wallA', -97, 320], ['wallB', -128, 309], ['wallB', -157, 295], ['wallB', -186, 278], ['wallB', -212, 258], ['wallB', -236, 236], ['wallB', -258, 212], ['wallB', -278, 186], ['wallB', -295, 157], ['wallC', -309, 128], ['wallC', -320, 97], ['wallC', -328, 65], ['wallC', -328, -65], ['wallC', -320, -97], ['wallD', -309, -128], ['wallD', -295, -157], ['wallD', -278, -186], ['wallD', -258, -212], ['wallD', -236, -236], ['wallD', -212, -258], ['wallD', -186, -278], ['wallD', -157, -295], ['wallA', -128, -309], ['wallA', -97, -320], ['wallA', -65, -328], ['wallA', 65, -328], ['wallA', 97, -320], ['wallB', 128, -309], ['wallB', 157, -295], ['wallB', 186, -278], ['wallB', 212, -258], ['wallB', 236, -236], ['wallB', 258, -212], ['wallB', 278, -186], ['wallB', 295, -157], ['wallC', 309, -128], ['wallC', 320, -97], ['wallC', 328, -65]];
-const TOWN_SPOTS = [['market', '시장', -139, -71, 46], ['shop', '공방', 8, -147, 54], ['bank', '전장·창고', 151, -71, 52], ['inn', '여관', -223, 92, 62], ['hire', '고용소', 214, 101, 50], ['quest', '의뢰', -92, -227, 40], ['hunt', '사냥 안내', -244, -126, 66], ['store', '잡화점', 0, 248, 40], ['trial', '시련의 탑', 244, -139, 104]];
+// Every settlement is built from its own recipe: a street plan, a floor, a kind of wall, a centrepiece, its own houses, and the services dealt out to different plots.
+const SPOT = { market: ['시장', 'b_market', 46], shop: ['공방', 'b_forge', 54, 'smoke'], bank: ['전장·창고', 'b_bank', 52], inn: ['여관', 'b_inn', 62, 'smoke'], hire: ['고용소', 'b_hire', 50], quest: ['의뢰', 'b_board', 40], hunt: ['사냥 안내', 'tower', 66], store: ['잡화점', 'b_cart', 40], trial: ['시련의 탑', 'b_trial', 104, 'orb'] };
+const KEEPER = { market: 'porter', shop: 'mechanic', bank: 'shield', inn: 'medic', hire: 'gladiator', quest: 'hunter', hunt: 'scout', store: 'tamer', trial: 'shaman' };
+const THEMES = {
+  plain: { shape: 'ring', floor: 'cobble', wall: 'wood', center: 'fountain', houses: ['house1', 'house2'], extra: ['tree1', 'birch', 'bench', 'barrel', 'crate', 'wheat', 'bush'] },
+  city: { shape: 'grid', floor: 'concrete', wall: 'barrier', center: 'statue', houses: ['ruinL1', 'cont1', 'ruinL2', 'cont2'], extra: ['lamp', 'car1', 'car3', 'rubble', 'barrel', 'crate', 'bushG'] },
+  swamp: { shape: 'ring', floor: 'plank', wall: 'wood', center: 'gianttree', houses: ['stilt', 'stilt', 'house1'], extra: ['willow', 'plant', 'barrel', 'stump', 'log', 'grassG'] },
+  waste: { shape: 'camp', floor: 'sand', wall: 'wood', center: 'bonfire', houses: ['tent', 'tent2', 'tent', 'cont1'], extra: ['rockR', 'dead1', 'crate', 'barrel', 'ribs', 'dummy'] },
+  snow: { shape: 'street', floor: 'cobble', wall: 'cont', center: 'lighthouse', houses: ['cont1', 'house2', 'cont2', 'house2'], extra: ['pineS', 'barrel', 'crate', 'rockS', 'bench'] },
+  volcano: { shape: 'grid', floor: 'stone', wall: 'stone', center: 'spire', houses: ['house2', 'tent2', 'house1'], extra: ['rockD', 'deadD', 'barrel', 'crate', 'dummy'] },
+  abyss: { shape: 'ring', floor: 'plank', wall: 'hedge', center: 'gianttree', houses: ['stilt', 'house1', 'stilt'], extra: ['treeJ2', 'fern', 'bushG', 'bench', 'barrel', 'fern'] },
+};
+const FAR_SHAPE = ['street', 'grid', 'camp', 'ring'], FAR_WALL = ['stone', 'cont', 'hedge', 'wood', 'barrier'], FAR_CENTER = ['statue', 'windmill', 'bonfire', 'watertower', 'lighthouse', 'fountain', 'spire', 'ferris', 'gianttree'];
+function townRoad(shape, dx, dy, dd) {
+  const ax = Math.abs(dx), ay = Math.abs(dy);
+  if (shape === 'ring') return ax < 20 || ay < 20 || Math.abs(dd - 190) < 11 || Math.abs(dd - (TOWN_R - 46)) < 8 || dd < 72;
+  if (shape === 'grid') return (dx + 1109) % 110 < 18 || (dy + 1109) % 110 < 18 || (ax < 64 && ay < 64);
+  if (shape === 'street') return ay < 26 || (ay < 210 && (dx + 1205) % 100 < 10) || dd < 54 || Math.abs(ay - 150) < 8;
+  return Math.abs(dd - 100) < 8 || dd < 46 || ax < 9 || ay < 9 || Math.abs(dd - 200) < 5;   // camp
+}
+const townInside = (shape, dx, dy, dd) => (shape === 'grid' ? Math.abs(dx) < 256 && Math.abs(dy) < 256 : dd < TOWN_R - 2);
+const TD = {};
+function genTown(z, idx) {
+  const TH = THEMES[bioOf(z)], R = seeded(4242 + idx * 977), far = idx >= 7, rr = (a, b) => a + R() * (b - a);
+  const shape = far ? FAR_SHAPE[idx % 4] : TH.shape, wall = far ? FAR_WALL[(idx * 2 + 1) % 5] : TH.wall, center = far ? FAR_CENTER[(idx * 4 + 1) % 9] : TH.center, lay = [], spots = [], gates = [];
+  let slots;
+  if (shape === 'ring') slots = [[-139, -71], [8, -147], [151, -71], [-223, 92], [214, 101], [-92, -227], [-244, -126], [0, 248], [244, -139], ...[22, 58, 113, 150, 205, 238, 300, 335].map(a => [Math.round(Math.cos(a / 57.3) * 268), Math.round(Math.sin(a / 57.3) * 268)])];
+  else if (shape === 'grid') slots = [[-165, -165], [-55, -165], [55, -165], [165, -165], [-165, -55], [165, -55], [-165, 55], [165, 55], [-165, 165], [-55, 165], [55, 165], [165, 165], [-110, -118], [110, 118]].slice(0, 12).concat([[-220, -224], [220, 224], [220, -224], [-220, 224]]);
+  else if (shape === 'street') slots = [-250, -150, -50, 50, 150, 250].flatMap(x => [[x, -82], [x, 90]]).concat([[-200, -196], [-100, -196], [100, -196], [200, -196], [-150, 204], [150, 204]]);
+  else slots = [30, 90, 150, 210, 270, 330].map(a => [Math.round(Math.cos(a / 57.3) * 150), Math.round(Math.sin(a / 57.3) * 150)]).concat([10, 46, 82, 118, 154, 190, 226, 262, 298, 334].map(a => [Math.round(Math.cos(a / 57.3) * 256), Math.round(Math.sin(a / 57.3) * 256)]));
+  for (let q = slots.length - 1; q > 0; q--) { const w = Math.floor(R() * (q + 1)); [slots[q], slots[w]] = [slots[w], slots[q]]; }
+  Object.keys(SPOT).forEach((k, q) => { const [n, key, h, fx] = SPOT[k], [x, y] = slots[q]; lay.push([key, x, y, fx]); spots.push([k, n, x, y, h]); });
+  slots.slice(9).forEach(([x, y], q) => { const key = TH.houses[(q + idx) % TH.houses.length]; lay.push([key, x, y, (key === 'house1' || key === 'house2') && q % 3 === 0 ? 'smoke' : undefined]); });
+  lay.push([center, 0, 0]);
+  const taken = [...slots, [0, 0], [0, 65]], open = (x, y, gap) => taken.every(t => d2(t[0], t[1], x, y) > gap * gap);
+  for (let n = 0, q = 0; n < 26 && q < 400; q++) {   // trees, benches, barrels and the like, kept off the streets
+    const x = Math.round(rr(-300, 300)), y = Math.round(rr(-300, 300)), dd = Math.hypot(x, y); if (!townInside(shape, x, y, dd + 40) || townRoad(shape, x, y, dd) || !open(x, y, 52)) continue;
+    lay.push([TH.extra[Math.floor(R() * TH.extra.length)], x, y]); taken.push([x, y]); n++;
+  }
+  const lamps = shape === 'ring' ? [90, 170, 250].flatMap(d => [[d, 26], [-d, 26], [26, d], [26, -d]]).concat([[134, 134], [-134, 134], [134, -134], [-134, -134]])
+    : shape === 'grid' ? [[-74, -74], [74, -74], [-74, 74], [74, 74], [-184, -74], [184, -74], [-184, 74], [184, 74], [-74, -184], [74, -184], [-74, 184], [74, 184]]
+    : shape === 'street' ? [-240, -140, -40, 60, 160, 260].flatMap(x => [[x, -34], [x - 50, 34]]) : [0, 60, 120, 180, 240, 300].map(a => [Math.round(Math.cos(a / 57.3) * 100), Math.round(Math.sin(a / 57.3) * 100)]);
+  for (const [x, y] of lamps) lay.push(['tlamp', x, y, 'glow']);
+  // walls and gates
+  if (shape === 'grid') {
+    for (let v = -231; v <= 231; v += 33) { if (Math.abs(v) < 40) continue; lay.push(['w_' + wall + '_A', v, -250], ['w_' + wall + '_A', v, 250], ['w_' + wall + '_C', -250, v], ['w_' + wall + '_C', 250, v]); }
+    gates.push([-34, -250], [34, -250], [-34, 250], [34, 250], [-250, -34], [-250, 34], [250, -34], [250, 34]);
+  } else {
+    const N = 64, rad = TOWN_R - 6;
+    for (let n = 0; n < N; n++) { const a = n / N * 6.2832, deg = (a * 57.2958) % 90; if (deg < 7.5 || deg > 82.5 || (shape === 'camp' && n % 3 === 0)) continue; const t = (a * 57.2958 + 90) % 180; lay.push(['w_' + wall + '_' + (t < 22.5 || t >= 157.5 ? 'A' : t < 67.5 ? 'B' : t < 112.5 ? 'C' : 'D'), Math.round(Math.cos(a) * rad), Math.round(Math.sin(a) * rad)]); }
+    gates.push([-30, -rad], [30, -rad], [-30, rad], [30, rad], [-rad, -30], [-rad, 30], [rad, -30], [rad, 30]);
+  }
+  for (const [x, y] of gates) lay.push(['gate', x, y]);
+  return { layout: lay, spots, gates, shape, floor: TH.floor, wall, center };
+}
+ZKEYS.forEach((z, i) => { TD[z] = genTown(z, i); });
 function openTown(k) { townSec = k; sfx('open'); hideWorld('town'); }
 function spotBadges() {
   const z = inTown(); if (!z) return {};
@@ -1464,7 +1536,7 @@ function cellProps(cx, cy) {
     if (big && list.some(p => p.r > 9 && d2(p.x, p.y, x, y) < (p.r + r + 26) ** 2)) continue;
     list.push({ x, y, key, r });
   }
-  for (const zt of ZKEYS) { const T = TOWNS[zt]; for (const [key, dx, dy, fx] of TOWN_LAYOUT) { const x = T.x + dx, y = T.y + dy; if (Math.floor(x / CELL) === cx && Math.floor(y / CELL) === cy) list.push({ x, y, key, r: PDEF[key][1], fire: key === 'fire', fx }); } }
+  for (const zt of ZKEYS) { const T = TOWNS[zt]; for (const [key, dx, dy, fx] of TD[zt].layout) { const x = T.x + dx, y = T.y + dy; if (Math.floor(x / CELL) === cx && Math.floor(y / CELL) === cy) list.push({ x, y, key, r: PDEF[key][1], fire: key === 'fire' || key === 'bonfire', fx }); } }
   for (const zt of ZKEYS) GROUNDS[zt].forEach(([gx, gy], gi) => { const ly = gy - 40; if (Math.floor(gx / CELL) === cx && Math.floor(ly / CELL) === cy) { const key = gi === 4 ? 'nest' : LAND[bioOf(zt)][(gi + zt.length + zt.charCodeAt(zt.length - 1)) % 3]; for (let q = list.length - 1; q >= 0; q--) if (list[q].r > 9 && d2(list[q].x, list[q].y, gx, ly) < 90 * 90) list.splice(q, 1); list.push({ x: gx, y: ly, key, r: PDEF[key][1] }); } });
   if (hash2(cx * 3 + 7, cy * 5 + 1) < 0.16 && !nearTown(x0 + 110, y0 + 110, TOWN_R + 200)) list.push({ x: x0 + 40 + R() * 140, y: y0 + 40 + R() * 140, key: 'crate', r: 0, loot: k });
   CELLS.set(k, list); return list;
@@ -1499,7 +1571,7 @@ function initWorld() {
   // other caravans walking the roads, and people going about their day in each settlement
   NPC_NAMES.forEach((name, i) => { const [a, b] = ROADS[i % 3], t = R(), A = TOWNS[a], Bt = TOWNS[b], types = [pick(['hunter', 'spear', 'sniper', 'medic', 'venomer']), pick(['hunter', 'spear', 'mechanic']), pick(['trike', 'para', 'apato', 'stego'])].slice(i % 2 ? 0 : 1);
     W.npcs.push({ name, a, b, dir: i % 2 ? 1 : -1, t, wait: 0, mem: [{ type: 'leader' }, ...types.map(type => ({ type }))].map((m, k) => ({ ...m, x: A.x + (Bt.x - A.x) * t, y: A.y + (Bt.y - A.y) * t + k * 14, a: 0, moving: false, ph: R() * 9 })) }); });
-  for (const z of ZKEYS) { const T = TOWNS[z]; for (const [type, dx, dy] of [['porter', -139, -40], ['mechanic', -14, -104], ['shield', 151, -30], ['medic', -196, 128], ['gladiator', 180, 148], ['tamer', 24, 276], ['shaman', 214, -100], ['hunter', -92, -196], ['scout', -220, -96], ['spear', -16, 336], ['spear', 16, -336], ['spear', -336, 16], ['spear', 336, -16], ['porter', -200, -40], ['gunner', -128, -124], ['crossbow', 262, 100]]) W.folk.push({ z, type, x: T.x + dx, y: T.y + dy, a: Math.PI / 2, still: true, moving: false, ph: 0, wait: 0 }); W.folk.push({ z, type: 'para', len: 53, x: T.x + 128, y: T.y + 222, a: 0.4, still: true, moving: false, ph: 2, wait: 0 }); }
+  for (const z of ZKEYS) { const T = TOWNS[z]; for (const [k, n, dx, dy] of TD[z].spots) W.folk.push({ z, type: KEEPER[k], x: T.x + dx + (k === 'trial' || k === 'hunt' ? 22 : 0), y: T.y + dy + 30, a: Math.PI / 2, still: true, moving: false, ph: 0, wait: 0 }); TD[z].gates.forEach(([gx, gy], q) => { if (q % 2 === 0) W.folk.push({ z, type: q % 4 ? 'spear' : 'shield', x: T.x + gx * 0.9 + (gx ? 0 : 0), y: T.y + gy * 0.9, a: Math.atan2(gy, gx), still: true, moving: false, ph: 0, wait: 0 }); }); }
   for (const z of ZKEYS) for (let i = 0; i < 18; i++) { const T = TOWNS[z]; W.folk.push({ z, type: pick(['hunter', 'spear', 'medic', 'mechanic', 'venomer', 'sniper']), x: T.x + rand(-240, 240), y: T.y + rand(-240, 240), a: rand(0, 6.28), tx: T.x, ty: T.y, wait: rand(0, 6), ph: rand(0, 9), moving: false }); }
   syncCrew();
 }
@@ -1532,7 +1604,7 @@ function worldTap(px, py) {
   let best = null, bd = 34 * 34;
   for (const p of W.packs) { if (p.dead > 0 || d2(p.cx, p.cy, x, y) > 260 * 260) continue; for (const m of p.mons) { const d = d2(x, y, m.x, m.y - m.len * 0.2); if (d < Math.max(bd, (m.len * 0.5) ** 2) && (!best || d < bd)) { bd = d; best = p; } } }
   W.dest = null;
-  { const tz = nearTown(x, y, TOWN_R + 40); if (tz) for (const [k, n, dx, dy] of TOWN_SPOTS) { const T = TOWNS[tz]; if (d2(x, y, T.x + dx, T.y + dy - 14) < 30 * 30) { if (inTown() === tz && d2(L.x, L.y, T.x + dx, T.y + dy) < 110 * 110) openTown(k); else { walkTo(T.x + dx, T.y + dy + 28, `${ZONES[tz].n} ${n}`); W.dest.open = k; } return; } } }
+  { const tz = nearTown(x, y, TOWN_R + 40); if (tz) for (const [k, n, dx, dy] of TD[tz].spots) { const T = TOWNS[tz]; if (d2(x, y, T.x + dx, T.y + dy - 14) < 30 * 30) { if (inTown() === tz && d2(L.x, L.y, T.x + dx, T.y + dy) < 110 * 110) openTown(k); else { walkTo(T.x + dx, T.y + dy + 28, `${ZONES[tz].n} ${n}`); W.dest.open = k; } return; } } }
   for (let i = 0; i < W.npcs.length; i++) { const m = W.npcs[i].mem[0]; if (d2(x, y, m.x, m.y - 10) < 26 * 26) { if (d2(L.x, L.y, m.x, m.y) > 170 * 170) { toast(`${W.npcs[i].name}: 가까이 오면 거래할 수 있어요`); L.tx = m.x; L.ty = m.y + 30; W.target = null; } else npcModal(i); return; } }
   if (best) { W.target = best; sfx('tap'); return; }
   if (S.auto.hunt) { S.auto.hunt = false; updAuto(); toast('자동 사냥을 껐어요'); }
@@ -1741,7 +1813,7 @@ function renderWorld(dt) {
     }
     for (const n of W.npcs) { const m = n.mem[0], s = toScreen(m.x, 30, m.y); if (s.x > -40 && s.x < cw + 40 && s.y > 0 && s.y < ch + 20) tag(n.name, s.x, s.y, '#9fd0ff'); }
     if (W.crew.length) { const s = toScreen(W.lead.x, 31, W.lead.y); tag('나', s.x, s.y, '#8fcf6a'); }
-    for (const z of ZKEYS) { const T2 = TOWNS[z], s = toScreen(T2.x, 215, T2.y); if (s.x > -200 && s.x < cw + 200 && s.y > -200 && s.y < ch + 200) for (const [k, n, dx, dy] of TOWN_SPOTS) { const q = toScreen(T2.x + dx, TOWN_SPOTS.find(q2 => q2[0] === k)[4], T2.y + dy), bd = W.badges && W.badges[k] && inTown() === z; tag(n + (bd ? ' !' : ''), q.x, q.y, bd ? '#1c120a' : '#ffe9c0', bd ? 'rgba(227,168,67,.95)' : 'rgba(60,34,20,.86)'); }
+    for (const z of ZKEYS) { const T2 = TOWNS[z], s = toScreen(T2.x, 215, T2.y); if (s.x > -200 && s.x < cw + 200 && s.y > -200 && s.y < ch + 200) for (const [k, n, dx, dy, hh] of TD[z].spots) { const q = toScreen(T2.x + dx, hh, T2.y + dy), bd = W.badges && W.badges[k] && inTown() === z; tag(n + (bd ? ' !' : ''), q.x, q.y, bd ? '#1c120a' : '#ffe9c0', bd ? 'rgba(227,168,67,.95)' : 'rgba(60,34,20,.86)'); }
       if (s.x > -80 && s.x < cw + 80 && s.y > 20 && s.y < ch) { c.font = '400 16px "Black Han Sans", sans-serif'; c.lineWidth = 4; c.strokeStyle = 'rgba(18,14,10,.8)'; c.strokeText(ZONES[z].n + ' 정착지', s.x, s.y); c.fillStyle = '#ffe9c0'; c.fillText(ZONES[z].n + ' 정착지', s.x, s.y); } }
     if (W.dest || W.lead.tx !== null) {   // long walks: an arrow on the screen edge points at where you are headed
       const s = toScreen(W.lead.tx, 0, W.lead.ty); if (s.x < 0 || s.x > cw || s.y < 0 || s.y > ch) { const a = Math.atan2(s.y - ch / 2, s.x - cw / 2), ex = clamp(cw / 2 + Math.cos(a) * cw, 20, cw - 20), ey = clamp(ch / 2 + Math.sin(a) * ch, 40, ch - 20); c.save(); c.translate(ex, ey); c.rotate(a); c.fillStyle = '#8fcf6a'; c.beginPath(); c.moveTo(12, 0); c.lineTo(-7, -8); c.lineTo(-3, 0); c.lineTo(-7, 8); c.closePath(); c.fill(); c.restore(); if (W.dest) tag(`${W.dest.label} ${Math.round(Math.hypot(W.lead.tx - W.lead.x, W.lead.ty - W.lead.y) / 10)}m`, clamp(ex, 70, cw - 70), ey + (ey < ch / 2 ? 34 : -14), '#8fcf6a'); }
@@ -2253,7 +2325,7 @@ loadModels((n, t) => { const el = $('loadTxt'); if (el) el.textContent = `공룡
   const el = $('loadTxt'); if (el) el.textContent = '픽셀 월드 그리는 중…';
   setTimeout(() => { setView('party'); showWorld(); if (S.stats.battles === 0) toast('혼자 시작해요 · 정착지 가까이의 작은 공룡부터 사냥해 돈을 모으고, 고용소에서 첫 동료를 구하세요'); }, 60);
 });
-window.__dino = { get S() { return S; }, get B() { return B; }, get W() { return W; }, UNITS, ZONES, set speed(v) { bSpeed = v; }, addUnit, xpNeed, partyPower, groundPower, VO: () => VO, walkTo, TOWNS, GROUNDS, SPR };
+window.__dino = { get S() { return S; }, get B() { return B; }, get W() { return W; }, UNITS, ZONES, TD, set speed(v) { bSpeed = v; }, addUnit, xpNeed, partyPower, groundPower, VO: () => VO, walkTo, TOWNS, GROUNDS, SPR };
 requestAnimationFrame(frame);
 })();
 </script>
