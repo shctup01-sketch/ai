@@ -188,7 +188,41 @@ h2 { margin-top: 2px; } h2 small { display: block; margin: 3px 0 0; line-height:
 #fNearest::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231c120a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='8'/%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3Cpath d='M12 2v4M12 18v4M2 12h4M18 12h4'/%3E%3C/svg%3E"); }
 #bCapture::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231c120a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 12h11M14 8l6 4-6 4zM3 8l3 4-3 4'/%3E%3C/svg%3E"); }
 @media (orientation: landscape) { #hudL { top: 40px; max-width: 46%; } .bfoot .btn { min-height: 50px; } }
-@media (orientation: portrait) { #app.wo #toast { top: auto; bottom: 150px; flex-direction: column-reverse; } }
+@media (orientation: portrait) { #app.wo #toast { top: auto; bottom: 214px; flex-direction: column-reverse; } }
+/* --- the usual RPG screen: your frame top left, minimap and menu top right, round action buttons bottom right, an experience bar along the bottom */
+#hudL { max-width: 216px; }
+#lf { display: flex; align-items: center; gap: 6px; padding: 3px 8px 3px 3px; border-radius: 26px 12px 12px 26px; background: rgba(18,14,10,.86); border: 1px solid var(--amber); width: 190px; text-align: left; }
+#lf canvas { width: 46px; height: 40px; border-radius: 50%; background: #2a2119; border: 1px solid #5a4a38; flex: none; }
+.lfb { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+#lfName { font-size: 11.5px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lfb i { position: relative; display: block; border-radius: 4px; overflow: hidden; background: #2a0e0a; }
+.lfb i u { display: block; height: 100%; transition: width .25s; }
+.lfb .hp { height: 11px; } .lfb .hp u { background: linear-gradient(#e2573f, #a8321f); }
+.lfb .hp em { position: absolute; inset: 0; font-style: normal; font-size: 9px; line-height: 11px; text-align: center; color: #fff; text-shadow: 0 0 2px #000; font-weight: 700; }
+.lfb .xp { height: 4px; background: #2e2618; } .lfb .xp u { background: #e3a843; }
+#pstrip { max-width: 204px; } .pc { width: 31px; } .pc canvas { width: 29px; height: 25px; }
+#tmenu { position: absolute; z-index: 2; right: 8px; top: 128px; display: flex; flex-direction: column; gap: 6px; }
+#tmenu button { position: relative; width: 40px; height: 40px; border-radius: 50%; background: rgba(18,14,10,.84); border: 1px solid #6a5844; color: #ece3d4; font-size: 9px; font-weight: 700; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1; padding: 0; }
+#tmenu button::before { content: ''; width: 17px; height: 17px; background: center / contain no-repeat; }
+#tmenu button.dot::after { content: ''; position: absolute; right: 1px; top: 1px; width: 9px; height: 9px; border-radius: 50%; background: #e2573f; border: 1px solid #1c120a; }
+#tmenu [data-m=crew]::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ece3d4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='8' cy='8' r='3'/%3E%3Ccircle cx='17' cy='9' r='2.5'/%3E%3Cpath d='M2 20c0-4 3-6 6-6s6 2 6 6M14 20c0-3 1.5-5 4-5s4 2 4 5'/%3E%3C/svg%3E"); } #tmenu [data-m=bag]::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ece3d4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 8h14l1 12H4zM9 8V6a3 3 0 0 1 6 0v2M9 13h6'/%3E%3C/svg%3E"); }
+#tmenu [data-m=skill]::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ece3d4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M13 2 4 14h7l-1 8 9-12h-7z'/%3E%3C/svg%3E"); } #tmenu [data-m=map]::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ece3d4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14'/%3E%3C/svg%3E"); }
+#battle.inb #tmenu { display: none; }
+#cxp { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: rgba(18,14,10,.8); z-index: 2; pointer-events: none; } #cxp u { display: block; height: 100%; background: linear-gradient(90deg, #b8842e, #f0c060); transition: width .4s; }
+#battle .bfoot { position: absolute; right: env(safe-area-inset-right, 0px); bottom: env(safe-area-inset-bottom, 0px); width: 176px; height: 170px; padding: 0; display: block; z-index: 3; pointer-events: none; background: none; border: 0; }
+#battle .bfoot[hidden] { display: none; }
+#battle .bfoot .btn { position: absolute; left: auto; top: auto; width: 56px; height: 56px; min-height: 0; border-radius: 50%; padding: 0; font-size: 10px; gap: 0; flex: none; pointer-events: auto; background-color: rgba(30,24,18,.9); border: 1px solid #7a6650; box-shadow: 0 3px 8px rgba(0,0,0,.45); color: #ece3d4; white-space: nowrap; }
+#battle .bfoot .btn.primary { width: 82px; height: 82px; right: 10px; bottom: 14px; font-size: 12px; background-color: var(--rust); color: #1c120a; border: 2px solid #f3c79a; }
+#battle .bfoot .btn.primary::before { width: 28px; height: 28px; }
+#battle #fPot, #battle #bPot { right: 100px; bottom: 12px; }
+#battle #autoBtn, #battle #bSpeed { right: 84px; bottom: 76px; }
+#battle #bRetreat { right: 18px; bottom: 106px; }
+#battle #autoBtn.on { background-color: var(--amber); color: #1c120a; border-color: #fff3d0; }
+#autoBtn::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ece3d4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 12a8 8 0 0 1 14-5l2 2M20 4v5h-5M20 12a8 8 0 0 1-14 5l-2-2M4 20v-5h5'/%3E%3C/svg%3E"); } #autoBtn.on::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231c120a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 12a8 8 0 0 1 14-5l2 2M20 4v5h-5M20 12a8 8 0 0 1-14 5l-2-2M4 20v-5h5'/%3E%3C/svg%3E"); }
+#battle #fLeave, #battle #fZoom, #battle #bZoom { display: none; }
+#battle #skbar { left: 8px; right: 184px; bottom: 12px; } #battle #bSel { left: 206px; right: 8px; top: 8px; bottom: auto; width: auto; border-color: #b0452e; flex-direction: column; align-items: stretch; gap: 4px; } #battle #bSel .bar { flex: none; } #bSelName { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#joy { bottom: 18px; }
+@media (orientation: landscape) { #tmenu { flex-direction: row; top: 46px; right: 104px; } #app.wo #toast { top: 98px; } #battle #bSel { left: 50%; right: auto; top: 62px; width: 270px; transform: translateX(-50%); flex-direction: row; align-items: center; } #battle #bSel .bar { flex: 1; } #hudL { max-width: 216px; } }
 .ic { flex: none; width: 42px; height: 42px; image-rendering: pixelated; border-radius: 8px; border: 1px solid var(--line); }
 .artg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .artc { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 6px 6px 8px; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
@@ -243,8 +277,8 @@ canvas.bigart { width: min(100%, 300px); height: auto; aspect-ratio: 5 / 4; alig
   </div>
   <div id="battle" hidden>
     <div class="bhead"><b id="bTitle"></b><small id="bInfo"></small></div>
-    <div class="bfield"><canvas id="b3d"></canvas><canvas id="bcv"></canvas><div id="bTip">적을 눌러 집중 공격 · 체력 30% 이하면 포획</div><div id="hudL"><div id="pstrip"></div><button id="goal" hidden></button><button id="autoBtn"></button><div id="feed"></div></div><div id="joy"><i></i></div><div id="skbar" hidden></div><div id="bSel" hidden><span id="bSelName"></span><span class="bar"><i id="bSelHp"></i></span></div></div>
-    <div class="bfoot" id="ffoot" hidden><button class="btn" id="fLeave">상단</button><button class="btn" id="fZoom">지도</button><button class="btn" id="fPot">회복약</button><button class="btn primary" id="fNearest">가까운 무리 사냥</button></div>
+    <div class="bfield"><canvas id="b3d"></canvas><canvas id="bcv"></canvas><div id="bTip">적을 눌러 집중 공격 · 체력 30% 이하면 포획</div><div id="hudL"><button id="lf" data-act="unit"><canvas width="96" height="84"></canvas><span class="lfb"><b id="lfName"></b><i class="hp"><u id="lfHp"></u><em id="lfHpT"></em></i><i class="xp"><u id="lfXp"></u></i></span></button><div id="pstrip"></div><button id="goal" hidden></button><div id="feed"></div></div><div id="tmenu"><button data-m="crew">대원</button><button data-m="bag">가방</button><button data-m="skill">스킬</button><button data-m="map">지도</button></div><div id="cxp"><u></u></div><div id="joy"><i></i></div><div id="skbar" hidden></div><div id="bSel" hidden><span id="bSelName"></span><span class="bar"><i id="bSelHp"></i></span></div></div>
+    <div class="bfoot" id="ffoot" hidden><button class="btn" id="fLeave">상단</button><button class="btn" id="fZoom">지도</button><button class="btn" id="fPot">물약</button><button class="btn" id="autoBtn">자동</button><button class="btn primary" id="fNearest">사냥</button></div>
     <div class="bfoot" id="bfoot"><button class="btn" id="bRetreat">후퇴</button><button class="btn primary" id="bCapture">포획</button><button class="btn" id="bPot">회복약</button><button class="btn" id="bZoom" hidden>크게</button><button class="btn" id="bSpeed">×1</button></div>
   </div>
   <div id="toast"></div>
@@ -901,7 +935,7 @@ function closeBattle() {
   const opt = B.opt; B = null; SND.mood = 'town'; SND.step = 0; closeModal();
   afterBattle(opt);
 }
-function updCapture() { $('bCapture').textContent = `포획 · 다트 ${S.darts}`; }
+function updCapture() { $('bCapture').textContent = `포획 ${S.darts}`; }
 
 /* ================================================================
    DRAWING — top-down creatures with a light from the upper left
@@ -1895,7 +1929,7 @@ function hideWorld(v) { if (B) return; worldOn = false; $('app').classList.remov
 function walkTo(x, y, label) { if (!W) initWorld(); W.target = null; W.lead.tx = clamp(x, 10, WW - 10); W.lead.ty = clamp(y, 10, WH - 10); W.dest = label ? { x: W.lead.tx, y: W.lead.ty, label } : null; if (label) toast(`${label}(으)로 가는 중 · 땅을 누르면 멈춰요`); }
 function updField() {
   if (!W || B) return; const t = inTown(), L = W.lead, g = groundAt(L.x, L.y), z = zoneAt(L.x, L.y);
-  $('fNearest').textContent = t ? '사냥터 가기' : '가까운 무리 사냥'; W.badges = spotBadges(); updPots(); autoEat(); updAuto(); updStrip(); updGoal();
+  $('fNearest').textContent = t ? '사냥터' : '사냥'; W.badges = spotBadges(); updPots(); autoEat(); updAuto(); updStrip(); updGoal();
   const here = t ? `${ZONES[t].n} 정착지` : g ? `${ZONES[g.z].n} · ${HUNT_NAMES[g.z][g.i]}` : `${ZONES[z].n} · 황무지`;
   if (here !== W.here) {
     W.here = here; $('bTitle').textContent = here;
@@ -2010,7 +2044,7 @@ function npcModal(i) {   // caravans you meet on the road keep a small stall: on
     <div class="row"><div class="info"><b>${GOODS[o.bg].n} 삽니다</b><small>개당 ${o.bp} 크레딧 · ${o.bn}개까지 · 보유 ${S.cargo[o.bg] || 0}</small></div><button class="btn small primary" data-act="npcSell" data-i="${i}" ${o.bn && S.cargo[o.bg] ? '' : 'disabled'}>팔기</button></div>
   </div><div class="mbtns"><button class="btn" data-act="close">닫기</button></div>`);
 }
-function updAuto() { const b = $('autoBtn'); b.textContent = S.auto.hunt ? '자동 사냥 켜짐' : '자동 사냥'; b.classList.toggle('on', S.auto.hunt); }
+function updAuto() { const b = $('autoBtn'); b.textContent = '자동'; b.classList.toggle('on', S.auto.hunt); }
 $('autoBtn').onclick = () => { S.auto.hunt = !S.auto.hunt; if (W) { W.resting = false; W.noPack = false; if (!S.auto.hunt) W.target = null; } sfx('tap'); updAuto(); toast(S.auto.hunt ? '자동 사냥 시작 · 땅을 누르면 멈춰요' : '자동 사냥을 껐어요'); save(); };
 let skT = 0;
 function updSkbar(dt) {   // manual skill buttons, shown only when auto skills are off
@@ -2028,11 +2062,17 @@ function usePotion() {
   else { const us = party(); if (!us.some(u => u.ko || u.hp < maxHp(u))) { toast('모두 체력이 가득해요'); return; } for (const u of us) { const mh = maxHp(u); u.hp = Math.min(mh, Math.round(u.hp + mh * 0.3)); u.ko = false; } syncCrew(); for (const c of W.crew) burst(c.x, c.y, 4, 6, '#8fd36a', { spd: 14, up: 55, g: 0, life: 0.7 }); toast('회복약을 써서 모두 체력을 채웠어요', 'good'); }
   S.pots--; sfx('heal'); updPots(); save();
 }
-function updPots() { $('fPot').textContent = $('bPot').textContent = `회복약 ${S.pots}`; }
+function updPots() { $('fPot').textContent = $('bPot').textContent = `물약 ${S.pots}`; }
 let stripKey = '';
 function updStrip() {   // the party at a glance: a face, a level and a health bar for each member
-  $('hudL').classList.toggle('inb', !!B);
-  const el = $('pstrip'), P = party(), key = P.map(u => u.id + ':' + (u.tier || 0) + u.type).join(',') + (S.cls || '');
+  $('hudL').classList.toggle('inb', !!B); $('battle').classList.toggle('inb', !!B);
+  const All = party(), Ld = All.find(u => u.type === 'leader'), lf = $('lf'); lf.hidden = !Ld;
+  if (Ld) { const bu = B && B.units.find(x => x.ref === Ld), mx = bu ? bu.max : maxHp(Ld), hp = Math.max(0, Math.min(mx, bu ? bu.hp : Ld.ko ? 0 : Ld.hp)); lf.dataset.id = Ld.id;
+    $('lfName').textContent = `Lv${Ld.lv} ${(CLASSES[S.cls] || CLASSES.gunner).n}`; $('lfHp').style.width = (hp / mx * 100) + '%'; $('lfHpT').textContent = `${fmt(Math.round(hp))} / ${fmt(Math.round(mx))}`; $('lfXp').style.width = Math.min(100, (Ld.xp || 0) / xpNeed(Ld.lv) * 100) + '%';
+    const lk = (S.cls || '') + (Ld.tier || 0); if (lf.dataset.k !== lk) { lf.dataset.k = lk; const cv = lf.querySelector('canvas'); cv.dataset.u = 'leader'; cv.dataset.t = Ld.tier || 0; portrait(cv, 'leader'); } }
+  $('cxp').firstChild.style.width = Math.min(100, S.cxp / cxpNeed(S.clv) * 100) + '%';
+  { const tm = $('tmenu').children; tm[0].classList.toggle('dot', S.units.some(u => u.inParty && u.pts > 0)); tm[2].classList.toggle('dot', S.sp > 0); }
+  const el = $('pstrip'), P = All.filter(u => u !== Ld), key = P.map(u => u.id + ':' + (u.tier || 0) + u.type).join(',') + (S.cls || '');
   if (key !== stripKey) { stripKey = key; el.innerHTML = P.map(u => `<button class="pc${u.type === 'leader' ? ' lead' : ''}" data-act="unit" data-id="${u.id}"><canvas data-u="${u.type}" data-t="${u.tier || 0}" width="64" height="56"></canvas><i><b></b></i><em></em></button>`).join(''); el.querySelectorAll('canvas').forEach(cv => portrait(cv, cv.dataset.u)); }
   P.forEach((u, q) => { const c = el.children[q]; if (!c) return; const bu = B && B.units.find(x => x.ref === u), f = bu ? Math.max(0, bu.hp / bu.max) : u.ko ? 0 : u.hp / maxHp(u), ko = bu ? bu.hp <= 0 : u.ko; c.querySelector('b').style.width = (f * 100) + '%'; c.classList.toggle('ko', ko); c.classList.toggle('low', !ko && f < 0.35); c.querySelector('em').textContent = u.lv; });
 }
@@ -2061,6 +2101,7 @@ function updGoal() {
 }
 $('goal').onclick = () => { const g = GOALS[S.goal || 0]; if (g && g.go && !B) { sfx('tap'); g.go(); } };
 $('menuClose').onclick = () => { sfx('tap'); showWorld(); };
+$('tmenu').onclick = e => { const b = e.target.closest('button'); if (!b || B) return; sfx('open'); if (b.dataset.m === 'map') hideWorld('map'); else { partySec = b.dataset.m; hideWorld('party'); } };
 function autoEat() { if (S.food > 20) return; const g = ['grain', 'meat', 'jerky'].find(g => S.cargo[g] > 0); if (!g) return; S.cargo[g]--; if (!S.cargo[g]) delete S.cargo[g]; S.food = Math.min(100, S.food + FOODS[g]); toast(`배가 고파 ${GOODS[g].n}을(를) 먹었어요 · 포만감 ${Math.ceil(S.food)}`); }
 $('fPot').onclick = usePotion; $('bPot').onclick = usePotion;
 const TRIAL_TYPES = ['para', 'trike', 'raptor', 'compy', 'pachyc', 'micro', 'iguan', 'dilo', 'stego', 'utah', 'kentro', 'apato', 'styra', 'carno', 'anky', 'trex', 'allo', 'diplo', 'raptorShadow', 'trikeRed', 'spino', 'stegoRust', 'brachio', 'trexYoung'];
