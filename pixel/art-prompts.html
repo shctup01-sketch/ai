@@ -1,0 +1,161 @@
+<title>공룡 상단 그림 지시문</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;600&display=swap">
+<style>
+/* layout: one reading column; a sticky filter bar; each prompt is a row with its own copy button */
+:root {
+  --bg: #1b1612; --panel: #26201a; --line: #4a3e30; --fg: #ece3d4; --muted: #a8997f; --rust: #d4763c; --amber: #f0c060; --ok: #8fcf6a;
+  --f-display: "Black Han Sans", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; --f-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  color-scheme: dark;
+}
+body { background: var(--bg); color: var(--fg); font: 15px/1.65 var(--f-body); padding-block: 22px 60px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+main { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+h1 { font: 400 30px/1.2 var(--f-display); color: var(--rust); margin: 0; text-wrap: balance; }
+h2 { font: 400 20px/1.3 var(--f-display); margin: 14px 0 0; color: var(--amber); }
+p { margin: 0; } .lead { color: var(--muted); }
+ol { margin: 0; padding-left: 20px; } li { margin: 3px 0; }
+.box { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.box b { color: var(--amber); }
+pre { margin: 0; white-space: pre-wrap; word-break: keep-all; font: 13.5px/1.6 var(--f-body); color: var(--fg); }
+button { font: 600 13px var(--f-body); color: #1c120a; background: var(--rust); border: 0; border-radius: 9px; padding: 9px 14px; cursor: pointer; flex: none; }
+button.done { background: var(--ok); } button:focus-visible, .chips button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+.chips { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); padding: 8px 0; display: flex; gap: 6px; overflow-x: auto; }
+.chips button { background: var(--panel); color: var(--muted); border: 1px solid var(--line); white-space: nowrap; } .chips button.on { background: var(--rust); color: #1c120a; border-color: transparent; }
+.item { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; display: flex; gap: 12px; align-items: flex-start; }
+.item > div { flex: 1; min-width: 0; } .item h3 { margin: 0 0 2px; font: 600 15px var(--f-body); } .item h3 small { font-weight: 400; color: var(--muted); margin-left: 6px; font-size: 12px; }
+.item p { font-size: 13.5px; color: #d8cdb9; }
+#list { display: flex; flex-direction: column; gap: 8px; }
+</style>
+<main>
+  <h1>공룡 상단 그림 지시문</h1>
+  <p class="lead">이미지 생성 AI에 그대로 붙여 넣는 지시문 모음이에요. 항목마다 복사 버튼이 있어요. 복사되는 글에는 아래 공통 그림체가 자동으로 붙어요.</p>
+
+  <div class="box">
+    <b>쓰는 순서</b>
+    <ol>
+      <li>맨 처음에 아래 "그림체 고정 지시문"을 보내 그림체를 정해요.</li>
+      <li>같은 대화 안에서 항목을 하나씩 복사해 보내요. 대화를 새로 열면 그림체가 달라져요.</li>
+      <li>저장한 그림을 Claude 채팅에 올리고 어떤 항목인지 이름을 적어 주세요.</li>
+    </ol>
+  </div>
+
+  <div class="box">
+    <b>그림체 고정 지시문 (맨 처음 한 번)</b>
+    <pre id="styleText"></pre>
+    <div><button data-copy="style">복사</button></div>
+  </div>
+
+  <div class="chips" id="chips"></div>
+  <div id="list"></div>
+</main>
+<script>
+const STYLE = '진한 외곽선의 픽셀 아트풍 게임 일러스트. 황혼빛의 따뜻한 갈색과 주황 색감, 약간 거친 질감. 배경은 단순한 폐허나 황무지 실루엣. 글자, 로고, 테두리, 워터마크 없음.';
+const PORTRAIT = '가로 5:4 비율. 대상이 화면 가운데에 크게, 전신이 다 보이게.';
+const INTRO = '지금부터 "공룡 상단"이라는 모바일 게임의 그림을 여러 장 만들 거야. 되살아난 공룡이 문명을 무너뜨린 뒤의 세계가 배경이야. 모든 그림을 같은 그림체로 그려 줘. 그림체: ' + STYLE + ' 기존 게임이나 영화의 캐릭터를 닮지 않은 새로운 디자인으로 그려 줘. 준비되면 "준비됐어요"라고만 답해 줘.';
+const H = '멸망 이후 세계의 ', D = '멸망 이후 황무지의 공룡, ';
+const G = [
+  ['대장 직업', 'cls', [
+    ['총잡이 대장', '원거리', H + '상단 대장. 낡은 긴 코트에 소총을 멘 인물, 붉은 목수건, 침착한 표정.'],
+    ['검투사 대장', '탱커', H + '상단 대장. 붉은 투구 장식과 가죽 갑옷, 짧은 검과 둥근 방패를 든 단단한 체격의 투사.'],
+    ['사냥꾼 대장', '원거리', H + '상단 대장. 초록 두건과 망토, 큰 활을 든 날렵한 궁수.'],
+    ['조련사 대장', '지원', H + '상단 대장. 붉은색과 노란색 깃털 머리 장식, 허리에 채찍, 곁에 작은 랩터가 따르는 공룡 조련사.'],
+    ['상인 대장', '지원', H + '상단 대장. 큰 짐가방과 주판, 돈주머니를 찬 수완 좋은 떠돌이 상인.'],
+  ]],
+  ['용병', 'human', [
+    ['사냥꾼', '원거리', H + '용병. 초록 두건과 가죽 조끼, 활과 화살통을 멘 사냥꾼.'],
+    ['창잡이', '탱커', H + '용병. 긴 창과 작은 방패, 누빈 갑옷을 입은 앞줄 창병.'],
+    ['저격수', '원거리', H + '용병. 위장 망토와 챙 넓은 모자, 아주 긴 저격총을 든 과묵한 인물.'],
+    ['정비공', '지원', H + '용병. 주황 작업복에 큰 렌치와 빨간 공구함, 뒤에 작은 자동 포탑이 놓인 기술자.'],
+    ['의사', '회복', H + '용병. 흰 가운과 의료 가방, 붕대와 약병을 든 차분한 야전 의사.'],
+    ['짐꾼', '짐꾼', H + '용병. 자기 키만 한 큰 짐을 등에 진 튼튼한 짐꾼.'],
+    ['독침술사', '약화', H + '용병. 보라색 두건, 대롱 침과 초록 독병을 찬 음침한 인물.'],
+    ['척후병', '돌격', H + '용병. 가벼운 초록 옷차림에 쌍검을 쥔 날랜 정찰병, 달리는 자세.'],
+    ['방패병', '탱커', H + '용병. 몸을 다 가리는 큰 철판 방패와 무거운 갑옷을 갖춘 병사.'],
+    ['검투사', '돌격', H + '용병. 붉은 볏 투구와 어깨 갑옷, 큰 검을 든 근육질 투사.'],
+    ['석궁수', '원거리', H + '용병. 무거운 석궁을 겨눈 회색 옷의 사수, 등에 볼트 통.'],
+    ['총잡이', '원거리', H + '용병. 파란 조끼와 모자, 쌍권총을 든 빠른 총잡이.'],
+    ['폭파병', '지원', H + '용병. 둥근 폭탄을 든 채 그을린 얼굴에 고글을 쓴 폭파 전문가.'],
+    ['요리사', '지원', H + '용병. 흰 요리 모자와 앞치마, 큰 국자와 솥을 든 넉넉한 인상의 야전 요리사.'],
+    ['대장장이', '근접', H + '용병. 가죽 앞치마와 두꺼운 팔뚝, 큰 쇠망치를 어깨에 걸친 대장장이.'],
+    ['조련사', '지원', H + '용병. 깃털 장식과 채찍, 호루라기를 문 공룡 조련사.'],
+    ['주술사', '회복', H + '용병. 보라색 망토와 뼈 장신구, 연기가 피어오르는 약초 향로를 든 주술사.'],
+  ]],
+  ['공룡', 'dino', [
+    ['트리케라톱스', '탱커', D + '트리케라톱스. 세 개의 뿔과 큰 목 방패, 등에 짐 안장을 얹은 듬직한 모습.'],
+    ['파라사우롤로푸스', '기절', D + '파라사우롤로푸스. 머리 뒤로 길게 뻗은 볏, 울부짖는 자세.'],
+    ['아파토사우루스', '짐꾼', D + '아파토사우루스. 긴 목과 꼬리, 등에 짐 상자를 잔뜩 실은 거대한 초식 공룡.'],
+    ['벨로키랍토르', '돌격', D + '벨로키랍토르. 깃털이 조금 난 날렵한 사냥꾼, 낮게 달려드는 자세.'],
+    ['콤프소그나투스', '떼', D + '콤프소그나투스 세 마리. 닭만 한 작은 육식 공룡 무리.'],
+    ['딜로포사우루스', '약화', D + '딜로포사우루스. 머리 위 두 줄 볏, 초록 산성 침을 흘리는 모습. 목 주름 장식은 없음.'],
+    ['스테고사우루스', '파괴', D + '스테고사우루스. 등에 큰 골판, 꼬리 끝 가시를 휘두르는 자세.'],
+    ['티라노사우루스', '포식자', D + '티라노사우루스. 포효하는 거대한 폭군, 아래에서 올려다본 구도.'],
+    ['이구아노돈', '균형', D + '이구아노돈. 엄지 가시가 달린 앞발을 든 든든한 초식 공룡.'],
+    ['파키케팔로사우루스', '기절', D + '파키케팔로사우루스. 돔처럼 둥글고 단단한 머리로 들이받으려는 자세.'],
+    ['미크로랍토르', '떼', D + '미크로랍토르. 네 날개에 검푸른 깃털이 달린 작은 공룡, 활공하는 모습.'],
+    ['유타랍토르', '돌격', D + '유타랍토르. 랩터 중 가장 큰 종, 큰 갈고리 발톱을 세운 모습.'],
+    ['켄트로사우루스', '가시', D + '켄트로사우루스. 등과 꼬리, 어깨까지 긴 가시가 솟은 공룡.'],
+    ['안킬로사우루스', '탱커', D + '안킬로사우루스. 온몸이 갑옷판, 꼬리 끝에 곤봉이 달린 납작한 공룡.'],
+    ['스티라코사우루스', '돌격', D + '스티라코사우루스. 목 방패에 가시 왕관, 코에 큰 뿔 하나.'],
+    ['카르노타우루스', '돌격', D + '카르노타우루스. 눈 위 작은 뿔 두 개, 아주 짧은 앞다리의 날쌘 육식 공룡.'],
+    ['알로사우루스', '포식자', D + '알로사우루스. 눈 위 볏과 톱니 이빨, 사냥감을 노리는 자세.'],
+    ['스피노사우루스', '포식자', D + '스피노사우루스. 등에 큰 돛, 악어 같은 긴 주둥이, 얕은 물가에 선 모습.'],
+    ['디플로도쿠스', '짐꾼', D + '디플로도쿠스. 채찍처럼 아주 긴 꼬리와 긴 목, 등에 짐을 실은 모습.'],
+    ['브라키오사우루스', '짐꾼', D + '브라키오사우루스. 높이 솟은 목, 등에 탑처럼 쌓은 짐, 곁의 사람이 아주 작게 보이는 크기.'],
+  ]],
+  ['희귀종', 'rare', [
+    ['철갑 트리케라톱스', '희귀 · 탱커', D + '희귀한 트리케라톱스. 쇳빛으로 번들거리는 두꺼운 피부, 은은한 금빛 테두리 광채.'],
+    ['붉은뿔 트리케라톱스', '희귀 · 돌격', D + '희귀한 트리케라톱스. 붉게 달아오른 세 뿔, 사납게 돌진하는 자세.'],
+    ['황금볏 파라사우롤로푸스', '희귀 · 회복', D + '희귀한 파라사우롤로푸스. 금빛으로 빛나는 볏, 온화한 눈빛, 주변에 부드러운 빛 입자.'],
+    ['이끼등 아파토사우루스', '희귀 · 짐꾼', D + '희귀한 아파토사우루스. 등에 이끼와 작은 풀이 자란 오래된 개체.'],
+    ['그림자 랩터', '희귀 · 암살', D + '희귀한 랩터. 검은 깃털과 빛나는 눈, 폐허의 어둠에서 나오는 모습.'],
+    ['독니 랩터', '희귀 · 약화', D + '희귀한 랩터. 초록 독이 떨어지는 송곳니, 초록 무늬 비늘.'],
+    ['녹슨등 스테고사우루스', '희귀 · 가시', D + '희귀한 스테고사우루스. 녹슨 쇠판처럼 날카로운 골판, 고철 더미 배경.'],
+    ['어린 티라노사우루스', '희귀 · 포식자', D + '어린 티라노사우루스. 몸집은 작지만 눈빛이 매서운 어린 폭군.'],
+  ]],
+  ['우두머리', 'boss', [
+    ['늙은 우두머리 트리케라톱스', '잿빛 평원', D + '우두머리. 뿔 하나가 부러지고 흉터가 가득한 늙고 거대한 트리케라톱스. 위압적인 구도.'],
+    ['외눈 랩터', '무너진 도시', D + '우두머리. 한쪽 눈에 긴 흉터가 난 큰 랩터, 무너진 건물 위에 올라선 모습.'],
+    ['늪의 폭군 티라노사우루스', '늪', D + '우두머리. 늪 안개 속에서 걸어 나오는 진흙투성이의 거대한 티라노사우루스.'],
+    ['녹슨 산맥의 거대 스테고사우루스', '황무지', D + '우두머리. 산처럼 큰 스테고사우루스, 골판이 녹슨 쇠처럼 붉음.'],
+    ['빙벽의 거수 아파토사우루스', '설원', D + '우두머리. 눈보라 속 서리로 덮인 거대한 아파토사우루스. 차가운 푸른 색감을 조금 섞어서.'],
+    ['용암뿔 트리케라톱스', '화산', D + '우두머리. 뿔과 갑옷 틈이 용암처럼 붉게 빛나는 트리케라톱스, 화산 배경.'],
+    ['태초의 폭군', '심연', D + '최종 우두머리. 검은 비늘과 붉게 빛나는 눈, 다른 공룡보다 훨씬 큰 태고의 티라노사우루스. 어두운 심연 배경.'],
+  ]],
+  ['화면 그림', 'screen', [
+    ['타이틀 그림 (세로)', '9:16', '게임 타이틀 화면 그림. 황혼의 폐허 도시를 배경으로, 깃발을 단 짐 실은 트리케라톱스와 상단 일행이 언덕 위에 선 뒷모습. 위쪽 3분의 1은 제목을 넣을 수 있게 하늘로 비워 둠.', '세로 9:16 비율.'],
+    ['타이틀 그림 (가로)', '16:9', '게임 타이틀 화면 그림. 황혼의 황무지를 가로지르는 공룡 상단 행렬, 멀리 무너진 도시의 실루엣. 가운데는 제목을 넣을 수 있게 비워 둠.', '가로 16:9 비율.'],
+    ['앱 아이콘', '1:1', '모바일 게임 앱 아이콘. 깃발을 단 티라노사우루스의 옆얼굴을 크게, 단순하고 또렷한 형태, 주황색 배경.', '정사각형 1:1 비율. 가장자리까지 꽉 채움.'],
+    ['스토어 배너', '1024×500', '게임 홍보 배너. 왼쪽에 상단 대장과 용병들, 오른쪽에 포효하는 티라노사우루스, 가운데는 제목 자리로 비워 둠.', '가로로 긴 2:1 비율.'],
+  ]],
+  ['마을 배경', 'town', [
+    ['잿빛 평원 정착지', '16:9', '마을 배경화. 마른 초원 위 천막과 나무 울타리로 이뤄진 정착지, 가운데 분수와 시장 좌판.', '가로 16:9 비율. 인물 없음.'],
+    ['무너진 도시 정착지', '16:9', '마을 배경화. 덩굴에 덮인 무너진 고층 건물 사이에 세운 정착지, 고철로 만든 담장.', '가로 16:9 비율. 인물 없음.'],
+    ['늪 정착지', '16:9', '마을 배경화. 안개 낀 늪 위에 말뚝을 박아 세운 수상 가옥과 나무다리.', '가로 16:9 비율. 인물 없음.'],
+    ['황무지 정착지', '16:9', '마을 배경화. 붉은 바위 협곡 아래 고철과 천으로 지은 정착지.', '가로 16:9 비율. 인물 없음.'],
+    ['설원 정착지', '16:9', '마을 배경화. 눈 덮인 통나무집과 모닥불, 두꺼운 방벽. 차가운 푸른 색감.', '가로 16:9 비율. 인물 없음.'],
+    ['화산 정착지', '16:9', '마을 배경화. 검은 화산암 위에 돌로 쌓은 요새형 정착지, 멀리 붉게 빛나는 화산.', '가로 16:9 비율. 인물 없음.'],
+    ['심연 정착지', '16:9', '마을 배경화. 거대한 균열 가장자리에 매달리듯 세운 마지막 전초 기지, 어둡고 보랏빛 도는 하늘.', '가로 16:9 비율. 인물 없음.'],
+  ]],
+  ['아이콘 묶음', 'icon', [
+    ['전리품 아이콘 묶음', '격자 3×3', '게임 아이템 아이콘 9개를 3×3 격자로. 순서대로: 고기, 곡물, 육포, 공룡 가죽, 뼈, 독주머니, 고철, 약초, 공룡 알. 각 칸은 같은 크기, 대상이 칸 가운데에 크게.', '정사각형 1:1 비율. 배경은 단색 어두운 갈색.'],
+    ['장비 아이콘 묶음', '격자 3×3', '게임 장비 아이콘 9개를 3×3 격자로. 순서대로: 소총, 활, 창, 검, 방패, 가죽 갑옷, 투구, 장화, 목걸이. 각 칸은 같은 크기.', '정사각형 1:1 비율. 배경은 단색 어두운 갈색.'],
+    ['소모품 아이콘 묶음', '격자 2×2', '게임 소모품 아이콘 4개를 2×2 격자로. 순서대로: 붉은 회복약 병, 포획용 다트, 귀환석(푸르게 빛나는 돌), 우두머리 증표(뿔 모양 메달).', '정사각형 1:1 비율. 배경은 단색 어두운 갈색.'],
+  ]],
+];
+const full = it => it[2] + ' ' + STYLE + ' ' + (it[3] || PORTRAIT);
+document.getElementById('styleText').textContent = INTRO;
+const list = document.getElementById('list'), chips = document.getElementById('chips'); let cur = 'all';
+function draw() {
+  chips.innerHTML = [['전체', 'all']].concat(G.map(g => [g[0] + ' ' + g[2].length, g[1]])).map(([n, k]) => '<button data-f="' + k + '" class="' + (k === cur ? 'on' : '') + '">' + n + '</button>').join('');
+  list.innerHTML = G.filter(g => cur === 'all' || g[1] === cur).map(g => '<h2>' + g[0] + '</h2>' + g[2].map((it, i) => '<div class="item"><div><h3>' + it[0] + '<small>' + it[1] + '</small></h3><p>' + it[2] + '</p></div><button data-copy="' + g[1] + ':' + i + '">복사</button></div>').join('')).join('');
+}
+draw();
+document.addEventListener('click', e => {
+  const f = e.target.closest('[data-f]'); if (f) { cur = f.dataset.f; draw(); return; }
+  const b = e.target.closest('[data-copy]'); if (!b) return;
+  let text; if (b.dataset.copy === 'style') text = INTRO; else { const [k, i] = b.dataset.copy.split(':'); text = full(G.find(g => g[1] === k)[2][+i]); }
+  const ok = () => { b.textContent = '복사됨'; b.classList.add('done'); setTimeout(() => { b.textContent = '복사'; b.classList.remove('done'); }, 1500); };
+  const fallback = () => { const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select(); try { document.execCommand('copy'); ok(); } catch (x) { b.textContent = '길게 눌러 복사'; } t.remove(); };
+  try { navigator.clipboard.writeText(text).then(ok, fallback); } catch (x) { fallback(); }
+});
+</script>
