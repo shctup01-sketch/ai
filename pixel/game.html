@@ -1161,7 +1161,7 @@ function artScene(g, W0, H0, bio, seed) {   // sky, far shapes, ground, all in t
 }
 // Hand-made illustrations replace the generated portrait wherever one exists. They load in the background;
 // until one arrives (or if it is missing) the generated portrait is used.
-const ART_FILES = { 'leader:gunner': 'leader-gunner', 'leader:warrior': 'leader-warrior', 'leader:archer': 'leader-archer', 'leader:tamer': 'leader-tamer', 'leader:merchant': 'leader-merchant' };
+const ART_FILES = { 'leader:gunner': 'leader-gunner', 'leader:warrior': 'leader-warrior', 'leader:archer': 'leader-archer', 'leader:tamer': 'leader-tamer', 'leader:merchant': 'leader-merchant', shaman: 'shaman', tamer: 'tamer', smith: 'smith', cook: 'cook', bomber: 'bomber', crossbow: 'crossbow', gunner: 'gunner', gladiator: 'gladiator', shield: 'shield', scout: 'scout', venomer: 'venomer', porter: 'porter', medic: 'medic', mechanic: 'mechanic', sniper: 'sniper', spear: 'spear', hunter: 'hunter' };
 const ARTIMG = {}, artSrc = k => 'art/' + ART_FILES[k] + '.webp';
 for (const k of Object.keys(ART_FILES)) { const im = new Image(); im.onload = () => { ARTIMG[k] = im; for (const q of Object.keys(ART)) if (q.startsWith(k.split(':')[0] + '|')) delete ART[q]; }; im.src = artSrc(k); }
 function unitArt(type, tier = 0, dark = false) {
