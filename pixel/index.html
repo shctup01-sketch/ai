@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}
 #upd{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:999;padding:11px 18px;border-radius:14px;border:2px solid #f3c79a;background:#d4763c;color:#1c120a;font:700 14px system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.5)}</style>
-<script>window.__VER="20261125-065519"</script>
+<script>window.__VER="20261125-065931"</script>
 </head>
 <body>
 <title>공룡 상단 픽셀</title>
@@ -274,7 +274,7 @@ h2 { margin-top: 2px; } h2 small { display: block; margin: 3px 0 0; line-height:
 #battle #skbar { left: 8px; right: 184px; bottom: 12px; } #battle #bSel { left: 206px; right: 8px; top: 8px; bottom: auto; width: auto; border-color: #b0452e; flex-direction: column; align-items: stretch; gap: 4px; } #battle #bSel .bar { flex: none; } #bSelName { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #joy { bottom: 18px; }
 @media (orientation: landscape) { #tmenu { flex-direction: row; top: 46px; right: 104px; } #app.wo #toast { top: 98px; } #battle #bSel { left: 50%; right: auto; top: 62px; width: 270px; transform: translateX(-50%); flex-direction: row; align-items: center; } #battle #bSel .bar { flex: 1; } #hudL { max-width: 216px; } }
-.ic { flex: none; width: 42px; height: 42px; image-rendering: pixelated; border-radius: 8px; border: 1px solid var(--line); }
+.ic { flex: none; width: 42px; height: 42px; image-rendering: auto; border-radius: 8px; border: 1px solid var(--line); }
 .artg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .artc { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 6px 6px 8px; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .artc canvas { width: 100%; height: auto; aspect-ratio: 5 / 4; border-radius: 8px; display: block; }
@@ -1149,8 +1149,17 @@ const ICONS = {
   egg: 'c7,4,6,13 c6,6,8,9 c8,3,4,1 l8,7,2,2 l11,10,2,2 l8,12,2,2 B6,14,8,1', token: 'y5,5,10,10 y4,7,12,6 y7,4,6,12 o6,6,8,8 r8,8,4,4 y9,9,2,2', stone: 'u8,3,4,14 u6,6,8,8 c9,5,1,6 p7,9,2,4 p11,7,2,5 M7,16,6,1',
 };
 const ICON_URL = {};
+// Drawn icons replace the generated ones where a picture exists; gear picks its picture by slot and rarity.
+const ICON_ART = { meat: 'meat', grain: 'grain', jerky: 'jerky', hide: 'hide', bone: 'bone', venom: 'venom', parts: 'parts', herb: 'herb', egg: 'egg', potion: 'potion', dart: 'dart', stone: 'stone', token: 'token', armor: 'leather',
+  weapon0: 'spear', weapon2: 'sword', weapon3: 'rifle', weapon4: 'sword', armor0: 'leather', armor2: 'shield', armor3: 'leather', charm0: 'necklace' };
+const ICIMG = {};
+for (const f of new Set(Object.values(ICON_ART))) { const im = new Image(); im.onload = () => { ICIMG[f] = im; for (const q of Object.keys(ICON_URL)) if (ICON_ART[q.split('|')[0]] === f) delete ICON_URL[q]; }; im.src = 'art/ic-' + f + '.webp'; }
 function icon(key, rar) {
   const id = key + '|' + (rar ?? ''); if (ICON_URL[id]) return ICON_URL[id];
+  { const im = ICIMG[ICON_ART[key]]; if (im) { const c2 = document.createElement('canvas'); c2.width = c2.height = 120; const x = c2.getContext('2d'), rc2 = rar !== undefined && rar !== null ? RAR[rar].c : null; x.imageSmoothingQuality = 'high'; x.drawImage(im, 0, 0, 120, 120);
+      if (rc2) { const gl2 = x.createRadialGradient(60, 60, 30, 60, 60, 90); gl2.addColorStop(0, 'rgba(0,0,0,0)'); gl2.addColorStop(1, rc2); x.globalAlpha = 0.45; x.fillStyle = gl2; x.fillRect(0, 0, 120, 120); x.globalAlpha = 1; x.strokeStyle = rc2; x.lineWidth = 6; x.strokeRect(3, 3, 114, 114); x.strokeStyle = 'rgba(0,0,0,.5)'; x.lineWidth = 2; x.strokeRect(7, 7, 106, 106); }
+      if (rar >= 3) { x.fillStyle = '#fff'; for (const [sx, sy] of [[18, 18], [98, 26], [92, 96]]) { x.fillRect(sx - 1, sy - 6, 2, 12); x.fillRect(sx - 6, sy - 1, 12, 2); } }
+      let u2 = ''; try { u2 = c2.toDataURL('image/webp', 0.9); } catch (e) { u2 = ''; } if (u2) return ICON_URL[id] = u2; } }
   const cv = document.createElement('canvas'); cv.width = cv.height = 60; const g = cv.getContext('2d'), rc = rar !== undefined && rar !== null ? RAR[rar].c : null, parts = (ICONS[key] || ICONS.token).split(' ').map(t => [t[0], ...t.slice(1).split(',').map(Number)]);
   g.fillStyle = '#17120d'; g.fillRect(0, 0, 60, 60);
   const gl = g.createRadialGradient(30, 30, 2, 30, 30, 40); gl.addColorStop(0, rc ? rc : '#6a5a44'); gl.addColorStop(1, 'rgba(0,0,0,0)'); g.globalAlpha = rc ? 0.34 : 0.22; g.fillStyle = gl; g.fillRect(0, 0, 60, 60); g.globalAlpha = 1;
@@ -3024,7 +3033,7 @@ requestAnimationFrame(frame);
 <button id="upd" hidden>새 패치가 있어요 · 눌러서 적용</button>
 <script>
 (function () {
-  var VER = "20261125-065519";
+  var VER = "20261125-065931";
   if (!/^https?:$/.test(location.protocol)) return;
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
   var btn = document.getElementById('upd');
