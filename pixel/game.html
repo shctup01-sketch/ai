@@ -280,7 +280,7 @@ canvas.bigart { width: min(100%, 300px); height: auto; aspect-ratio: 5 / 4; alig
   <div class="bt-sky"></div>
   <div class="bt-box">
     <div class="bt-logo"><small>멸망 이후의 대륙</small><b>공룡 상단</b></div>
-    <canvas id="btArt" class="wait" width="280" height="224"></canvas>
+    <canvas id="btArt" class="wait" width="560" height="448"></canvas>
     <div id="btLoad"><div class="bt-bar"><i id="btFill"></i></div><div id="btTxt">불러오는 중…</div><div id="btTip"></div></div>
     <div id="btMenu" hidden></div>
   </div>
@@ -590,7 +590,7 @@ function applyClass() {
   if (typeof SPR !== 'undefined') for (const k of Object.keys(SPR)) if (k.startsWith('leader|')) delete SPR[k];
 }
 function classModal() {
-  showModal(`<h3>어떤 대장으로 시작할까요</h3><div class="sub">처음 한 번만 고를 수 있어요</div><div class="card">${Object.entries(CLASSES).map(([k, C]) => `<div class="row"><canvas data-u="${C.look || 'leader'}" width="104" height="80"></canvas><div class="info"><b>${C.n} <span class="tag">${C.role}</span></b><small>${C.ds}</small><small style="color:var(--amber)">${C.perk}</small></div><button class="btn small primary" data-act="pickClass" data-k="${k}">선택</button></div>`).join('')}</div>`);
+  showModal(`<h3>어떤 대장으로 시작할까요</h3><div class="sub">처음 한 번만 고를 수 있어요</div><div class="card">${Object.entries(CLASSES).map(([k, C]) => `<div class="row">${ARTIMG['leader:' + k] ? `<img src="${artSrc('leader:' + k)}" alt="" style="width:104px;height:83px;border-radius:8px;border:1px solid var(--line);flex:none">` : `<canvas data-u="${C.look || 'leader'}" width="104" height="80"></canvas>`}<div class="info"><b>${C.n} <span class="tag">${C.role}</span></b><small>${C.ds}</small><small style="color:var(--amber)">${C.perk}</small></div><button class="btn small primary" data-act="pickClass" data-k="${k}">선택</button></div>`).join('')}</div>`);
 }
 // Every caravan member has one battle skill on a cooldown. With auto on they use it themselves.
 const SK = { volley: { n: '일제 사격', cd: 12, ds: '적 셋을 한꺼번에 쏴요' }, multishot: { n: '연속 사격', cd: 10, ds: '한 적에게 화살 세 발' }, guard: { n: '철벽', cd: 14, ds: '5초 동안 방어 2배' }, snipe: { n: '급소 저격', cd: 14, ds: '3배 피해의 한 발' },
@@ -1159,7 +1159,14 @@ function artScene(g, W0, H0, bio, seed) {   // sky, far shapes, ground, all in t
   if (bio === 'plain' || bio === 'waste') for (let q = 0; q < 24; q++) { const x = R() * W0, y = hz + 4 + R() * (H0 - hz - 8); g.fillStyle = bio === 'plain' ? '#b8a058' : '#c88a50'; g.fillRect(x, y - 5, 1, 6); g.fillRect(x + 2, y - 3, 1, 4); g.fillRect(x - 2, y - 4, 1, 5); }
   return hz;
 }
+// Hand-made illustrations replace the generated portrait wherever one exists. They load in the background;
+// until one arrives (or if it is missing) the generated portrait is used.
+const ART_FILES = { 'leader:gunner': 'leader-gunner', 'leader:warrior': 'leader-warrior', 'leader:archer': 'leader-archer', 'leader:tamer': 'leader-tamer', 'leader:merchant': 'leader-merchant' };
+const ARTIMG = {}, artSrc = k => 'art/' + ART_FILES[k] + '.webp';
+for (const k of Object.keys(ART_FILES)) { const im = new Image(); im.onload = () => { ARTIMG[k] = im; for (const q of Object.keys(ART)) if (q.startsWith(k.split(':')[0] + '|')) delete ART[q]; }; im.src = artSrc(k); }
 function unitArt(type, tier = 0, dark = false) {
+  { const im = !dark && ARTIMG[type === 'leader' ? 'leader:' + ((typeof S !== 'undefined' && S && S.cls) || 'gunner') : type];
+    if (im) { const k2 = 'x|' + type + '|' + (type === 'leader' ? S.cls : ''); if (!ART[k2]) { const c = document.createElement('canvas'); c.width = 560; c.height = 448; const x = c.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(im, 0, 0, 560, 448); ART[k2] = c; } return ART[k2]; } }
   const key = type + '|' + tier + (type === 'leader' ? S.cls : '') + (dark ? '|d' : ''); if (ART[key]) return ART[key];
   const W0 = 280, H0 = 224, cv = document.createElement('canvas'); cv.width = W0; cv.height = H0; const g = cv.getContext('2d'), D = UNITS[type], dino = D.cls === 'dino';
   const zk = dino ? (Object.keys(ZONES).find(z => !ZONES[z].far && (ZONES[z].wild.includes(type) || ZONES[z].rare.includes(type))) || 'plain') : null, bio = zk ? bioOf(zk) : 'town';
@@ -1191,7 +1198,7 @@ function unitArt(type, tier = 0, dark = false) {
   return ART[key] = cv;
 }
 function portrait(cv, type, tint) {
-  if (cv.dataset.art) { const g0 = cv.getContext('2d'); cv.width = 280; cv.height = 224; g0.imageSmoothingEnabled = false; g0.drawImage(unitArt(type, +cv.dataset.t || 0, cv.dataset.art === 'unk'), 0, 0); return; }
+  if (cv.dataset.art) { const g0 = cv.getContext('2d'); const a0 = unitArt(type, +cv.dataset.t || 0, cv.dataset.art === 'unk'); cv.width = a0.width; cv.height = a0.height; g0.imageSmoothingEnabled = false; g0.drawImage(a0, 0, 0); cv.style.imageRendering = a0.width > 280 ? 'auto' : ''; return; }
   const g = cv.getContext('2d'), w = cv.width, h = cv.height; g.clearRect(0, 0, w, h);
   try {   // same pixel sprite as in the field, enlarged with hard edges
     const D = UNITS[type], dino = D.cls === 'dino', tier = +cv.dataset.t || 0, len = dino ? Math.round(D.size * 2.4 * (1 + 0.07 * tier)) : 22, spr = unitSprite(type, len, tier), A = spr.an.idle, row = DIRROW[1];
@@ -2969,7 +2976,7 @@ bootP(4, '공룡 모델 불러오는 중…');
 loadModels((n, t) => bootP(4 + n / t * 66, `공룡 모델 불러오는 중 ${n}/${t}`)).then(ok => {
   USE3D = ok;
   if (ok) { try { makePortraits(); } catch (e) { USE3D = false; } }
-  const bootArt = (t, tier) => { try { const a = unitArt(t, tier), c = $('btArt'), x = c.getContext('2d'); x.imageSmoothingEnabled = false; x.clearRect(0, 0, c.width, c.height); x.drawImage(a, 0, 0, c.width, c.height); c.classList.remove('wait'); } catch (e) { /* art is optional */ } };
+  const bootArt = (t, tier) => { try { const a = unitArt(t, tier), c = $('btArt'), x = c.getContext('2d'); x.imageSmoothingEnabled = a.width > 280; x.clearRect(0, 0, c.width, c.height); x.drawImage(a, 0, 0, c.width, c.height); c.style.imageRendering = a.width > 280 ? 'auto' : 'pixelated'; c.classList.remove('wait'); } catch (e) { /* art is optional */ } };
   window.__bootArt = bootArt; bootArt('trex', 2);
   bootP(82, '픽셀 월드 그리는 중…');
   setTimeout(() => { setView('party'); showWorld(); bootP(100, '준비 완료'); setTimeout(titleScreen, 250); }, 60);

@@ -28,6 +28,7 @@ jobs:
           mkdir -p site/models
           cp pixel/index.html pixel/version.json pixel/sw.js pixel/manifest.webmanifest pixel/privacy.html pixel/terms.html pixel/*.png site/
           cp dino/models/*.b64.txt dino/models/props.json dino/models/LICENSE-*.txt site/models/
+          cp -r pixel/art site/art
           touch site/.nojekyll
       - name: Publish to gh-pages
         run: |
