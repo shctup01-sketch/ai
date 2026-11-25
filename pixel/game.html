@@ -194,6 +194,8 @@ h2 { margin-top: 2px; } h2 small { display: block; margin: 3px 0 0; line-height:
 #goal { text-align: left; font-size: 11.5px; line-height: 1.35; padding: 6px 10px; border-radius: 10px; background: rgba(18,14,10,.84); border: 1px solid var(--amber); color: #ece3d4; max-width: 100%; }
 #goal b { color: var(--amber); font-weight: 700; } #goal span { display: block; height: 3px; margin-top: 4px; background: #3a2e22; border-radius: 2px; overflow: hidden; } #goal span u { display: block; height: 100%; background: var(--amber); }
 @media (max-width: 400px) { .brand h1 { font-size: 17px; } .rc { min-width: 44px; padding: 3px 6px; } header { gap: 5px; } }
+.tbanner { height: 132px; border-radius: 12px; border: 1px solid var(--line); background: #2a2119 center 38% / cover no-repeat; display: flex; flex-direction: column; justify-content: flex-end; padding: 10px 12px; margin-bottom: 10px; } .tbanner small { font-size: 11px; color: #ffe9c0; text-shadow: 0 1px 3px #000; } .tbanner b { font-family: var(--f-display); font-weight: 400; font-size: 22px; color: #fff; text-shadow: 0 2px 0 #1c120a, 0 0 10px #000; line-height: 1.15; }
+@media (orientation: landscape) and (max-height: 520px) { .tbanner { height: 96px; } }
 #menuClose { flex: none; width: 38px; height: 38px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--line); font-size: 16px; color: var(--text); margin-left: 6px; }
 /* alerts stack instead of replacing each other */
 #toast { opacity: 1 !important; background: none !important; border: 0 !important; padding: 0 !important; box-shadow: none !important; transform: translateX(-50%) !important; display: flex; flex-direction: column; align-items: center; gap: 5px; width: max-content; max-width: calc(100% - 20px); }
@@ -2623,7 +2625,8 @@ function renderTown() {
   const hurt = S.units.filter(u => u.hp < maxHp(u) || u.ko), healCost = Math.round(S.units.reduce((s, u) => s + (maxHp(u) - u.hp), 0) * 0.12) + (hurt.length ? 5 : 0);
   const qReady = (S.quests[z] || []).filter(q => (q.type === 'deliver' ? (S.cargo[q.g] || 0) : q.prog) >= q.n).length;
   const secs = [['hunt', '사냥터'], ['market', '시장'], ['quest', '의뢰', qReady], ['shop', '공방', outs.length ? '!' : 0], ['hire', '고용'], ['bank', '전장'], ['inn', '여관', hurt.length && townSec !== 'inn' ? '!' : 0]];
-  el.innerHTML = `
+  const SPOTN = { hunt: '사냥터 안내소', market: '시장', shop: '공방', bank: '은행', inn: '여관', hire: '고용소', quest: '의뢰소', store: '잡화점', trial: '시련의 탑' };
+  el.innerHTML = `<div class="tbanner" style="background-image:linear-gradient(rgba(20,15,11,0) 35%, rgba(20,15,11,.88)), url(art/town-${bioOf(z)}.webp)"><small>${Z.n} 정착지</small><b>${SPOTN[townSec] || '정착지'}</b></div>
     ${townSec === 'hunt' ? `<h2>사냥터<small>여기서 길들일 수 있는 공룡: ${tame}</small></h2>
     <div class="card">${HUNTS.map((H, i) => { const done = i < (S.cleared[z] || 0), G = GROUNDS[z][i], dist = Math.round(Math.hypot(G[0] - S.pos.x, G[1] - S.pos.y) / 10);
       return `<div class="row"><span class="num${done ? ' done' : ''}${H.boss ? ' boss' : ''}">${H.boss ? '★' : i + 1}</span><div class="info"><b>${HUNT_NAMES[z][i]} ${done ? '<span class="tag">정복</span>' : ''}${H.boss ? ' <span class="tag" style="color:var(--bad)">우두머리</span>' : ''}</b><small>${H.boss ? `${BOSSES[Z.boss].n} Lv${(Z.bossLv || zl(Z, 6))} · 희귀 이상 장비 확정` : `Lv${zl(Z, H.lv[0])}~${zl(Z, H.lv[1])} · 희귀종 ${Math.round(H.rare * 50)}% · 장비 ${Math.round(H.drop * 100)}%`} · 거리 ${dist}m</small><small style="color:${partyPower() >= groundPower(z, i) ? '#8fbf6a' : 'var(--bad)'}">권장 전투력 ${fmt(groundPower(z, i))} · 내 상단 ${fmt(partyPower())}</small></div>
