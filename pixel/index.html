@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}
 #upd{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:999;padding:11px 18px;border-radius:14px;border:2px solid #f3c79a;background:#d4763c;color:#1c120a;font:700 14px system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.5)}</style>
-<script>window.__VER="20261125-005231"</script>
+<script>window.__VER="20261125-010355"</script>
 </head>
 <body>
 <title>공룡 상단 픽셀</title>
@@ -184,6 +184,13 @@ h2 { margin-top: 2px; } h2 small { display: block; margin: 3px 0 0; line-height:
 #btMenu input, #btMenu textarea { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #6a5844; background: #1c1711; color: #fff; font: inherit; font-size: 15px; text-align: center; }
 #btMenu textarea { font-size: 11px; text-align: left; height: 84px; resize: none; }
 #btMenu .btn { width: 100%; min-height: 48px; font-size: 15px; } #btMenu .btn.big { min-height: 56px; font-size: 18px; font-family: var(--f-display); font-weight: 400; letter-spacing: .04em; }
+#boot { overflow-y: auto; justify-content: flex-start; } #boot .bt-box { margin: auto; padding: 14px 0 10px; max-height: none; flex: none; } #boot .bt-foot { position: static; flex: none; padding: 2px 0 calc(8px + env(safe-area-inset-bottom, 0px)); width: 100%; }
+#btMenu .tabs2 { display: flex; background: #1c1711; border: 1px solid #6a5844; border-radius: 12px; padding: 3px; } #btMenu .tabs2 button { flex: 1; padding: 10px; border-radius: 9px; font-size: 14px; font-weight: 700; color: #a8997f; background: none; border: 0; } #btMenu .tabs2 button.on { background: var(--rust); color: #1c120a; }
+#btMenu .chk { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: #d8cdb9; padding: 2px 4px; } #btMenu .chk input { width: 20px; height: 20px; flex: none; accent-color: #d4763c; } #btMenu .chk a { color: #f0c060; }
+#btMenu .tagc { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 9px; background: #3a2e22; color: #f0c060; vertical-align: middle; }
+#btMenu .notes { max-height: 210px; overflow-y: auto; background: #1c1711; border: 1px solid #6a5844; border-radius: 10px; padding: 4px 12px; font-size: 12.5px; line-height: 1.5; } #btMenu .notes div { padding: 8px 0; border-bottom: 1px dashed #4a3e30; } #btMenu .notes div:last-child { border: 0; } #btMenu .notes em { font-style: normal; color: #f0c060; font-weight: 700; margin-right: 8px; }
+#btMenu input:not([type=checkbox]) { text-align: left; padding: 12px 14px; }
+@media (orientation: landscape) and (max-height: 520px) { #btMenu { gap: 6px; } #btMenu input:not([type=checkbox]) { padding: 7px 12px; font-size: 14px; } #btMenu .btn { min-height: 38px; font-size: 13px; } #btMenu .btn.big { min-height: 42px; font-size: 16px; } #btMenu .tabs2 button { padding: 6px; } #btMenu .note { display: none; } #boot .bt-box { padding: 6px 0 2px; gap: 6px 22px; } .bt-logo b { font-size: 28px; } .bt-logo small { display: none; } }
 #btMenu .row2 { display: flex; gap: 8px; } #btMenu .row2 .btn { flex: 1; width: auto; min-width: 0; font-size: 14px; padding-left: 6px; padding-right: 6px; } #btMenu .note { font-size: 11px; color: #a8997f; text-align: center; line-height: 1.5; }
 .bt-foot { position: absolute; left: 0; right: 0; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); display: flex; justify-content: center; gap: 14px; font-size: 11px; color: #8a7e6c; } .bt-foot a { color: #cfa46a; }
 @media (orientation: landscape) and (max-height: 520px) { .bt-box { flex-direction: row; flex-wrap: wrap; justify-content: center; width: min(640px, 100%); gap: 10px 22px; } .bt-logo { width: 100%; } .bt-logo b { font-size: 34px; } #btArt { width: 150px; height: 120px; } #btLoad, #btMenu { width: min(340px, 56%); } }
@@ -565,7 +572,22 @@ const DAY_LEN = 90;
 /* ================================================================
    STATE
    ================================================================ */
-const SAVE = 'dino-pixel-v1';
+// Accounts live on this device: an id, a salted password hash and a save of their own.
+// A guest plays without one. There is no server yet, so nothing here leaves the device.
+const SAVE0 = 'dino-pixel-v1', ACC_KEY = 'dino-pixel-accounts';
+const ACC = (() => { try { return JSON.parse(localStorage.getItem(ACC_KEY)); } catch (e) { return null; } })() || { ids: {}, cur: null };
+ACC.ids = ACC.ids || {};
+const accSave = () => { try { localStorage.setItem(ACC_KEY, JSON.stringify(ACC)); } catch (e) { /* storage unavailable */ } };
+let SESSION = ACC.cur || null; try { SESSION = SESSION || sessionStorage.getItem(ACC_KEY + ':cur') || null; } catch (e) { /* no session storage */ }
+if (SESSION && SESSION !== 'guest' && !ACC.ids[SESSION]) SESSION = null;
+if (!SESSION && !ACC.seen && !Object.keys(ACC.ids).length) { try { if (localStorage.getItem(SAVE0)) SESSION = ACC.cur = 'guest'; } catch (e) { /* nothing stored */ } }   // players from before accounts carry on as a guest
+const SAVE = SESSION && SESSION !== 'guest' ? SAVE0 + ':' + SESSION : SAVE0;
+function setSession(id, keep) { ACC.cur = id && keep ? id : null; ACC.seen = 1; accSave(); try { if (id) sessionStorage.setItem(ACC_KEY + ':cur', id); else sessionStorage.removeItem(ACC_KEY + ':cur'); } catch (e) { /* no session storage */ } }
+async function hashPw(id, pw, salt) {
+  const text = salt + ':' + id + ':' + pw;
+  try { const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)); return [...new Uint8Array(d)].map(b => b.toString(16).padStart(2, '0')).join(''); }
+  catch (e) { let h1 = 0x811c9dc5, h2 = 0x1b873593; for (let r = 0; r < 64; r++) for (let i = 0; i < text.length; i++) { h1 = Math.imul(h1 ^ text.charCodeAt(i), 16777619); h2 = Math.imul(h2 + text.charCodeAt(i) + r, 0x85ebca6b) ^ (h2 >>> 13); } return 'f' + (h1 >>> 0).toString(16) + (h2 >>> 0).toString(16); }
+}
 // Systems in the spirit of classic merchant RPGs: hunger, a bank, a warehouse, town investment with dividends, battle formations
 const FOODS = { grain: 15, meat: 25, jerky: 45 };
 const FORMS = { bal: { n: '균형진', ds: '기본 대형', atk: 1, def: 1 }, atk: { n: '돌격진', ds: '공격 +15% · 방어 -12%', atk: 1.15, def: 0.88 }, def: { n: '방어진', ds: '방어 +25% · 공격 -8%', atk: 0.92, def: 1.25 } };
@@ -671,7 +693,8 @@ const carryOf = u => u.type === 'porter' ? Math.round((UNITS.porter.carry + 2 * 
 const capacity = () => party().reduce((s, u) => s + carryOf(u), 0);
 const cargoUsed = () => Object.values(S.cargo).reduce((a, b) => a + b, 0);
 function load() { try { const r = localStorage.getItem(SAVE); return r ? JSON.parse(r) : null; } catch (e) { return null; } }
-function save() { if (!S) return; try { localStorage.setItem(SAVE, JSON.stringify(S)); } catch (e) { /* storage unavailable */ } }
+function save() { if (!S || !SESSION) return;   // nothing is kept until someone has signed in or started as a guest
+  try { localStorage.setItem(SAVE, JSON.stringify(S)); } catch (e) { /* storage unavailable */ } }
 
 /* market: zone price × daily drift × buying/selling pressure */
 const zp = (z, g) => ZONES[z].price[g] ?? (GOODS[g].zp ? GOODS[g].zp[z] ?? 1.3 : 1);
@@ -2889,23 +2912,77 @@ function showSaveCode() {
   const code = saveCode();
   showModal(`<h3>저장 코드</h3><div class="sub">이 코드를 보관해 두면 기기를 바꾸거나 앱을 지워도 타이틀 화면의 "저장 코드로 불러오기"로 이어 할 수 있어요</div><div class="card"><textarea id="scOut" readonly style="width:100%;height:110px;font-size:11px;background:#1c1711;color:#ece3d4;border:1px solid var(--line);border-radius:8px;padding:8px">${code}</textarea></div><div class="mbtns"><button class="btn primary" data-act="copyCode">코드 복사</button><button class="btn" data-act="close">닫기</button></div>`);
 }
+const NOTES = [
+  ['11.25', '접속 화면을 새로 만들었어요 · 계정 만들기, 로그인, 게스트 시작, 공지'],
+  ['11.25', '로딩 화면과 저장 코드(백업·기기 이동)를 넣었어요'],
+  ['11.24', '대장장이 용병 · 함께 있으면 장비 강화 성공률이 올라가요'],
+  ['11.24', '요리사 용병 · 가는 길에 밥을 지어 포만감을 채우고 대원을 든든하게 해요'],
+  ['11.24', '의사는 쓰러진 사람을, 조련사는 쓰러진 공룡을 전투 중에 일으켜요'],
+  ['11.24', '화면 배치를 RPG 방식으로 바꿨어요 · 캐릭터 창, 미니맵 메뉴, 둥근 행동 버튼'],
+];
 function titleScreen() {
-  const boot = $('boot'), menu = $('btMenu'), has = !!S.cls || !freshRun, lead = S.units.find(u => u.type === 'leader') || S.units[0];
+  const boot = $('boot'), menu = $('btMenu'), links = window.__VER ? ' (<a href="terms.html" target="_blank" rel="noopener">약관</a> · <a href="privacy.html" target="_blank" rel="noopener">처리방침</a>)' : '';
   boot.classList.add('live'); $('btLoad').hidden = true; menu.hidden = false;
-  if (has && window.__bootArt) window.__bootArt('leader', lead.tier || 0);
-  const main = () => { menu.innerHTML = has
-    ? `<div class="who"><b>${S.name || '이름 없는 대장'}</b><br>${(CLASSES[S.cls] || CLASSES.gunner).n} Lv${lead.lv} · 상단 Lv${S.clv} · 멸망 후 ${S.day}일차</div><button class="btn primary big" data-b="go">이어하기</button><div class="row2"><button class="btn" data-b="code">저장 코드로 불러오기</button><button class="btn" data-b="new">새로 시작</button></div><div class="note">저장은 이 기기에만 보관돼요 · 계정 로그인과 서버 저장은 준비 중이에요</div>`
-    : `<input id="btName" maxlength="10" placeholder="대장 이름 (2~10자)" autocomplete="off" value="${S.name || ''}"><button class="btn primary big" data-b="go">게스트로 시작</button><button class="btn" data-b="code">저장 코드로 불러오기</button><div class="note">가입 없이 바로 시작해요 · 저장은 이 기기에만 보관돼요<br>계정 로그인과 서버 저장은 준비 중이에요</div>`; };
-  main();
-  menu.onclick = e => { const b = e.target.closest('[data-b]'); if (!b) return; const k = b.dataset.b; sndInit(); sfx('tap');
-    if (k === 'go') { if (!has) { const n = ($('btName').value || '').trim(); if (n.length < 2) { $('btName').focus(); $('btName').placeholder = '이름을 2자 이상 적어 주세요'; return; } S.name = n.slice(0, 10); save(); }
-      boot.classList.add('out'); setTimeout(() => { boot.hidden = true; }, 500);
-      if (freshRun && !S.cls) classModal(); else if (S.stats.battles === 0) toast('혼자 시작해요 · 정착지 가까이의 작은 공룡부터 사냥해 돈을 모으고, 고용소에서 첫 동료를 구하세요'); else toast(`어서 오세요, ${S.name || '대장'}님`, 'good'); }
-    else if (k === 'new') { if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = '저장을 지우고 새로? 한 번 더'; b.classList.add('primary'); return; } try { localStorage.removeItem(SAVE); } catch (x) { /* nothing stored */ } S = null; location.reload(); }
-    else if (k === 'code') { menu.innerHTML = `<textarea id="btCode" placeholder="보관해 둔 저장 코드를 붙여 넣으세요"></textarea><div class="row2"><button class="btn primary" data-b="load">불러오기</button><button class="btn" data-b="back">돌아가기</button></div><div class="note" id="btMsg">${has ? '불러오면 지금 이 기기의 저장은 덮어써져요' : ''}</div>`; }
-    else if (k === 'back') main();
-    else if (k === 'load') { try { const o = readCode($('btCode').value); localStorage.setItem(SAVE, JSON.stringify(o)); S = null; location.reload(); } catch (x) { $('btMsg').textContent = '코드를 읽지 못했어요. 처음부터 끝까지 빠짐없이 붙여 넣었는지 확인해 주세요'; $('btMsg').style.color = '#ff8a6a'; } }
+  if (SESSION && SESSION !== 'guest' && !S.name) S.name = ACC.ids[SESSION].name;
+  const lead = () => S.units.find(u => u.type === 'leader') || S.units[0], has = () => !!S.cls || !freshRun;
+  const msg = (t, bad) => { const el = $('btMsg'); if (el) { el.textContent = t; el.style.color = bad ? '#ff8a6a' : ''; } };
+  const agree = `<label class="chk"><input type="checkbox" id="btAgree"><span>이용약관과 개인정보 처리방침에 동의해요${links}</span></label>`;
+  const enter = () => { boot.classList.add('out'); setTimeout(() => { boot.hidden = true; }, 500);
+    if (freshRun && !S.cls) classModal(); else if (S.stats.battles === 0) toast('혼자 시작해요 · 정착지 가까이의 작은 공룡부터 사냥해 돈을 모으고, 고용소에서 첫 동료를 구하세요'); else toast(`어서 오세요, ${S.name || '대장'}님`, 'good'); };
+  const restart = () => { S = null; location.reload(); };
+  let view = SESSION ? 'home' : 'login';
+  const draw = () => {
+    if (view === 'home') {
+      if (has() && window.__bootArt) window.__bootArt('leader', lead().tier || 0);
+      const guest = SESSION === 'guest';
+      menu.innerHTML = `<div class="who"><b>${S.name || '이름 없는 대장'}</b> <span class="tagc">${guest ? '게스트' : SESSION}</span><br>${has() ? `${(CLASSES[S.cls] || CLASSES.gunner).n} Lv${lead().lv} · 상단 Lv${S.clv} · 멸망 후 ${S.day}일차` : '새로운 여정을 시작해요'}</div>
+        <button class="btn primary big" data-b="go">게임 시작</button>
+        <div class="row2"><button class="btn" data-b="notice">공지</button><button class="btn" data-b="code">저장 코드 불러오기</button></div>
+        <div class="row2">${guest ? '<button class="btn" data-b="link">계정 만들기</button>' : '<button class="btn" data-b="logout">로그아웃</button>'}${has() ? '<button class="btn" data-b="new">새로 시작</button>' : guest ? '<button class="btn" data-b="tologin">계정으로 로그인</button>' : ''}</div>
+        <div class="note" id="btMsg">${guest ? '게스트 저장은 이 기기에만 있어요 · 계정을 만들면 지금 저장을 그대로 이어받아요' : '계정과 저장은 이 기기에 보관돼요 · 서버 계정은 준비 중이에요'}</div>`;
+    } else if (view === 'login' || view === 'join' || view === 'link') {
+      const join = view !== 'login';
+      menu.innerHTML = `${view === 'link' ? '<div class="who"><b>계정 만들기</b><br>지금 게스트 저장을 새 계정으로 옮겨요</div>' : `<div class="tabs2"><button data-b="tab-login" class="${join ? '' : 'on'}">로그인</button><button data-b="tab-join" class="${join ? 'on' : ''}">계정 만들기</button></div>`}
+        <input id="btId" maxlength="12" placeholder="아이디 (영문·숫자 4~12자)" autocomplete="username" autocapitalize="off" spellcheck="false">
+        <input id="btPw" type="password" maxlength="30" placeholder="비밀번호 (4자 이상)" autocomplete="${join ? 'new-password' : 'current-password'}">
+        ${join ? `<input id="btPw2" type="password" maxlength="30" placeholder="비밀번호 확인" autocomplete="new-password">${view === 'join' ? '<input id="btName" maxlength="10" placeholder="대장 이름 (2~10자)" autocomplete="off">' : ''}${agree}` : '<label class="chk"><input type="checkbox" id="btAuto" checked><span>자동 로그인</span></label>'}
+        <button class="btn primary big" data-b="${join ? 'dojoin' : 'dologin'}">${join ? '계정 만들기' : '로그인'}</button>
+        ${view === 'link' ? '<button class="btn" data-b="home">돌아가기</button>' : '<div class="row2"><button class="btn" data-b="guest">게스트로 시작</button><button class="btn" data-b="notice">공지</button></div>'}
+        <div class="note" id="btMsg">계정은 이 기기에 보관돼요 · 다른 기기로 옮길 때는 저장 코드를 쓰세요</div>`;
+    } else if (view === 'guest') {
+      const old = has();
+      menu.innerHTML = `<div class="who"><b>게스트로 시작</b><br>${old ? `이 기기에 게스트 저장이 있어요 · ${S.name || '이름 없는 대장'} Lv${lead().lv}` : '가입 없이 바로 시작해요'}</div>
+        ${old ? '' : '<input id="btName" maxlength="10" placeholder="대장 이름 (2~10자)" autocomplete="off">' + agree}
+        <button class="btn primary big" data-b="doguest">${old ? '이어서 시작' : '시작하기'}</button><button class="btn" data-b="tologin">돌아가기</button>
+        <div class="note" id="btMsg">게스트 저장은 이 기기에만 있어요 · 나중에 계정으로 옮길 수 있어요</div>`;
+    } else if (view === 'notice') {
+      menu.innerHTML = `<div class="who"><b>공지 · 패치 내역</b></div><div class="notes">${NOTES.map(([d, t]) => `<div><em>${d}</em>${t}</div>`).join('')}</div><button class="btn" data-b="${SESSION ? 'home' : 'tologin'}">돌아가기</button>`;
+    } else if (view === 'code') {
+      menu.innerHTML = `<textarea id="btCode" placeholder="보관해 둔 저장 코드를 붙여 넣으세요"></textarea><div class="row2"><button class="btn primary" data-b="load">불러오기</button><button class="btn" data-b="home">돌아가기</button></div><div class="note" id="btMsg">${has() ? '불러오면 지금 접속한 계정의 저장은 덮어써져요' : ''}</div>`;
+    }
   };
+  draw();
+  menu.onclick = async e => { const b = e.target.closest('[data-b]'); if (!b) return; const k = b.dataset.b; sndInit(); sfx('tap');
+    const val = id => ((($(id) || {}).value) || '').trim();
+    if (k === 'go') enter();
+    else if (k === 'home' || k === 'notice' || k === 'code' || k === 'guest' || k === 'link') { view = k; draw(); }
+    else if (k === 'tologin' || k === 'tab-login') { view = 'login'; draw(); }
+    else if (k === 'tab-join') { view = 'join'; draw(); }
+    else if (k === 'dologin') { const id = val('btId').toLowerCase(), a = ACC.ids[id]; if (!a) return msg('없는 아이디예요. 이 기기에서 만든 계정만 로그인할 수 있어요', 1); if (await hashPw(id, $('btPw').value, a.salt) !== a.hash) return msg('비밀번호가 맞지 않아요', 1); setSession(id, $('btAuto').checked); restart(); }
+    else if (k === 'dojoin') { const id = val('btId').toLowerCase(), pw = $('btPw').value, name = view === 'link' ? (S.name || '') : val('btName');
+      if (!/^[a-z0-9]{4,12}$/.test(id)) return msg('아이디는 영문과 숫자로 4~12자예요', 1); if (id === 'guest' || ACC.ids[id]) return msg('이미 있는 아이디예요', 1);
+      if (pw.length < 4) return msg('비밀번호는 4자 이상이에요', 1); if (pw !== $('btPw2').value) return msg('비밀번호 확인이 서로 달라요', 1);
+      if (view === 'join' && name.length < 2) return msg('대장 이름을 2자 이상 적어 주세요', 1); if (!$('btAgree').checked) return msg('약관에 동의해야 만들 수 있어요', 1);
+      const salt = Math.random().toString(36).slice(2) + Date.now().toString(36); ACC.ids[id] = { salt, hash: await hashPw(id, pw, salt), name: name.slice(0, 10), at: Date.now() };
+      if (view === 'link') { save(); try { localStorage.setItem(SAVE0 + ':' + id, JSON.stringify(S)); localStorage.removeItem(SAVE0); } catch (x) { /* storage unavailable */ } }
+      setSession(id, true); restart(); }
+    else if (k === 'doguest') { if (!has()) { const n = val('btName'); if (n.length < 2) return msg('대장 이름을 2자 이상 적어 주세요', 1); if (!$('btAgree').checked) return msg('약관에 동의해야 시작할 수 있어요', 1); S.name = n.slice(0, 10); }
+      setSession('guest', true); if (SAVE !== SAVE0) return restart(); SESSION = 'guest'; save(); enter(); }
+    else if (k === 'logout') { save(); setSession(null); restart(); }
+    else if (k === 'new') { if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = '저장을 지우고 새로? 한 번 더'; b.classList.add('primary'); return; } try { localStorage.removeItem(SAVE); } catch (x) { /* nothing stored */ } restart(); }
+    else if (k === 'load') { try { const o = readCode($('btCode').value); if (SESSION && SESSION !== 'guest') o.name = o.name || ACC.ids[SESSION].name; localStorage.setItem(SAVE, JSON.stringify(o)); restart(); } catch (x) { msg('코드를 읽지 못했어요. 처음부터 끝까지 빠짐없이 붙여 넣었는지 확인해 주세요', 1); } }
+  };
+  menu.onkeydown = e => { if (e.key === 'Enter' && e.target.tagName === 'INPUT') { const b = menu.querySelector('.btn.big'); if (b) b.click(); } };
 }
 bootP(4, '공룡 모델 불러오는 중…');
 loadModels((n, t) => bootP(4 + n / t * 66, `공룡 모델 불러오는 중 ${n}/${t}`)).then(ok => {
@@ -2924,7 +3001,7 @@ requestAnimationFrame(frame);
 <button id="upd" hidden>새 패치가 있어요 · 눌러서 적용</button>
 <script>
 (function () {
-  var VER = "20261125-005231";
+  var VER = "20261125-010355";
   if (!/^https?:$/.test(location.protocol)) return;
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
   var btn = document.getElementById('upd');
