@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}
 #upd{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:999;padding:11px 18px;border-radius:14px;border:2px solid #f3c79a;background:#d4763c;color:#1c120a;font:700 14px system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.5)}</style>
-<script>window.__VER="20261125-044236"</script>
+<script>window.__VER="20261125-063444"</script>
 </head>
 <body>
 <title>공룡 상단 픽셀</title>
@@ -1180,7 +1180,7 @@ function artScene(g, W0, H0, bio, seed) {   // sky, far shapes, ground, all in t
 }
 // Hand-made illustrations replace the generated portrait wherever one exists. They load in the background;
 // until one arrives (or if it is missing) the generated portrait is used.
-const ART_FILES = { 'leader:gunner': 'leader-gunner', 'leader:warrior': 'leader-warrior', 'leader:archer': 'leader-archer', 'leader:tamer': 'leader-tamer', 'leader:merchant': 'leader-merchant', shaman: 'shaman', tamer: 'tamer', smith: 'smith', cook: 'cook', bomber: 'bomber', crossbow: 'crossbow', gunner: 'gunner', gladiator: 'gladiator', shield: 'shield', scout: 'scout', venomer: 'venomer', porter: 'porter', medic: 'medic', mechanic: 'mechanic', sniper: 'sniper', spear: 'spear', hunter: 'hunter', diplo: 'diplo', spino: 'spino', allo: 'allo', carno: 'carno', styra: 'styra', anky: 'anky', kentro: 'kentro', utah: 'utah', micro: 'micro', pachyc: 'pachyc', iguan: 'iguan', trex: 'trex', stego: 'stego', dilo: 'dilo', compy: 'compy', raptor: 'raptor', apato: 'apato', para: 'para', trike: 'trike' };
+const ART_FILES = { 'leader:gunner': 'leader-gunner', 'leader:warrior': 'leader-warrior', 'leader:archer': 'leader-archer', 'leader:tamer': 'leader-tamer', 'leader:merchant': 'leader-merchant', shaman: 'shaman', tamer: 'tamer', smith: 'smith', cook: 'cook', bomber: 'bomber', crossbow: 'crossbow', gunner: 'gunner', gladiator: 'gladiator', shield: 'shield', scout: 'scout', venomer: 'venomer', porter: 'porter', medic: 'medic', mechanic: 'mechanic', sniper: 'sniper', spear: 'spear', hunter: 'hunter', diplo: 'diplo', spino: 'spino', allo: 'allo', carno: 'carno', styra: 'styra', anky: 'anky', kentro: 'kentro', utah: 'utah', micro: 'micro', pachyc: 'pachyc', iguan: 'iguan', trex: 'trex', stego: 'stego', dilo: 'dilo', compy: 'compy', raptor: 'raptor', apato: 'apato', para: 'para', trike: 'trike', stegoRust: 'stegoRust', raptorVenom: 'raptorVenom', raptorShadow: 'raptorShadow', apatoMoss: 'apatoMoss', paraGold: 'paraGold', trikeRed: 'trikeRed', trikeIron: 'trikeIron' };
 const ARTIMG = {}, artSrc = k => 'art/' + ART_FILES[k] + '.webp';
 for (const k of Object.keys(ART_FILES)) { const im = new Image(); im.onload = () => { ARTIMG[k] = im; for (const q of Object.keys(ART)) if (q.startsWith(k.split(':')[0] + '|')) delete ART[q]; }; im.src = artSrc(k); }
 function unitArt(type, tier = 0, dark = false) {
@@ -3008,7 +3008,7 @@ requestAnimationFrame(frame);
 <button id="upd" hidden>새 패치가 있어요 · 눌러서 적용</button>
 <script>
 (function () {
-  var VER = "20261125-044236";
+  var VER = "20261125-063444";
   if (!/^https?:$/.test(location.protocol)) return;
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
   var btn = document.getElementById('upd');
