@@ -14,6 +14,7 @@ printf '{"v":"%s"}\n' "$VER" > version.json
   printf '<link rel="manifest" href="manifest.webmanifest">\n<link rel="icon" href="icon-192.png">\n<link rel="apple-touch-icon" href="icon-192.png">\n'
   printf '<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}\n'
   printf '#upd{position:fixed;left:50%%;top:calc(10px + env(safe-area-inset-top,0px));transform:translateX(-50%%);z-index:999;padding:11px 18px;border-radius:14px;border:2px solid #f3c79a;background:#d4763c;color:#1c120a;font:700 14px system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.5)}</style>\n'
+  printf '<script>window.__VER="%s"</script>\n' "$VER"
   printf '</head>\n<body>\n'
   cat game.html
   printf '\n<button id="upd" hidden>새 패치가 있어요 · 눌러서 적용</button>\n'

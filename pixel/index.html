@@ -14,6 +14,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}
 #upd{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:999;padding:11px 18px;border-radius:14px;border:2px solid #f3c79a;background:#d4763c;color:#1c120a;font:700 14px system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.5)}</style>
+<script>window.__VER="20261125-005231"</script>
 </head>
 <body>
 <title>공룡 상단 픽셀</title>
@@ -39,7 +40,7 @@ button[disabled] { opacity: .4; pointer-events: none; }
 #app { height: 100%; max-width: 620px; margin: 0 auto; display: flex; flex-direction: column; position: relative; }
 header { padding-block: 8px; padding-left: max(14px, env(safe-area-inset-left, 0px)); padding-right: max(14px, env(safe-area-inset-right, 0px)); display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--line); background: linear-gradient(#2a221a, var(--bg)); }
 .brand { flex: 1; min-width: 0; }
-.brand h1 { font-family: var(--f-display); font-weight: 400; font-size: 21px; margin: 0; letter-spacing: .02em; color: var(--rust); }
+.brand h1 { font-family: var(--f-display); font-weight: 400; font-size: 21px; margin: 0; white-space: nowrap; letter-spacing: .02em; color: var(--rust); }
 .brand small { display: block; color: var(--muted); font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .res { display: flex; gap: 5px; }
 .rc { display: flex; flex-direction: column; align-items: flex-end; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 2px 7px; min-width: 52px; }
@@ -165,6 +166,27 @@ h2 { margin-top: 2px; } h2 small { display: block; margin: 3px 0 0; line-height:
 .bfoot .btn { min-height: 46px; } #bCapture { flex: 1.6; font-size: 14px; } #fNearest { flex: 1.5; }
 .dexg { gap: 8px; } .dexc { border-radius: 10px; }
 #menu { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+/* boot layer: loading bar first, then the title screen with start and save options */
+#boot { position: fixed; inset: 0; z-index: 600; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #140f0b; color: #ece3d4; overflow: hidden; transition: opacity .45s; padding: env(safe-area-inset-top, 0px) 16px env(safe-area-inset-bottom, 0px); }
+#boot.live { background: rgba(14,10,7,.78); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+#boot.out { opacity: 0; pointer-events: none; }
+.bt-sky { position: absolute; inset: 0; background: radial-gradient(120% 70% at 50% 108%, rgba(212,118,60,.55), rgba(212,118,60,0) 60%), linear-gradient(#1a1410, #2a1c14 55%, #4a2a1a); z-index: -1; }
+#boot.live .bt-sky { opacity: .55; }
+.bt-box { width: min(380px, 100%); display: flex; flex-direction: column; align-items: center; gap: 12px; max-height: 100%; }
+.bt-logo { text-align: center; line-height: 1.1; } .bt-logo small { display: block; font-size: 12px; letter-spacing: .3em; color: #cfa46a; margin-bottom: 4px; }
+.bt-logo b { font-family: var(--f-display); font-weight: 400; font-size: 46px; color: var(--rust); text-shadow: 0 3px 0 #1c120a, 0 0 22px rgba(212,118,60,.45); letter-spacing: .04em; }
+#btArt.wait { display: none; } #btArt { width: 200px; height: 160px; image-rendering: pixelated; border-radius: 12px; border: 2px solid #6a5844; background: #2a2119; box-shadow: 0 8px 26px rgba(0,0,0,.5); }
+#btLoad { width: 100%; display: flex; flex-direction: column; gap: 7px; align-items: center; }
+.bt-bar { width: 100%; height: 12px; border-radius: 7px; background: #2a2119; border: 1px solid #6a5844; overflow: hidden; } .bt-bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #b8842e, #f0c060); transition: width .3s; }
+#btTxt { font-size: 13px; color: #d8cdb9; } #btTip { font-size: 12px; color: #a8997f; text-align: center; min-height: 2.8em; line-height: 1.4; }
+#btMenu { width: 100%; display: flex; flex-direction: column; gap: 9px; }
+#btMenu .who { text-align: center; font-size: 13px; color: #d8cdb9; line-height: 1.5; } #btMenu .who b { color: #fff; font-size: 15px; }
+#btMenu input, #btMenu textarea { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #6a5844; background: #1c1711; color: #fff; font: inherit; font-size: 15px; text-align: center; }
+#btMenu textarea { font-size: 11px; text-align: left; height: 84px; resize: none; }
+#btMenu .btn { width: 100%; min-height: 48px; font-size: 15px; } #btMenu .btn.big { min-height: 56px; font-size: 18px; font-family: var(--f-display); font-weight: 400; letter-spacing: .04em; }
+#btMenu .row2 { display: flex; gap: 8px; } #btMenu .row2 .btn { flex: 1; width: auto; min-width: 0; font-size: 14px; padding-left: 6px; padding-right: 6px; } #btMenu .note { font-size: 11px; color: #a8997f; text-align: center; line-height: 1.5; }
+.bt-foot { position: absolute; left: 0; right: 0; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); display: flex; justify-content: center; gap: 14px; font-size: 11px; color: #8a7e6c; } .bt-foot a { color: #cfa46a; }
+@media (orientation: landscape) and (max-height: 520px) { .bt-box { flex-direction: row; flex-wrap: wrap; justify-content: center; width: min(640px, 100%); gap: 10px 22px; } .bt-logo { width: 100%; } .bt-logo b { font-size: 34px; } #btArt { width: 150px; height: 120px; } #btLoad, #btMenu { width: min(340px, 56%); } }
 /* left HUD column: the party at a glance, the current goal, auto hunt, the loot feed */
 #hudL { position: absolute; left: 8px; top: 6px; z-index: 2; display: flex; flex-direction: column; align-items: flex-start; gap: 5px; max-width: 66%; pointer-events: none; }
 #hudL > * { pointer-events: auto; } #hudL #feed { pointer-events: none; position: static; max-width: 100%; } #hudL #autoBtn { position: static; }
@@ -177,6 +199,7 @@ h2 { margin-top: 2px; } h2 small { display: block; margin: 3px 0 0; line-height:
 .pc em { position: absolute; right: 1px; top: 0; font-style: normal; font-size: 9px; font-weight: 700; color: #fff; text-shadow: 0 0 2px #000, 0 1px 1px #000; }
 #goal { text-align: left; font-size: 11.5px; line-height: 1.35; padding: 6px 10px; border-radius: 10px; background: rgba(18,14,10,.84); border: 1px solid var(--amber); color: #ece3d4; max-width: 100%; }
 #goal b { color: var(--amber); font-weight: 700; } #goal span { display: block; height: 3px; margin-top: 4px; background: #3a2e22; border-radius: 2px; overflow: hidden; } #goal span u { display: block; height: 100%; background: var(--amber); }
+@media (max-width: 400px) { .brand h1 { font-size: 17px; } .rc { min-width: 44px; padding: 3px 6px; } header { gap: 5px; } }
 #menuClose { flex: none; width: 38px; height: 38px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--line); font-size: 16px; color: var(--text); margin-left: 6px; }
 /* alerts stack instead of replacing each other */
 #toast { opacity: 1 !important; background: none !important; border: 0 !important; padding: 0 !important; box-shadow: none !important; transform: translateX(-50%) !important; display: flex; flex-direction: column; align-items: center; gap: 5px; width: max-content; max-width: calc(100% - 20px); }
@@ -265,6 +288,16 @@ canvas.bigart { width: min(100%, 300px); height: auto; aspect-ratio: 5 / 4; alig
 }
 </style>
 
+<div id="boot">
+  <div class="bt-sky"></div>
+  <div class="bt-box">
+    <div class="bt-logo"><small>멸망 이후의 대륙</small><b>공룡 상단</b></div>
+    <canvas id="btArt" class="wait" width="280" height="224"></canvas>
+    <div id="btLoad"><div class="bt-bar"><i id="btFill"></i></div><div id="btTxt">불러오는 중…</div><div id="btTip"></div></div>
+    <div id="btMenu" hidden></div>
+  </div>
+  <div class="bt-foot"><span id="btVer"></span><a id="btPriv" href="privacy.html" target="_blank" rel="noopener" hidden>개인정보 처리방침</a></div>
+</div>
 <div id="app">
   <div id="menu">
   <header>
@@ -673,6 +706,7 @@ function newDay() {
   }
 }
 function tick(dt) {
+  if (!S) return;   // the save was just cleared and the page is reloading
   S.t += dt;
   if (S.t >= S.day * DAY_LEN) newDay();
   for (const z of Object.keys(ZONES)) for (const g of Object.keys(GOODS)) S.press[z][g] += (1 - S.press[z][g]) * Math.min(1, dt * 0.02);
@@ -2225,7 +2259,7 @@ function renderWorld(dt) {
       tag(`${name} Lv${m.f.lv}${p.mons.length > 1 ? ' ×' + p.mons.length : ''}`, s.x, s.y, p === W.target ? '#1c120a' : m.f.boss ? '#ff8a6a' : rare ? '#f0b94a' : '#ece3d4', p === W.target ? 'rgba(227,168,67,.95)' : null);
     }
     for (const n of W.npcs) { const m = n.mem[0], s = toScreen(m.x, 30, m.y); if (s.x > -40 && s.x < cw + 40 && s.y > 0 && s.y < ch + 20) tag(n.name, s.x, s.y, '#9fd0ff'); }
-    if (W.crew.length) { const me = W.crew.find(c => c.u.type === 'leader') || W.crew[0], s = toScreen(me.x, 40, me.y); tag('나', s.x, s.y, '#8fcf6a'); }
+    if (W.crew.length) { const me = W.crew.find(c => c.u.type === 'leader') || W.crew[0], s = toScreen(me.x, 40, me.y); tag(S.name || '나', s.x, s.y, '#8fcf6a'); }
     for (const z of ZKEYS) { const T2 = TOWNS[z], s = toScreen(T2.x, 215, T2.y); if (s.x > -200 && s.x < cw + 200 && s.y > -200 && s.y < ch + 200) for (const [k, n, dx, dy, hh] of TD[z].spots) { const q = toScreen(T2.x + dx, hh, T2.y + dy), bd = W.badges && W.badges[k] && inTown() === z; tag(n + (bd ? ' !' : ''), q.x, q.y, bd ? '#1c120a' : '#ffe9c0', bd ? 'rgba(227,168,67,.95)' : 'rgba(60,34,20,.86)'); }
       if (s.x > -80 && s.x < cw + 80 && s.y > 20 && s.y < ch) { c.font = '400 16px "Black Han Sans", sans-serif'; c.lineWidth = 4; c.strokeStyle = 'rgba(18,14,10,.8)'; c.strokeText(ZONES[z].n + ' 정착지', s.x, s.y); c.fillStyle = '#ffe9c0'; c.fillText(ZONES[z].n + ' 정착지', s.x, s.y); } }
     if (W.dest || W.lead.tx !== null) {   // long walks: an arrow on the screen edge points at where you are headed
@@ -2622,7 +2656,7 @@ function renderParty() {
       ${u.type === 'leader' ? '<span class="tag on">대장</span>' : `<button class="btn small ${u.inParty ? '' : 'primary'}" data-act="toggle" data-id="${u.id}">${u.inParty ? '대기' : '참전'}</button>`}</div>`; };
   const reserve = S.units.filter(u => !u.inParty);
   const psecs = [['crew', '대원', S.units.filter(u => u.inParty && u.pts > 0).length], ['rank', '순위'], ['ach', '업적', achReady()], ['bag', '가방', S.items.length], ['dex', '도감'], ['skill', '스킬', S.sp], ['cargo', '짐']];
-  el.innerHTML = `<div class="card"><div class="row"><div class="info"><b>상단 Lv${S.clv} · ${P.length}/${partyCap()}명</b><div class="bar"><i style="width:${S.cxp / cxpNeed(S.clv) * 100}%;background:var(--amber)"></i></div><small>상단 경험치 ${S.cxp}/${cxpNeed(S.clv)} · 장사, 사냥, 의뢰로 올라요 · 레벨마다 인원 +1(최대 12)</small><small>짐칸 ${cargoUsed()}/${capacity()} · 전투 ${S.stats.battles} · 포획 ${S.stats.captures}</small></div><button class="btn small" data-act="snd">${['소리 끔', '효과음만', '소리 켬'][S.snd]}</button><button class="btn small" data-act="newGame">새 게임</button></div></div>${chips(psecs, partySec, 'psec')}
+  el.innerHTML = `<div class="card"><div class="row"><div class="info"><b>상단 Lv${S.clv} · ${P.length}/${partyCap()}명</b><div class="bar"><i style="width:${S.cxp / cxpNeed(S.clv) * 100}%;background:var(--amber)"></i></div><small>상단 경험치 ${S.cxp}/${cxpNeed(S.clv)} · 장사, 사냥, 의뢰로 올라요 · 레벨마다 인원 +1(최대 12)</small><small>짐칸 ${cargoUsed()}/${capacity()} · 전투 ${S.stats.battles} · 포획 ${S.stats.captures}</small></div></div><div class="row" style="justify-content:flex-end;gap:6px;flex-wrap:wrap"><button class="btn small" data-act="snd">${['소리 끔', '효과음만', '소리 켬'][S.snd]}</button><button class="btn small" data-act="saveCode">저장 코드</button><button class="btn small" data-act="newGame">새 게임</button></div></div>${chips(psecs, partySec, 'psec')}
     ${partySec === 'crew' ? `<h2>자동 설정</h2><div class="card">${[['skill', '스킬 자동 사용', '대원이 준비된 스킬을 알아서 써요 · 끄면 전투 중에 스킬 버튼이 나와요'], ['pot', '회복약 자동 사용', '누군가 체력 30% 아래로 떨어지면 알아서 마셔요 (전투 중 15초에 한 번)'], ['hunt', '자동 사냥', '가까운 무리를 계속 찾아가 사냥해요']].map(([k, n, d]) => `<div class="row"><div class="info"><b>${n}</b><small>${d}</small></div><button class="btn small ${S.auto[k] ? 'primary' : ''}" data-act="auto" data-k="${k}">${S.auto[k] ? '켜짐' : '꺼짐'}</button></div>`).join('')}</div><h2>진형<small>${FORMS[S.form].ds}</small></h2>${chips(Object.entries(FORMS).map(([k, f]) => [k, f.n]), S.form, 'form')}<h2>출전 대원</h2><div class="sub" style="margin:0">▲▼로 줄 서는 순서를 바꿔요. 대장도 옮길 수 있고, 맨 위 대원이 앞장서요. 전투 중에는 대원을 끌어서 자리를 정할 수 있고, 그 자리는 다음 전투에도 기억돼요.${S.units.some(u => u.pos) ? ' <button class="btn small" data-act="resetPos" style="margin-left:6px">배치 초기화</button>' : ''}</div><h2 style="display:none"><small>${''}</small></h2><div class="sub" style="margin:0">상단 전투력 ${fmt(partyPower())} · 용병 일당 하루 ${fmt(wages())}${S.unpaid ? ' <b style="color:var(--bad)">(밀림 · 공격 -20%)</b>' : ''}</div><div class="card">${P.map(row).join('')}</div>
     <h2>대기 대원<small>정착지 우리에서 쉬어요</small></h2><div class="card">${reserve.length ? reserve.map(row).join('') : '<div class="row"><div class="info"><small>없어요. 사냥터에서 공룡을 포획하거나 고용소에서 대원을 구하세요</small></div></div>'}</div>` : ''}
     ${partySec === 'bag' ? `<h2>우두머리 증표<small>변이 진화와 특수 전직에 써요 · 우두머리를 잡으면 하나씩 얻어요</small></h2><div class="card"><div class="row"><div class="info"><small style="color:var(--text)">${Object.entries(S.tokens).filter(([, k]) => k > 0).map(([k, n]) => `${TOKEN_N[k]} ${n}개`).join(' · ') || '아직 없어요'}</small><small>공룡 알: ${Object.entries(S.eggBag).filter(([, k]) => k > 0).map(([ez, k]) => `${ZONES[ez].n} ${k}개`).join(' · ') || '없음'}</small></div></div></div><h2>가방<small>장비 ${S.items.length}/${BAG_MAX} · 대원의 관리 버튼에서 착용해요</small></h2><div class="card">${S.items.length ? [...S.items].sort((a, b) => b.r - a.r || b.lv - a.lv).map(it => `<div class="row">${itemIc(it)}<div class="info"><b>${itemName(it)}</b><small>${SLOTS[it.slot]} · Lv${it.lv} · ${itemText(it)}</small></div><button class="btn small" data-act="sellItem" data-it="${it.id}">${itemPrice(it)}에 팔기</button></div>`).join('') : '<div class="row"><div class="info"><small>아직 얻은 장비가 없어요. 사냥에서 이기면 가끔 떨어져요</small></div></div>'}</div>` : ''}
@@ -2808,6 +2842,8 @@ document.body.addEventListener('click', e => {
   }
   else if (act === 'closeBattle') { closeBattle(); return; }
   else if (act === 'close') closeModal();
+  else if (act === 'saveCode') { showSaveCode(); return; }
+  else if (act === 'copyCode') { const t = $('scOut'); t.select(); try { navigator.clipboard.writeText(t.value).then(() => toast('저장 코드를 복사했어요', 'good'), () => { document.execCommand('copy'); toast('저장 코드를 복사했어요', 'good'); }); } catch (x) { document.execCommand('copy'); toast('저장 코드를 복사했어요', 'good'); } return; }
   else if (act === 'snd') { sndInit(); S.snd = (S.snd + 2) % 3; applySnd(); }
   save(); renderAll();
 });
@@ -2822,6 +2858,7 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) save(
    ================================================================ */
 let last = performance.now(), acc = 0, uiAcc = 0, saveAcc = 0;
 function frame(now) {
+  if (!S) return;   // the save was just cleared and the page is reloading
   requestAnimationFrame(frame);
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
   tick(dt);
@@ -2839,14 +2876,47 @@ S.clv = S.clv || 1; S.cxp = S.cxp || 0; S.sp = S.sp || 0; S.skills = S.skills ||
 for (const z of Object.keys(ZONES)) for (const g of Object.keys(GOODS)) { if (S.drift[z][g] === undefined) S.drift[z][g] = 1; if (S.press[z][g] === undefined) S.press[z][g] = 1; }
 ensureQuests(); S.wander = null; S.heroes = S.heroes || {}; const freshRun = !S.cls && S.stats.battles === 0 && S.units.length === 1; if (!S.cls && !freshRun) S.cls = 'gunner'; applyClass();
 S.dex = S.dex || {}; for (const u of S.units) if (UNITS[u.type].cls === 'dino') S.dex[u.type] = 2;
-$('v-town').innerHTML = '<div id="loading"><b style="font-family:var(--f-display);font-size:20px;color:var(--rust)">공룡 상단</b><span id="loadTxt">불러오는 중…</span></div>';
-loadModels((n, t) => { const el = $('loadTxt'); if (el) el.textContent = `공룡 모델 불러오는 중 ${n}/${t}`; }).then(ok => {
+// ---- start-up: loading bar, then the title screen, then the world
+const TIPS = ['체력이 30% 아래로 떨어진 공룡에게 다트를 쏘면 포획할 수 있어요', '의사는 쓰러진 사람을, 조련사는 쓰러진 공룡을 전투 중에 다시 일으켜요', '요리사가 있으면 가는 길에 밥을 지어 포만감을 채워 줘요', '대장장이와 함께 있으면 장비 강화가 더 잘 붙어요', '전투 중에 대원을 끌어다 놓으면 자리를 직접 정할 수 있어요', '사냥터마다 우두머리가 있어요. 쓰러뜨리면 증표를 얻어요', '짐칸이 차면 시장에서 전리품을 팔아 크레딧을 모으세요'];
+const bootP = (pc, txt) => { $('btFill').style.width = pc + '%'; if (txt) $('btTxt').textContent = txt; };
+{ let ti = Math.floor(Math.random() * TIPS.length); const tip = () => { $('btTip').textContent = 'TIP · ' + TIPS[ti++ % TIPS.length]; }; tip(); const iv = setInterval(() => { if ($('boot').classList.contains('out')) clearInterval(iv); else tip(); }, 3800); }
+$('btVer').textContent = window.__VER ? 'v' + window.__VER : ''; $('btPriv').hidden = !window.__VER;
+// A save can be turned into a code and back, to keep a copy or move to another phone.
+const b64 = { enc: u8 => { let t = ''; for (let i = 0; i < u8.length; i += 0x8000) t += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(t); }, dec: t => Uint8Array.from(atob(t), c => c.charCodeAt(0)) };
+function saveCode() { save(); const js = JSON.stringify(S); try { return 'DC1.' + b64.enc(fflate.zlibSync(fflate.strToU8(js), { level: 9 })); } catch (e) { return 'DC0.' + btoa(unescape(encodeURIComponent(js))); } }
+function readCode(code) { code = String(code || '').trim(); let js; if (code.startsWith('DC1.')) js = fflate.strFromU8(fflate.unzlibSync(b64.dec(code.slice(4)))); else if (code.startsWith('DC0.')) js = decodeURIComponent(escape(atob(code.slice(4)))); else throw new Error('형식'); const o = JSON.parse(js); if (!o || !Array.isArray(o.units) || !o.units.length || !o.stats) throw new Error('내용'); return o; }
+function showSaveCode() {
+  const code = saveCode();
+  showModal(`<h3>저장 코드</h3><div class="sub">이 코드를 보관해 두면 기기를 바꾸거나 앱을 지워도 타이틀 화면의 "저장 코드로 불러오기"로 이어 할 수 있어요</div><div class="card"><textarea id="scOut" readonly style="width:100%;height:110px;font-size:11px;background:#1c1711;color:#ece3d4;border:1px solid var(--line);border-radius:8px;padding:8px">${code}</textarea></div><div class="mbtns"><button class="btn primary" data-act="copyCode">코드 복사</button><button class="btn" data-act="close">닫기</button></div>`);
+}
+function titleScreen() {
+  const boot = $('boot'), menu = $('btMenu'), has = !!S.cls || !freshRun, lead = S.units.find(u => u.type === 'leader') || S.units[0];
+  boot.classList.add('live'); $('btLoad').hidden = true; menu.hidden = false;
+  if (has && window.__bootArt) window.__bootArt('leader', lead.tier || 0);
+  const main = () => { menu.innerHTML = has
+    ? `<div class="who"><b>${S.name || '이름 없는 대장'}</b><br>${(CLASSES[S.cls] || CLASSES.gunner).n} Lv${lead.lv} · 상단 Lv${S.clv} · 멸망 후 ${S.day}일차</div><button class="btn primary big" data-b="go">이어하기</button><div class="row2"><button class="btn" data-b="code">저장 코드로 불러오기</button><button class="btn" data-b="new">새로 시작</button></div><div class="note">저장은 이 기기에만 보관돼요 · 계정 로그인과 서버 저장은 준비 중이에요</div>`
+    : `<input id="btName" maxlength="10" placeholder="대장 이름 (2~10자)" autocomplete="off" value="${S.name || ''}"><button class="btn primary big" data-b="go">게스트로 시작</button><button class="btn" data-b="code">저장 코드로 불러오기</button><div class="note">가입 없이 바로 시작해요 · 저장은 이 기기에만 보관돼요<br>계정 로그인과 서버 저장은 준비 중이에요</div>`; };
+  main();
+  menu.onclick = e => { const b = e.target.closest('[data-b]'); if (!b) return; const k = b.dataset.b; sndInit(); sfx('tap');
+    if (k === 'go') { if (!has) { const n = ($('btName').value || '').trim(); if (n.length < 2) { $('btName').focus(); $('btName').placeholder = '이름을 2자 이상 적어 주세요'; return; } S.name = n.slice(0, 10); save(); }
+      boot.classList.add('out'); setTimeout(() => { boot.hidden = true; }, 500);
+      if (freshRun && !S.cls) classModal(); else if (S.stats.battles === 0) toast('혼자 시작해요 · 정착지 가까이의 작은 공룡부터 사냥해 돈을 모으고, 고용소에서 첫 동료를 구하세요'); else toast(`어서 오세요, ${S.name || '대장'}님`, 'good'); }
+    else if (k === 'new') { if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = '저장을 지우고 새로? 한 번 더'; b.classList.add('primary'); return; } try { localStorage.removeItem(SAVE); } catch (x) { /* nothing stored */ } S = null; location.reload(); }
+    else if (k === 'code') { menu.innerHTML = `<textarea id="btCode" placeholder="보관해 둔 저장 코드를 붙여 넣으세요"></textarea><div class="row2"><button class="btn primary" data-b="load">불러오기</button><button class="btn" data-b="back">돌아가기</button></div><div class="note" id="btMsg">${has ? '불러오면 지금 이 기기의 저장은 덮어써져요' : ''}</div>`; }
+    else if (k === 'back') main();
+    else if (k === 'load') { try { const o = readCode($('btCode').value); localStorage.setItem(SAVE, JSON.stringify(o)); S = null; location.reload(); } catch (x) { $('btMsg').textContent = '코드를 읽지 못했어요. 처음부터 끝까지 빠짐없이 붙여 넣었는지 확인해 주세요'; $('btMsg').style.color = '#ff8a6a'; } }
+  };
+}
+bootP(4, '공룡 모델 불러오는 중…');
+loadModels((n, t) => bootP(4 + n / t * 66, `공룡 모델 불러오는 중 ${n}/${t}`)).then(ok => {
   USE3D = ok;
   if (ok) { try { makePortraits(); } catch (e) { USE3D = false; } }
-  const el = $('loadTxt'); if (el) el.textContent = '픽셀 월드 그리는 중…';
-  setTimeout(() => { setView('party'); showWorld(); if (freshRun && !S.cls) { classModal(); return; } if (S.stats.battles === 0) toast('혼자 시작해요 · 정착지 가까이의 작은 공룡부터 사냥해 돈을 모으고, 고용소에서 첫 동료를 구하세요'); }, 60);
+  const bootArt = (t, tier) => { try { const a = unitArt(t, tier), c = $('btArt'), x = c.getContext('2d'); x.imageSmoothingEnabled = false; x.clearRect(0, 0, c.width, c.height); x.drawImage(a, 0, 0, c.width, c.height); c.classList.remove('wait'); } catch (e) { /* art is optional */ } };
+  window.__bootArt = bootArt; bootArt('trex', 2);
+  bootP(82, '픽셀 월드 그리는 중…');
+  setTimeout(() => { setView('party'); showWorld(); bootP(100, '준비 완료'); setTimeout(titleScreen, 250); }, 60);
 });
-window.__dino = { get S() { return S; }, get B() { return B; }, get W() { return W; }, UNITS, ZONES, TD, unitArt, icon, ICONS, SND, SFX, set speed(v) { bSpeed = v; }, addUnit, xpNeed, partyPower, groundPower, VO: () => VO, walkTo, TOWNS, GROUNDS, SPR };
+window.__dino = { saveCode, readCode, get S() { return S; }, get B() { return B; }, get W() { return W; }, UNITS, ZONES, TD, unitArt, icon, ICONS, SND, SFX, set speed(v) { bSpeed = v; }, addUnit, xpNeed, partyPower, groundPower, VO: () => VO, walkTo, TOWNS, GROUNDS, SPR };
 requestAnimationFrame(frame);
 })();
 </script>
@@ -2854,7 +2924,7 @@ requestAnimationFrame(frame);
 <button id="upd" hidden>새 패치가 있어요 · 눌러서 적용</button>
 <script>
 (function () {
-  var VER = "20261124-083612";
+  var VER = "20261125-005231";
   if (!/^https?:$/.test(location.protocol)) return;
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
   var btn = document.getElementById('upd');
