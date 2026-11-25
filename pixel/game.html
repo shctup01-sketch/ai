@@ -1777,9 +1777,10 @@ function unitSprite(type, len, tier = 0) {
 }
 // Field sprites cut out of the illustrations. One picture per unit: it is mirrored to face left or right
 // and moved by code (a bob for walking, a lunge for attacking, a fall for dying) instead of frame animation.
-const CUT = {}, CUT_ALIAS = { brachio: 'apato', trexYoung: 'trex' };
-for (const k of 'leader-merchant leader-tamer leader-archer leader-warrior leader-gunner shaman tamer smith cook bomber crossbow gunner gladiator shield scout venomer porter medic mechanic sniper spear hunter diplo spino allo carno styra anky kentro utah micro pachyc iguan trex stego dilo compy raptor apato para trike stegoRust raptorVenom raptorShadow apatoMoss paraGold trikeRed trikeIron boss-origin boss-emberKing boss-frostTitan boss-ironHorn boss-swampKing boss-oneEye boss-trikeKing'.split(' ')) { const im = new Image(); im.onload = () => { CUT[k] = im; stripKey = ''; }; im.src = 'art/u-' + k + '.webp'; }
-const cutOf = (type, boss) => (boss && CUT['boss-' + boss]) || (type === 'leader' ? CUT['leader-' + ((S && S.cls) || 'gunner')] : CUT[type] || CUT[CUT_ALIAS[type]]) || null;
+// Switched off: the field uses the animated pixel models again. The pictures stay in the codex, unit sheets and title.
+const FIELD_ART = false, CUT = {}, CUT_ALIAS = { brachio: 'apato', trexYoung: 'trex' };
+if (FIELD_ART) for (const k of 'leader-merchant leader-tamer leader-archer leader-warrior leader-gunner shaman tamer smith cook bomber crossbow gunner gladiator shield scout venomer porter medic mechanic sniper spear hunter diplo spino allo carno styra anky kentro utah micro pachyc iguan trex stego dilo compy raptor apato para trike stegoRust raptorVenom raptorShadow apatoMoss paraGold trikeRed trikeIron boss-origin boss-emberKing boss-frostTitan boss-ironHorn boss-swampKing boss-oneEye boss-trikeKing'.split(' ')) { const im = new Image(); im.onload = () => { CUT[k] = im; stripKey = ''; }; im.src = 'art/u-' + k + '.webp'; }
+const cutOf = (type, boss) => !FIELD_ART ? null : (boss && CUT['boss-' + boss]) || (type === 'leader' ? CUT['leader-' + ((S && S.cls) || 'gunner')] : CUT[type] || CUT[CUT_ALIAS[type]]) || null;
 // Each cut-out is turned into a pixel-art sprite sheet once: shrunk, given a hard edge, a reduced palette and
 // an outline, then split into frames. Walking lifts the legs in turn (the lower part of the picture is squashed
 // strip by strip), attacking leans in, dying tips over.
@@ -2335,9 +2336,9 @@ function renderWorld(dt) {
   } else for (const c of W.crew) { const dn = UNITS[c.u.type].cls === 'dino', [anim, fi] = animOf(dn ? 'dino' : 'human', c.moving, c.ph, T); ents.push({ ring: c.u.elite || c.u.famed ? 'rgba(255,216,112,.9)' : null, tier: c.u.tier || 0, x: c.x, y: c.y, a: c.a, type: c.u.type, len: c.len, size: (UNITS[c.u.type].size || 11) * (1 + 0.07 * (c.u.tier || 0)), anim, fi }); }
   drawScene(wc, ox, oy, w, h, ents);
   // dusk light, as in the illustrations: a warm cast over everything and darker corners
-  wc.setTransform(1, 0, 0, 1, 0, 0); wc.globalCompositeOperation = 'multiply'; wc.fillStyle = '#ffdcb8'; wc.globalAlpha = 0.3; wc.fillRect(0, 0, pw, phh);
+  if (FIELD_ART) { wc.setTransform(1, 0, 0, 1, 0, 0); wc.globalCompositeOperation = 'multiply'; wc.fillStyle = '#ffdcb8'; wc.globalAlpha = 0.3; wc.fillRect(0, 0, pw, phh);
   wc.globalCompositeOperation = 'soft-light'; wc.globalAlpha = 0.2; { const g2 = wc.createLinearGradient(0, 0, 0, phh); g2.addColorStop(0, '#ff8a3c'); g2.addColorStop(0.6, '#c06a5a'); g2.addColorStop(1, '#3a2030'); wc.fillStyle = g2; wc.fillRect(0, 0, pw, phh); }
-  wc.globalCompositeOperation = 'source-over'; wc.globalAlpha = 1; { const g3 = wc.createRadialGradient(pw / 2, phh / 2, Math.min(pw, phh) * 0.45, pw / 2, phh / 2, Math.max(pw, phh) * 0.8); g3.addColorStop(0, 'rgba(20,10,8,0)'); g3.addColorStop(1, 'rgba(20,10,8,.32)'); wc.fillStyle = g3; wc.fillRect(0, 0, pw, phh); }
+  wc.globalCompositeOperation = 'source-over'; wc.globalAlpha = 1; { const g3 = wc.createRadialGradient(pw / 2, phh / 2, Math.min(pw, phh) * 0.45, pw / 2, phh / 2, Math.max(pw, phh) * 0.8); g3.addColorStop(0, 'rgba(20,10,8,0)'); g3.addColorStop(1, 'rgba(20,10,8,.32)'); wc.fillStyle = g3; wc.fillRect(0, 0, pw, phh); } }
   // overlay: names, bars, numbers, effects
   const c = bc; c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, bcv.width, bcv.height); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.textAlign = 'center';
   const tag = (txt, x, y, col, bg) => { c.font = '700 11px "IBM Plex Sans KR", sans-serif'; const tw = c.measureText(txt).width + 12; c.fillStyle = bg || 'rgba(18,14,10,.72)'; c.beginPath(); c.roundRect ? c.roundRect(x - tw / 2, y - 17, tw, 17, 8) : c.rect(x - tw / 2, y - 17, tw, 17); c.fill(); c.fillStyle = col; c.fillText(txt, x, y - 4.5); };
