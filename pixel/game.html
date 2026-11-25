@@ -1208,7 +1208,7 @@ function unitArt(type, tier = 0, dark = false) {
     if (dark) { const t2 = tmp.getContext('2d'); t2.globalCompositeOperation = 'source-in'; t2.fillStyle = '#0c0a08'; t2.fillRect(0, 0, W0, H0); }
     g.drawImage(tmp, Math.round(W0 / 2 - an.ax), gy - an.ay); drawn = true;
   } catch (e) { drawn = false; }
-  if (!drawn) { const spr = unitSprite(type, dino ? Math.round(D.size * 2.4) : 22, tier), A = spr.an.idle, k = dino ? 170 / Math.max(40, D.size * 2.4) : 4.6; g.imageSmoothingEnabled = false; g.drawImage(A.cv, 0, DIRROW[1] * spr.fh, spr.fw, spr.fh, W0 / 2 - spr.ax * k, gy - spr.ay * k, spr.fw * k, spr.fh * k); }
+  if (!drawn) { const spr = unitSprite(type, dino ? Math.round(D.size * 2.4) : 22, tier), A = spr.an.idle, k = dino ? 170 / Math.max(40, D.size * 2.4) : 4.6 / (spr.hd || 1); g.imageSmoothingEnabled = false; g.drawImage(A.cv, 0, DIRROW[1] * spr.fh, spr.fw, spr.fh, W0 / 2 - spr.ax * k, gy - spr.ay * k, spr.fw * k, spr.fh * k); }
   // foreground blades, an edge of shadow, then the frame
   const R = seeded(seed + 5); for (let q = 0; q < 26; q++) { const x = Math.round(R() * W0), hh = 6 + Math.round(R() * 16); g.fillStyle = ART_BG[bio][2]; g.fillRect(x, H0 - hh, 2, hh); g.fillRect(x + 3, H0 - hh + 4, 2, hh - 4); }
   const vg = g.createRadialGradient(W0 / 2, H0 * 0.55, H0 * 0.35, W0 / 2, H0 * 0.55, H0 * 0.86); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.55)'); g.fillStyle = vg; g.fillRect(0, 0, W0, H0);
@@ -1231,7 +1231,7 @@ function portrait(cv, type, tint) {
       return; } }
   try {   // same pixel sprite as in the field, enlarged with hard edges
     const D = UNITS[type], dino = D.cls === 'dino', tier = +cv.dataset.t || 0, len = dino ? Math.round(D.size * 2.4 * (1 + 0.07 * tier)) : 22, spr = unitSprite(type, len, tier), A = spr.an.idle, row = DIRROW[1];
-    const k = dino ? Math.min(w / (len * 0.86), h / (len * 0.64)) : h / 37, dx = Math.round(w / 2 - spr.ax * k), dy = Math.round(h * (dino ? 0.74 : 0.9) - spr.ay * k);
+    const k = dino ? Math.min(w / (len * 0.86), h / (len * 0.64)) : h / 37 / (spr.hd || 1), dx = Math.round(w / 2 - spr.ax * k), dy = Math.round(h * (dino ? 0.74 : 0.9) - spr.ay * k);
     cv.style.imageRendering = 'pixelated'; g.imageSmoothingEnabled = false;
     const gr = g.createRadialGradient(w / 2, h * 0.6, 0, w / 2, h * 0.6, h * 0.7); gr.addColorStop(0, 'rgba(210,190,150,.3)'); gr.addColorStop(1, 'rgba(210,190,150,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
     g.drawImage(A.cv, 0, row * spr.fh, spr.fw, spr.fh, dx, dy, spr.fw * k, spr.fh * k);
@@ -1284,6 +1284,9 @@ const MODEL_FILES = { iguan: 'Parasaurolophus', pachyc: 'Parasaurolophus', micro
   trikeIron: 'Triceratops', trikeRed: 'Triceratops', paraGold: 'Parasaurolophus', apatoMoss: 'Apatosaurus', raptorShadow: 'Velociraptor', raptorVenom: 'Velociraptor', stegoRust: 'Stegosaurus', trexYoung: 'Trex' };
 const BACK_H = { Trex: 0.5, Velociraptor: 0.5, Parasaurolophus: 0.52, Triceratops: 0.4, Stegosaurus: 0.5, Apatosaurus: 0.4 };   // where the back is, as a share of full height
 const MODEL_SHAPE = { anky: [1.2, 0.72, 0.95], kentro: [0.85, 0.9, 0.92], brachio: [1, 1.38, 0.96], diplo: [0.8, 0.82, 1.22], spino: [0.95, 1, 1.18], carno: [0.9, 0.92, 1], pachyc: [1, 0.92, 0.86], iguan: [1.12, 1.08, 1], utah: [1.08, 1.05, 1], micro: [0.9, 0.9, 1] };   // width, height, length
+const HUMAN_PAL = { leader: [0x6e4a30, 0x3e2c20], hunter: [0x5c6a34, 0x4a3524], spear: [0x7a5a40, 0x3e2c20], sniper: [0x6a5a36, 0x3e3222], mechanic: [0xd0661e, 0xb4561a], medic: [0xe8e0cc, 0x6a4a34], porter: [0x8a5a34, 0x5a3e28],
+  venomer: [0x4a4a34, 0x3a2e26], scout: [0x4e5c30, 0x5a3c26], shield: [0x6a5644, 0x3a2c22], gladiator: [0x7c3a28, 0x4a2c20], crossbow: [0x5c4c40, 0x3a2e26], gunner: [0x34425e, 0x3a2a22], bomber: [0x6a4a30, 0x4a3626],
+  tamer: [0x9a5a34, 0x6a3a24], cook: [0xece6d8, 0x5a3e2a], smith: [0x7a4a2c, 0x3a2a20], shaman: [0x5a3a6a, 0x3a2630] };
 const HUMAN_AS = { scout: 'sniper', shield: 'spear', gladiator: 'spear', crossbow: 'hunter', gunner: 'leader', bomber: 'mechanic', tamer: 'hunter', cook: 'medic', smith: 'mechanic', shaman: 'medic' };
 const DINO_AS = { iguan: 'para', pachyc: 'para', micro: 'raptor', utah: 'raptor', kentro: 'stego', anky: 'stego', styra: 'trike', carno: 'trex', allo: 'trex', spino: 'trex', diplo: 'apato', brachio: 'apato' };
 const MODEL_TINT = { iguan: [0x5a7a4a, 0.55], pachyc: [0x9a6a3a, 0.55], micro: [0x2a4a8a, 0.65], utah: [0xb0a070, 0.5], kentro: [0x5a3a2a, 0.6], anky: [0x8a7a5a, 0.55], styra: [0x6a4a8a, 0.5], carno: [0xa03a28, 0.55], allo: [0x7a6a3a, 0.5], spino: [0x3a6a7a, 0.55], diplo: [0x7a8a9a, 0.5], brachio: [0xb09a50, 0.5], compy: [0x8a9a50, 0.5], dilo: [0x9aa040, 0.4], trikeIron: [0x7a8694, 0.6], trikeRed: [0xb04428, 0.5], paraGold: [0xe0b030, 0.55], apatoMoss: [0x5a8a40, 0.5],
@@ -1334,6 +1337,12 @@ function loadModels(onProgress) {
   });
 }
 const srgb = c => new THREE.Color(c).convertSRGBToLinear();
+const HUMAN_TRAIT = {
+  leader: { coat: 1, hair: 0x2e1e14 }, hunter: { coat: 1, hair: 0x2a1c12 }, spear: { hair: 0x3a2618, beard: 1 }, sniper: { coat: 1, hair: 0x2a2018 }, mechanic: { pony: 1, hair: 0xa8401e, acc: 0xe0b020 },
+  medic: { coat: 1, pony: 1, hair: 0x5a3422 }, porter: { hair: 0x3a2618, beard: 1 }, venomer: { coat: 1, hair: 0x1c1c1c }, scout: { pony: 1, hair: 0x4a2c1a }, shield: { hair: 0x2a1c12, beard: 1 },
+  gladiator: { hair: 0x2a1c12 }, crossbow: { coat: 1, hair: 0x3a2a1c }, gunner: { coat: 1, hair: 0x1c1c1c }, bomber: { hair: 0x4a3020, beard: 1 }, tamer: { pony: 1, hair: 0x3a2418, acc: 0xe0c040 },
+  cook: { hair: 0x4a3020, beard: 1 }, smith: { hair: 0x2a1c12, beard: 1 }, shaman: { coat: 1, hair: 0x1c1c1c },
+};
 const lam = (col, extra = {}) => new THREE.MeshLambertMaterial(Object.assign({ color: srgb(col), flatShading: true }, extra));
 // people for hire, built from simple low-poly shapes to match the dinosaurs
 const HUMAN3 = { leader: [0x7a6448, 0x3a2e22], hunter: [0x56633a, 0x3a3020], spear: [0x6c5c4a, 0x3a3026], scout: [0x3e5236, 0x2a2a24], shield: [0x5a6470, 0x30343a], gladiator: [0x8a3a2a, 0x3a2a20], crossbow: [0x6a6a66, 0x2e2e2c], gunner: [0x3a4a6a, 0x2a2420], bomber: [0x3a3a38, 0x4a3a26], tamer: [0x8a6a3a, 0x4a3422], cook: [0xe8e4da, 0x4a4038], smith: [0x5a4634, 0x2e2620], shaman: [0x5a3a7a, 0x2a2030], sniper: [0x444a44, 0x2a2e2a],
@@ -1341,30 +1350,42 @@ const HUMAN3 = { leader: [0x7a6448, 0x3a2e22], hunter: [0x56633a, 0x3a3020], spe
 function makeHuman3(type, tier = 0) {
   const orig = type; if (type === 'leader' && LEADER_LOOK) type = LEADER_LOOK;
   const type0 = type; type = HUMAN_AS[type] || type;
-  const [body, pants] = HUMAN3[type0] || HUMAN3[type], g = new THREE.Group(), s = new THREE.Group(); g.add(s);
+  const [body, pants] = HUMAN_PAL[type0] || HUMAN3[type0] || HUMAN3[type], g = new THREE.Group(), s = new THREE.Group(); g.add(s);
   const M = (geo, col, x, y, z, parent = s) => { const m = new THREE.Mesh(geo, typeof col === 'number' ? lam(col) : col); m.position.set(x, y, z); m.castShadow = true; parent.add(m); return m; };
-  const B = (w, h, d) => new THREE.BoxGeometry(w, h, d), skin = lam(0xd9a47c), legs = [];
+  const B = (w, h, d) => new THREE.BoxGeometry(w, h, d), skin = lam(0xd9a47c), legs = [], acc = (HUMAN_TRAIT[type0] || {}).acc || 0xb03a24;
   const shade = (c, k) => { const m = lam(c); m.color.multiplyScalar(k); return m; };
-  for (const sd of [-1, 1]) { const geo = B(2.5, 7, 2.7); geo.translate(0, -3.5, 0); const l = M(geo, pants, sd * 1.7, 7, 0); M(B(2.9, 2.2, 3.8), 0x241a12, 0, -6.1, 0.5, l); M(B(2.7, 1.3, 2.9), shade(pants, 0.72), 0, -3.3, 0.15, l); legs.push(l); }
-  M(B(6.6, 7.4, 3.8), body, 0, 10.7, 0); M(B(6.8, 1, 4), 0x2a2018, 0, 7.6, 0);
-  M(B(4.8, 5.4, 2.6), 0x4a3a28, 0, 11.4, -3.1);   // backpack
+  const LOOK = HUMAN_TRAIT[type0] || {}, leather = 0x5a3c24, lite = (c, k) => { const m = lam(c); m.color.multiplyScalar(k); return m; };
+  for (const sd of [-1, 1]) {
+    const geo = B(2.6, 7, 2.8); geo.translate(0, -3.5, 0); const l = M(geo, pants, sd * 1.7, 7, 0);
+    M(B(3, 2.7, 4), 0x2e2016, 0, -5.9, 0.5, l); M(B(3.15, 0.6, 4.3), 0x100b08, 0, -7.05, 0.5, l); M(B(3.05, 0.7, 3.2), leather, 0, -4.4, 0.1, l);      // boot, sole, cuff
+    M(B(2.3, 1.5, 0.9), lite(pants, 1.5), 0, -2.5, 1.45, l); M(B(2.75, 1.1, 2.95), shade(pants, 0.7), 0, -3.6, 0.1, l); M(B(0.7, 2.2, 2.2), leather, sd * 1.35, -1.2, 0, l);   // knee pad, shin shade, thigh pouch
+    legs.push(l);
+  }
+  M(B(6.6, 7.4, 3.8), body, 0, 10.7, 0); M(B(6.9, 1.1, 4.05), 0x2a2018, 0, 7.6, 0);
+  M(B(4.8, 5.4, 2.6), 0x4a3a28, 0, 11.4, -3.1); M(B(5, 0.8, 2.8), 0x2e2218, 0, 12.6, -3.1); M(B(3.4, 1.8, 2.2), 0x8a7250, 0, 14.6, -3.2);   // backpack with a strap and a bedroll
   const head = M(new THREE.IcosahedronGeometry(2.5, 1), skin, 0, 16.9, 0);
-  { // a face and a body that read as a person: hair, eyes, a neck, broad shoulders, a shaded waist, a belt buckle
-    const hairC = [0x2a1c12, 0x4a3422, 0x7a5a34, 0xb89a50, 0x1c1c1c, 0x8a8a84][(type0.length * 7 + type0.charCodeAt(0)) % 6];
-    M(B(5, 2.4, 4.4), hairC, 0, 18.5, -0.5); M(B(5, 3.8, 1.5), hairC, 0, 17, -2.1);
-    M(B(0.8, 0.9, 0.5), 0x1c1410, -1, 17.1, 2.35); M(B(0.8, 0.9, 0.5), 0x1c1410, 1, 17.1, 2.35);
+  { // face, hair and the build of the body
+    const hairC = LOOK.hair || [0x2a1c12, 0x4a3422, 0x7a5a34, 0xb89a50, 0x1c1c1c, 0x8a8a84][(type0.length * 7 + type0.charCodeAt(0)) % 6];
+    M(B(5.2, 2.3, 4.8), hairC, 0, 18.6, -0.3); M(B(5.2, 4, 1.6), hairC, 0, 17, -2.2); M(B(4.6, 0.9, 0.8), hairC, 0, 18.3, 2.2);
+    for (const sd of [-1, 1]) { M(B(0.7, 2.6, 2.4), hairC, sd * 2.5, 17.4, -0.4); M(B(0.95, 0.95, 0.4), 0xf4efe6, sd * 1.05, 17.05, 2.3); M(B(0.55, 0.75, 0.5), 0x1c1410, sd * 1.05, 17, 2.42); M(B(1.15, 0.35, 0.5), hairC, sd * 1.05, 17.8, 2.36); }
+    M(B(1, 0.3, 0.4), 0x8a4a3a, 0, 15.85, 2.3); M(B(0.6, 0.8, 0.6), shade(0xd9a47c, 0.86), 0, 16.5, 2.5);
+    if (LOOK.pony) { M(B(1.5, 5.2, 1.5), hairC, 0, 15.8, -3.5); M(B(1.8, 0.8, 1.8), acc, 0, 17.6, -3.3); }
+    if (LOOK.beard) M(B(3.4, 1.8, 1.2), hairC, 0, 15.6, 1.9);
     M(B(2.2, 1.5, 2.2), skin, 0, 14.5, 0); M(B(8.6, 2.2, 4.2), shade(body, 0.82), 0, 13.5, 0); M(B(6.7, 2.4, 3.9), shade(body, 0.8), 0, 8.9, 0); M(B(1.7, 1.2, 0.5), 0xc8a040, 0, 7.6, 2.05);
+    M(B(4.4, 1.2, 3.5), lite(body, 1.3), 0, 14.25, 0.1);                                                              // collar
+    { const st = M(B(1.1, 8.6, 0.5), leather, 0, 11, 2); st.rotation.z = 0.62; }                                       // chest strap
+    for (const sd of [-1, 1]) M(B(1.7, 1.9, 1.3), leather, sd * 2.5, 7.2, 2.1);                                        // belt pouches
+    if (LOOK.coat) { const cc = shade(body, 0.88); for (const sd of [-1, 1]) { M(B(3.1, 6, 0.8), cc, sd * 1.75, 4.6, -1.95); M(B(0.8, 5.4, 3.5), cc, sd * 3.45, 4.9, 0); M(B(1.3, 5, 0.7), cc, sd * 2.7, 5.1, 1.95); } }
     if (orig === 'leader') M(B(8.8, 1.3, 4.4), 0xb03a24, 0, 14.4, 0.1);   // the leader always wears the red scarf
   }
   // arms: the right one reaches forward to hold the weapon, the left one hangs or carries
-  const armGeo = () => { const a = B(1.9, 6.6, 1.9); a.translate(0, -3.3, 0); return a; };
+  const armGeo = () => { const a = B(2, 6.6, 2); a.translate(0, -3.3, 0); return a; };
   const la = M(armGeo(), body, -4.2, 14, 0), ra = M(armGeo(), body, 4.2, 14, 0); la.rotation.x = -0.35; ra.rotation.x = -1.15;
-  M(B(1.7, 1.7, 1.7), skin, 0, -6.6, 0, la); M(B(1.7, 1.7, 1.7), skin, 0, -6.6, 0, ra);
+  for (const a of [la, ra]) { M(B(1.7, 1.7, 1.7), skin, 0, -6.6, 0, a); M(B(2.7, 1.7, 2.9), lite(body, 1.22), 0, -0.5, 0, a); M(B(2.3, 2.3, 2.3), leather, 0, -4.6, 0, a); M(B(2.35, 0.5, 2.35), 0x2a1c10, 0, -3.6, 0, a); }
   const arm = new THREE.Group(); arm.position.set(4.2, 11.2, 5.6); s.add(arm);
   const W = (geo, col, x, y, z, rx = 0) => { const m = M(geo, col, x, y, z, arm); m.rotation.x = rx; return m; };
   const cyl = (r0, r1, h, n = 6) => new THREE.CylinderGeometry(r0, r1, h, n);
   if (type === 'leader') {
-    M(cyl(4.4, 4.4, 0.5, 10), 0x5a4028, 0, 18.6, 0); M(cyl(2.3, 2.7, 2.6, 8), 0x5a4028, 0, 19.9, 0); M(cyl(2.75, 2.75, 0.6, 8), 0x2a1c10, 0, 19, 0);
     M(B(6.2, 1.5, 4.4), 0xb03a24, 0, 14.6, 0.2); M(B(1.6, 5, 0.6), 0xb03a24, -1.6, 12.2, -2.1);
     W(B(1.1, 1.5, 13), 0x2a2218, 0, 0, 3); W(B(1.3, 2.6, 4), 0x5a3a20, 0, -0.6, -4);
   } else if (type === 'hunter') {
@@ -1393,7 +1414,10 @@ function makeHuman3(type, tier = 0) {
     M(B(8.4, 4, 5.6), 0x7a5a34, 0, 16.4, -4.6); M(B(7.6, 6.4, 5), 0x9a7a4a, 0, 11.6, -4.4); M(B(6.4, 3.4, 4.4), 0xb09a6a, 0, 20, -4.6);   // a tall frame pack with a bedroll on top
     M(B(8.8, 0.8, 5.8), 0x3a2e22, 0, 14.2, -4.5); M(cyl(1.3, 1.3, 7.6, 6), 0xa03a28, 0, 22.4, -4.6).rotation.z = Math.PI / 2;
     W(cyl(0.45, 0.45, 20, 5), 0x6a4a28, 0, -1, 0);                                                     // walking staff
-  } else {
+  } else if (type0 === 'cook') {
+    W(cyl(0.4, 0.4, 9, 5), 0x8a8a8e, 0, 0, 3, Math.PI / 2); W(new THREE.SphereGeometry(1.5, 6, 4), 0x8a8a8e, 0, 0, 8);            // ladle
+    M(cyl(2.6, 2.2, 2.6, 8), 0x3a3a3e, -5, 7.6, 1.4);                                                                            // pot
+  } else if (type0 !== 'smith') {
     const hood = M(new THREE.ConeGeometry(3.4, 5, 6), 0x2c3624, 0, 18.7, -0.3); hood.rotation.x = -0.15; M(B(3.4, 2.4, 1.4), 0x1e1e1c, 0, 16.2, 2.2); M(cyl(0.8, 0.8, 1.2, 6), 0x7a7a74, 0, 15.8, 3.2).rotation.x = Math.PI / 2;
     M(cyl(1.5, 1.5, 6, 8), 0x7ab030, 2, 11.6, -4.9); M(cyl(1.5, 1.5, 6, 8), 0x5a9024, -2, 11.6, -4.9);
     W(cyl(0.5, 0.5, 15, 6), 0x8a7a4a, 0, 0, 5, Math.PI / 2);
@@ -1749,7 +1773,7 @@ const ANIMS = { dino: [['idle', 3], ['walk', 6], ['attack', 5], ['death', 5]], h
 function unitSprite(type, len, tier = 0) {
   const D = UNITS[type], kind = type === 'turret' ? 'turret' : D.cls === 'dino' ? 'dino' : 'human'; len = Math.round(kind === 'dino' ? len : 22);
   const key = type + '|' + len + '|' + tier; if (SPR[key]) return SPR[key];
-  const fw = kind === 'dino' ? Math.ceil(len * 1.5) + 8 : kind === 'human' ? 74 : 30, fh = fw, spr = { fw, fh, an: {}, kind };
+  const hd = kind === 'human' ? 2 : 1, fw = kind === 'dino' ? Math.ceil(len * 1.5) + 8 : kind === 'human' ? 74 * hd : 30, fh = fw, spr = { fw, fh, an: {}, kind, hd };
   if (!USE3D) {   // no WebGL: fall back to the hand-drawn shapes
     spr.ax = fw >> 1; spr.ay = fh >> 1;
     for (const [name, n] of ANIMS[kind]) { const cv = document.createElement('canvas'); cv.width = fw * n; cv.height = fh * 5; const g = cv.getContext('2d'); BD.forEach((k, row) => { for (let f = 0; f < n; f++) { const x = f * fw + fw / 2, y = row * fh + fh / 2, a = k * Math.PI / 4; if (kind === 'dino') drawDino(g, type, x, y, a, len, f * 1.1, { still: name !== 'walk', dead: name === 'death' }); else if (kind === 'human') drawHuman(g, type, x, y, a, 11, f * 1.6, { still: name !== 'walk' }); else { g.fillStyle = '#6a6a62'; g.fillRect(x - 5, y - 5, 10, 10); } } }); spr.an[name] = { cv, n }; }
@@ -1757,7 +1781,7 @@ function unitSprite(type, len, tier = 0) {
   }
   const b = baker(), obj = kind === 'dino' ? makeDino3(type, len, tier) : kind === 'human' ? makeHuman3(type, tier) : makeTurret3();
   obj.root.traverse(o => { o.frustumCulled = false; }); b.sc.add(obj.root);
-  Object.assign(spr, bakeSetup(fw, fh, kind === 'dino' ? len * 0.2 : kind === 'human' ? 12 : 9)); if (kind === 'human') obj.root.scale.setScalar(1.3);
+  Object.assign(spr, bakeSetup(fw, fh, kind === 'dino' ? len * 0.2 : kind === 'human' ? 13 * hd : 9, kind === 'human' ? 0.6 : PITCH)); if (kind === 'human') obj.root.scale.setScalar(1.3 * hd);
   for (const [name, n] of ANIMS[kind]) {
     const cv = document.createElement('canvas'); cv.width = fw * n; cv.height = fh * 5; const g = cv.getContext('2d');
     let clip = null; if (kind === 'dino') { obj.mixer.stopAllAction(); const a = obj.acts[name] || obj.acts.idle; if (a) { a.reset(); a.setLoop(THREE.LoopRepeat); a.play(); clip = a.getClip(); } }
@@ -1816,8 +1840,9 @@ function drawCut(c, im, e, x, y, T) {
 }
 function drawSpr(c, spr, anim, fi, a, x, y) {
   const A = spr.an[anim] || spr.an.idle, k = ((Math.round(a / (Math.PI / 4)) % 8) + 8) % 8, m = k >= 3 && k <= 5, row = DIRROW[m ? MIR[k] : k]; fi = Math.max(0, Math.min(A.n - 1, fi | 0)); x = Math.round(x); y = Math.round(y);
-  if (!m) c.drawImage(A.cv, fi * spr.fw, row * spr.fh, spr.fw, spr.fh, x - spr.ax, y - spr.ay, spr.fw, spr.fh);
-  else { c.save(); c.translate(x, y); c.scale(-1, 1); c.drawImage(A.cv, fi * spr.fw, row * spr.fh, spr.fw, spr.fh, -spr.ax, -spr.ay, spr.fw, spr.fh); c.restore(); }
+  const q = 1 / (spr.hd || 1);
+  if (!m) c.drawImage(A.cv, fi * spr.fw, row * spr.fh, spr.fw, spr.fh, x - spr.ax * q, y - spr.ay * q, spr.fw * q, spr.fh * q);
+  else { c.save(); c.translate(x, y); c.scale(-1, 1); c.drawImage(A.cv, fi * spr.fw, row * spr.fh, spr.fw, spr.fh, -spr.ax * q, -spr.ay * q, spr.fw * q, spr.fh * q); c.restore(); }
 }
 function pxEllipse(c, x, y, rx, ry, col) { c.fillStyle = col; x = Math.round(x); y = Math.round(y); for (let dy = -ry; dy <= ry; dy++) { const hw = Math.round(rx * Math.sqrt(Math.max(0, 1 - (dy * dy) / (ry * ry + 0.01)))); c.fillRect(x - hw, y + dy, hw * 2, 1); } }
 function pxRing(c, x, y, rx, ry, col) { c.fillStyle = col; x = Math.round(x); y = Math.round(y); let px = null; for (let dy = -ry; dy <= ry; dy++) { const hw = Math.round(rx * Math.sqrt(Math.max(0, 1 - (dy * dy) / (ry * ry + 0.01)))), w0 = px === null || dy === ry ? hw : Math.max(1, Math.abs(hw - px)); if (dy === -ry || dy === ry) c.fillRect(x - hw, y + dy, hw * 2, 1); else { c.fillRect(x - hw, y + dy, w0, 1); c.fillRect(x + hw - w0, y + dy, w0, 1); } px = hw; } }
@@ -3064,7 +3089,7 @@ loadModels((n, t) => bootP(4 + n / t * 66, `공룡 모델 불러오는 중 ${n}/
   bootP(82, '픽셀 월드 그리는 중…');
   setTimeout(() => { setView('party'); showWorld(); bootP(100, '준비 완료'); setTimeout(titleScreen, 250); }, 60);
 });
-window.__dino = { CUT, cutSprite, saveCode, readCode, get S() { return S; }, get B() { return B; }, get W() { return W; }, UNITS, ZONES, TD, unitArt, icon, ICONS, SND, SFX, set speed(v) { bSpeed = v; }, addUnit, xpNeed, partyPower, groundPower, VO: () => VO, walkTo, TOWNS, GROUNDS, SPR };
+window.__dino = { unitSprite, CUT, cutSprite, saveCode, readCode, get S() { return S; }, get B() { return B; }, get W() { return W; }, UNITS, ZONES, TD, unitArt, icon, ICONS, SND, SFX, set speed(v) { bSpeed = v; }, addUnit, xpNeed, partyPower, groundPower, VO: () => VO, walkTo, TOWNS, GROUNDS, SPR };
 requestAnimationFrame(frame);
 })();
 </script>
