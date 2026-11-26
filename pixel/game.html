@@ -912,7 +912,7 @@ const CASH = {
 const CASH_KIND = { runnerC: 'human', scribeC: 'human' }, CASH_LOOK = { wagon: 'wagon', runner: 'runnerC', scribe: 'scribeC' };
 const GEM_PACKS = [[100, '1,200원'], [550, '5,900원'], [1200, '12,000원'], [6500, '59,000원']], WAGON_CARGO = 1000;
 const capacity = () => party().reduce((s, u) => s + carryOf(u), 0) + (S.cash && S.cash.wagon ? WAGON_CARGO : 0);
-const RUNNER_MAX = 3, tripName = tr => tr.gear ? '장비' : tripName(tr);
+const RUNNER_MAX = 3, tripName = tr => tr.gear ? '장비' : (GOODS[tr.g] || { n: '물건' }).n;
 function runnerTick(dt) {   // errand runners: each takes one whole stack (the biggest pile first) to wherever it sells for most, there and back in real time
   const C = S.cash; if (!C || !C.runner) return; C.trips = C.trips || [];
   for (let i = 0; i < C.runner; i++) { const T = C.trips[i]; if (!T) continue; T.t -= dt; if (T.t > 0) continue;

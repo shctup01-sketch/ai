@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}
 #upd{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:999;padding:11px 18px;border-radius:14px;border:2px solid #f3c79a;background:#d4763c;color:#1c120a;font:700 14px system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.5)}</style>
-<script>window.__VER="20261126-092814"</script>
+<script>window.__VER="20261126-093557"</script>
 </head>
 <body>
 <title>공룡 상단 픽셀</title>
@@ -931,7 +931,7 @@ const CASH = {
 const CASH_KIND = { runnerC: 'human', scribeC: 'human' }, CASH_LOOK = { wagon: 'wagon', runner: 'runnerC', scribe: 'scribeC' };
 const GEM_PACKS = [[100, '1,200원'], [550, '5,900원'], [1200, '12,000원'], [6500, '59,000원']], WAGON_CARGO = 1000;
 const capacity = () => party().reduce((s, u) => s + carryOf(u), 0) + (S.cash && S.cash.wagon ? WAGON_CARGO : 0);
-const RUNNER_MAX = 3, tripName = tr => tr.gear ? '장비' : tripName(tr);
+const RUNNER_MAX = 3, tripName = tr => tr.gear ? '장비' : (GOODS[tr.g] || { n: '물건' }).n;
 function runnerTick(dt) {   // errand runners: each takes one whole stack (the biggest pile first) to wherever it sells for most, there and back in real time
   const C = S.cash; if (!C || !C.runner) return; C.trips = C.trips || [];
   for (let i = 0; i < C.runner; i++) { const T = C.trips[i]; if (!T) continue; T.t -= dt; if (T.t > 0) continue;
@@ -3617,7 +3617,7 @@ requestAnimationFrame(frame);
 <button id="upd" hidden>새 패치가 있어요 · 눌러서 적용</button>
 <script>
 (function () {
-  var VER = "20261126-092814";
+  var VER = "20261126-093557";
   if (!/^https?:$/.test(location.protocol)) return;
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
   var btn = document.getElementById('upd');
