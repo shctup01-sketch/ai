@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}
 #upd{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:999;padding:11px 18px;border-radius:14px;border:2px solid #f3c79a;background:#d4763c;color:#1c120a;font:700 14px system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.5)}</style>
-<script>window.__VER="20261126-111436"</script>
+<script>window.__VER="20261126-111900"</script>
 </head>
 <body>
 <title>공룡 상단 픽셀</title>
@@ -1599,17 +1599,25 @@ function lambertize(o) {
 }
 // Species that only exist as a round-headed baby model get a grown-up body made from it: the head and eyes are shrunk
 // in place and the tail drawn out, so the adult is not just the baby scaled up. [head, eyes, tail]
-const ADULT_FROM = { G_Pterodactylus: [0.66, 0.5, 1.3], G_Plesiosaurus: [0.6, 0.5, 1.4] };
+const ADULT_FROM = { G_Pterodactylus: [0.8, 0.55, 1.3], G_Plesiosaurus: [0.72, 0.55, 1.35] };
 function growUp(src, [kh, ke, kt]) {
+  // These models have no head or eye bones to scale, so the parts are found by shape: an eye is a small white island of the mesh with a black
+  // pupil sitting on it. Raw model space: x across, y along the body (head at -y), z up.
   const o = THREE.SkeletonUtils.clone(src);
-  o.traverse(m => { if (!m.isSkinnedMesh) return; const g = m.geometry = m.geometry.clone(), P = g.attributes.position, SI = g.attributes.skinIndex, SW = g.attributes.skinWeight, names = m.skeleton.bones.map(b => b.name);
-    const wOf = (i, test) => { let w = 0; for (let c = 0; c < 4; c++) { const n = names[SI.array[i * 4 + c]] || ''; if (test(n)) w += SW.array[i * 4 + c]; } return w; };
-    const isHead = n => /Head|Mouth|Ear|Eye/.test(n), centre = test => { const c = new THREE.Vector3(); let k = 0; for (let i = 0; i < P.count; i++) { const w = wOf(i, test); if (w > 0.5) { c.x += P.getX(i); c.y += P.getY(i); c.z += P.getZ(i); k++; } } return k ? c.multiplyScalar(1 / k) : null; };
-    const pull = (test, c, k) => { if (!c) return; for (let i = 0; i < P.count; i++) { const w = wOf(i, test); if (w <= 0) continue; const f = 1 + (k - 1) * w; P.setXYZ(i, c.x + (P.getX(i) - c.x) * f, c.y + (P.getY(i) - c.y) * f, c.z + (P.getZ(i) - c.z) * f); } };
-    { const c = centre(isHead); if (c) { let lo = Infinity; for (let i = 0; i < P.count; i++) if (wOf(i, isHead) > 0.5) lo = Math.min(lo, P.getY(i)); c.y = lo + (c.y - lo) * 0.35; } pull(isHead, c, kh); }   // shrink toward the neck, not the middle of the skull
-    for (const e of ['LeftEye', 'RightEye']) pull(n => n === e, centre(n => n === e), ke);
-    { let root = -Infinity, ax = 'z'; for (let i = 0; i < P.count; i++) if (wOf(i, n => n === 'Tail') > 0.5) root = Math.max(root, P.getZ(i)); if (isFinite(root)) for (let i = 0; i < P.count; i++) { const w = wOf(i, n => n === 'Tail'); if (w > 0) P.setZ(i, root + (P.getZ(i) - root) * (1 + (kt - 1) * w)); } }
-    P.needsUpdate = true; g.computeVertexNormals(); g.computeBoundingBox(); g.computeBoundingSphere(); });
+  o.traverse(m => { if (!m.isSkinnedMesh) return; const g = m.geometry = m.geometry.clone(), P = g.attributes.position, C = g.attributes.color, N = P.count, ix = g.index ? g.index.array : null; if (!C || !ix) return;
+    const key = new Map(), id = new Int32Array(N); for (let i = 0; i < N; i++) { const k = Math.round(P.getX(i) * 2e4) + ',' + Math.round(P.getY(i) * 2e4) + ',' + Math.round(P.getZ(i) * 2e4); if (!key.has(k)) key.set(k, key.size); id[i] = key.get(k); }
+    const par = Array.from({ length: key.size }, (_, q) => q), find = a => { while (par[a] !== a) a = par[a] = par[par[a]]; return a; };
+    for (let t = 0; t < ix.length; t += 3) { const a = find(id[ix[t]]), b = find(id[ix[t + 1]]), c = find(id[ix[t + 2]]); par[b] = a; par[find(c)] = a; }
+    const comps = new Map(); for (let i = 0; i < N; i++) { const r = find(id[i]); let c = comps.get(r); if (!c) comps.set(r, c = { v: [], w: 0, b: 0, c: new THREE.Vector3() }); c.v.push(i); const mx = Math.max(C.getX(i), C.getY(i), C.getZ(i)), mn = Math.min(C.getX(i), C.getY(i), C.getZ(i)); if (mn > 0.55) c.w++; else if (mx < 0.04) c.b++; c.c.add(new THREE.Vector3(P.getX(i), P.getY(i), P.getZ(i))); }
+    const list = [...comps.values()]; for (const c of list) { c.c.multiplyScalar(1 / c.v.length); c.r = Math.max(...c.v.map(i => c.c.distanceTo(new THREE.Vector3(P.getX(i), P.getY(i), P.getZ(i))))); }
+    const eyes = list.filter(c => c.v.length < 140 && c.w > 0 && c.b > 0 && c.w + c.b >= c.v.length * 0.9).map(c => ({ c: c.c.clone(), v: c.v, r: c.r }));
+    for (const e of eyes) for (const i of e.v) P.setXYZ(i, e.c.x + (P.getX(i) - e.c.x) * ke, e.c.y + (P.getY(i) - e.c.y) * ke, e.c.z + (P.getZ(i) - e.c.z) * ke);
+    if (eyes.length >= 2) {   // the head is whatever sits around the eyes: pull it in toward the neck, fading out so the neck does not tear
+      const hc = eyes.reduce((a, e) => a.add(e.c), new THREE.Vector3()).multiplyScalar(1 / eyes.length); hc.x = 0; const sep = Math.max(...eyes.map(e => Math.abs(e.c.x))) * 2, R = sep * 1.7 + eyes[0].r, pv = new THREE.Vector3(0, hc.y + R * 0.55, hc.z - R * 0.3);
+      for (let i = 0; i < N; i++) { const d = Math.hypot(P.getX(i) - hc.x, P.getY(i) - hc.y, P.getZ(i) - hc.z), w = Math.min(1, Math.max(0, (R - d) / (R * 0.45))); if (w <= 0) continue; const f = 1 + (kh - 1) * w * w * (3 - 2 * w); P.setXYZ(i, pv.x + (P.getX(i) - pv.x) * f, pv.y + (P.getY(i) - pv.y) * f, pv.z + (P.getZ(i) - pv.z) * f); } }
+    { const SI = g.attributes.skinIndex, SW = g.attributes.skinWeight, names = m.skeleton.bones.map(b => b.name), tw = i => { let w = 0; for (let c = 0; c < 4; c++) if (names[SI.array[i * 4 + c]] === 'Tail') w += SW.array[i * 4 + c]; return w; };
+      let root = Infinity; for (let i = 0; i < N; i++) if (tw(i) > 0.5) root = Math.min(root, P.getY(i)); if (isFinite(root)) for (let i = 0; i < N; i++) { const w = tw(i); if (w > 0) P.setY(i, root + (P.getY(i) - root) * (1 + (kt - 1) * w)); } }
+    P.needsUpdate = true; g.computeVertexNormals(); g.computeBoundingBox(); g.computeBoundingSphere(); m.userData.eyes = eyes.length; });
   return o;
 }
 function loadModels(onProgress) {
@@ -3664,7 +3672,7 @@ requestAnimationFrame(frame);
 <button id="upd" hidden>새 패치가 있어요 · 눌러서 적용</button>
 <script>
 (function () {
-  var VER = "20261126-111436";
+  var VER = "20261126-111900";
   if (!/^https?:$/.test(location.protocol)) return;
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
   var btn = document.getElementById('upd');
