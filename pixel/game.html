@@ -1232,7 +1232,7 @@ function endBattle(win) {
       const H0 = opt.kind === 'hunt' ? HUNTS[opt.tier] : { drop: 0.1 }, Hb = opt.boss ? H0 : H0.boss ? HUNTS[3] : H0, H = { boss: !!opt.boss, drop: Hb.drop + Math.max(0, opt.foes.length - 3) * 0.04 }, rares = opt.foes.filter(f => UNITS[f.type].rare && !f.boss).length;
       const lv = Math.max(...opt.foes.map(f => f.lv)), luck = (opt.tier || 0) * 0.35 + rares * 0.3;
       const drops = []; if (Math.random() < H.drop + rares * 0.15) drops.push(rollItem(lv, luck, H.boss ? 2 : 0)); if (H.boss && Math.random() < 0.5) drops.push(rollItem(lv, luck, 1));
-      for (const it of drops) { if (cargoUsed() >= capacity()) { lines.push(`<span style="color:#ff8a6a">짐칸이 꽉 차서 ${itemName(it)}을(를) 두고 왔어요</span>`); } else { S.items.push(it); lines.push(`<b style="color:var(--amber)">득템!</b> ${itemName(it)} <span style="color:var(--muted)">${SLOTS[it.slot]} · ${itemText(it)}</span>`); gotItem = true; } }
+      for (const it of drops) { if (cargoUsed() >= capacity()) { lines.push(`<span style="color:#ff8a6a">짐칸이 꽉 차서 ${itemName(it)}을(를) 두고 왔어요</span>`); } else { S.items.push(it); lines.push(`${itemName(it)} <span style="color:var(--muted)">${SLOTS[it.slot]} · ${itemText(it)}</span>`); gotItem = true; } }
     }
     if (opt.kind === 'hunt') for (const q of S.quests[opt.zone] || []) if (q.type === 'hunt' && !q.done && q.prog < q.n) q.prog++;
     const ours = party();
