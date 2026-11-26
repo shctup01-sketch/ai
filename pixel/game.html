@@ -1046,7 +1046,7 @@ function spawn(side, type, lv, x, y, ref, boss) {
   if (ref) { const fm = FORMS[S.form] || FORMS.bal; st.atk *= fm.atk * (S.cls === 'tamer' ? 1.08 : 1) * (hungry() ? 0.7 : 1) * (S.unpaid && UNITS[type].cls === 'human' ? 0.8 : 1); st.def *= fm.def; }
   if (ref) { const gm = gearMul(ref); st.hp *= gm.hp; st.atk *= gm.atk; st.def *= gm.def; st.size *= 1 + 0.07 * (ref.tier || 0); }
   const u = { id: B.idSeq++, side, type, lv, ref, boss, x, y, a: side ? Math.PI / 2 : -Math.PI / 2, hp: ref ? Math.min(ref.hp, st.hp) : st.hp, max: st.hp, atk: st.atk, def: st.def, size: st.size,
-              tier: ref ? ref.tier || 0 : 0, plv: ref ? ref.lv : 0, skLv: ref ? ref.skLv || 0 : 0, elite: !!(ref && ref.elite), famed: !!(ref && ref.famed), hsk: ref && ref.famed && HERO_SK[ref.name] || null, sk: side === 0 ? (ref && ref.famed && HERO_SK[ref.name] ? 'hero' : ref ? unitSkill(ref) : skillOf(type)) : null, skCd: rand(2, 6), guardT: 0, roarT: 0,
+              tier: ref ? ref.tier || 0 : 0, lk: ref ? lookTier(ref) : undefined, plv: ref ? ref.lv : 0, skLv: ref ? ref.skLv || 0 : 0, elite: !!(ref && ref.elite), famed: !!(ref && ref.famed), hsk: ref && ref.famed && HERO_SK[ref.name] || null, sk: side === 0 ? (ref && ref.famed && HERO_SK[ref.name] ? 'hero' : ref ? unitSkill(ref) : skillOf(type)) : null, skCd: rand(2, 6), guardT: 0, roarT: 0,
               range: D.range, as: D.as, spd: D.spd, cd: rand(0, 0.6), stun: 0, shred: 0, shredT: 0, leg: rand(0, 6), moving: false, hitT: 0 };
   B.units.push(u); return u;
 }
@@ -1491,7 +1491,7 @@ function unitArt(type, tier = 0, dark = false) {
   return ART[key] = cv;
 }
 function portrait(cv, type, tint) {
-  if (cv.dataset.art) { const g0 = cv.getContext('2d'); const a0 = unitArt(type, +cv.dataset.t || 0, cv.dataset.art === 'unk'); cv.width = a0.width; cv.height = a0.height; g0.imageSmoothingEnabled = false; g0.drawImage(a0, 0, 0); cv.style.imageRendering = a0.width > 280 ? 'auto' : ''; return; }
+  if (cv.dataset.art) { const g0 = cv.getContext('2d'); const a0 = unitArt(type, Math.max(0, +cv.dataset.t || 0), cv.dataset.art === 'unk'); cv.width = a0.width; cv.height = a0.height; g0.imageSmoothingEnabled = false; g0.drawImage(a0, 0, 0); cv.style.imageRendering = a0.width > 280 ? 'auto' : ''; return; }
   const g = cv.getContext('2d'), w = cv.width, h = cv.height; g.clearRect(0, 0, w, h);
   { const im = cutOf(type); if (im) { const dino = (UNITS[type] || {}).cls === 'dino'; cv.style.imageRendering = 'auto'; g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
       const gr = g.createRadialGradient(w / 2, h * 0.6, 0, w / 2, h * 0.6, h * 0.8); gr.addColorStop(0, 'rgba(240,170,110,.38)'); gr.addColorStop(1, 'rgba(240,170,110,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
@@ -1550,10 +1550,10 @@ function groundTex(kind) {
    3D — low-poly CC0 dinosaurs (Quaternius) rendered with three.js.
    The battle simulation stays 2D (x, y on the field); here x→X, y→Z.
    ================================================================ */
-const MODEL_FILES = { wagon: 'Triceratops', iguan: 'Parasaurolophus', pachyc: 'G_Pachycephalosaurus', ovi: 'G_Oviraptor', ptero: 'G_Pterodactylus', plesio: 'G_Plesiosaurus', micro: 'Velociraptor', utah: 'Velociraptor', kentro: 'Stegosaurus', anky: 'G_Ankylosaurus', styra: 'Triceratops', carno: 'G_Carnotaurus', allo: 'Trex', spino: 'G_Spinosaurus', diplo: 'Apatosaurus', brachio: 'Apatosaurus', trike: 'Triceratops', para: 'Parasaurolophus', raptor: 'Velociraptor', compy: 'Velociraptor', dilo: 'Trex', stego: 'Stegosaurus', apato: 'Apatosaurus', trex: 'Trex',
+const MODEL_FILES = { wagon: 'Triceratops', iguan: 'Parasaurolophus', pachyc: 'Parasaurolophus', ovi: 'Velociraptor', ptero: 'G_Pterodactylus', plesio: 'Apatosaurus', micro: 'Velociraptor', utah: 'Velociraptor', kentro: 'Stegosaurus', anky: 'Stegosaurus', styra: 'Triceratops', carno: 'Trex', allo: 'Trex', spino: 'Trex', diplo: 'Apatosaurus', brachio: 'Apatosaurus', trike: 'Triceratops', para: 'Parasaurolophus', raptor: 'Velociraptor', compy: 'Velociraptor', dilo: 'Trex', stego: 'Stegosaurus', apato: 'Apatosaurus', trex: 'Trex',
   trikeIron: 'Triceratops', trikeRed: 'Triceratops', paraGold: 'Parasaurolophus', apatoMoss: 'Apatosaurus', raptorShadow: 'Velociraptor', raptorVenom: 'Velociraptor', stegoRust: 'Stegosaurus', trexYoung: 'Trex' };
 const BACK_H = { Trex: 0.5, Velociraptor: 0.5, Parasaurolophus: 0.52, Triceratops: 0.4, Stegosaurus: 0.5, Apatosaurus: 0.4, G_Ankylosaurus: 0.8, G_Spinosaurus: 0.62, G_Carnotaurus: 0.62, G_Pachycephalosaurus: 0.6, G_Oviraptor: 0.6, G_Pterodactylus: 0.55, G_Plesiosaurus: 0.5 };   // where the back is, as a share of full height
-const MODEL_SHAPE = { kentro: [0.85, 0.9, 0.92], brachio: [1, 1.38, 0.96], diplo: [0.8, 0.82, 1.22], iguan: [1.12, 1.08, 1], utah: [1.08, 1.05, 1], micro: [0.9, 0.9, 1] };   // width, height, length
+const MODEL_SHAPE = { anky: [1.2, 0.72, 0.95], ovi: [0.95, 1.12, 0.9], plesio: [1.05, 0.7, 0.9], kentro: [0.85, 0.9, 0.92], brachio: [1, 1.38, 0.96], diplo: [0.8, 0.82, 1.22], spino: [0.95, 1, 1.18], carno: [0.9, 0.92, 1], pachyc: [1, 0.92, 0.86], iguan: [1.12, 1.08, 1], utah: [1.08, 1.05, 1], micro: [0.9, 0.9, 1] };   // width, height, length
 const HUMAN_PAL = { runnerC: [0x1f8f9c, 0x27323e], scribeC: [0x6a3fa0, 0x3a2a50], leader: [0x6e4a30, 0x3e2c20], hunter: [0x5c6a34, 0x4a3524], spear: [0x7a5a40, 0x3e2c20], sniper: [0x6a5a36, 0x3e3222], mechanic: [0xd0661e, 0xb4561a], medic: [0xe8e0cc, 0x6a4a34], porter: [0x8a5a34, 0x5a3e28],
   venomer: [0x4a4a34, 0x3a2e26], scout: [0x4e5c30, 0x5a3c26], shield: [0x6a5644, 0x3a2c22], gladiator: [0x7c3a28, 0x4a2c20], crossbow: [0x5c4c40, 0x3a2e26], gunner: [0x34425e, 0x3a2a22], bomber: [0x6a4a30, 0x4a3626],
   tamer: [0x9a5a34, 0x6a3a24], cook: [0xece6d8, 0x5a3e2a], smith: [0x7a4a2c, 0x3a2a20], shaman: [0x5a3a6a, 0x3a2630] };
@@ -1561,6 +1561,11 @@ const HUMAN_AS = { scout: 'sniper', shield: 'spear', gladiator: 'spear', crossbo
 const DINO_AS = { ovi: 'raptor', ptero: 'raptor', plesio: 'apato', iguan: 'para', pachyc: 'para', micro: 'raptor', utah: 'raptor', kentro: 'stego', anky: 'stego', styra: 'trike', carno: 'trex', allo: 'trex', spino: 'trex', diplo: 'apato', brachio: 'apato' };
 const MODEL_TINT = { iguan: [0x5a7a4a, 0.55], pachyc: [0x9a6a3a, 0.55], micro: [0x2a4a8a, 0.65], utah: [0xb0a070, 0.5], kentro: [0x5a3a2a, 0.6], anky: [0x8a7a5a, 0.55], styra: [0x6a4a8a, 0.5], carno: [0xa03a28, 0.55], allo: [0x7a6a3a, 0.5], spino: [0x3a6a7a, 0.55], diplo: [0x7a8a9a, 0.5], brachio: [0xb09a50, 0.5], compy: [0x8a9a50, 0.5], ovi: [0x8a8f6a, 0.5], ptero: [0x8a6a4a, 0.5], plesio: [0x3a5a6a, 0.45], dilo: [0x9aa040, 0.4], trikeIron: [0x7a8694, 0.6], trikeRed: [0xb04428, 0.5], paraGold: [0xe0b030, 0.55], apatoMoss: [0x5a8a40, 0.5],
   raptorShadow: [0x141c30, 0.7], raptorVenom: [0x8a3a9a, 0.5], stegoRust: [0xc0601c, 0.55], trexYoung: [0xd0c8b0, 0.45] };
+// Hatchlings: a dinosaur raised from an egg looks like a round little baby until its first evolution, then grows into the adult model
+const BABY = { trike: 'G_Triceratops', styra: 'G_Triceratops', trikeIron: 'G_Triceratops', trikeRed: 'G_Triceratops', stego: 'G_Stegosaurus', kentro: 'G_Stegosaurus', stegoRust: 'G_Stegosaurus', trex: 'G_Trex', allo: 'G_Trex', dilo: 'G_Trex', trexYoung: 'G_Trex',
+  carno: 'G_Carnotaurus', spino: 'G_Spinosaurus', anky: 'G_Ankylosaurus', pachyc: 'G_Pachycephalosaurus', para: 'G_Pachycephalosaurus', iguan: 'G_Pachycephalosaurus', paraGold: 'G_Pachycephalosaurus',
+  raptor: 'G_Oviraptor', compy: 'G_Oviraptor', micro: 'G_Oviraptor', utah: 'G_Oviraptor', raptorShadow: 'G_Oviraptor', raptorVenom: 'G_Oviraptor', ovi: 'G_Oviraptor', apato: 'G_Plesiosaurus', diplo: 'G_Plesiosaurus', brachio: 'G_Plesiosaurus', apatoMoss: 'G_Plesiosaurus', plesio: 'G_Plesiosaurus', ptero: 'G_Pterodactylus' };
+const isBaby = u => !!(u && UNITS[u.type] && UNITS[u.type].cls === 'dino' && u.grade !== undefined && !(u.tier > 0) && BABY[u.type]), lookTier = u => isBaby(u) ? -1 : u.tier || 0;
 const MODELS = {}, PORTRAIT = {}, PROPS = {}, ZONESHOT = {};
 let G3 = null;
 const has3D = (() => { try { const c = document.createElement('canvas'); return !!(window.THREE && THREE.FBXLoader && THREE.SkeletonUtils && (c.getContext('webgl') || c.getContext('experimental-webgl'))); } catch (e) { return false; } })();
@@ -1576,7 +1581,7 @@ function lambertize(o) {
 function loadModels(onProgress) {
   return new Promise(res => {
     if (!has3D) return res(false);
-    const files = [...new Set(Object.values(MODEL_FILES))]; let n = 0, ok = true;
+    const files = [...new Set([...Object.values(MODEL_FILES), ...Object.values(BABY)])]; let n = 0, ok = true;
     const L = new THREE.FBXLoader();
     const total = files.length + 1;
     const fin = () => { onProgress(++n, total); if (n === total) res(ok); };
@@ -1756,23 +1761,26 @@ function makeTurret3() {
   return { root: g, spin: head, turret: true };
 }
 function makeDino3(type, len, tier = 0) {
-  const M = MODELS[MODEL_FILES[type]], inst = THREE.SkeletonUtils.clone(M.obj);
+  const baby = tier < 0 && MODELS[BABY[type]] ? BABY[type] : null, MF = baby || MODEL_FILES[type]; if (tier < 0) tier = 0; if (baby) len *= 0.62;
+  const M = MODELS[MF], inst = THREE.SkeletonUtils.clone(M.obj);
   if (MODEL_TINT[type]) { const [col, t] = MODEL_TINT[type], tc = srgb(col); inst.traverse(c => { if (c.isMesh) { const tint = m => { const k = m.clone(); k.color.lerp(tc, t); return k; }; c.material = Array.isArray(c.material) ? c.material.map(tint) : tint(c.material); } }); }
   if (tier >= 1) { const tc = srgb(tier >= 4 ? 0xa8e4ff : tier >= 3 ? 0xc0382a : tier >= 2 ? 0xd8a030 : 0x3a2a20), amt = [0, 0.18, 0.22, 0.28, 0.34][tier]; inst.traverse(c => { if (c.isMesh) { const f = m => { const k = m.clone(); k.color.lerp(tc, amt); return k; }; c.material = Array.isArray(c.material) ? c.material.map(f) : f(c.material); } }); }
   inst.scale.setScalar(len / M.len);
-  const SH = MODEL_SHAPE[type]; if (SH) { const k = len / M.len; inst.scale.set(k * (M.ax === 'x' ? SH[2] : SH[0]), k * SH[1], k * (M.ax === 'x' ? SH[0] : SH[2])); }
+  const SH = baby ? null : MODEL_SHAPE[type]; if (SH) { const k = len / M.len; inst.scale.set(k * (M.ax === 'x' ? SH[2] : SH[0]), k * SH[1], k * (M.ax === 'x' ? SH[0] : SH[2])); }
   const g = new THREE.Group(), s = new THREE.Group(); s.add(inst); g.add(s);
   { // add-ons that make a species read at a glance: a sail, back armour, a crown of spikes
-    const hgt = (M.h || M.len * 0.4) * (len / M.len) * (SH ? SH[1] : 1) * (BACK_H[MODEL_FILES[type]] || 0.55), put = (w, h, l, col, along, up, side = 0) => { const m = new THREE.Mesh(new THREE.BoxGeometry(M.ax === 'x' ? l : w, h, M.ax === 'x' ? w : l), lam(col)); m.position.set(M.ax === 'x' ? along : side, up, M.ax === 'x' ? side : along); s.add(m); return m; };
-    if (type === 'styra' || type === 'kentro') for (let k = -2; k <= 2; k++) put(len * 0.02 + 0.5, len * 0.11, len * 0.02 + 0.5, 0xe0d6c0, k * len * 0.07, hgt * 0.9 + len * 0.03);
+    const hgt = (M.h || M.len * 0.4) * (len / M.len) * (SH ? SH[1] : 1) * (BACK_H[MF] || 0.55), put = (w, h, l, col, along, up, side = 0) => { const m = new THREE.Mesh(new THREE.BoxGeometry(M.ax === 'x' ? l : w, h, M.ax === 'x' ? w : l), lam(col)); m.position.set(M.ax === 'x' ? along : side, up, M.ax === 'x' ? side : along); s.add(m); return m; };
+    if (baby) { /* hatchlings wear nothing */ } else if (type === 'spino') for (let k = -3; k <= 3; k++) put(len * 0.012 + 0.6, len * (0.2 - Math.abs(k) * 0.035), len * 0.07, k % 2 ? 0xc0603a : 0xa84a2c, k * len * 0.07, hgt + len * 0.06);
+    else if (type === 'anky') { for (let k = -2; k <= 2; k++) for (const sd of [-1, 1]) put(len * 0.07, len * 0.05, len * 0.07, 0x4a4030, k * len * 0.1, hgt * 0.98, sd * len * 0.08); }
+    else if (type === 'styra' || type === 'kentro') for (let k = -2; k <= 2; k++) put(len * 0.02 + 0.5, len * 0.11, len * 0.02 + 0.5, 0xe0d6c0, k * len * 0.07, hgt * 0.9 + len * 0.03);
   }
   if (tier >= 1) {   // a pack saddle once grown, a war banner on the pack leader
-    const by = (M.h || M.len * 0.4) * (len / M.len) * (SH ? SH[1] : 1) * (BACK_H[MODEL_FILES[type]] || 0.55) * 0.98, w = len * 0.17, sad = new THREE.Mesh(new THREE.BoxGeometry(w, len * 0.07, len * 0.2), lam(tier >= 2 ? 0xa02a20 : 0x6a4a2a)); sad.position.y = by; s.add(sad);
+    const by = (M.h || M.len * 0.4) * (len / M.len) * (SH ? SH[1] : 1) * (BACK_H[MF] || 0.55) * 0.98, w = len * 0.17, sad = new THREE.Mesh(new THREE.BoxGeometry(w, len * 0.07, len * 0.2), lam(tier >= 2 ? 0xa02a20 : 0x6a4a2a)); sad.position.y = by; s.add(sad);
     for (const sd of [-1, 1]) { const bag = new THREE.Mesh(new THREE.BoxGeometry(len * 0.05, len * 0.09, len * 0.13), lam(0x8a6a3a)); bag.position.set(sd * w * 0.6, by - len * 0.04, 0); s.add(bag); }
     if (tier >= 2) { const pole = new THREE.Mesh(new THREE.BoxGeometry(1.2, len * 0.36, 1.2), lam(0x4a3a2a)); pole.position.set(0, by + len * 0.18, -len * 0.06); s.add(pole); const fl = new THREE.Mesh(new THREE.BoxGeometry(len * 0.02 + 0.6, len * 0.12, len * 0.17), lam(0xe3a843)); fl.position.set(0, by + len * 0.3, -len * 0.06 - len * 0.09); s.add(fl); }
   }
   if (tier >= 3) {   // third and fourth steps: a row of plates along the back, then glowing crystal spines and a bigger banner
-    const by = (M.h || M.len * 0.4) * (len / M.len) * (SH ? SH[1] : 1) * (BACK_H[MODEL_FILES[type]] || 0.55), ax = M.ax === 'x', at = (m, along, up) => { m.position.set(ax ? along : 0, up, ax ? 0 : along); s.add(m); return m; };
+    const by = (M.h || M.len * 0.4) * (len / M.len) * (SH ? SH[1] : 1) * (BACK_H[MF] || 0.55), ax = M.ax === 'x', at = (m, along, up) => { m.position.set(ax ? along : 0, up, ax ? 0 : along); s.add(m); return m; };
     const gc = lam(tier >= 4 ? 0xfff0a0 : 0xe3a843), cr = lam(0x8fe4ff, { emissive: srgb(0x58c8ff), emissiveIntensity: 0.8 });
     for (let k = -2; k <= 2; k++) { if (k === 0) continue; at(new THREE.Mesh(new THREE.BoxGeometry(ax ? len * 0.08 : len * 0.15, len * 0.035, ax ? len * 0.15 : len * 0.08), gc), k * len * 0.13, by + len * 0.01);
       if (tier >= 4) at(new THREE.Mesh(new THREE.ConeGeometry(len * 0.03 + 0.6, len * (0.2 - Math.abs(k) * 0.03), 4), cr), k * len * 0.13, by + len * 0.11); }
@@ -2620,8 +2628,8 @@ function updStrip() {   // the party at a glance: a face, a level and a health b
   $('cxp').firstChild.style.width = Math.min(100, S.cxp / cxpNeed(S.clv) * 100) + '%';
   { const tm = $('tmenu').children, d0 = S.units.some(u => u.inParty && u.pts > 0), d2 = S.sp > 0; tm[0].classList.toggle('dot', d0); tm[2].classList.toggle('dot', d2); $('tmT').classList.toggle('dot', d0 || d2); $('hudL').classList.toggle('showStrip', !!S.hudStrip);
     const down = All.filter(u => u.ko).length; $('stripT').innerHTML = down ? `<i>${down}</i>` : ''; }
-  const el = $('pstrip'), P = All.filter(u => u !== Ld), key = P.map(u => u.id + ':' + (u.tier || 0) + u.type).join(',') + (S.cls || '');
-  if (key !== stripKey) { stripKey = key; el.innerHTML = P.map(u => `<button class="pc${u.type === 'leader' ? ' lead' : ''}" data-act="unit" data-id="${u.id}"><canvas data-u="${u.type}" data-t="${u.tier || 0}" width="64" height="56"></canvas><i><b></b></i><em></em></button>`).join(''); el.querySelectorAll('canvas').forEach(cv => portrait(cv, cv.dataset.u)); }
+  const el = $('pstrip'), P = All.filter(u => u !== Ld), key = P.map(u => u.id + ':' + lookTier(u) + u.type).join(',') + (S.cls || '');
+  if (key !== stripKey) { stripKey = key; el.innerHTML = P.map(u => `<button class="pc${u.type === 'leader' ? ' lead' : ''}" data-act="unit" data-id="${u.id}"><canvas data-u="${u.type}" data-t="${lookTier(u)}" width="64" height="56"></canvas><i><b></b></i><em></em></button>`).join(''); el.querySelectorAll('canvas').forEach(cv => portrait(cv, cv.dataset.u)); }
   P.forEach((u, q) => { const c = el.children[q]; if (!c) return; const bu = B && B.units.find(x => x.ref === u), f = bu ? Math.max(0, bu.hp / bu.max) : u.ko ? 0 : u.hp / maxHp(u), ko = bu ? bu.hp <= 0 : u.ko; c.querySelector('b').style.width = (f * 100) + '%'; c.classList.toggle('ko', ko); c.classList.toggle('low', !ko && f < 0.35); c.querySelector('em').textContent = u.lv; });
 }
 // A short chain of goals that shows a new player what to do next. Each pays out once.
@@ -2761,8 +2769,8 @@ function renderWorld(dt) {
     else if (u.atkT > 0) { anim = 'attack'; fi = (1 - u.atkT / 0.5) * n[0]; }
     else [anim, fi] = animOf(kind, u.moving, u.id * 1.7, T, u.spd > 50);
     const sel = u === B.sel || u === B.focus;
-    ents.push({ flash: u.hp > 0 && u.hitT > 0.05, tier: u.tier || 0, x: u.x, y: u.y, a: u.turret ? (u.target ? Math.atan2(u.target.y - u.y, u.target.x - u.x) : u.a) : u.a, boss: u.boss, ph: u.id * 1.7, type: u.turret ? 'turret' : u.type, len: Math.round(u.size * 2.4), size: u.size, anim, fi, jit: u.hp > 0 && u.hitT > 0 ? Math.round(Math.sin(B.t * 90) * 1.5) : 0, ring: u.hp <= 0 ? null : sel ? '#ffe070' : u.boss ? '#a02018' : u.side ? 'rgba(212,87,60,.75)' : 'rgba(227,168,67,.7)' });
-  } else for (const c of W.crew) { if (inTown() && c.u.type !== 'leader') continue; const dn = UNITS[c.u.type].cls === 'dino', [anim, fi] = animOf(dn ? 'dino' : 'human', c.moving, c.ph, T); ents.push({ ring: c.u.elite || c.u.famed ? 'rgba(255,216,112,.9)' : null, tier: c.u.tier || 0, x: c.x, y: c.y, a: c.a, type: c.u.type, len: c.len, size: (UNITS[c.u.type].size || 11) * (1 + 0.07 * (c.u.tier || 0)), anim, fi }); }
+    ents.push({ flash: u.hp > 0 && u.hitT > 0.05, tier: u.lk !== undefined ? u.lk : u.tier || 0, x: u.x, y: u.y, a: u.turret ? (u.target ? Math.atan2(u.target.y - u.y, u.target.x - u.x) : u.a) : u.a, boss: u.boss, ph: u.id * 1.7, type: u.turret ? 'turret' : u.type, len: Math.round(u.size * 2.4), size: u.size, anim, fi, jit: u.hp > 0 && u.hitT > 0 ? Math.round(Math.sin(B.t * 90) * 1.5) : 0, ring: u.hp <= 0 ? null : sel ? '#ffe070' : u.boss ? '#a02018' : u.side ? 'rgba(212,87,60,.75)' : 'rgba(227,168,67,.7)' });
+  } else for (const c of W.crew) { if (inTown() && c.u.type !== 'leader') continue; const dn = UNITS[c.u.type].cls === 'dino', [anim, fi] = animOf(dn ? 'dino' : 'human', c.moving, c.ph, T); ents.push({ ring: c.u.elite || c.u.famed ? 'rgba(255,216,112,.9)' : null, tier: lookTier(c.u), x: c.x, y: c.y, a: c.a, type: c.u.type, len: c.len, size: (UNITS[c.u.type].size || 11) * (1 + 0.07 * (c.u.tier || 0)), anim, fi }); }
   if (S.cash && !inTown()) { const L0 = W.lead, C = S.cash;
     if (C.wagon) { const wg = W.wagon || (W.wagon = { x: L0.x - 60, y: L0.y, a: 0, ph: 0 }), tx = L0.x - Math.cos(L0.a || 0) * 58, ty = L0.y - Math.sin(L0.a || 0) * 58 + 6, dd = Math.hypot(tx - wg.x, ty - wg.y);
       if (dd > 400) { wg.x = tx; wg.y = ty; } const mv = dd > 10; if (mv) { const sp = Math.min(dd, (dd > 90 ? 150 : 70) * dt); wg.a = Math.atan2(ty - wg.y, tx - wg.x); wg.x += Math.cos(wg.a) * sp; wg.y += Math.sin(wg.a) * sp; }
@@ -3167,7 +3175,7 @@ function toast(m, k) { const box = $('toast'), el = document.createElement('div'
 function showModal(h) { $('mcard').innerHTML = h; $('modal').hidden = false; $('mcard').querySelectorAll('canvas[data-u]').forEach(cv => portrait(cv, cv.dataset.u)); }
 function closeModal() { $('modal').hidden = true; }
 const tierNameOf = (type, t) => { const b = Math.min(2, t), pre = t >= 4 ? '신화의 ' : t === 3 ? '전설의 ' : ''; return pre + (JOBS[type] ? JOBS[type][b] : TIER_DINO[b] + UNITS[type].n); };
-const tierName = u => u.elite && ELITE[u.type] ? ELITE[u.type].n : tierNameOf(u.type, u.tier || 0);
+const tierName = u => u.elite && ELITE[u.type] ? ELITE[u.type].n : (isBaby(u) ? '새끼 ' : '') + tierNameOf(u.type, u.tier || 0);
 const unitName = u => (u.grade !== undefined ? `[${RAR[u.grade].n}] ` : '') + (u.name ? `${u.name}(${tierName(u)})` : tierName(u)) + (u.asc ? ` ◆${u.asc}` : '');
 const stars = n => { n = clamp(Math.round(n * 5 / 8), 1, 5); return '★'.repeat(n) + '☆'.repeat(5 - n); };
 let townSec = 'hunt', partySec = 'crew', dexTab = 'dino';
@@ -3262,7 +3270,7 @@ function renderTown() {
 function renderParty() {
   const el = $('v-party'), P = party();
   const row = u => { const D = UNITS[u.type], mh = maxHp(u);
-    return `<div class="row"><canvas data-u="${u.type}" data-t="${u.tier || 0}" width="104" height="80"></canvas><div class="info"><b>${unitName(u)} Lv${u.lv} <span class="tag">${D.role}</span>${u.pts > 0 ? ` <span class="tag" style="color:var(--amber)">포인트 ${u.pts}</span>` : ''}${u.ko ? ' <span class="tag" style="color:var(--bad)">쓰러짐</span>' : ''}</b>
+    return `<div class="row"><canvas data-u="${u.type}" data-t="${lookTier(u)}" width="104" height="80"></canvas><div class="info"><b>${unitName(u)} Lv${u.lv} <span class="tag">${D.role}</span>${u.pts > 0 ? ` <span class="tag" style="color:var(--amber)">포인트 ${u.pts}</span>` : ''}${u.ko ? ' <span class="tag" style="color:var(--bad)">쓰러짐</span>' : ''}</b>
       <div class="bar"><i style="width:${u.hp / mh * 100}%;${u.ko ? 'background:var(--bad)' : ''}"></i></div><small>체력 ${Math.round(u.hp)}/${mh} · 공격 ${Math.round(D.atk * lvMul(u.lv) * gearMul(u).atk)} · 무기 ${u.gw || 0} · 방어구 ${u.ga || 0} · 짐 ${carryOf(u)}칸${u.type === 'porter' ? ' (레벨마다 +2)' : ''} · 경험치 ${u.xp}/${xpNeed(u.lv)}</small>${unitSkill(u) ? `<small style="color:var(--amber)">스킬 · ${skName(unitSkill(u), u.tier)}: ${skDesc(unitSkill(u), u.tier)}</small>` : ''}</div>
       <button class="btn small" data-act="unit" data-id="${u.id}">관리</button>
       ${u.inParty ? `<span class="ord"><button class="btn small" data-act="ord" data-id="${u.id}" data-d="-1" aria-label="앞으로">▲</button><button class="btn small" data-act="ord" data-id="${u.id}" data-d="1" aria-label="뒤로">▼</button></span>` : ''}
@@ -3310,7 +3318,7 @@ function unitModal(id) {
   const gearRow = (key, item, label, eff) => { const lv = u[key] || 0, need = lv + 1, have = S.cargo[item] || 0;
     return `<div class="row"><div class="info"><b>${label} ${lv}/3단계</b><small>${eff}${lv < 3 ? ` · 다음 단계: ${GOODS[item].n} ${need}개 (보유 ${have})` : ''}</small></div><button class="btn small primary" data-act="gear" data-id="${u.id}" data-k="${key}" ${lv >= 3 || have < need ? 'disabled' : ''}>${lv >= 3 ? '최고' : '강화'}</button></div>`; };
   const names = dino ? TIER_DINO : TIER_HUMAN;
-  showModal(`<canvas class="bigart" data-u="${u.type}" data-t="${u.tier || 0}" data-art="1"></canvas><h3>${unitName(u)}</h3><div class="sub">Lv${u.lv} · ${D.role} · 전투력 <b style="color:var(--amber)">${fmt(powerOf(u))}</b></div>
+  showModal(`<canvas class="bigart" data-u="${u.type}" data-t="${lookTier(u)}" data-art="1"></canvas><h3>${unitName(u)}</h3><div class="sub">Lv${u.lv} · ${D.role} · 전투력 <b style="color:var(--amber)">${fmt(powerOf(u))}</b></div>
     <div class="card"><div class="row"><div class="info"><b>능력치 포인트 ${u.pts || 0}</b><small>레벨이 오를 때마다 3 · 공격 ${u.st.a} (각 +1%) · 체력 ${u.st.h} (각 +1.2%) · 방어 ${u.st.d} (각 +1.5%)</small></div>${[['a', '공격'], ['h', '체력'], ['d', '방어']].map(([k, n]) => `<button class="btn small" data-act="stat" data-id="${u.id}" data-k="${k}" ${u.pts > 0 ? '' : 'disabled'}>${n}</button>`).join('')}</div>
       <div class="row" style="flex-wrap:wrap"><div class="info" style="flex:1 1 100%"><b>자동 분배: ${u.autoSt ? STAT_STYLE[u.autoSt][0] : '끔'}</b><small>고르면 남은 포인트를 바로 나누고, 레벨이 오를 때마다 알아서 나눠요 · 추천(${D.role}) = 공격 ${statWeights(u, 'rec')[0]} : 체력 ${statWeights(u, 'rec')[1]} : 방어 ${statWeights(u, 'rec')[2]}</small></div>
         <div class="chips t3" style="position:static;flex:1 1 100%;margin:0;padding:4px 0 0;background:none;box-shadow:none">${[['off', '끔'], ...Object.entries(STAT_STYLE).map(([k, v]) => [k, v[0]])].map(([k, n]) => `<button class="chip${(u.autoSt || 'off') === k ? ' on' : ''}" data-act="statStyle" data-id="${u.id}" data-k="${k}">${n}</button>`).join('')}</div>
