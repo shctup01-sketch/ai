@@ -1389,7 +1389,7 @@ function groundTex(kind) {
    3D — low-poly CC0 dinosaurs (Quaternius) rendered with three.js.
    The battle simulation stays 2D (x, y on the field); here x→X, y→Z.
    ================================================================ */
-const MODEL_FILES = { iguan: 'Parasaurolophus', pachyc: 'Parasaurolophus', micro: 'Velociraptor', utah: 'Velociraptor', kentro: 'Stegosaurus', anky: 'Stegosaurus', styra: 'Triceratops', carno: 'Trex', allo: 'Trex', spino: 'Trex', diplo: 'Apatosaurus', brachio: 'Apatosaurus', trike: 'Triceratops', para: 'Parasaurolophus', raptor: 'Velociraptor', compy: 'Velociraptor', dilo: 'Trex', stego: 'Stegosaurus', apato: 'Apatosaurus', trex: 'Trex',
+const MODEL_FILES = { wagon: 'Triceratops', iguan: 'Parasaurolophus', pachyc: 'Parasaurolophus', micro: 'Velociraptor', utah: 'Velociraptor', kentro: 'Stegosaurus', anky: 'Stegosaurus', styra: 'Triceratops', carno: 'Trex', allo: 'Trex', spino: 'Trex', diplo: 'Apatosaurus', brachio: 'Apatosaurus', trike: 'Triceratops', para: 'Parasaurolophus', raptor: 'Velociraptor', compy: 'Velociraptor', dilo: 'Trex', stego: 'Stegosaurus', apato: 'Apatosaurus', trex: 'Trex',
   trikeIron: 'Triceratops', trikeRed: 'Triceratops', paraGold: 'Parasaurolophus', apatoMoss: 'Apatosaurus', raptorShadow: 'Velociraptor', raptorVenom: 'Velociraptor', stegoRust: 'Stegosaurus', trexYoung: 'Trex' };
 const BACK_H = { Trex: 0.5, Velociraptor: 0.5, Parasaurolophus: 0.52, Triceratops: 0.4, Stegosaurus: 0.5, Apatosaurus: 0.4 };   // where the back is, as a share of full height
 const MODEL_SHAPE = { anky: [1.2, 0.72, 0.95], kentro: [0.85, 0.9, 0.92], brachio: [1, 1.38, 0.96], diplo: [0.8, 0.82, 1.22], spino: [0.95, 1, 1.18], carno: [0.9, 0.92, 1], pachyc: [1, 0.92, 0.86], iguan: [1.12, 1.08, 1], utah: [1.08, 1.05, 1], micro: [0.9, 0.9, 1] };   // width, height, length
@@ -1587,6 +1587,19 @@ function makeDino3(type, len, tier = 0) {
     for (let k = -2; k <= 2; k++) { if (k === 0) continue; at(new THREE.Mesh(new THREE.BoxGeometry(ax ? len * 0.08 : len * 0.15, len * 0.035, ax ? len * 0.15 : len * 0.08), gc), k * len * 0.13, by + len * 0.01);
       if (tier >= 4) at(new THREE.Mesh(new THREE.ConeGeometry(len * 0.03 + 0.6, len * (0.2 - Math.abs(k) * 0.03), 4), cr), k * len * 0.13, by + len * 0.11); }
     if (tier >= 4) for (const sd of [-1, 1]) { const o = new THREE.Mesh(new THREE.SphereGeometry(len * 0.035 + 0.8, 7, 5), cr); o.position.set(ax ? 0 : sd * len * 0.2, by + len * 0.16, ax ? sd * len * 0.2 : 0); s.add(o); }
+  }
+  if (type === 'wagon') {   // the cargo wagon is part of the same model as the animal pulling it, so it always lines up
+    const bx = (w, h, l, col, x, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, l), lam(col)); m.position.set(x, y, z); s.add(m); return m; };
+    const L = len, z0 = -L * 0.95, wy = L * 0.13;
+    bx(1.6, 1.6, L * 0.42, 0x5a3e24, 0, wy + L * 0.05, -L * 0.48);                                             // shaft from the harness to the cart
+    bx(L * 0.2, L * 0.05, L * 0.1, 0x6a4a2a, 0, L * 0.3, -L * 0.12);                                           // harness on the animal's back
+    bx(L * 0.36, L * 0.05, L * 0.6, 0x6a4a2a, 0, wy + L * 0.05, z0);                                           // bed
+    for (const sd of [-1, 1]) bx(L * 0.03, L * 0.12, L * 0.6, 0x5a3e24, sd * L * 0.18, wy + L * 0.13, z0);     // side boards
+    bx(L * 0.36, L * 0.12, L * 0.03, 0x5a3e24, 0, wy + L * 0.13, z0 - L * 0.3); bx(L * 0.36, L * 0.12, L * 0.03, 0x5a3e24, 0, wy + L * 0.13, z0 + L * 0.3);
+    bx(L * 0.3, L * 0.12, L * 0.22, 0x8a6a3a, 0, wy + L * 0.22, z0 + L * 0.13); bx(L * 0.24, L * 0.1, L * 0.2, 0xa07a44, L * 0.02, wy + L * 0.2, z0 - L * 0.14);   // crates
+    bx(L * 0.4, L * 0.04, L * 0.5, 0x2a8a9a, 0, wy + L * 0.33, z0); bx(L * 0.34, L * 0.05, L * 0.4, 0x38a4b4, 0, wy + L * 0.37, z0);                               // teal tarp
+    for (const sd of [-1, 1]) for (const fz of [-1, 1]) { const wh = new THREE.Mesh(new THREE.CylinderGeometry(L * 0.11, L * 0.11, L * 0.04, 10), lam(0x2e2218)); wh.rotation.z = Math.PI / 2; wh.position.set(sd * L * 0.21, L * 0.11, z0 + fz * L * 0.19); s.add(wh);
+      const hub = new THREE.Mesh(new THREE.CylinderGeometry(L * 0.04, L * 0.04, L * 0.05, 6), lam(0x9a8a6a)); hub.rotation.z = Math.PI / 2; hub.position.copy(wh.position); s.add(hub); }
   }
   const mixer = new THREE.AnimationMixer(inst), acts = {};
   for (const [k, clip] of Object.entries(M.clips)) acts[k] = mixer.clipAction(clip);
@@ -1897,9 +1910,9 @@ function pixelize(cv) {   // hard alpha, a reduced palette and a dark one-pixel 
 }
 const ANIMS = { dino: [['idle', 3], ['walk', 6], ['attack', 5], ['death', 5]], human: [['idle', 2], ['walk', 6], ['attack', 3], ['death', 2]], turret: [['idle', 1]] };
 function unitSprite(type, len, tier = 0) {
-  const D = UNITS[type], kind = type === 'turret' ? 'turret' : D.cls === 'dino' ? 'dino' : 'human'; len = Math.round(kind === 'dino' ? len : 22);
+  const D = UNITS[type] || UNITS.trike, kind = type === 'turret' ? 'turret' : D.cls === 'dino' ? 'dino' : 'human'; len = Math.round(kind === 'dino' ? len : 22);
   const key = type + '|' + len + '|' + tier; if (SPR[key]) return SPR[key];
-  const hd = kind === 'human' ? 2 : 1, fw = kind === 'dino' ? Math.ceil(len * 1.5) + 8 : kind === 'human' ? 74 * hd : 30, fh = fw, spr = { fw, fh, an: {}, kind, hd };
+  const hd = kind === 'human' ? 2 : 1, fw = type === 'wagon' ? Math.ceil(len * 3.4) + 8 : kind === 'dino' ? Math.ceil(len * 1.5) + 8 : kind === 'human' ? 74 * hd : 30, fh = fw, spr = { fw, fh, an: {}, kind, hd };
   if (!USE3D) {   // no WebGL: fall back to the hand-drawn shapes
     spr.ax = fw >> 1; spr.ay = fh >> 1;
     for (const [name, n] of ANIMS[kind]) { const cv = document.createElement('canvas'); cv.width = fw * n; cv.height = fh * 5; const g = cv.getContext('2d'); BD.forEach((k, row) => { for (let f = 0; f < n; f++) { const x = f * fw + fw / 2, y = row * fh + fh / 2, a = k * Math.PI / 4; if (kind === 'dino') drawDino(g, type, x, y, a, len, f * 1.1, { still: name !== 'walk', dead: name === 'death' }); else if (kind === 'human') drawHuman(g, type, x, y, a, 11, f * 1.6, { still: name !== 'walk' }); else { g.fillStyle = '#6a6a62'; g.fillRect(x - 5, y - 5, 10, 10); } } }); spr.an[name] = { cv, n }; }
@@ -2493,8 +2506,7 @@ function renderWorld(dt) {
   if (S.cash && !inTown()) { const L0 = W.lead, C = S.cash;
     if (C.wagon) { const wg = W.wagon || (W.wagon = { x: L0.x - 60, y: L0.y, a: 0, ph: 0 }), tx = L0.x - Math.cos(L0.a || 0) * 58, ty = L0.y - Math.sin(L0.a || 0) * 58 + 6, dd = Math.hypot(tx - wg.x, ty - wg.y);
       if (dd > 400) { wg.x = tx; wg.y = ty; } const mv = dd > 10; if (mv) { const sp = Math.min(dd, (dd > 90 ? 150 : 70) * dt); wg.a = Math.atan2(ty - wg.y, tx - wg.x); wg.x += Math.cos(wg.a) * sp; wg.y += Math.sin(wg.a) * sp; }
-      const [an, fi] = animOf('dino', mv, 0.7, T), cx = wg.x - Math.cos(wg.a) * 30, cy = wg.y - Math.sin(wg.a) * 30;
-      ents.push({ x: wg.x, y: wg.y, a: wg.a, type: 'trike', len: 52, size: 52 / 2.4, tier: 1, anim: an, fi, ring: 'rgba(120,216,255,.8)' }); ents.push({ y: cy, p: { key: 'b_cart', x: cx, y: cy, r: 10 } }); }
+      const [an, fi] = animOf('dino', mv, 0.7, T); ents.push({ x: wg.x, y: wg.y, a: wg.a, type: 'wagon', len: 52, size: 52 / 2.4, tier: 0, anim: an, fi, ring: 'rgba(120,216,255,.8)' }); }
     for (let q = 0; q < (C.runner || 0); q++) { const tr = (C.trips || [])[q], rg = 'rgba(120,216,255,.8)';
       if (tr) { const el = tr.total - tr.t, out = el < 3.2, back = tr.t < 3.2; if (out || back) { const d0 = (out ? el : tr.t) * 150, [an, fi] = animOf('human', true, 2.1 + q, T); ents.push({ x: L0.x + Math.cos(tr.a) * (24 + d0), y: L0.y + Math.sin(tr.a) * (24 + d0) + q * 8, a: out ? tr.a : tr.a + Math.PI, type: 'scout', len: 0, size: 11, tier: 0, anim: an, fi, ring: rg }); } }
       else if (!C.runnerOff) { const [an, fi] = animOf('human', L0.moving, 2.1 + q, T); ents.push({ x: L0.x - Math.cos(L0.a || 0) * 30 - 14 - q * 13, y: L0.y - Math.sin(L0.a || 0) * 30 + 16 + q * 7, a: L0.a || 0, type: 'scout', len: 0, size: 11, tier: 0, anim: an, fi, ring: rg }); } } }
