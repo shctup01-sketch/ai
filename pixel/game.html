@@ -1130,7 +1130,6 @@ function attack(u, t) {
     burst(t.x, t.y, big ? 16 : 9, crit ? 9 : 4, D.acid ? '#c0e040' : gun ? '#ffd870' : '#e0452e', { spd: crit ? 70 : 45, life: 0.4, r: crit ? 2.8 : 2 });
     if (crit) { ringFx(t.x, t.y, '#ffd870', 20, 0.3); SHAKE = Math.max(SHAKE, u.side === 0 ? 0.35 : 0.5); sfx('crit', 90); }
     else if (u.side === 1 && u.boss) SHAKE = Math.max(SHAKE, 0.45); }
-  if (!t.boss && t.spd) { const kb = Math.min(5, 1.2 + dmg / t.max * 26) * (crit ? 1.5 : 1), ka = Math.atan2(t.y - u.y, t.x - u.x); t.x += Math.cos(ka) * kb; t.y += Math.sin(ka) * kb; }
   t.hp -= dmg; t.hitT = 0.15; num(t, Math.round(dmg) + (crit ? '!' : ''), crit ? '#e3a843' : t.side ? '#ece3d4' : '#d4573c');
   if (D.shred) { t.shred = Math.min(5, t.shred + 1); t.shredT = 5; }
   if (D.stun && t.max <= STUN_HP_LIMIT && !t.boss && !((t.stunCd || 0) > B.t)) { t.stun = D.stun; t.stunCd = B.t + D.stun + 4;   // no stun-locking: a breather after every stun
