@@ -507,7 +507,7 @@ const UNITS = {
   sniper:  { n: '저격수', cls: 'human', role: '원거리', hp: 70, atk: 34, def: 2, spd: 34, range: 210, as: 0.42, carry: 6, cost: 340, gun: true, ds: '아주 멀리서 강한 한 발을 쏴요.' },
   mechanic:{ n: '정비공', cls: 'human', role: '지원', hp: 100, atk: 8, def: 6, spd: 36, range: 100, as: 1, carry: 8, cost: 300, turret: true, ds: '전투가 시작되면 자동 포탑을 설치해요.' },
   medic:   { n: '의사', cls: 'human', role: '회복', hp: 90, atk: 4, def: 4, spd: 38, range: 110, as: 1, carry: 6, cost: 260, heal: 16, ds: '공격은 약하지만 다친 동료를 계속 치료하고, 스킬로 모두를 한꺼번에 회복시켜요. 전투 중 쓰러진 사람 대원을 다시 일으켜요.' },
-  porter:  { n: '짐꾼', cls: 'human', role: '짐꾼', hp: 120, atk: 4, def: 6, spd: 38, range: 20, as: 0.8, carry: 25, cost: 180, ds: '싸움은 못하지만 짐을 25칸 져요. 레벨이 오를 때마다 2칸씩 늘고, 전직하면 훨씬 많이 져요.' },
+  porter:  { n: '짐꾼', cls: 'human', role: '짐꾼', hp: 120, atk: 4, def: 6, spd: 38, range: 20, as: 0.8, carry: 50, cost: 180, ds: '싸움은 못하지만 짐을 50칸 져요. 레벨이 오를 때마다 4칸씩 늘고, 전직할 때마다 훨씬 많이 져요.' },
   venomer: { n: '독침술사', cls: 'human', role: '약화', hp: 85, atk: 7, def: 3, spd: 40, range: 115, as: 0.9, carry: 6, cost: 360, shred: 4, ds: '독침으로 적의 장갑을 녹여 모두의 피해를 늘려요.' },
   trike:   { n: '트리케라톱스', cls: 'dino', role: '탱커', hp: 440, atk: 22, def: 16, spd: 27, range: 24, as: 0.7, carry: 40, size: 30, taunt: true, ds: '짐을 40칸 지는 단단한 방패. 상단의 기둥이에요.' },
   para:    { n: '파라사우롤로푸스', cls: 'dino', role: '기절', hp: 230, atk: 16, def: 9, spd: 46, range: 20, as: 0.8, carry: 10, size: 22, stun: 1.2, ds: '볏을 울려 내는 굉음으로 적을 기절시켜요. 큰 적에게는 안 통해요.' },
@@ -695,7 +695,7 @@ function addUnit(type, lv, inParty) {
 const maxHp = u => Math.round(UNITS[u.type].hp * lvMul(u.lv) * gearMul(u).hp);
 const party = () => S.units.filter(u => u.inParty);
 // porters carry more with every level, and far more once promoted
-const carryOf = u => u.type === 'porter' ? Math.round((UNITS.porter.carry + 2 * (u.lv - 1)) * [1, 1.5, 2.2][Math.min(2, u.tier || 0)] * (u.elite ? 1.5 : 1)) : UNITS[u.type].carry + (u.type === 'leader' && S.cls === 'merchant' ? 30 : 0);
+const carryOf = u => u.type === 'porter' ? Math.round((UNITS.porter.carry + 4 * (u.lv - 1)) * [1, 1.6, 2.4, 3.4, 4.6][Math.min(4, u.tier || 0)] * (u.elite ? 1.5 : 1)) : UNITS[u.type].carry + (u.type === 'leader' && S.cls === 'merchant' ? 30 : 0);
 const capacity = () => party().reduce((s, u) => s + carryOf(u), 0);
 const cargoUsed = () => Object.values(S.cargo).reduce((a, b) => a + b, 0);
 function load() { try { const r = localStorage.getItem(SAVE); return r ? JSON.parse(r) : null; } catch (e) { return null; } }
