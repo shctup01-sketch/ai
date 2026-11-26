@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}
 #upd{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:999;padding:11px 18px;border-radius:14px;border:2px solid #f3c79a;background:#d4763c;color:#1c120a;font:700 14px system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.5)}</style>
-<script>window.__VER="20261126-015807"</script>
+<script>window.__VER="20261126-020028"</script>
 </head>
 <body>
 <title>공룡 상단 픽셀</title>
@@ -671,7 +671,71 @@ function skillFx(k, u, t, T) {
   else if (k === 'guard') for (const m of (T === 2 ? mates : [u])) { fxAdd('hex', 0.7, { x: m.x, y: m.y, r: m.size, col }); fxAdd('wave', 0.4, { x: m.x, y: m.y, r: m.size * 1.7, col }); }
   if (T === 2) flash(0.18, col);
 }
+// Every hero has a skill of their own, named for them, with a showpiece effect. `pat` picks how it plays out.
+const HERO_SK = {
+  '은빛 화살 세라': { n: '은빛 유성우', ds: '모든 적에게 은빛 화살 세 발씩', col: '200,225,255', pat: 'rain', m: 1.3, hits: 3, cd: 13 },
+  '폭풍 사수 유나': { n: '폭풍의 화살', ds: '적 사이를 튕겨 다니는 번개 화살 · 튕길수록 강해져요', col: '120,220,255', pat: 'chain', m: 2.2, hits: 7, cd: 12 },
+  '백발 창수 고르': { n: '백야의 창', ds: '일직선의 모든 적을 꿰뚫고 기절시켜요', col: '235,240,255', pat: 'lance', m: 3.2, stun: 2, cd: 12 },
+  '철의 여인 타샤': { n: '강철 요새', ds: '아군 전원에게 철벽과 체력 30% 회복', col: '150,190,255', pat: 'ward', heal: 0.3, guard: 9, cd: 16 },
+  '잿눈 카이': { n: '잿빛 처형', ds: '한 적에게 치명적인 한 발 · 체력이 낮을수록 더 아파요', col: '255,90,70', pat: 'exec', m: 7, cd: 13 },
+  '그림자 넬라': { n: '그림자 탄막', ds: '보이지 않는 곳에서 12발을 퍼부어요', col: '190,140,255', pat: 'barrage', m: 1.1, hits: 12, cd: 12 },
+  '고철의 손 벤': { n: '고철 폭풍', ds: '적 한가운데 고철 더미 세 번 낙하', col: '255,170,70', pat: 'meteor', m: 2.6, hits: 3, r: 80, cd: 14 },
+  '무쇠팔 도건': { n: '무쇠 포격', ds: '거대한 포탄 한 발 · 넓은 범위에 큰 피해와 기절', col: '255,120,50', pat: 'meteor', m: 5.5, hits: 1, r: 120, stun: 2, cd: 15 },
+  '늪의 의원 모아': { n: '늪의 숨결', ds: '아군 전원 체력 45% 회복 · 쓰러진 대원을 모두 일으켜요', col: '130,240,170', pat: 'heal', heal: 0.45, revive: 1, cd: 18 },
+  '약초꾼 이든': { n: '만병초 향', ds: '아군 전원 체력 35% 회복 · 12초간 공격이 올라요', col: '190,250,120', pat: 'heal', heal: 0.35, buff: 12, cd: 15 },
+  '붉은 망토 리브': { n: '핏빛 독화', ds: '모든 적의 장갑을 녹이고 독 피해', col: '255,80,120', pat: 'plague', m: 1.6, shred: 5, cd: 13 },
+  '독안개 실': { n: '죽음의 안개', ds: '모든 적을 독안개에 가둬 기절시켜요', col: '170,230,80', pat: 'plague', m: 1.1, shred: 4, stun: 2.2, cd: 14 },
+  '외다리 한': { n: '상단의 함성', ds: '15초간 아군 전원의 공격이 오르고 체력 20% 회복', col: '255,210,110', pat: 'heal', heal: 0.2, buff: 15, cd: 16 },
+  '천 리 길 보로': { n: '짐수레 돌진', ds: '짐수레를 밀고 일직선의 적을 들이받아요', col: '230,180,110', pat: 'lance', m: 2.6, stun: 1.5, cd: 12 },
+  '바람발 시아': { n: '바람 가르기', ds: '적 여덟을 번개처럼 베고 지나가요', col: '150,255,210', pat: 'chain', m: 1.9, hits: 8, cd: 10 },
+  '철문 바르가': { n: '철문 강타', ds: '주변을 방패로 내리쳐 기절 · 아군 전원 철벽', col: '170,200,255', pat: 'nova', m: 2.4, r: 110, stun: 2.5, guard: 7, cd: 14 },
+  '투기장의 왕 도란': { n: '왕의 선풍', ds: '칼날 회오리로 주변을 다섯 번 베어요', col: '255,200,90', pat: 'nova', m: 1.5, hits: 5, r: 100, cd: 12 },
+  '외눈 사수 켈': { n: '관통 볼트', ds: '일직선을 꿰뚫는 거대한 볼트', col: '255,235,170', pat: 'lance', m: 4.2, cd: 12 },
+  '쌍권총 레아': { n: '탄환의 춤', ds: '스무 발을 사방에 난사해요', col: '255,220,120', pat: 'barrage', m: 0.8, hits: 20, cd: 11 },
+  '불꽃 손 미로': { n: '불꽃 축제', ds: '폭탄 다섯 개가 연달아 터져요', col: '255,110,60', pat: 'meteor', m: 1.9, hits: 5, r: 70, cd: 13 },
+  '공룡의 벗 유카': { n: '태고의 부름', ds: '땅을 울려 모든 적을 기절시키고 아군 공격을 올려요', col: '255,170,90', pat: 'nova', m: 1.6, r: 400, stun: 2, buff: 10, cd: 16 },
+  '큰솥의 달인 마루': { n: '천하일미', ds: '아군 전원 체력 50% 회복 · 15초간 공격이 올라요', col: '255,225,150', pat: 'heal', heal: 0.5, buff: 15, cd: 18 },
+  '무쇠팔 고른': { n: '대지 가르기', ds: '망치로 땅을 갈라 넓은 범위에 큰 피해와 기절', col: '255,150,70', pat: 'nova', m: 3.6, r: 130, stun: 2.2, cd: 14 },
+  '안개 무녀 소하': { n: '혼령의 춤', ds: '쓰러진 대원을 일으키고 전원 회복 · 적의 장갑을 녹여요', col: '200,150,255', pat: 'heal', heal: 0.3, revive: 1, shred: 4, cd: 17 },
+};
+function castHero(u) {
+  const H = u.hsk, foes = alive(1), mates = alive(0); if (!foes.length || u.skCd > 0 || u.hp <= 0 || u.stun > 0 || B.over) return false;
+  const col = H.col, hex = '#' + col.split(',').map(v => (+v).toString(16).padStart(2, '0')).join(''), M = (H.m || 1) * (1 + 0.25 * (u.tier || 0));
+  const byDist = foes.slice().sort((a, b) => d2(a.x, a.y, u.x, u.y) - d2(b.x, b.y, u.x, u.y)), t = u.target && u.target.hp > 0 && u.target.side === 1 ? u.target : byDist[0];
+  const hit = (f, m, dl = 0) => { if (f.hp <= 0) return; skHit(u, f, m); if (H.stun && f.hp > 0 && !f.boss) f.stun = Math.max(f.stun, H.stun); if (H.shred) { f.shred = Math.min(6, f.shred + H.shred); f.shredT = 10; } fxAdd('spark', 0.45, { x: f.x, y: f.y, col, big: 1, delay: dl }); };
+  // the opener every hero shares: a gold flare, rings, a pillar of light and a tint over the screen
+  fxAdd('cast', 0.9, { x: u.x, y: u.y, r: u.size * 1.4, col, gold: true }); fxAdd('pillar', 1.1, { x: u.x, y: u.y, col }); fxAdd('rise', 1.1, { x: u.x, y: u.y, col });
+  for (let q = 0; q < 3; q++) fxAdd('wave', 0.6 + q * 0.15, { x: u.x, y: u.y, r: 70 + q * 30, col, delay: q * 0.08 }); fxAdd('speedlines', 0.5, { x: u.x, y: u.y, r: 90, col });
+  flash(0.28, col); SHAKE = Math.max(SHAKE, 0.55); sfx('capture');
+  if (H.pat === 'rain') { for (const f of foes) for (let q = 0; q < H.hits; q++) { fxAdd('rain', 0.55, { x: f.x + rand(-8, 8), y: f.y + rand(-6, 6), col, delay: q * 0.12 }); hit(f, M, q * 0.12); } fxAdd('wave', 0.9, { x: t.x, y: t.y, r: 220, col, delay: 0.1 }); sfx('bow'); }
+  else if (H.pat === 'chain') { let from = u, left = foes.slice(); for (let q = 0; q < H.hits && left.length; q++) { left.sort((a, b) => d2(a.x, a.y, from.x, from.y) - d2(b.x, b.y, from.x, from.y)); const f = left[0]; fxAdd('beam', 0.4, { x: from.x, y: from.y, x2: f.x, y2: f.y, delay: q * 0.07 }); fxAdd('xslash', 0.35, { x: f.x, y: f.y, r: f.size, col, delay: q * 0.07 }); hit(f, M * (1 + q * 0.18), q * 0.07); from = f; if (left.length > 1) left.shift(); } sfx('crit'); }
+  else if (H.pat === 'lance') { const a = Math.atan2(t.y - u.y, t.x - u.x), L = 360, ex = u.x + Math.cos(a) * L, ey = u.y + Math.sin(a) * L;
+    fxAdd('beam', 0.6, { x: u.x, y: u.y, x2: ex, y2: ey }); fxAdd('afterimg', 0.6, { x: u.x, y: u.y, x2: ex, y2: ey, r: u.size * 1.5, col }); fxAdd('dash', 0.5, { x: u.x, y: u.y, x2: ex, y2: ey });
+    for (let q = 1; q <= 4; q++) fxAdd('crack', 1.6, { x: u.x + Math.cos(a) * L * q / 4.5, y: u.y + Math.sin(a) * L * q / 4.5, r: 30, col: '50,36,24', delay: q * 0.05 });
+    for (const f of foes) { const px = f.x - u.x, py = f.y - u.y, along = px * Math.cos(a) + py * Math.sin(a), off = Math.abs(-px * Math.sin(a) + py * Math.cos(a)); if (along > -10 && along < L && off < 34 + f.size) hit(f, M, along / 900); } SHAKE = Math.max(SHAKE, 0.8); sfx('crunchBig'); }
+  else if (H.pat === 'exec') { fxAdd('reticle', 0.5, { x: t.x, y: t.y }); fxAdd('beam', 0.5, { x: u.x, y: u.y, x2: t.x, y2: t.y, delay: 0.2 }); fxAdd('fireball', 0.9, { x: t.x, y: t.y, r: t.size * 2.2, delay: 0.22 }); fxAdd('crack', 1.8, { x: t.x, y: t.y, r: 60, col: '60,20,16', delay: 0.24 }); for (let q = 0; q < 3; q++) fxAdd('wave', 0.6, { x: t.x, y: t.y, r: 50 + q * 26, col, delay: 0.22 + q * 0.07 });
+    hit(t, M * (1 + (1 - t.hp / t.max) * 1.2), 0.22); SHAKE = Math.max(SHAKE, 1); sfx('crit'); }
+  else if (H.pat === 'barrage') { for (let q = 0; q < H.hits; q++) { const f = pick(alive(1).length ? alive(1) : foes), dl = q * 0.045, ox = u.x + rand(-26, 26), oy = u.y + rand(-18, 18); fxAdd('bullet', 0.22, { x: ox, y: oy, x2: f.x, y2: f.y, delay: dl }); if (q % 3 === 0) fxAdd('afterimg', 0.3, { x: u.x, y: u.y, x2: ox, y2: oy, r: u.size, col, delay: dl }); hit(f, M, dl + 0.1); } sfx('shot'); }
+  else if (H.pat === 'meteor') { for (let q = 0; q < H.hits; q++) { const c0 = q === 0 ? t : pick(alive(1).length ? alive(1) : foes), cx = c0.x + (q ? rand(-20, 20) : 0), cy = c0.y + (q ? rand(-20, 20) : 0), dl = q * 0.22;
+      fxAdd('lob', 0.34, { x: cx + rand(-40, 40), y: cy - 220, x2: cx, y2: cy, delay: dl }); fxAdd('blast', 1, { x: cx, y: cy, r: H.r, delay: dl + 0.3 }); fxAdd('fireball', 0.9, { x: cx, y: cy, r: H.r * 0.9, delay: dl + 0.3 }); fxAdd('crack', 2, { x: cx, y: cy, r: H.r * 0.8, col: '40,26,18', delay: dl + 0.32 }); fxAdd('rocks', 0.8, { x: cx, y: cy, r: H.r * 0.7, delay: dl + 0.32 }); fxAdd('wave', 0.6, { x: cx, y: cy, r: H.r * 1.2, col, delay: dl + 0.3 });
+      for (const f of foes) if (d2(f.x, f.y, cx, cy) < (H.r + f.size) ** 2) hit(f, M, dl + 0.3); } SHAKE = Math.max(SHAKE, 1.1); sfx('crunchBig'); }
+  else if (H.pat === 'nova') { const n = H.hits || 1, R = H.r; for (let q = 0; q < n; q++) { fxAdd('crescent', 0.45, { x: u.x, y: u.y, r: Math.min(R, 130) * 0.9, a: q * 1.3, col, delay: q * 0.12 }); fxAdd('wave', 0.6, { x: u.x, y: u.y, r: Math.min(R, 240), col, delay: q * 0.12 }); }
+    fxAdd('crack', 2, { x: u.x, y: u.y, r: Math.min(R, 150), col: '50,36,24' }); fxAdd('rocks', 0.8, { x: u.x, y: u.y, r: Math.min(R, 130) * 0.8 }); fxAdd('dustring', 0.9, { x: u.x, y: u.y, r: Math.min(R, 200) });
+    for (const f of foes) if (d2(f.x, f.y, u.x, u.y) < (R + f.size) ** 2) { for (let q = 0; q < n; q++) hit(f, M, q * 0.12); if (H.stun) fxAdd('stun', 0.7, { x: f.x, y: f.y, delay: 0.2 }); } SHAKE = Math.max(SHAKE, 1); sfx('crunchBig'); }
+  else if (H.pat === 'plague') { fxAdd('wave', 1, { x: u.x, y: u.y, r: 260, col }); for (const f of foes) { fxAdd('cloud', 2.2, { x: f.x, y: f.y, r: 30, col }); fxAdd('bubbles', 1.8, { x: f.x, y: f.y, r: 22, col }); fxAdd('splash', 0.6, { x: f.x, y: f.y, r: 34, col, delay: 0.1 }); hit(f, M, 0.1); if (H.stun) fxAdd('stun', 0.7, { x: f.x, y: f.y, delay: 0.25 }); } sfx('spit'); }
+  if (H.pat === 'heal' || H.pat === 'ward' || H.guard || H.buff) {   // the parts that look after your own side
+    if (H.revive) for (const m of B.units) if (m.side === 0 && m.ref && m.hp <= 0 && !m.turret) { m.hp = m.max * 0.5; m.deadT = 0; m.stun = 0; m.ref.ko = false; m.ref.hp = Math.round(m.hp); num(m, '소생!', hex); fxAdd('pillar', 1.3, { x: m.x, y: m.y, col }); }
+    for (const m of alive(0)) { if (H.heal) { const h = Math.min(m.max - m.hp, m.max * H.heal); m.hp += h; if (h > 1) num(m, '+' + Math.round(h), '#8fbf6a'); fxAdd('cross', 1, { x: m.x, y: m.y, delay: 0.1 }); }
+      if (H.guard) { m.guardT = Math.max(m.guardT, H.guard); fxAdd('hex', 0.9, { x: m.x, y: m.y, r: m.size * 1.2, col }); }
+      if (H.buff) m.roarT = Math.max(m.roarT, H.buff);
+      fxAdd('pillar', 1, { x: m.x, y: m.y, col, delay: 0.05 }); fxAdd('rise', 1, { x: m.x, y: m.y, col, delay: 0.05 }); }
+    if (H.pat === 'heal' && H.shred) for (const f of foes) { f.shred = Math.min(6, f.shred + H.shred); f.shredT = 10; fxAdd('cloud', 1.8, { x: f.x, y: f.y, r: 24, col }); }
+    fxAdd('wave', 0.9, { x: u.x, y: u.y, r: 200, col, delay: 0.1 }); sfx('heal');
+  }
+  u.skCd = H.cd * (u.plv >= 5 ? 0.85 : 1); u.atkT = 0.5; num(u, H.n + '!', '#e3a843'); return true;
+}
 function castSkill(u) {
+  if (u.hsk) return castHero(u);
   const k = u.sk, K = SK[k]; if (!K || u.skCd > 0 || u.hp <= 0 || u.stun > 0 || B.over) return false;
   const T = Math.min(2, (u.tier || 0) + (u.famed ? 1 : 0)), P = [1, 1.4, 1.9][T] * (1 + 0.3 * Math.max(0, (u.tier || 0) - 2)) * (u.famed ? 1.5 : 1);   // promotion and evolution change the skill itself, not only its strength
   const foes = alive(1), mates = alive(0), near = r => foes.filter(f => d2(f.x, f.y, u.x, u.y) < r * r), byDist = () => foes.slice().sort((a, b) => d2(a.x, a.y, u.x, u.y) - d2(b.x, b.y, u.x, u.y)), t = u.target && u.target.hp > 0 && u.target.side === 1 ? u.target : byDist()[0];
@@ -812,7 +876,7 @@ function spawn(side, type, lv, x, y, ref, boss) {
   if (ref) { const fm = FORMS[S.form] || FORMS.bal; st.atk *= fm.atk * (S.cls === 'tamer' ? 1.08 : 1) * (hungry() ? 0.7 : 1) * (S.unpaid && UNITS[type].cls === 'human' ? 0.8 : 1); st.def *= fm.def; }
   if (ref) { const gm = gearMul(ref); st.hp *= gm.hp; st.atk *= gm.atk; st.def *= gm.def; st.size *= 1 + 0.07 * (ref.tier || 0); }
   const u = { id: B.idSeq++, side, type, lv, ref, boss, x, y, a: side ? Math.PI / 2 : -Math.PI / 2, hp: ref ? Math.min(ref.hp, st.hp) : st.hp, max: st.hp, atk: st.atk, def: st.def, size: st.size,
-              tier: ref ? ref.tier || 0 : 0, plv: ref ? ref.lv : 0, skLv: ref ? ref.skLv || 0 : 0, elite: !!(ref && ref.elite), famed: !!(ref && ref.famed), sk: side === 0 ? (ref ? unitSkill(ref) : skillOf(type)) : null, skCd: rand(2, 6), guardT: 0, roarT: 0,
+              tier: ref ? ref.tier || 0 : 0, plv: ref ? ref.lv : 0, skLv: ref ? ref.skLv || 0 : 0, elite: !!(ref && ref.elite), famed: !!(ref && ref.famed), hsk: ref && ref.famed && HERO_SK[ref.name] || null, sk: side === 0 ? (ref && ref.famed && HERO_SK[ref.name] ? 'hero' : ref ? unitSkill(ref) : skillOf(type)) : null, skCd: rand(2, 6), guardT: 0, roarT: 0,
               range: D.range, as: D.as, spd: D.spd, cd: rand(0, 0.6), stun: 0, shred: 0, shredT: 0, leg: rand(0, 6), moving: false, hitT: 0 };
   B.units.push(u); return u;
 }
@@ -2264,7 +2328,7 @@ let skT = 0;
 function updSkbar(dt) {   // manual skill buttons, shown only when auto skills are off
   const el = $('skbar'), on = !!B && !B.over && !S.auto.skill; if (el.hidden === on) el.hidden = !on; if (!on) return;
   skT -= dt; if (skT > 0) return; skT = 0.25;
-  el.innerHTML = B.units.filter(u => u.side === 0 && u.sk && u.hp > 0).map(u => `<button data-sk="${u.id}" ${u.skCd > 0 ? 'disabled' : ''}>${skName(u.sk, u.tier)}${u.skCd > 0 ? ' ' + Math.ceil(u.skCd) : ''}</button>`).join('');
+  el.innerHTML = B.units.filter(u => u.side === 0 && u.sk && u.hp > 0).map(u => `<button data-sk="${u.id}" ${u.skCd > 0 ? 'disabled' : ''}>${u.hsk ? u.hsk.n : skName(u.sk, u.tier)}${u.skCd > 0 ? ' ' + Math.ceil(u.skCd) : ''}</button>`).join('');
 }
 $('skbar').addEventListener('pointerdown', e => { const b = e.target.closest('button'); if (!b || !B) return; const u = B.units.find(x => x.id === +b.dataset.sk); if (u && !castSkill(u)) toast('지금은 쓸 수 없어요 · 적이 사거리 밖이에요'); skT = 0; });
 const potPrice = () => 40 + 12 * Math.max(...S.units.map(u => u.lv));
@@ -2783,8 +2847,8 @@ function renderTown() {
     <div class="card">${quests}</div>` : ''}
     ${townSec === 'shop' ? `<h2>공방<small>재료를 맡기면 시간이 지나 가공품이 돼요 · 장비와 비싼 교역품을 만들어요</small></h2>
     <div class="card">${jobRow}${outRow}${shop}</div>` : ''}
-    ${townSec === 'hire' ? `<h2>희귀 영웅<small>어느 정착지에서나 만날 수 있어요 · 한 명씩만 있어요 · 레벨 1로 합류하지만 체력·공격이 2배, 방어가 1.5배이고 1차 전직을 마친 상태예요 · 스킬도 한 단계 위를 쓰고 더 세고 더 자주 써요</small></h2>
-    <div class="card">${HEROES.map((h, i) => { const got = S.heroes[h.name], c = heroCost(h); return `<div class="row"><canvas data-u="${h.type}" data-t="1" width="104" height="80"></canvas><div class="info"><b style="color:var(--amber)">${h.name}</b><small>${JOBS[h.type][1]} · Lv${1}로 합류 · 체력·공격 2배, 방어 1.5배${SK[skillOf(h.type)] ? ` · 스킬 ${skName(skillOf(h.type), 2)} (위력 1.5배, 재사용 40% 단축)` : ' · 짐꾼'}</small></div><button class="btn small ${got ? '' : 'primary'}" data-act="famed" data-i="${i}" ${got || S.money < c ? 'disabled' : ''}>${got ? '고용함' : fmt(c)}</button></div>`; }).join('')}</div>
+    ${townSec === 'hire' ? `<h2>희귀 영웅<small>어느 정착지에서나 만날 수 있어요 · 한 명씩만 있어요 · 레벨 1로 합류하지만 체력·공격이 2배, 방어가 1.5배이고 1차 전직을 마친 상태예요 · 영웅마다 자기만의 전용 스킬을 써요</small></h2>
+    <div class="card">${HEROES.map((h, i) => { const got = S.heroes[h.name], c = heroCost(h); return `<div class="row"><canvas data-u="${h.type}" data-t="1" width="104" height="80"></canvas><div class="info"><b style="color:var(--amber)">${h.name}</b><small>${JOBS[h.type][1]} · Lv${1}로 합류 · 체력·공격 2배, 방어 1.5배</small><small style="color:var(--amber)">전용 스킬 ${HERO_SK[h.name].n}: ${HERO_SK[h.name].ds}</small></div><button class="btn small ${got ? '' : 'primary'}" data-act="famed" data-i="${i}" ${got || S.money < c ? 'disabled' : ''}>${got ? '고용함' : fmt(c)}</button></div>`; }).join('')}</div>
     <h2 class="nodino">부화장<small>사냥터에서 주운 알을 맡기면 시간이 지나 새끼가 태어나요 · 4번에 1번꼴로 희귀종</small></h2>
     <div class="card nodino">${S.eggs.map((e, i) => `<div class="row"><div class="info"><b>${ZONES[e.z].n}의 알</b><div class="bar"><i style="width:${(1 - Math.max(0, e.t) / 150) * 100}%;background:var(--amber)"></i></div><small>${e.t > 0 ? `부화까지 ${Math.ceil(e.t)}초 · 다른 곳에 다녀와도 계속 품어요` : '껍질에 금이 갔어요'}</small></div><button class="btn small primary" data-act="hatch" data-i="${i}" ${e.t > 0 ? 'disabled' : ''}>깨우기</button></div>`).join('')}
       ${Object.entries(S.eggBag).filter(([, k]) => k > 0).map(([ez, k]) => `<div class="row"><div class="info"><b>${ZONES[ez].n}의 알 ${k}개</b><small>가지고 있어요 · 한 번에 3개까지 품을 수 있어요</small></div><button class="btn small" data-act="incubate" data-z="${ez}" ${S.eggs.length >= 3 ? 'disabled' : ''}>맡기기</button></div>`).join('')}
@@ -2872,6 +2936,7 @@ function unitModal(id) {
     ${gearRow('gw', 'weapon', dino ? '발톱 덮개 단련' : '무기 단련', '공방 제작품으로 강화 · 단계마다 공격 +15%')}
     ${gearRow('ga', 'armor', dino ? '갑주 보강' : '방어구 보강', '공방 제작품으로 강화 · 단계마다 방어 +25%, 체력 +10%')}
     ${Object.entries(SLOTS).map(([sl, sn]) => { const it = (u.eq || {})[sl], n = S.items.filter(x => x.slot === sl).length; return `<div class="row">${it ? itemIc(it) : ''}<div class="info"><b>착용 ${sn}: ${it ? itemName(it) : '<span style="color:var(--muted)">비어 있음</span>'}</b><small>${it ? itemText(it) + ` · Lv${it.lv}${(it.en || 0) < ENH_MAX ? ` · 강화 성공률 ${Math.round(enhRate(it) * 100)}%` : ''}` : '사냥터에서 얻은 장비를 착용해요'} · 가방에 ${n}개</small></div>${it ? `<button class="btn small primary" data-act="enh" data-id="${u.id}" data-slot="${sl}" ${(it.en || 0) >= ENH_MAX || S.money < enhCost(it) ? 'disabled' : ''}>${(it.en || 0) >= ENH_MAX ? '최고' : `강화 ${fmt(enhCost(it))}`}</button>` : ''}<button class="btn small" data-act="pickItem" data-id="${u.id}" data-slot="${sl}" ${n || it ? '' : 'disabled'}>교체</button></div>`; }).join('')}
+    ${u.famed && HERO_SK[u.name] ? `<div class="row"><div class="info"><b style="color:var(--amber)">전용 스킬: ${HERO_SK[u.name].n}</b><small>${HERO_SK[u.name].ds} · 전직할 때마다 위력 +25%</small></div></div>` : ''}
     ${unitSkill(u) ? `<div class="row"><div class="info"><b>스킬 수련 ${u.skLv || 0}/10</b><small>${skName(unitSkill(u), tier)}의 위력이 단계마다 +8% · 지금 +${(u.skLv || 0) * 8}%</small></div><button class="btn small primary" data-act="train" data-id="${u.id}" ${(u.skLv || 0) >= 10 || S.money < trainCost(u) ? 'disabled' : ''}>${(u.skLv || 0) >= 10 ? '최고' : fmt(trainCost(u))}</button></div>` : ''}
     <div class="row"><div class="info"><b>${dino ? '진화' : '전직'} ${tier}/4단계: ${tier >= 4 ? '최고 단계' : tierNameOf(u.type, tier + 1)}</b><small>${tier >= 4 ? '더 오를 단계가 없어요' : `체력과 공격 +30% · 겉모습이 더 화려해져요${u.type === 'porter' ? ` · 짐칸 ${carryOf(u)} → ${carryOf({ ...u, tier: tier + 1 })}칸` : ''}${skillOf(u.type) && tier < 2 ? ` · 스킬이 ${skName(skillOf(u.type), tier + 1)}(으)로 바뀌어요: ${skDesc(skillOf(u.type), tier + 1)}` : skillOf(u.type) ? ' · 스킬 위력 +30%' : ''} · 조건: Lv${P.lv}, <b style="color:#9fd0ff">${promoName(promoKey(u, tier))}</b> ${S.promo[promoKey(u, tier)] || 0}/${PROMO_N}개 (Lv${PROMO_DROP[tier][0]} 이상 공룡이 ${['가끔', '드물게', '아주 드물게', '극히 드물게'][tier]} 떨어뜨려요)`}</small></div><button class="btn small primary" data-act="promote" data-id="${u.id}" ${tier >= 4 || u.lv < P.lv || (S.promo[promoKey(u, tier)] || 0) < PROMO_N ? 'disabled' : ''}>${dino ? '진화' : '전직'}</button></div>
     ${(u.asc || 0) < ASC.length ? `<div class="row"><div class="info"><b style="color:var(--amber)">초월 ${(u.asc || 0) + 1}단계</b><small>체력과 공격 +22% · 지금 ${u.asc || 0}/${ASC.length}단계 · 조건: Lv${ASC[u.asc || 0]}, ${fmt(ascCost(u))} 크레딧</small></div><button class="btn small primary" data-act="asc" data-id="${u.id}" ${u.lv < ASC[u.asc || 0] || S.money < ascCost(u) ? 'disabled' : ''}>초월</button></div>` : `<div class="row"><div class="info"><b style="color:var(--amber)">초월 완료 (${ASC.length}/${ASC.length})</b></div></div>`}
@@ -3146,7 +3211,7 @@ loadModels((n, t) => bootP(4 + n / t * 66, `공룡 모델 불러오는 중 ${n}/
   bootP(82, '픽셀 월드 그리는 중…');
   setTimeout(() => { setView('party'); showWorld(); bootP(100, '준비 완료'); setTimeout(titleScreen, 250); }, 60);
 });
-window.__dino = { openTown, maxHp, rollPromo, unitSprite, CUT, cutSprite, saveCode, readCode, get S() { return S; }, get B() { return B; }, get W() { return W; }, UNITS, ZONES, TD, unitArt, icon, ICONS, SND, SFX, set speed(v) { bSpeed = v; }, addUnit, xpNeed, partyPower, groundPower, VO: () => VO, walkTo, TOWNS, GROUNDS, SPR };
+window.__dino = { HERO_SK, castSkill, openTown, maxHp, rollPromo, unitSprite, CUT, cutSprite, saveCode, readCode, get S() { return S; }, get B() { return B; }, get W() { return W; }, UNITS, ZONES, TD, unitArt, icon, ICONS, SND, SFX, set speed(v) { bSpeed = v; }, addUnit, xpNeed, partyPower, groundPower, VO: () => VO, walkTo, TOWNS, GROUNDS, SPR };
 requestAnimationFrame(frame);
 })();
 </script>
@@ -3154,7 +3219,7 @@ requestAnimationFrame(frame);
 <button id="upd" hidden>새 패치가 있어요 · 눌러서 적용</button>
 <script>
 (function () {
-  var VER = "20261126-015807";
+  var VER = "20261126-020028";
   if (!/^https?:$/.test(location.protocol)) return;
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
   var btn = document.getElementById('upd');
