@@ -1039,7 +1039,7 @@ function bStep(dt) {
   B.t += dt;
   const us = B.units;
   for (const u of us) {
-    if (u.hp <= 0) continue;
+    if (u.hp <= 0) { u.hitT = 0; continue; }   // the fallen do not flinch
     u.hitT = Math.max(0, u.hitT - dt); u.atkT = Math.max(0, (u.atkT || 0) - dt); if (u.plv >= 25) u.hp = Math.min(u.max, u.hp + u.max * 0.004 * dt); if (u.skCd > 0) u.skCd -= dt; if (u.guardT > 0) u.guardT -= dt; if (u.roarT > 0) u.roarT -= dt;
     if (u.shredT > 0) { u.shredT -= dt; if (u.shredT <= 0) u.shred = 0; }
     if (UNITS[u.type] && UNITS[u.type].regen) u.hp = Math.min(u.max, u.hp + UNITS[u.type].regen * lvMul(u.lv) * dt);
@@ -2718,7 +2718,7 @@ function renderWorld(dt) {
     else if (u.atkT > 0) { anim = 'attack'; fi = (1 - u.atkT / 0.5) * n[0]; }
     else [anim, fi] = animOf(kind, u.moving, u.id * 1.7, T, u.spd > 50);
     const sel = u === B.sel || u === B.focus;
-    ents.push({ flash: u.hp > 0 && u.hitT > 0.05, tier: u.tier || 0, x: u.x, y: u.y, a: u.turret ? (u.target ? Math.atan2(u.target.y - u.y, u.target.x - u.x) : u.a) : u.a, boss: u.boss, ph: u.id * 1.7, type: u.turret ? 'turret' : u.type, len: Math.round(u.size * 2.4), size: u.size, anim, fi, jit: u.hitT > 0 ? Math.round(Math.sin(B.t * 90) * 1.5) : 0, ring: u.hp <= 0 ? null : sel ? '#ffe070' : u.boss ? '#a02018' : u.side ? 'rgba(212,87,60,.75)' : 'rgba(227,168,67,.7)' });
+    ents.push({ flash: u.hp > 0 && u.hitT > 0.05, tier: u.tier || 0, x: u.x, y: u.y, a: u.turret ? (u.target ? Math.atan2(u.target.y - u.y, u.target.x - u.x) : u.a) : u.a, boss: u.boss, ph: u.id * 1.7, type: u.turret ? 'turret' : u.type, len: Math.round(u.size * 2.4), size: u.size, anim, fi, jit: u.hp > 0 && u.hitT > 0 ? Math.round(Math.sin(B.t * 90) * 1.5) : 0, ring: u.hp <= 0 ? null : sel ? '#ffe070' : u.boss ? '#a02018' : u.side ? 'rgba(212,87,60,.75)' : 'rgba(227,168,67,.7)' });
   } else for (const c of W.crew) { if (inTown() && c.u.type !== 'leader') continue; const dn = UNITS[c.u.type].cls === 'dino', [anim, fi] = animOf(dn ? 'dino' : 'human', c.moving, c.ph, T); ents.push({ ring: c.u.elite || c.u.famed ? 'rgba(255,216,112,.9)' : null, tier: c.u.tier || 0, x: c.x, y: c.y, a: c.a, type: c.u.type, len: c.len, size: (UNITS[c.u.type].size || 11) * (1 + 0.07 * (c.u.tier || 0)), anim, fi }); }
   if (S.cash && !inTown()) { const L0 = W.lead, C = S.cash;
     if (C.wagon) { const wg = W.wagon || (W.wagon = { x: L0.x - 60, y: L0.y, a: 0, ph: 0 }), tx = L0.x - Math.cos(L0.a || 0) * 58, ty = L0.y - Math.sin(L0.a || 0) * 58 + 6, dd = Math.hypot(tx - wg.x, ty - wg.y);
