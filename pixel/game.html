@@ -228,7 +228,7 @@ h2 { margin-top: 2px; } h2 small { display: block; margin: 3px 0 0; line-height:
 .lfb .hp em { position: absolute; inset: 0; font-style: normal; font-size: 9px; line-height: 11px; text-align: center; color: #fff; text-shadow: 0 0 2px #000; font-weight: 700; }
 .lfb .xp { height: 4px; background: #2e2618; } .lfb .xp u { background: #e3a843; }
 #pstrip { max-width: 204px; } .pc { width: 31px; } .pc canvas { width: 29px; height: 25px; }
-#tmenu { position: absolute; z-index: 2; right: 8px; top: 128px; display: flex; flex-direction: column; gap: 6px; }
+#tmenu { position: absolute; z-index: 2; right: 8px; top: 168px; display: flex; flex-direction: column; gap: 6px; }
 #tmenu button { position: relative; width: 40px; height: 40px; border-radius: 50%; background: rgba(18,14,10,.84); border: 1px solid #6a5844; color: #ece3d4; font-size: 9px; font-weight: 700; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1; padding: 0; }
 #tmenu button::before { content: ''; width: 17px; height: 17px; background: center / contain no-repeat; }
 #tmenu button.dot::after { content: ''; position: absolute; right: 1px; top: 1px; width: 9px; height: 9px; border-radius: 50%; background: #e2573f; border: 1px solid #1c120a; }
@@ -260,7 +260,7 @@ h2 { margin-top: 2px; } h2 small { display: block; margin: 3px 0 0; line-height:
 #battle #fLeave, #battle #fZoom, #battle #bZoom { display: none; }
 #battle #skbar { left: 8px; right: 184px; bottom: 12px; } #battle #bSel { left: 206px; right: 8px; top: 8px; bottom: auto; width: auto; border-color: #b0452e; flex-direction: column; align-items: stretch; gap: 4px; } #battle #bSel .bar { flex: none; } #bSelName { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #joy { bottom: 18px; }
-@media (orientation: landscape) { #tmenu { flex-direction: row; top: 46px; right: 104px; } #app.wo #toast { top: 98px; } #battle #bSel { left: 50%; right: auto; top: 62px; width: 270px; transform: translateX(-50%); flex-direction: row; align-items: center; } #battle #bSel .bar { flex: 1; } #hudL { max-width: 216px; } }
+@media (orientation: landscape) { #tmenu { flex-direction: row; top: 50px; right: 122px; } #app.wo #toast { top: 98px; } #battle #bSel { left: 50%; right: auto; top: 62px; width: 270px; transform: translateX(-50%); flex-direction: row; align-items: center; } #battle #bSel .bar { flex: 1; } #hudL { max-width: 216px; } }
 .ic { flex: none; width: 42px; height: 42px; image-rendering: auto; border-radius: 8px; border: 1px solid var(--line); }
 .artg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .artc { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 6px 6px 8px; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
@@ -489,7 +489,7 @@ const RECIPES = {
   medicine: { zone: 'swamp', n: '치료약 달이기', in: { herb: 2, water: 1 }, out: 'medicine', qty: 1, t: 28, fee: 8 },
 };
 const SKILLS = {
-  trade: { n: '거래달인', ds: lv => `살 때 -${lv * 3}%, 팔 때 +${lv * 3}%` },
+  trade: { n: '거래달인', ds: lv => `살 때 -${lv * 3}%, 팔 때 +${lv * 3}% (파는 값은 그 시장 사는 값의 92%를 넘지 않아요)` },
   speed: { n: '질주', ds: lv => `이동 시간 -${lv * 8}%` },
   loot:  { n: '수집숙련', ds: lv => `사냥 전리품 +${lv * 15}%` },
   craft: { n: '생산숙련', ds: lv => `공방 작업 시간 -${lv * 12}%` },
@@ -891,7 +891,8 @@ function save() { if (!S || !SESSION) return;   // nothing is kept until someone
 const zp = (z, g) => ZONES[z].price[g] ?? (GOODS[g].zp ? GOODS[g].zp[z] ?? 1.3 : 1);
 const rawPrice = (z, g) => GOODS[g].base * zp(z, g) * S.drift[z][g] * S.press[z][g];
 const price = (z, g) => Math.max(1, Math.round(rawPrice(z, g) * (1 - 0.03 * sk('trade')) * (isHead(z) ? 0.95 : 1) * (S.cls === 'merchant' ? 0.95 : 1)));
-const sellPrice = (z, g) => Math.max(1, Math.round(rawPrice(z, g) * 0.9 * (1 + 0.03 * sk('trade')) * (isHead(z) ? 1.05 : 1) * (S.cls === 'merchant' ? 1.05 : 1)));
+// selling never pays more than 92% of what the same market charges right now, however many bonuses stack: otherwise buying and selling on the spot prints money
+const sellPrice = (z, g) => Math.max(1, Math.min(Math.round(rawPrice(z, g) * 0.9 * (1 + 0.03 * sk('trade')) * (isHead(z) ? 1.05 : 1) * (S.cls === 'merchant' ? 1.05 : 1)), Math.floor(price(z, g) * 0.92)));
 function ensureQuests() {
   if (S.qday === S.day && Object.keys(S.quests).length) return;
   S.qday = S.day;
@@ -2335,7 +2336,7 @@ function updField() {
   const lv = party().filter(u => !u.ko).length; { const cu = cargoUsed(), cp = capacity(); $('bInfo').innerHTML = `<span class="hud m"><i>크레딧</i>${fmt(S.money)}</span><span class="hud${S.food <= 20 ? ' warn' : ''}"><i>포만감</i>${Math.ceil(S.food)}</span><span class="hud${cu >= cp ? ' warn' : ''}"><i>짐</i>${cu}/${cp}</span>`; }
 }
 function worldTap(px, py) {
-  { const cw0 = bcv.clientWidth, my0 = isLand() ? 50 : 34; if (px > cw0 - 94 && px < cw0 - 6 && py > my0 - 2 && py < my0 + 86) { sfx('open'); hideWorld('map'); return; } }
+  { const cw0 = bcv.clientWidth, my0 = (isLand() ? 50 : 34) + 50; if (Math.hypot(px - (cw0 - 60), py - my0) < 54) { sfx('open'); hideWorld('map'); return; } }
   const x = VO.x + px / PSZ, y = VO.y + py / PSZ, L = W.lead;
   let best = null, bd = 34 * 34;
   for (const p of W.packs) { if (p.dead > 0 || d2(p.cx, p.cy, x, y) > 260 * 260) continue; for (const m of p.mons) { const d = d2(x, y, m.x, m.y - m.len * 0.2); if (d < Math.max(bd, (m.len * 0.5) ** 2) && (!best || d < bd)) { bd = d; best = p; } } }
@@ -2652,13 +2653,31 @@ function drawWeather(c, cw, ch) {   // each land has its own air: ash, rain, san
     else { const al = Math.max(0, Math.sin(T * 2 * sp + i * 1.7)); if (al > 0.05) { c.fillStyle = `rgba(200,255,120,${al * 0.85})`; c.beginPath(); c.arc(md(a * cw + Math.sin(T * 0.5 * sp + i) * 30, cw), md(b * ch + Math.cos(T * 0.4 * sp + i * 2) * 24, ch), 1.8, 0, 7); c.fill(); } }
   }
 }
-function drawMini(c, cw) {   // corner minimap: the stretch of world around you
-  const mw = 84, mh = 84, x0 = cw - mw - 8, y0 = isLand() ? 50 : 34, span = WH, wx0 = clamp(W.lead.x - span / 2, 0, WW - span), k = mw / span, X = x => x0 + (x - wx0) * k, Y = y => y0 + y * k, inX = x => x >= wx0 && x <= wx0 + span;
-  c.fillStyle = 'rgba(18,14,10,.7)'; c.fillRect(x0 - 2, y0 - 2, mw + 4, mh + 4); c.save(); c.beginPath(); c.rect(x0, y0, mw, mh); c.clip();
-  c.lineWidth = 1; c.strokeStyle = 'rgba(184,164,88,.6)'; for (const [a, b] of ROADS) { c.beginPath(); c.moveTo(X(TOWNS[a].x), Y(TOWNS[a].y)); c.lineTo(X(TOWNS[b].x), Y(TOWNS[b].y)); c.stroke(); }
-  for (const z of ZKEYS) { if (!inX(TOWNS[z].x) && !GROUNDS[z].some(g => inX(g[0]))) continue; GROUNDS[z].forEach(([gx, gy], i) => { c.fillStyle = i === 4 ? '#d4573c' : 'rgba(236,227,212,.45)'; c.fillRect(X(gx) - 1, Y(gy) - 1, 3, 3); }); c.fillStyle = '#e3a843'; c.fillRect(X(TOWNS[z].x) - 2.5, Y(TOWNS[z].y) - 2.5, 5, 5); }
-  if (W.dest) { c.fillStyle = '#8fcf6a'; c.fillRect(X(W.dest.x) - 1.5, Y(W.dest.y) - 1.5, 3, 3); }
-  c.fillStyle = '#fff'; c.beginPath(); c.arc(X(W.lead.x), Y(W.lead.y), 2.6, 0, 7); c.fill(); c.strokeStyle = '#1c120a'; c.stroke(); c.restore();
+const MINI_COL = { plain: '#8f8250', city: '#6c6f72', swamp: '#4f6f4a', waste: '#a06f42', snow: '#b9c6d2', volcano: '#73402f', abyss: '#40365c' }, MINI = { key: '', cv: null };
+function drawMini(c, cw) {   // round minimap: the land by colour, roads, towns, hunting grounds, nearby herds and which way you face
+  const R = 50, mx = cw - R - 10, my = (isLand() ? 50 : 34) + R, span = WH, wx0 = clamp(W.lead.x - span / 2, 0, WW - span), k = R * 2 / span, X = x => mx - R + (x - wx0) * k, Y = y => my - R + y * k, T = performance.now() / 1000;
+  const key = Math.round(wx0 / 240) + ''; if (MINI.key !== key) { MINI.key = key; const cv = MINI.cv || (MINI.cv = document.createElement('canvas')), n = 25; cv.width = cv.height = n; const g = cv.getContext('2d');
+    for (let gy = 0; gy < n; gy++) for (let gx = 0; gx < n; gx++) { const wx = wx0 + (gx + 0.5) / n * span, wy = (gy + 0.5) / n * span; g.fillStyle = MINI_COL[bioOf(zoneAt(wx, wy))] || '#8f8250'; g.fillRect(gx, gy, 1, 1); const h = Math.sin(gx * 12.9898 + gy * 78.233 + wx0) * 43758.5453; g.fillStyle = `rgba(0,0,0,${(h - Math.floor(h)) * 0.16})`; g.fillRect(gx, gy, 1, 1); } }
+  c.save(); c.beginPath(); c.arc(mx, my, R, 0, 7); c.clip();
+  c.imageSmoothingEnabled = true; c.drawImage(MINI.cv, mx - R, my - R, R * 2, R * 2);
+  c.lineCap = 'round'; for (const [col, lw] of [['rgba(40,28,16,.75)', 4], ['#e8d49a', 2]]) { c.strokeStyle = col; c.lineWidth = lw; for (const [a, b] of ROADS) { c.beginPath(); c.moveTo(X(TOWNS[a].x), Y(TOWNS[a].y)); c.lineTo(X(TOWNS[b].x), Y(TOWNS[b].y)); c.stroke(); } }
+  const near = x => x > wx0 - 200 && x < wx0 + span + 200;
+  for (const p of W.packs) { if (p.dead > 0 || !p.mons.length || (p !== W.target && d2(p.cx, p.cy, W.lead.x, W.lead.y) > 1300 * 1300)) continue; const px = X(p.cx), py = Y(p.cy); if (p === W.target) { c.fillStyle = '#ffe070'; c.fillRect(px - 2, py - 2, 4, 4); } else if (!p.boss) { c.fillStyle = 'rgba(214,70,50,.85)'; c.fillRect(px - 1, py - 1, 2, 2); } }
+  for (const z of ZKEYS) { if (!near(TOWNS[z].x) && !GROUNDS[z].some(g => near(g[0]))) continue;
+    GROUNDS[z].forEach(([gx, gy], i) => { const px = X(gx), py = Y(gy), boss = i === 4, r = boss ? 4.5 : 3; c.beginPath(); c.moveTo(px, py - r); c.lineTo(px + r, py); c.lineTo(px, py + r); c.lineTo(px - r, py); c.closePath(); c.fillStyle = boss ? '#e0432c' : '#f4ead2'; c.fill(); c.lineWidth = 1; c.strokeStyle = '#1c120a'; c.stroke(); if (boss) { c.fillStyle = '#fff'; c.fillRect(px - 1.5, py - 1.5, 1.2, 1.2); c.fillRect(px + 0.4, py - 1.5, 1.2, 1.2); } });
+    const tx = X(TOWNS[z].x), ty = Y(TOWNS[z].y); c.fillStyle = '#1c120a'; c.fillRect(tx - 5, ty - 2, 10, 7); c.beginPath(); c.moveTo(tx - 6.5, ty - 1.5); c.lineTo(tx, ty - 8); c.lineTo(tx + 6.5, ty - 1.5); c.closePath(); c.fill();
+    c.fillStyle = '#f0c060'; c.fillRect(tx - 4, ty - 1, 8, 5); c.fillStyle = '#c8402c'; c.beginPath(); c.moveTo(tx - 5, ty - 1.5); c.lineTo(tx, ty - 6.5); c.lineTo(tx + 5, ty - 1.5); c.closePath(); c.fill(); c.fillStyle = '#4a2e18'; c.fillRect(tx - 1, ty + 1, 2, 3); }
+  if (W.dest) { const dx = clamp(X(W.dest.x), mx - R + 6, mx + R - 6), dy = clamp(Y(W.dest.y), my - R + 6, my + R - 6); c.strokeStyle = '#1c120a'; c.lineWidth = 3; c.beginPath(); c.moveTo(dx, dy + 4); c.lineTo(dx, dy - 6); c.stroke(); c.fillStyle = '#7fe05a'; c.beginPath(); c.moveTo(dx, dy - 6); c.lineTo(dx + 7, dy - 3.5); c.lineTo(dx, dy - 1); c.closePath(); c.fill(); c.strokeStyle = '#1c120a'; c.lineWidth = 1; c.stroke(); }
+  { const px = X(W.lead.x), py = Y(W.lead.y), a = W.lead.a || 0, pu = (T * 1.2) % 1; c.strokeStyle = `rgba(255,255,255,${0.7 * (1 - pu)})`; c.lineWidth = 1.5; c.beginPath(); c.arc(px, py, 4 + pu * 9, 0, 7); c.stroke();
+    c.save(); c.translate(px, py); c.rotate(a); c.beginPath(); c.moveTo(7, 0); c.lineTo(-5, -5); c.lineTo(-2, 0); c.lineTo(-5, 5); c.closePath(); c.fillStyle = '#ffffff'; c.fill(); c.lineWidth = 1.5; c.strokeStyle = '#1c120a'; c.stroke(); c.restore(); }
+  { const g = c.createRadialGradient(mx, my, R * 0.62, mx, my, R); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(10,6,3,.55)'); c.fillStyle = g; c.fillRect(mx - R, my - R, R * 2, R * 2); }
+  c.restore();
+  c.lineWidth = 6; c.strokeStyle = '#150e08'; c.beginPath(); c.arc(mx, my, R + 1, 0, 7); c.stroke();
+  { const g = c.createLinearGradient(mx - R, my - R, mx + R, my + R); g.addColorStop(0, '#ffe7a8'); g.addColorStop(0.5, '#d9a94a'); g.addColorStop(1, '#7a5422'); c.lineWidth = 3.5; c.strokeStyle = g; c.beginPath(); c.arc(mx, my, R + 1, 0, 7); c.stroke(); }
+  for (let q = 0; q < 4; q++) { const a = q * Math.PI / 2 - Math.PI / 2, ox = mx + Math.cos(a) * (R + 1), oy = my + Math.sin(a) * (R + 1); c.fillStyle = '#150e08'; c.beginPath(); c.arc(ox, oy, 5, 0, 7); c.fill(); c.fillStyle = q ? '#d9a94a' : '#e0432c'; c.beginPath(); c.arc(ox, oy, 3.4, 0, 7); c.fill(); }
+  c.font = '700 8px "IBM Plex Sans KR", sans-serif'; c.textAlign = 'center'; c.fillStyle = '#fff'; c.fillText('N', mx, my - R + 3.5);
+  { const zn = ZONES[zoneAt(W.lead.x, W.lead.y)].n; c.font = '700 10.5px "IBM Plex Sans KR", sans-serif'; const tw = Math.max(54, c.measureText(zn).width + 16), ly = my + R + 5; c.fillStyle = '#150e08'; c.beginPath(); c.roundRect ? c.roundRect(mx - tw / 2 - 1, ly - 1, tw + 2, 18, 5) : c.rect(mx - tw / 2 - 1, ly - 1, tw + 2, 18); c.fill();
+    const g = c.createLinearGradient(0, ly, 0, ly + 16); g.addColorStop(0, '#4a3826'); g.addColorStop(1, '#241a10'); c.fillStyle = g; c.beginPath(); c.roundRect ? c.roundRect(mx - tw / 2, ly, tw, 16, 4) : c.rect(mx - tw / 2, ly, tw, 16); c.fill(); c.strokeStyle = '#d9a94a'; c.lineWidth = 1; c.stroke(); c.fillStyle = '#ffe7a8'; c.fillText(zn, mx, ly + 11.5); }
 }
 // virtual stick: drag to walk, let go to stop
 const JOY = { on: false, x: 0, y: 0, id: null };
