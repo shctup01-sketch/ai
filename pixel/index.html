@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}
 #upd{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:999;padding:11px 18px;border-radius:14px;border:2px solid #f3c79a;background:#d4763c;color:#1c120a;font:700 14px system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.5)}</style>
-<script>window.__VER="20261126-063546"</script>
+<script>window.__VER="20261126-064010"</script>
 </head>
 <body>
 <title>공룡 상단 픽셀</title>
@@ -2679,7 +2679,7 @@ function drawMini(c, cw) {   // round minimap: the land by colour, roads, towns,
     for (let gy = 0; gy < n; gy++) for (let gx = 0; gx < n; gx++) { const wx = wx0 + (gx + 0.5) / n * span, wy = (gy + 0.5) / n * span; g.fillStyle = MINI_COL[bioOf(zoneAt(wx, wy))] || '#8f8250'; g.fillRect(gx, gy, 1, 1); const h = Math.sin(gx * 12.9898 + gy * 78.233 + wx0) * 43758.5453; g.fillStyle = `rgba(0,0,0,${(h - Math.floor(h)) * 0.16})`; g.fillRect(gx, gy, 1, 1); } }
   c.save(); c.beginPath(); c.arc(mx, my, R, 0, 7); c.clip();
   c.imageSmoothingEnabled = true; c.drawImage(MINI.cv, mx - R, my - R, R * 2, R * 2);
-  c.lineCap = 'round'; for (const [col, lw] of [['rgba(40,28,16,.75)', 4], ['#e8d49a', 2]]) { c.strokeStyle = col; c.lineWidth = lw; for (const [a, b] of ROADS) { c.beginPath(); c.moveTo(X(TOWNS[a].x), Y(TOWNS[a].y)); c.lineTo(X(TOWNS[b].x), Y(TOWNS[b].y)); c.stroke(); } }
+  c.lineCap = 'round';
   const near = x => x > wx0 - 200 && x < wx0 + span + 200;
   for (const p of W.packs) { if (p.dead > 0 || !p.mons.length || (p !== W.target && d2(p.cx, p.cy, W.lead.x, W.lead.y) > 1300 * 1300)) continue; const px = X(p.cx), py = Y(p.cy); if (p === W.target) { c.fillStyle = '#ffe070'; c.fillRect(px - 2, py - 2, 4, 4); } else if (!p.boss) { c.fillStyle = 'rgba(214,70,50,.85)'; c.fillRect(px - 1, py - 1, 2, 2); } }
   for (const z of ZKEYS) { if (!near(TOWNS[z].x) && !GROUNDS[z].some(g => near(g[0]))) continue;
@@ -3396,7 +3396,7 @@ requestAnimationFrame(frame);
 <button id="upd" hidden>새 패치가 있어요 · 눌러서 적용</button>
 <script>
 (function () {
-  var VER = "20261126-063546";
+  var VER = "20261126-064010";
   if (!/^https?:$/.test(location.protocol)) return;
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
   var btn = document.getElementById('upd');
