@@ -870,6 +870,8 @@ function startBattle(opt) {
   // the fight starts right where everyone is standing: your caravan in its marching line, the herd where it was grazing
   if (!worldOn) showWorld(); syncCrew(); const ours = W.crew.map(c => c.u);
   for (const c of W.crew) { const u = spawn(0, c.u.type, c.u.lv, c.x, c.y, c.u); u.a = c.a; }
+  // members who fell in an earlier fight are carried along: they lie where the party stands, so a doctor can still bring them back
+  party().filter(m => m.ko).forEach((m, q) => { const u = spawn(0, m.type, m.lv, W.lead.x - 26 - (q % 3) * 16, W.lead.y + 22 + Math.floor(q / 3) * 14, m); u.hp = 0; u.deadT = 2; u.carried = true; });
   for (const u of B.units.filter(u => u.side === 0 && UNITS[u.type].turret)) spawnTurret(u);
   opt.mons.forEach(m => { const u = spawn(1, m.f.type, m.f.lv, m.x, m.y, null, m.f.boss); u.a = m.a; });
   { const ex = opt.mons.reduce((s, m) => s + m.x, 0) / opt.mons.length, ey = opt.mons.reduce((s, m) => s + m.y, 0) / opt.mons.length; B.org = { x: W.lead.x, y: W.lead.y }; B.dir = Math.atan2(ey - W.lead.y, ex - W.lead.x);
@@ -2232,7 +2234,7 @@ function hideWorld(v) { if (B) return; worldOn = false; $('app').classList.remov
 function walkTo(x, y, label) { if (!W) initWorld(); W.target = null; W.lead.tx = clamp(x, 10, WW - 10); W.lead.ty = clamp(y, 10, WH - 10); W.dest = label ? { x: W.lead.tx, y: W.lead.ty, label } : null; if (label) toast(`${label}(으)로 가는 중 · 땅을 누르면 멈춰요`); }
 function updField() {
   if (!W || B) return; const t = inTown(), L = W.lead, g = groundAt(L.x, L.y), z = zoneAt(L.x, L.y);
-  $('fNearest').textContent = t ? '사냥터' : '사냥'; W.badges = spotBadges(); updPots(); cookMeal(); autoEat(); updAuto(); updStrip(); updGoal();
+  $('fNearest').textContent = t ? '사냥터' : '사냥'; W.badges = spotBadges(); updPots(); cookMeal(); fieldRevive(); autoEat(); updAuto(); updStrip(); updGoal();
   const here = t ? `${ZONES[t].n} 정착지` : g ? `${ZONES[g.z].n} · ${HUNT_NAMES[g.z][g.i]}` : `${ZONES[z].n} · 황무지`;
   if (here !== W.here) {
     W.here = here; $('bTitle').textContent = here;
@@ -2412,6 +2414,11 @@ function cookMeal() {   // a cook in the party keeps everyone fed from the cargo
   const T = c.tier || 0; W.cookT = W.t + [25, 20, 15][T]; S.cargo[g]--; if (!S.cargo[g]) delete S.cargo[g];
   const gain = Math.round(FOODS[g] * [1.6, 2, 2.5][T]); S.food = Math.min(100, S.food + gain); sfx('heal');
   feed([`${unitName(c)}가 ${GOODS[g].n}(으)로 밥을 지었어요 · 포만감 +${gain}`]);
+}
+function fieldRevive() {   // between fights too: a doctor or shaman in the party gets a fallen member back on their feet when their revive is ready
+  if (!W || B) return; const doc = party().filter(u => !u.ko && UNITS[u.type].heal && UNITS[u.type].cls === 'human').sort((a, b) => (b.tier || 0) - (a.tier || 0))[0], down = party().find(u => u.ko);
+  if (!doc || !down || W.t < (W.rvT || 0)) return; const T = Math.min(2, doc.tier || 0);
+  W.rvT = W.t + [30, 24, 18][T]; down.ko = false; down.hp = Math.round(maxHp(down) * [0.3, 0.45, 0.6][T]); sfx('heal'); syncCrew(); toast(`${unitName(doc)}가 응급 처치로 ${unitName(down)}를 일으켜 세웠어요`, 'good');
 }
 function autoEat() { if (S.food > 20) return; const g = ['grain', 'meat', 'jerky'].find(g => S.cargo[g] > 0); if (!g) return; S.cargo[g]--; if (!S.cargo[g]) delete S.cargo[g]; S.food = Math.min(100, S.food + FOODS[g]); toast(`배가 고파 ${GOODS[g].n}을(를) 먹었어요 · 포만감 ${Math.ceil(S.food)}`); }
 $('fPot').onclick = usePotion; $('bPot').onclick = usePotion;
