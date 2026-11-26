@@ -1550,10 +1550,10 @@ function groundTex(kind) {
    3D — low-poly CC0 dinosaurs (Quaternius) rendered with three.js.
    The battle simulation stays 2D (x, y on the field); here x→X, y→Z.
    ================================================================ */
-const MODEL_FILES = { wagon: 'Triceratops', iguan: 'Parasaurolophus', pachyc: 'Parasaurolophus', ovi: 'Velociraptor', ptero: 'G_Pterodactylus', plesio: 'Apatosaurus', micro: 'Velociraptor', utah: 'Velociraptor', kentro: 'Stegosaurus', anky: 'Stegosaurus', styra: 'Triceratops', carno: 'Trex', allo: 'Trex', spino: 'Trex', diplo: 'Apatosaurus', brachio: 'Apatosaurus', trike: 'Triceratops', para: 'Parasaurolophus', raptor: 'Velociraptor', compy: 'Velociraptor', dilo: 'Trex', stego: 'Stegosaurus', apato: 'Apatosaurus', trex: 'Trex',
+const MODEL_FILES = { wagon: 'Triceratops', iguan: 'Parasaurolophus', pachyc: 'Parasaurolophus', ovi: 'Velociraptor', ptero: 'A_G_Pterodactylus', plesio: 'A_G_Plesiosaurus', micro: 'Velociraptor', utah: 'Velociraptor', kentro: 'Stegosaurus', anky: 'Stegosaurus', styra: 'Triceratops', carno: 'Trex', allo: 'Trex', spino: 'Trex', diplo: 'Apatosaurus', brachio: 'Apatosaurus', trike: 'Triceratops', para: 'Parasaurolophus', raptor: 'Velociraptor', compy: 'Velociraptor', dilo: 'Trex', stego: 'Stegosaurus', apato: 'Apatosaurus', trex: 'Trex',
   trikeIron: 'Triceratops', trikeRed: 'Triceratops', paraGold: 'Parasaurolophus', apatoMoss: 'Apatosaurus', raptorShadow: 'Velociraptor', raptorVenom: 'Velociraptor', stegoRust: 'Stegosaurus', trexYoung: 'Trex' };
-const BACK_H = { Trex: 0.5, Velociraptor: 0.5, Parasaurolophus: 0.52, Triceratops: 0.4, Stegosaurus: 0.5, Apatosaurus: 0.4, G_Ankylosaurus: 0.8, G_Spinosaurus: 0.62, G_Carnotaurus: 0.62, G_Pachycephalosaurus: 0.6, G_Oviraptor: 0.6, G_Pterodactylus: 0.55, G_Plesiosaurus: 0.5 };   // where the back is, as a share of full height
-const MODEL_SHAPE = { anky: [1.2, 0.72, 0.95], ovi: [0.95, 1.12, 0.9], plesio: [1.05, 0.7, 0.9], kentro: [0.85, 0.9, 0.92], brachio: [1, 1.38, 0.96], diplo: [0.8, 0.82, 1.22], spino: [0.95, 1, 1.18], carno: [0.9, 0.92, 1], pachyc: [1, 0.92, 0.86], iguan: [1.12, 1.08, 1], utah: [1.08, 1.05, 1], micro: [0.9, 0.9, 1] };   // width, height, length
+const BACK_H = { Trex: 0.5, Velociraptor: 0.5, Parasaurolophus: 0.52, Triceratops: 0.4, Stegosaurus: 0.5, Apatosaurus: 0.4, G_Ankylosaurus: 0.8, G_Spinosaurus: 0.62, G_Carnotaurus: 0.62, G_Pachycephalosaurus: 0.6, G_Oviraptor: 0.6, G_Pterodactylus: 0.55, G_Plesiosaurus: 0.5, A_G_Pterodactylus: 0.6, A_G_Plesiosaurus: 0.55 };   // where the back is, as a share of full height
+const MODEL_SHAPE = { anky: [1.2, 0.72, 0.95], ovi: [0.95, 1.12, 0.9], plesio: [1.05, 0.92, 1.12], ptero: [1.12, 0.95, 1.05], kentro: [0.85, 0.9, 0.92], brachio: [1, 1.38, 0.96], diplo: [0.8, 0.82, 1.22], spino: [0.95, 1, 1.18], carno: [0.9, 0.92, 1], pachyc: [1, 0.92, 0.86], iguan: [1.12, 1.08, 1], utah: [1.08, 1.05, 1], micro: [0.9, 0.9, 1] };   // width, height, length
 const HUMAN_PAL = { runnerC: [0x1f8f9c, 0x27323e], scribeC: [0x6a3fa0, 0x3a2a50], leader: [0x6e4a30, 0x3e2c20], hunter: [0x5c6a34, 0x4a3524], spear: [0x7a5a40, 0x3e2c20], sniper: [0x6a5a36, 0x3e3222], mechanic: [0xd0661e, 0xb4561a], medic: [0xe8e0cc, 0x6a4a34], porter: [0x8a5a34, 0x5a3e28],
   venomer: [0x4a4a34, 0x3a2e26], scout: [0x4e5c30, 0x5a3c26], shield: [0x6a5644, 0x3a2c22], gladiator: [0x7c3a28, 0x4a2c20], crossbow: [0x5c4c40, 0x3a2e26], gunner: [0x34425e, 0x3a2a22], bomber: [0x6a4a30, 0x4a3626],
   tamer: [0x9a5a34, 0x6a3a24], cook: [0xece6d8, 0x5a3e2a], smith: [0x7a4a2c, 0x3a2a20], shaman: [0x5a3a6a, 0x3a2630] };
@@ -1578,10 +1578,25 @@ function lambertize(o) {
     c.material = Array.isArray(c.material) ? c.material.map(conv) : conv(c.material);
   });
 }
+// Species that only exist as a round-headed baby model get a grown-up body made from it: the head and eyes are shrunk
+// in place and the tail drawn out, so the adult is not just the baby scaled up. [head, eyes, tail]
+const ADULT_FROM = { G_Pterodactylus: [0.66, 0.5, 1.3], G_Plesiosaurus: [0.6, 0.5, 1.4] };
+function growUp(src, [kh, ke, kt]) {
+  const o = THREE.SkeletonUtils.clone(src);
+  o.traverse(m => { if (!m.isSkinnedMesh) return; const g = m.geometry = m.geometry.clone(), P = g.attributes.position, SI = g.attributes.skinIndex, SW = g.attributes.skinWeight, names = m.skeleton.bones.map(b => b.name);
+    const wOf = (i, test) => { let w = 0; for (let c = 0; c < 4; c++) { const n = names[SI.array[i * 4 + c]] || ''; if (test(n)) w += SW.array[i * 4 + c]; } return w; };
+    const isHead = n => /Head|Mouth|Ear|Eye/.test(n), centre = test => { const c = new THREE.Vector3(); let k = 0; for (let i = 0; i < P.count; i++) { const w = wOf(i, test); if (w > 0.5) { c.x += P.getX(i); c.y += P.getY(i); c.z += P.getZ(i); k++; } } return k ? c.multiplyScalar(1 / k) : null; };
+    const pull = (test, c, k) => { if (!c) return; for (let i = 0; i < P.count; i++) { const w = wOf(i, test); if (w <= 0) continue; const f = 1 + (k - 1) * w; P.setXYZ(i, c.x + (P.getX(i) - c.x) * f, c.y + (P.getY(i) - c.y) * f, c.z + (P.getZ(i) - c.z) * f); } };
+    { const c = centre(isHead); if (c) { let lo = Infinity; for (let i = 0; i < P.count; i++) if (wOf(i, isHead) > 0.5) lo = Math.min(lo, P.getY(i)); c.y = lo + (c.y - lo) * 0.35; } pull(isHead, c, kh); }   // shrink toward the neck, not the middle of the skull
+    for (const e of ['LeftEye', 'RightEye']) pull(n => n === e, centre(n => n === e), ke);
+    { let root = -Infinity, ax = 'z'; for (let i = 0; i < P.count; i++) if (wOf(i, n => n === 'Tail') > 0.5) root = Math.max(root, P.getZ(i)); if (isFinite(root)) for (let i = 0; i < P.count; i++) { const w = wOf(i, n => n === 'Tail'); if (w > 0) P.setZ(i, root + (P.getZ(i) - root) * (1 + (kt - 1) * w)); } }
+    P.needsUpdate = true; g.computeVertexNormals(); g.computeBoundingBox(); g.computeBoundingSphere(); });
+  return o;
+}
 function loadModels(onProgress) {
   return new Promise(res => {
     if (!has3D) return res(false);
-    const files = [...new Set([...Object.values(MODEL_FILES), ...Object.values(BABY)])]; let n = 0, ok = true;
+    const files = [...new Set([...Object.values(MODEL_FILES), ...Object.values(BABY)].map(f => f.replace(/^A_/, '')))]; let n = 0, ok = true;
     const L = new THREE.FBXLoader();
     const total = files.length + 1;
     const fin = () => { onProgress(++n, total); if (n === total) res(ok); };
@@ -1615,9 +1630,10 @@ function loadModels(onProgress) {
       lambertize(o);
       const clips = {}; for (const a of o.animations) clips[a.name.split('_').pop().toLowerCase()] = a;
       const sz = new THREE.Box3().setFromObject(o).getSize(new THREE.Vector3());
+      if (ADULT_FROM[f]) { const o2 = growUp(o, ADULT_FROM[f]), s2 = new THREE.Box3().setFromObject(o2).getSize(new THREE.Vector3()); MODELS['A_' + f] = { obj: o2, clips, len: s2.z, h: s2.y, ax: 'z' }; }
       MODELS[f] = f.startsWith('G_') ? { obj: o, clips, len: sz.z, h: sz.y, ax: 'z' } : { obj: o, clips, len: Math.max(sz.x, sz.z), h: sz.y, ax: sz.x > sz.z ? 'x' : 'z' };
       fin();
-    }).catch(() => { ok = false; fin(); }));
+    }).catch(e => { window.__mErr = (window.__mErr || "") + f + ": " + (e && e.stack || e) + "\n"; ok = false; fin(); }));
   });
 }
 const srgb = c => new THREE.Color(c).convertSRGBToLinear();
@@ -2420,7 +2436,7 @@ function cellProps(cx, cy) {
 }
 
 /* ---------- the living world: herds, your caravan, townsfolk and other caravans on the roads ---------- */
-const TYPE_LOOT = { Triceratops: { hide: 2, bone: 1 }, Parasaurolophus: { meat: 2 }, Velociraptor: { bone: 1, hide: 1 }, Trex: { meat: 3, bone: 2 }, Stegosaurus: { bone: 2, hide: 1 }, Apatosaurus: { meat: 4 }, G_Ankylosaurus: { hide: 2, bone: 1 }, G_Spinosaurus: { meat: 3, bone: 2 }, G_Carnotaurus: { meat: 2, bone: 1 }, G_Pachycephalosaurus: { bone: 2 }, G_Oviraptor: { meat: 1, bone: 1 }, G_Pterodactylus: { hide: 1, bone: 1 }, G_Plesiosaurus: { meat: 3, hide: 1 } };
+const TYPE_LOOT = { Triceratops: { hide: 2, bone: 1 }, Parasaurolophus: { meat: 2 }, Velociraptor: { bone: 1, hide: 1 }, Trex: { meat: 3, bone: 2 }, Stegosaurus: { bone: 2, hide: 1 }, Apatosaurus: { meat: 4 }, G_Ankylosaurus: { hide: 2, bone: 1 }, G_Spinosaurus: { meat: 3, bone: 2 }, G_Carnotaurus: { meat: 2, bone: 1 }, G_Pachycephalosaurus: { bone: 2 }, G_Oviraptor: { meat: 1, bone: 1 }, G_Pterodactylus: { hide: 1, bone: 1 }, G_Plesiosaurus: { meat: 3, hide: 1 }, A_G_Pterodactylus: { hide: 1, bone: 1 }, A_G_Plesiosaurus: { meat: 3, hide: 1 } };
 const NPC_NAMES = ['붉은모래 상단', '강철뿔 상단', '떠돌이 넬', '늪지기 조합', '잿빛 발톱', '고철 형제', '새벽길 상단'];
 let W = null, worldOn = false, PSZ = 1.3, VO = { x: 0, y: 0, w: 300, h: 500 };
 function fillPack(p) {
