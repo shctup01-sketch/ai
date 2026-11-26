@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}
 #upd{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:999;padding:11px 18px;border-radius:14px;border:2px solid #f3c79a;background:#d4763c;color:#1c120a;font:700 14px system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.5)}</style>
-<script>window.__VER="20261126-023733"</script>
+<script>window.__VER="20261126-023957"</script>
 </head>
 <body>
 <title>공룡 상단 픽셀</title>
@@ -791,24 +791,25 @@ const carryOf = u => u.type === 'porter' ? Math.round((UNITS.porter.carry + 4 * 
 // Cash shop. Gems are the paid currency; real payment is wired in when the game goes on a store.
 const CASH = {
   wagon: { n: '뿔둥이 짐마차', cost: 300, ds: '트리케라톱스가 끄는 큰 짐마차가 상단을 따라다녀요 · 싸우지 않아요 · 짐칸 +1,000칸' },
-  runner: { n: '심부름꾼 달음이', cost: 500, ds: '사냥하는 동안 짐 한 품목을 통째로 들고 가장 비싸게 쳐주는 정착지에 팔고 돌아와요 · 싸우지 않아요' },
+  runner: { n: '심부름꾼 달음이', cost: 500, ds: '사냥하는 동안 가장 많이 쌓인 품목부터 통째로 들고 가장 비싸게 쳐주는 정착지에 팔고 돌아와요 · 싸우지 않아요 · 3명까지 둘 수 있어요' },
 };
 const GEM_PACKS = [[100, '1,200원'], [550, '5,900원'], [1200, '12,000원'], [6500, '59,000원']], WAGON_CARGO = 1000;
 const capacity = () => party().reduce((s, u) => s + carryOf(u), 0) + (S.cash && S.cash.wagon ? WAGON_CARGO : 0);
-function runnerTick(dt) {   // the errand runner: one whole stack at a time, to wherever it sells for most, there and back in real time
-  const C = S.cash; if (!C || !C.runner) return;
-  if (C.trip) { C.trip.t -= dt; if (C.trip.t <= 0) { const T = C.trip; C.trip = null; S.money += T.gain; S.stats.earned += T.gain; gainCxp(T.gain / 12); sfx('coin'); toast(`달음이가 돌아왔어요 · ${ZONES[T.z].n}에서 ${GOODS[T.g].n} ${T.n}개를 팔아 ${fmt(T.gain)} 크레딧`, 'good'); if (typeof renderHeader === 'function') renderHeader(); save(); } return; }
-  if (C.runnerOff || (C.wait = (C.wait || 0) - dt) > 0) return; C.wait = 3;
-  let best = null;
-  for (const [g, have] of Object.entries(S.cargo)) { const n = have - (FOODS[g] ? 6 : 0); if (n < 3) continue;   // keeps a few meals back
-    for (const z of Object.keys(TOWNS)) { const v = sellPrice(z, g) * n; if (!best || v > best.v) best = { g, n, z, v }; } }
-  if (!best) return;
-  const T = TOWNS[best.z], dist = Math.hypot(T.x - S.pos.x, T.y - S.pos.y), total = clamp(dist * 2 / 230, 20, 240); let gain = 0;
-  for (let q = 0; q < best.n; q++) { gain += sellPrice(best.z, best.g); S.press[best.z][best.g] = Math.max(0.4, S.press[best.z][best.g] - 0.012); }
-  S.cargo[best.g] -= best.n; if (S.cargo[best.g] <= 0) delete S.cargo[best.g];
-  C.trip = { g: best.g, n: best.n, z: best.z, t: total, total, gain, a: Math.atan2(T.y - S.pos.y, T.x - S.pos.x) };
-  toast(`달음이가 ${GOODS[best.g].n} ${best.n}개를 들고 ${ZONES[best.z].n}(으)로 떠났어요 · ${Math.round(total)}초 뒤 돌아와요`); sfx('tap');
+const RUNNER_MAX = 3;
+function runnerTick(dt) {   // errand runners: each takes one whole stack (the biggest pile first) to wherever it sells for most, there and back in real time
+  const C = S.cash; if (!C || !C.runner) return; C.trips = C.trips || [];
+  for (let i = 0; i < C.runner; i++) { const T = C.trips[i]; if (!T) continue; T.t -= dt; if (T.t > 0) continue;
+    C.trips[i] = null; S.money += T.gain; S.stats.earned += T.gain; gainCxp(T.gain / 12); sfx('coin'); toast(`달음이 ${i + 1}호가 돌아왔어요 · ${ZONES[T.z].n}에서 ${GOODS[T.g].n} ${T.n}개를 팔아 ${fmt(T.gain)} 크레딧`, 'good'); if (typeof renderHeader === 'function') renderHeader(); save(); }
+  if (C.runnerOff || (C.wait = (C.wait || 0) - dt) > 0) return;
+  const free = Array.from({ length: C.runner }, (_, i) => i).find(i => !C.trips[i]); if (free === undefined) return; C.wait = 1.5;
+  const pile = Object.entries(S.cargo).map(([g, have]) => [g, have - (FOODS[g] ? 6 : 0)]).filter(([, n]) => n >= 3).sort((a, b) => b[1] - a[1])[0]; if (!pile) return;   // keeps a few meals back
+  const [g, n] = pile, z = Object.keys(TOWNS).sort((a, b) => sellPrice(b, g) - sellPrice(a, g))[0], T = TOWNS[z], dist = Math.hypot(T.x - S.pos.x, T.y - S.pos.y), total = clamp(dist * 2 / 230, 20, 240); let gain = 0;
+  for (let q = 0; q < n; q++) { gain += sellPrice(z, g); S.press[z][g] = Math.max(0.4, S.press[z][g] - 0.012); }
+  S.cargo[g] -= n; if (S.cargo[g] <= 0) delete S.cargo[g];
+  C.trips[free] = { g, n, z, t: total, total, gain, a: Math.atan2(T.y - S.pos.y, T.x - S.pos.x) };
+  toast(`달음이 ${free + 1}호가 ${GOODS[g].n} ${n}개를 들고 ${ZONES[z].n}(으)로 떠났어요 · ${Math.round(total)}초 뒤 돌아와요`); sfx('tap');
 }
+
 const cargoUsed = () => Object.values(S.cargo).reduce((a, b) => a + b, 0);
 function load() { try { const r = localStorage.getItem(SAVE); return r ? JSON.parse(r) : null; } catch (e) { return null; } }
 function save() { if (!S || !SESSION) return;   // nothing is kept until someone has signed in or started as a guest
@@ -2374,7 +2375,7 @@ function updPots() { $('fPot').textContent = $('bPot').textContent = `물약 ${S
 let stripKey = '';
 function updStrip() {   // the party at a glance: a face, a level and a health bar for each member
   $('hudL').classList.toggle('inb', !!B); $('battle').classList.toggle('inb', !!B);
-  { const rn = $('runner'), tr = S.cash && S.cash.trip; rn.hidden = !tr; if (tr) rn.innerHTML = `<b>달음이</b> ${GOODS[tr.g].n} ${tr.n}개 → ${ZONES[tr.z].n} · ${Math.ceil(tr.t)}초 · +${fmt(tr.gain)}`; }
+  { const rn = $('runner'), ts = ((S.cash && S.cash.trips) || []).map((tr, q) => tr ? `<b>달음이 ${q + 1}호</b> ${GOODS[tr.g].n} ${tr.n}개 → ${ZONES[tr.z].n} · ${Math.ceil(tr.t)}초 · +${fmt(tr.gain)}` : '').filter(Boolean); rn.hidden = !ts.length; if (ts.length) rn.innerHTML = ts.join('<br>'); }
   const All = party(), Ld = All.find(u => u.type === 'leader'), lf = $('lf'); lf.hidden = !Ld;
   if (Ld) { const bu = B && B.units.find(x => x.ref === Ld), mx = bu ? bu.max : maxHp(Ld), hp = Math.max(0, Math.min(mx, bu ? bu.hp : Ld.ko ? 0 : Ld.hp)); lf.dataset.id = Ld.id;
     $('lfName').textContent = `Lv${Ld.lv} ${(CLASSES[S.cls] || CLASSES.gunner).n}`; $('lfHp').style.width = (hp / mx * 100) + '%'; $('lfHpT').textContent = `${fmt(Math.round(hp))} / ${fmt(Math.round(mx))}`; $('lfXp').style.width = Math.min(100, (Ld.xp || 0) / xpNeed(Ld.lv) * 100) + '%';
@@ -2513,8 +2514,9 @@ function renderWorld(dt) {
       if (dd > 400) { wg.x = tx; wg.y = ty; } const mv = dd > 10; if (mv) { const sp = Math.min(dd, (dd > 90 ? 150 : 70) * dt); wg.a = Math.atan2(ty - wg.y, tx - wg.x); wg.x += Math.cos(wg.a) * sp; wg.y += Math.sin(wg.a) * sp; }
       const [an, fi] = animOf('dino', mv, 0.7, T), cx = wg.x - Math.cos(wg.a) * 30, cy = wg.y - Math.sin(wg.a) * 30;
       ents.push({ x: wg.x, y: wg.y, a: wg.a, type: 'trike', len: 52, size: 52 / 2.4, tier: 1, anim: an, fi, ring: 'rgba(120,216,255,.8)' }); ents.push({ y: cy, p: { key: 'b_cart', x: cx, y: cy, r: 10 } }); }
-    if (C.runner && C.trip) { const tr = C.trip, el = tr.total - tr.t, out = el < 3.2, back = tr.t < 3.2; if (out || back) { const d0 = (out ? el : tr.t) * 150, [an, fi] = animOf('human', true, 2.1, T); ents.push({ x: L0.x + Math.cos(tr.a) * (24 + d0), y: L0.y + Math.sin(tr.a) * (24 + d0), a: out ? tr.a : tr.a + Math.PI, type: 'scout', len: 0, size: 11, tier: 0, anim: an, fi, ring: 'rgba(120,216,255,.8)' }); } }
-    else if (C.runner && !C.runnerOff) { const [an, fi] = animOf('human', L0.moving, 2.1, T); ents.push({ x: L0.x - Math.cos(L0.a || 0) * 30 - 14, y: L0.y - Math.sin(L0.a || 0) * 30 + 16, a: L0.a || 0, type: 'scout', len: 0, size: 11, tier: 0, anim: an, fi, ring: 'rgba(120,216,255,.8)' }); } }
+    for (let q = 0; q < (C.runner || 0); q++) { const tr = (C.trips || [])[q], rg = 'rgba(120,216,255,.8)';
+      if (tr) { const el = tr.total - tr.t, out = el < 3.2, back = tr.t < 3.2; if (out || back) { const d0 = (out ? el : tr.t) * 150, [an, fi] = animOf('human', true, 2.1 + q, T); ents.push({ x: L0.x + Math.cos(tr.a) * (24 + d0), y: L0.y + Math.sin(tr.a) * (24 + d0) + q * 8, a: out ? tr.a : tr.a + Math.PI, type: 'scout', len: 0, size: 11, tier: 0, anim: an, fi, ring: rg }); } }
+      else if (!C.runnerOff) { const [an, fi] = animOf('human', L0.moving, 2.1 + q, T); ents.push({ x: L0.x - Math.cos(L0.a || 0) * 30 - 14 - q * 13, y: L0.y - Math.sin(L0.a || 0) * 30 + 16 + q * 7, a: L0.a || 0, type: 'scout', len: 0, size: 11, tier: 0, anim: an, fi, ring: rg }); } } }
   drawScene(wc, ox, oy, w, h, ents);
   // dusk light, as in the illustrations: a warm cast over everything and darker corners
   if (FIELD_ART) { wc.setTransform(1, 0, 0, 1, 0, 0); wc.globalCompositeOperation = 'multiply'; wc.fillStyle = '#ffdcb8'; wc.globalAlpha = 0.3; wc.fillRect(0, 0, pw, phh);
@@ -2950,7 +2952,7 @@ function renderParty() {
       return `<h2>일러스트 도감<small>장비 15종 · 교역품 ${Object.keys(GOODS).length}종 · 소모품 5종</small></h2>${tabs}<h2>장비</h2><div class="itg">${eq}</div><h2>교역품</h2><div class="itg">${gd}</div><h2>소모품과 재료</h2><div class="itg">${misc}</div>`; })() : ''}
     ${partySec === 'skill' ? `<h2>상단 스킬<small>남은 포인트 ${S.sp}</small></h2><div class="card">${Object.entries(SKILLS).map(([k, K]) => { const lv = sk(k); return `<div class="row"><div class="info"><b>${K.n} Lv${lv}</b><small>${lv ? K.ds(lv) : '아직 배우지 않았어요'}${lv < SKILL_MAX ? ` → ${K.ds(lv + 1)}` : ''}</small></div><button class="btn small primary" data-act="skill" data-k="${k}" ${S.sp < 1 || lv >= SKILL_MAX ? 'disabled' : ''}>${lv >= SKILL_MAX ? '최고' : '배우기'}</button></div>`; }).join('')}</div>` : ''}
     ${partySec === 'cash' ? `<h2>캐시샵<small>보유 보석 <span class="gem">${fmt(S.gems)}</span>개 · 한 번 사면 계속 써요</small></h2>
-      <div class="card cashcard">${Object.entries(CASH).map(([k, C]) => `<div class="row"><canvas data-u="${k === 'wagon' ? 'trike' : 'scout'}" data-t="${k === 'wagon' ? 1 : 0}" width="104" height="80"></canvas><div class="info"><b style="color:#8fe4ff">${C.n}</b><small>${C.ds}</small>${k === 'runner' && S.cash.runner ? `<small>${S.cash.trip ? `지금: ${GOODS[S.cash.trip.g].n} ${S.cash.trip.n}개를 ${ZONES[S.cash.trip.z].n}에 팔러 갔어요 · ${Math.ceil(S.cash.trip.t)}초 남음` : S.cash.runnerOff ? '쉬는 중이에요' : '팔 물건이 3개 이상 모이면 떠나요 · 식량은 6개씩 남겨요'}</small>` : ''}</div>${S.cash[k] ? (k === 'runner' ? `<button class="btn small" data-act="runnerToggle">${S.cash.runnerOff ? '일 시키기' : '쉬게 하기'}</button>` : '<span class="tag" style="color:#8fe4ff">보유 중</span>') : `<button class="btn small primary" data-act="cashBuy" data-k="${k}" ${S.gems < C.cost ? 'disabled' : ''}>보석 ${C.cost}</button>`}</div>`).join('')}</div>
+      <div class="card cashcard">${Object.entries(CASH).map(([k, C]) => `<div class="row"><canvas data-u="${k === 'wagon' ? 'trike' : 'scout'}" data-t="${k === 'wagon' ? 1 : 0}" width="104" height="80"></canvas><div class="info"><b style="color:#8fe4ff">${C.n}</b><small>${C.ds}</small>${k === 'runner' && S.cash.runner ? `<small>보유 ${S.cash.runner}/${RUNNER_MAX}명 · ${S.cash.runnerOff ? '쉬는 중이에요' : (S.cash.trips || []).some(Boolean) ? S.cash.trips.map((tr, q) => tr ? `${q + 1}호: ${GOODS[tr.g].n} ${tr.n}개 → ${ZONES[tr.z].n} ${Math.ceil(tr.t)}초` : '').filter(Boolean).join(' · ') : '팔 물건이 3개 이상 모이면 떠나요 · 식량은 6개씩 남겨요'}</small>` : ''}<small style="color:#8fe4ff">대원 자리를 차지하지 않아요</small></div><div style="display:flex;flex-direction:column;gap:5px;flex:none">${k === 'runner' ? `${(S.cash.runner || 0) < RUNNER_MAX ? `<button class="btn small primary" data-act="cashBuy" data-k="runner" ${S.gems < C.cost ? 'disabled' : ''}>보석 ${C.cost}</button>` : '<span class="tag" style="color:#8fe4ff">3명 보유</span>'}${S.cash.runner ? `<button class="btn small" data-act="runnerToggle">${S.cash.runnerOff ? '일 시키기' : '쉬게 하기'}</button>` : ''}` : S.cash[k] ? '<span class="tag" style="color:#8fe4ff">보유 중</span>' : `<button class="btn small primary" data-act="cashBuy" data-k="${k}" ${S.gems < C.cost ? 'disabled' : ''}>보석 ${C.cost}</button>`}</div></div>`).join('')}</div>
       <h2>보석 충전<small>실제 결제는 스토어에 등록한 뒤에 열려요</small></h2>
       <div class="card">${GEM_PACKS.map(([n, won]) => `<div class="row"><div class="info"><b class="gem">보석 ${fmt(n)}개</b><small>${won}</small></div><button class="btn small" disabled>결제 준비 중</button></div>`).join('')}
         <div class="row"><div class="info"><b>시험용 보석</b><small>출시 전 시험용이에요 · 출시할 때 이 버튼은 없애야 해요</small></div><button class="btn small" data-act="gemTest">보석 1,000 받기</button></div></div>` : ''}
@@ -3084,7 +3086,7 @@ document.body.addEventListener('click', e => {
   else if (act === 'toggle') { const u = S.units.find(x => x.id === +b.dataset.id); if (!u) return; if (!u.inParty && party().length >= partyCap()) { toast(`지금은 대장 포함 ${partyCap()}명까지예요. 상단 레벨을 올리면 늘어나요 (최대 12명)`); return; } u.inParty = !u.inParty; if (cargoUsed() > capacity()) toast('짐칸이 모자라요. 출발 전에 짐을 줄이세요', 'warn'); }
   else if (act === 'tsec') { townSec = b.dataset.k; sfx('tap'); }
   else if (act === 'psec') { partySec = b.dataset.k; sfx('tap'); }
-  else if (act === 'cashBuy') { const k = b.dataset.k, C = CASH[k]; if (!C || S.cash[k] || S.gems < C.cost) return; S.gems -= C.cost; S.cash[k] = 1; sfx('win'); flash(0.5, '120,216,255'); toast(`${C.n}을(를) 들였어요`, 'good'); }
+  else if (act === 'cashBuy') { const k = b.dataset.k, C = CASH[k]; if (!C || S.gems < C.cost || (k === 'runner' ? (S.cash.runner || 0) >= RUNNER_MAX : S.cash[k])) return; S.gems -= C.cost; S.cash[k] = (S.cash[k] || 0) + 1; sfx('win'); flash(0.5, '120,216,255'); toast(`${C.n}을(를) 들였어요`, 'good'); }
   else if (act === 'runnerToggle') { S.cash.runnerOff = !S.cash.runnerOff; sfx('tap'); }
   else if (act === 'gemTest') { S.gems += 1000; sfx('coin'); toast('시험용 보석 1,000개를 받았어요', 'good'); }
   else if (act === 'dtab') { dexTab = b.dataset.k; sfx('tap'); }
@@ -3157,7 +3159,7 @@ if (!S.units || !S.units.length) freshState();
 for (const u of S.units) { if (u.type === 'pachy') u.type = 'para'; if (u.type === 'sarco') u.type = 'stego'; }
 { const gone = S.units.filter(u => UNITS[u.type] && UNITS[u.type].cls === 'dino'); if (gone.length) { const pay = gone.reduce((a, u) => a + 300 + u.lv * 150, 0); S.units = S.units.filter(u => !gone.includes(u)); S.money += pay; S.noDinoPay = [gone.length, pay]; } }
 if (S.skills && S.skills.tame) { S.sp = (S.sp || 0) + S.skills.tame; delete S.skills.tame; } S.eggs = []; S.eggBag = {};
-S.cash = S.cash || {}; S.gems = S.gems || 0; S.promo = S.promo || {}; for (const k of Object.keys(S.promo)) { const id = k.split(':')[0]; if (!id.startsWith('leader-') && !id.startsWith('hero-') && (!UNITS[id] || UNITS[id].cls !== 'human')) delete S.promo[k]; } S.items = S.items || []; S.cleared = S.cleared || {}; if (S.food === undefined) S.food = 100; if (S.pots === undefined) S.pots = 2; S.tokens = S.tokens || {}; S.eggBag = S.eggBag || {}; S.eggs = S.eggs || []; S.tower = S.tower || 0; S.ach = S.ach || {}; S.seen = S.seen || { [S.zone]: 1 }; S.bossKills = S.bossKills || {}; S.auto = Object.assign({ skill: true, pot: true, hunt: false }, S.auto || {}); for (const u of S.units) { u.st = u.st || { a: 0, h: 0, d: 0 }; if (u.pts === undefined) u.pts = 3 * (u.lv - 1); u.wins = u.wins || 0; } S.stones = S.stones || 0; S.bank = S.bank || 0; S.invest = S.invest || {}; S.store = S.store || {}; S.form = S.form || 'bal'; S.rival = S.rival || {}; for (const [z, r] of Object.entries(RIVALS)) { if (S.rival[z] === undefined) S.rival[z] = r[1]; S.drift[z] = S.drift[z] || {}; S.press[z] = S.press[z] || {}; } if (!S.pos) { const T0 = TOWNS[S.zone] || TOWNS.plain; S.pos = { x: T0.x, y: T0.y + 70 }; }
+S.cash = S.cash || {}; S.gems = S.gems || 0; S.cash.trips = S.cash.trips || []; if (S.cash.trip) { S.cash.trips[0] = S.cash.trip; delete S.cash.trip; } S.promo = S.promo || {}; for (const k of Object.keys(S.promo)) { const id = k.split(':')[0]; if (!id.startsWith('leader-') && !id.startsWith('hero-') && (!UNITS[id] || UNITS[id].cls !== 'human')) delete S.promo[k]; } S.items = S.items || []; S.cleared = S.cleared || {}; if (S.food === undefined) S.food = 100; if (S.pots === undefined) S.pots = 2; S.tokens = S.tokens || {}; S.eggBag = S.eggBag || {}; S.eggs = S.eggs || []; S.tower = S.tower || 0; S.ach = S.ach || {}; S.seen = S.seen || { [S.zone]: 1 }; S.bossKills = S.bossKills || {}; S.auto = Object.assign({ skill: true, pot: true, hunt: false }, S.auto || {}); for (const u of S.units) { u.st = u.st || { a: 0, h: 0, d: 0 }; if (u.pts === undefined) u.pts = 3 * (u.lv - 1); u.wins = u.wins || 0; } S.stones = S.stones || 0; S.bank = S.bank || 0; S.invest = S.invest || {}; S.store = S.store || {}; S.form = S.form || 'bal'; S.rival = S.rival || {}; for (const [z, r] of Object.entries(RIVALS)) { if (S.rival[z] === undefined) S.rival[z] = r[1]; S.drift[z] = S.drift[z] || {}; S.press[z] = S.press[z] || {}; } if (!S.pos) { const T0 = TOWNS[S.zone] || TOWNS.plain; S.pos = { x: T0.x, y: T0.y + 70 }; }
 S.clv = S.clv || 1; S.cxp = S.cxp || 0; S.sp = S.sp || 0; S.skills = S.skills || {}; S.jobs = S.jobs || {}; S.out = S.out || {}; S.quests = S.quests || {};
 for (const z of Object.keys(ZONES)) for (const g of Object.keys(GOODS)) { if (S.drift[z][g] === undefined) S.drift[z][g] = 1; if (S.press[z][g] === undefined) S.press[z][g] = 1; }
 ensureQuests(); S.wander = null; S.heroes = S.heroes || {}; const freshRun = !S.cls && S.stats.battles === 0 && S.units.length === 1; if (!S.cls && !freshRun) S.cls = 'gunner'; applyClass();
@@ -3265,7 +3267,7 @@ requestAnimationFrame(frame);
 <button id="upd" hidden>새 패치가 있어요 · 눌러서 적용</button>
 <script>
 (function () {
-  var VER = "20261126-023733";
+  var VER = "20261126-023957";
   if (!/^https?:$/.test(location.protocol)) return;
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
   var btn = document.getElementById('upd');
