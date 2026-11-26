@@ -588,7 +588,7 @@ const groundPower = (z, i) => { const Z = ZONES[z], H = HUNTS[Math.min(3, i)], N
 const RANKS = [['떠돌이 넬', 500], ['잿빛 발톱', 1100], ['고철 형제', 2000], ['늪지기 조합', 3400], ['새벽길 상단', 5200], ['강철뿔 상단', 8000], ['붉은모래 상단', 12000]];
 function checkRank() { const p = partyPower(), beat = RANKS.filter(r => p > r[1]).length; if (beat > (S.rankBest || 0)) { for (let i = S.rankBest || 0; i < beat; i++) { const prize = 200 * (i + 1); S.money += prize; toast(`상단 순위 상승! ${RANKS[i][0]}을(를) 제쳤어요 · 상금 ${prize} 크레딧`, 'good'); } S.rankBest = beat; sfx('win'); } }
 function gainCxp(n) {
-  S.cxp += Math.round(n);
+  S.cxp += Math.round(n * (S.cash && S.cash.scribe ? 1.5 : 1));
   while (S.cxp >= cxpNeed(S.clv)) { S.cxp -= cxpNeed(S.clv); S.clv++; S.sp++; toast(`상단 레벨 ${S.clv}! 스킬 포인트 +1${partyCap() > Math.min(12, 4 + S.clv) ? ` · 상단 인원 ${partyCap()}명` : ''}`, 'good'); sfx('capture'); }
 }
 // Five hunting grounds per zone, each deeper one opens after winning the one before.
@@ -893,8 +893,10 @@ const carryOf = u => u.type === 'porter' ? Math.round((UNITS.porter.carry + 4 * 
 // Cash shop. Gems are the paid currency; real payment is wired in when the game goes on a store.
 const CASH = {
   wagon: { n: '뿔둥이 짐마차', cost: 300, ds: '트리케라톱스가 끄는 큰 짐마차가 상단을 따라다녀요 · 싸우지 않아요 · 짐칸 +1,000칸' },
+  scribe: { n: '기록관 먹물이', cost: 400, ds: '상단의 여정을 빠짐없이 적어 둬요 · 상단 경험치 +50% · 싸우지 않아요' },
   runner: { n: '심부름꾼 달음이', cost: 500, ds: '사냥하는 동안 가장 많이 쌓인 품목부터 통째로 들고 가장 비싸게 쳐주는 정착지에 팔고 돌아와요 · 싸우지 않아요 · 3명까지 둘 수 있어요' },
 };
+const CASH_KIND = { runnerC: 'human', scribeC: 'human' }, CASH_LOOK = { wagon: 'wagon', runner: 'runnerC', scribe: 'scribeC' };
 const GEM_PACKS = [[100, '1,200원'], [550, '5,900원'], [1200, '12,000원'], [6500, '59,000원']], WAGON_CARGO = 1000;
 const capacity = () => party().reduce((s, u) => s + carryOf(u), 0) + (S.cash && S.cash.wagon ? WAGON_CARGO : 0);
 const RUNNER_MAX = 3;
@@ -1464,8 +1466,8 @@ function portrait(cv, type, tint) {
       if (tint) { g.globalCompositeOperation = 'source-atop'; g.fillStyle = tint; g.fillRect(0, 0, w, h); g.globalCompositeOperation = 'source-over'; }
       return; } }
   try {   // same pixel sprite as in the field, enlarged with hard edges
-    const D = UNITS[type], dino = D.cls === 'dino', tier = +cv.dataset.t || 0, len = dino ? Math.round(D.size * 2.4 * (1 + 0.07 * tier)) : 22, spr = unitSprite(type, len, tier), A = spr.an.idle, row = DIRROW[1];
-    const k = dino ? Math.min(w / (len * 0.86), h / (len * 0.64)) : h / 37 / (spr.hd || 1), dx = Math.round(w / 2 - spr.ax * k), dy = Math.round(h * (dino ? 0.74 : 0.9) - spr.ay * k);
+    const D = UNITS[type] || (CASH_KIND[type] === 'human' ? UNITS.scout : UNITS.trike), dino = D.cls === 'dino', tier = +cv.dataset.t || 0, len = type === 'wagon' ? 56 : dino ? Math.round(D.size * 2.4 * (1 + 0.07 * tier)) : 22, spr = unitSprite(type, len, tier), A = spr.an.idle, row = type === 'wagon' ? DIRROW[0] : DIRROW[1];
+    const k = type === 'wagon' ? w / (len * 2.5) : dino ? Math.min(w / (len * 0.86), h / (len * 0.64)) : h / 37 / (spr.hd || 1), dx = Math.round(w / 2 - spr.ax * k), dy = Math.round(h * (dino ? 0.74 : 0.9) - spr.ay * k);
     cv.style.imageRendering = 'pixelated'; g.imageSmoothingEnabled = false;
     const gr = g.createRadialGradient(w / 2, h * 0.6, 0, w / 2, h * 0.6, h * 0.7); gr.addColorStop(0, 'rgba(210,190,150,.3)'); gr.addColorStop(1, 'rgba(210,190,150,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
     g.drawImage(A.cv, 0, row * spr.fh, spr.fw, spr.fh, dx, dy, spr.fw * k, spr.fh * k);
@@ -1518,7 +1520,7 @@ const MODEL_FILES = { wagon: 'Triceratops', iguan: 'Parasaurolophus', pachyc: 'P
   trikeIron: 'Triceratops', trikeRed: 'Triceratops', paraGold: 'Parasaurolophus', apatoMoss: 'Apatosaurus', raptorShadow: 'Velociraptor', raptorVenom: 'Velociraptor', stegoRust: 'Stegosaurus', trexYoung: 'Trex' };
 const BACK_H = { Trex: 0.5, Velociraptor: 0.5, Parasaurolophus: 0.52, Triceratops: 0.4, Stegosaurus: 0.5, Apatosaurus: 0.4 };   // where the back is, as a share of full height
 const MODEL_SHAPE = { anky: [1.2, 0.72, 0.95], kentro: [0.85, 0.9, 0.92], brachio: [1, 1.38, 0.96], diplo: [0.8, 0.82, 1.22], spino: [0.95, 1, 1.18], carno: [0.9, 0.92, 1], pachyc: [1, 0.92, 0.86], iguan: [1.12, 1.08, 1], utah: [1.08, 1.05, 1], micro: [0.9, 0.9, 1] };   // width, height, length
-const HUMAN_PAL = { leader: [0x6e4a30, 0x3e2c20], hunter: [0x5c6a34, 0x4a3524], spear: [0x7a5a40, 0x3e2c20], sniper: [0x6a5a36, 0x3e3222], mechanic: [0xd0661e, 0xb4561a], medic: [0xe8e0cc, 0x6a4a34], porter: [0x8a5a34, 0x5a3e28],
+const HUMAN_PAL = { runnerC: [0x1f8f9c, 0x27323e], scribeC: [0x6a3fa0, 0x3a2a50], leader: [0x6e4a30, 0x3e2c20], hunter: [0x5c6a34, 0x4a3524], spear: [0x7a5a40, 0x3e2c20], sniper: [0x6a5a36, 0x3e3222], mechanic: [0xd0661e, 0xb4561a], medic: [0xe8e0cc, 0x6a4a34], porter: [0x8a5a34, 0x5a3e28],
   venomer: [0x4a4a34, 0x3a2e26], scout: [0x4e5c30, 0x5a3c26], shield: [0x6a5644, 0x3a2c22], gladiator: [0x7c3a28, 0x4a2c20], crossbow: [0x5c4c40, 0x3a2e26], gunner: [0x34425e, 0x3a2a22], bomber: [0x6a4a30, 0x4a3626],
   tamer: [0x9a5a34, 0x6a3a24], cook: [0xece6d8, 0x5a3e2a], smith: [0x7a4a2c, 0x3a2a20], shaman: [0x5a3a6a, 0x3a2630] };
 const HUMAN_AS = { scout: 'sniper', shield: 'spear', gladiator: 'spear', crossbow: 'hunter', gunner: 'leader', bomber: 'mechanic', tamer: 'hunter', cook: 'medic', smith: 'mechanic', shaman: 'medic' };
@@ -1572,6 +1574,7 @@ function loadModels(onProgress) {
 }
 const srgb = c => new THREE.Color(c).convertSRGBToLinear();
 const HUMAN_TRAIT = {
+  runnerC: { pony: 1, hair: 0xe8c060, acc: 0xffd24a }, scribeC: { hair: 0xe8e4da, beard: 1, coat: 1 },
   leader: { coat: 1, hair: 0x2e1e14 }, hunter: { coat: 1, hair: 0x2a1c12 }, spear: { hair: 0x3a2618, beard: 1 }, sniper: { coat: 1, hair: 0x2a2018 }, mechanic: { pony: 1, hair: 0xa8401e, acc: 0xe0b020 },
   medic: { coat: 1, pony: 1, hair: 0x5a3422 }, porter: { hair: 0x3a2618, beard: 1 }, venomer: { coat: 1, hair: 0x1c1c1c }, scout: { pony: 1, hair: 0x4a2c1a }, shield: { hair: 0x2a1c12, beard: 1 },
   gladiator: { hair: 0x2a1c12 }, crossbow: { coat: 1, hair: 0x3a2a1c }, gunner: { coat: 1, hair: 0x1c1c1c }, bomber: { hair: 0x4a3020, beard: 1 }, tamer: { pony: 1, hair: 0x3a2418, acc: 0xe0c040 },
@@ -1651,7 +1654,7 @@ function makeHuman3(type, tier = 0) {
   } else if (type0 === 'cook') {
     W(cyl(0.4, 0.4, 9, 5), 0x8a8a8e, 0, 0, 3, Math.PI / 2); W(new THREE.SphereGeometry(1.5, 6, 4), 0x8a8a8e, 0, 0, 8);            // ladle
     M(cyl(2.6, 2.2, 2.6, 8), 0x3a3a3e, -5, 7.6, 1.4);                                                                            // pot
-  } else if (type0 !== 'smith') {
+  } else if (type0 !== 'smith' && !CASH_KIND[type0]) {
     const hood = M(new THREE.ConeGeometry(3.4, 5, 6), 0x2c3624, 0, 18.7, -0.3); hood.rotation.x = -0.15; M(B(3.4, 2.4, 1.4), 0x1e1e1c, 0, 16.2, 2.2); M(cyl(0.8, 0.8, 1.2, 6), 0x7a7a74, 0, 15.8, 3.2).rotation.x = Math.PI / 2;
     M(cyl(1.5, 1.5, 6, 8), 0x7ab030, 2, 11.6, -4.9); M(cyl(1.5, 1.5, 6, 8), 0x5a9024, -2, 11.6, -4.9);
     W(cyl(0.5, 0.5, 15, 6), 0x8a7a4a, 0, 0, 5, Math.PI / 2);
@@ -1665,6 +1668,27 @@ function makeHuman3(type, tier = 0) {
   else if (type0 === 'smith') { M(B(6.8, 7, 0.8), 0x3a2a20, 0, 11, 2.3); M(B(1, 1, 10), 0x6a4a2a, 0, 0, 3, arm); M(B(3.6, 3.2, 4.4), 0x8a8a8e, 0, 0, 8.6, arm); M(B(5.2, 1.4, 5.2), 0x2e2620, 0, 20.6, 0); }
   else if (type0 === 'cook') { M(B(4.6, 4.4, 4.6), 0xf4f0e8, 0, 22.4, 0); M(B(5.4, 1.2, 5.4), 0xf4f0e8, 0, 24.8, 0); M(B(6.6, 6.4, 0.8), 0xf4f0e8, 0, 11, 2.3); }
   else if (type0 === 'tamer') { M(B(1.4, 6, 1.4), 0xe04a30, 1.6, 21, -0.6); M(B(1.4, 5, 1.4), 0xe0c040, -1.2, 20.6, -0.6); M(B(7, 1.6, 4.2), 0x7a4a2a, 0, 9.4, 0); }
+  else if (type0 === 'runnerC') {   // paid courier: teal and gold, winged boots, a tall pack and a lantern that glows
+    const teal = 0x2ec4c4, gold = 0xffd24a, glow = lam(0x9ff6ff, { emissive: srgb(0x58e0ff), emissiveIntensity: 0.9 });
+    M(B(8.8, 1.5, 4.6), teal, 0, 14.5, 0.1); M(B(1.8, 1.2, 8), teal, -2.2, 14.4, -5); M(B(1.6, 1, 5), 0x1f9aa8, -2.2, 13.2, -8.6);          // scarf streaming behind
+    M(B(5.6, 1, 5.2), gold, 0, 18.3, 0); M(B(1.2, 1.2, 0.6), glow, 0, 18.3, 2.7);                                                           // headband with a gem
+    M(B(6.4, 8, 3.8), 0x1f8f9c, 0, 11.8, -3.9); M(B(6.8, 1, 4.1), gold, 0, 13.4, -3.9); M(B(6.8, 1, 4.1), gold, 0, 9.4, -3.9);             // banded pack
+    M(cyl(1.5, 1.5, 7.6, 7), 0xf4ead2, 0, 16.8, -3.9).rotation.z = Math.PI / 2; M(cyl(1.6, 1.6, 0.8, 7), gold, 3.4, 16.8, -3.9).rotation.z = Math.PI / 2; M(cyl(1.6, 1.6, 0.8, 7), gold, -3.4, 16.8, -3.9).rotation.z = Math.PI / 2;
+    M(B(7.8, 9, 0.7), 0x1f9aa8, 0, 9.4, -6); M(B(8, 1, 0.9), gold, 0, 5.2, -6);                                                             // short cape, gold hem
+    legs.forEach((l, q) => { const sd = q ? 1 : -1; for (const [yy, zz, ln] of [[-5, -1.6, 3.4], [-4, -2, 2.6]]) { const w = M(B(0.5, 1, ln), 0xffffff, sd * 1.7, yy, zz, l); w.rotation.x = 0.5; } M(B(3.1, 0.7, 4.1), gold, 0, -4.9, 0.5, l); });   // winged boots
+    M(cyl(0.3, 0.3, 4, 5), gold, 0, 1.6, 2, arm); M(new THREE.SphereGeometry(1.5, 7, 5), glow, 0, -0.6, 2, arm);                              // lantern
+    for (const sd of [-1, 1]) M(B(3, 1.6, 4.4), gold, sd * 4.5, 15.2, 0);                                                                   // gold shoulders
+  }
+  else if (type0 === 'scribeC') {   // paid chronicler: long robe, tall hat, a staff with a banner and a book that floats and glows
+    const purple = 0x6a3fa0, gold = 0xffd24a, glow = lam(0xfff6c8, { emissive: srgb(0xffe08a), emissiveIntensity: 0.95 }), blue = lam(0x9fdcff, { emissive: srgb(0x58c8ff), emissiveIntensity: 0.9 });
+    M(B(7.8, 8.4, 5), purple, 0, 4.4, 0); M(B(8, 1.1, 5.2), gold, 0, 0.9, 0); M(B(8, 0.9, 5.2), gold, 0, 7.9, 0);                            // robe to the ground, gold bands
+    M(B(2.2, 10, 0.7), 0xf4ead2, 0, 9.6, 2.2); M(B(1.2, 1.2, 0.5), gold, 0, 12.8, 2.5);                                                    // stole and clasp
+    M(B(6.6, 1.1, 6.6), gold, 0, 19.3, 0); M(new THREE.ConeGeometry(3.3, 6.4, 6), purple, 0, 23, 0); M(new THREE.SphereGeometry(1, 6, 4), glow, 0, 26.4, 0);   // tall hat with a star
+    for (const sd of [-1, 1]) M(B(3.2, 1.8, 4.6), gold, sd * 4.6, 15.2, 0);
+    M(cyl(0.5, 0.5, 26, 6), gold, -5.6, 11.5, 1.2); M(new THREE.SphereGeometry(1.6, 7, 5), blue, -5.6, 25.4, 1.2); M(B(0.5, 6.4, 5), blue, -5.6, 19.6, 4); M(B(0.6, 0.8, 5.2), gold, -5.6, 23, 4);   // staff, orb, banner
+    M(B(5, 0.9, 3.8), glow, 0, 1.8, 3.4, arm); M(B(0.4, 1.3, 3.8), 0x6a3fa0, 0, 1.8, 3.4, arm); M(B(5.2, 0.4, 4), 0x8a5a2a, 0, 1.2, 3.4, arm);  // open book
+    M(B(8.2, 12, 0.7), 0x4a2a78, 0, 8, -5.8); M(B(8.4, 1, 0.9), gold, 0, 2.4, -5.8);                                                        // cloak
+  }
   else if (type0 === 'shaman') { M(B(7.4, 10, 1), 0x5a3a7a, 0, 9.6, -4.8); M(new THREE.SphereGeometry(1.6, 6, 4), 0xe8e0d0, 0, 9, 0, arm); }
   if (tier >= 1) { for (const sd of [-1, 1]) M(B(3.2, 2.4, 4.6), tier >= 2 ? 0xe3a843 : 0x9a9a94, sd * 4.6, 15.3, 0); M(B(7, 2.2, 4.2), 0x8a6a3a, 0, 8.4, 0); M(B(6.9, 3, 0.8), tier >= 2 ? 0xe3a843 : 0x8a8a84, 0, 12.4, 2.1); }
   if (tier >= 2) { M(B(8, 13, 0.8), 0xa02a20, 0, 9, -5.3); M(B(1.3, 5.5, 3.2), 0xe3a843, 0, 22, -0.4); M(B(1.6, 1.6, 1.6), 0x8fe0ff, 0, 0.6, 9, arm); }
@@ -1722,7 +1746,14 @@ function makeDino3(type, len, tier = 0) {
     for (const sd of [-1, 1]) bx(L * 0.03, L * 0.12, L * 0.6, 0x5a3e24, sd * L * 0.18, wy + L * 0.13, z0);     // side boards
     bx(L * 0.36, L * 0.12, L * 0.03, 0x5a3e24, 0, wy + L * 0.13, z0 - L * 0.3); bx(L * 0.36, L * 0.12, L * 0.03, 0x5a3e24, 0, wy + L * 0.13, z0 + L * 0.3);
     bx(L * 0.3, L * 0.12, L * 0.22, 0x8a6a3a, 0, wy + L * 0.22, z0 + L * 0.13); bx(L * 0.24, L * 0.1, L * 0.2, 0xa07a44, L * 0.02, wy + L * 0.2, z0 - L * 0.14);   // crates
-    bx(L * 0.4, L * 0.04, L * 0.5, 0x2a8a9a, 0, wy + L * 0.33, z0); bx(L * 0.34, L * 0.05, L * 0.4, 0x38a4b4, 0, wy + L * 0.37, z0);                               // teal tarp
+    { const gold = 0xffd24a, glowM = lam(0xffe9a8, { emissive: srgb(0xffb040), emissiveIntensity: 1 }), tealM = lam(0x9ff6ff, { emissive: srgb(0x58e0ff), emissiveIntensity: 0.7 });
+      for (let q = -2; q <= 2; q++) bx(L * 0.42, L * 0.045, L * 0.1, q % 2 ? 0xf4ead2 : 0x2ec4c4, 0, wy + L * 0.36 - Math.abs(q) * L * 0.012, z0 + q * L * 0.1);              // striped awning
+      for (const sd of [-1, 1]) { bx(L * 0.035, L * 0.035, L * 0.64, gold, sd * L * 0.2, wy + L * 0.2, z0); bx(L * 0.035, L * 0.035, L * 0.64, gold, sd * L * 0.2, wy + L * 0.07, z0);   // gold rails
+        for (const fz of [-1, 1]) { bx(L * 0.03, L * 0.3, L * 0.03, 0x5a3e24, sd * L * 0.2, wy + L * 0.2, z0 + fz * L * 0.3); const lt = new THREE.Mesh(new THREE.SphereGeometry(L * 0.04, 6, 5), glowM); lt.position.set(sd * L * 0.24, wy + L * 0.28, z0 + fz * L * 0.3); s.add(lt); } }   // posts and lanterns
+      bx(L * 0.025, L * 0.5, L * 0.025, gold, 0, wy + L * 0.6, z0 - L * 0.28); const pn = new THREE.Mesh(new THREE.BoxGeometry(L * 0.02, L * 0.12, L * 0.24), tealM); pn.position.set(0, wy + L * 0.78, z0 - L * 0.42); s.add(pn);   // pole and pennant
+      const orb = new THREE.Mesh(new THREE.SphereGeometry(L * 0.035, 6, 5), tealM); orb.position.set(0, wy + L * 0.87, z0 - L * 0.28); s.add(orb);
+      bx(L * 0.24, L * 0.03, L * 0.34, 0x2ec4c4, 0, L * 0.33, L * 0.02); bx(L * 0.26, L * 0.02, L * 0.36, gold, 0, L * 0.32, L * 0.02);                                         // saddle cloth with a gold border
+      bx(L * 0.2, L * 0.1, L * 0.06, gold, 0, L * 0.3, L * 0.3); bx(L * 0.03, L * 0.16, L * 0.03, 0xe0432c, 0, L * 0.46, L * 0.36); bx(L * 0.05, L * 0.05, L * 0.05, tealM, 0, L * 0.36, L * 0.33); }   // chest plate, plume, gem                               // teal tarp
     for (const sd of [-1, 1]) for (const fz of [-1, 1]) { const wh = new THREE.Mesh(new THREE.CylinderGeometry(L * 0.11, L * 0.11, L * 0.04, 10), lam(0x2e2218)); wh.rotation.z = Math.PI / 2; wh.position.set(sd * L * 0.21, L * 0.11, z0 + fz * L * 0.19); s.add(wh);
       const hub = new THREE.Mesh(new THREE.CylinderGeometry(L * 0.04, L * 0.04, L * 0.05, 6), lam(0x9a8a6a)); hub.rotation.z = Math.PI / 2; hub.position.copy(wh.position); s.add(hub); }
   }
@@ -2057,13 +2088,13 @@ function pixelize(cv) {   // hard alpha, a reduced palette and a dark one-pixel 
 }
 const ANIMS = { dino: [['idle', 3], ['walk', 6], ['attack', 5], ['death', 5]], human: [['idle', 2], ['walk', 6], ['attack', 3], ['death', 2]], turret: [['idle', 1]] };
 function unitSprite(type, len, tier = 0, lazy = false) {
-  const D = UNITS[type] || UNITS.trike, kind = type === 'turret' ? 'turret' : D.cls === 'dino' ? 'dino' : 'human'; len = Math.round(kind === 'dino' ? len : 22);
+  const D = UNITS[type] || (CASH_KIND[type] === 'human' ? UNITS.scout : UNITS.trike), kind = type === 'turret' ? 'turret' : D.cls === 'dino' ? 'dino' : 'human'; len = Math.round(kind === 'dino' ? len : 22);
   const key = type + '|' + len + '|' + tier; if (SPR[key]) return SPR[key];
   if (lazy && USE3D && !SYNC_GEN) { if (!SPRQ.has(key) && !(SPRJOB && SPRJOB.key === key)) { SPRQ.set(key, [type, len, tier]); PERF.sprN++; } return null; }
   SPRQ.delete(key); const pt0 = performance.now(); runGen(unitSpriteGen(type, len, tier, key)); PERF.spr += performance.now() - pt0; return SPR[key];
 }
 function* unitSpriteGen(type, len, tier, key) {
-  const D = UNITS[type] || UNITS.trike, kind = type === 'turret' ? 'turret' : D.cls === 'dino' ? 'dino' : 'human';
+  const D = UNITS[type] || (CASH_KIND[type] === 'human' ? UNITS.scout : UNITS.trike), kind = type === 'turret' ? 'turret' : D.cls === 'dino' ? 'dino' : 'human';
   const hd = kind === 'human' ? 2 : 1, fw = type === 'wagon' ? Math.ceil(len * 3.4) + 8 : kind === 'dino' ? Math.ceil(len * 1.5) + 8 : kind === 'human' ? 74 * hd : 30, fh = fw, spr = { fw, fh, an: {}, kind, hd };
   if (!USE3D) {   // no WebGL: fall back to the hand-drawn shapes
     spr.ax = fw >> 1; spr.ay = fh >> 1;
@@ -2646,6 +2677,10 @@ function drawScene(c, ox, oy, w, h, ents) {
     }
     const spr = unitSprite(e.type, e.len || 0, e.tier || 0, true);
     if (!spr) { pxEllipse(c, x, y + 1, Math.max(4, Math.round(sz * 0.55)), Math.max(2, Math.round(sz * 0.22)), 'rgba(0,0,0,.28)'); continue; }   // its sheet is still being baked: a shadow for a moment
+    if (e.cash) { const pu = 0.5 + 0.5 * Math.sin(T * 3.4 + e.x * 0.03), col = '120,230,255';   // a paid companion: a double teal ring and rising sparks
+      c.strokeStyle = `rgba(${col},${0.55 + 0.3 * pu})`; c.lineWidth = 1.4; c.beginPath(); c.ellipse(x, y + 1, sz * 0.95 + pu * 1.5, sz * 0.38 + pu * 0.6, 0, 0, 7); c.stroke();
+      c.strokeStyle = `rgba(255,224,138,${0.35 + 0.25 * (1 - pu)})`; c.beginPath(); c.ellipse(x, y + 1, sz * 1.3 - pu * 1.5, sz * 0.52 - pu * 0.6, 0, 0, 7); c.stroke();
+      for (let q = 0; q < 5; q++) { const f = (T * 0.6 + q / 5) % 1; c.fillStyle = q % 2 ? `rgba(${col},${1 - f})` : `rgba(255,236,170,${1 - f})`; c.fillRect(x + Math.sin(q * 2.1 + T * 1.4) * sz * 0.75, y - f * sz * 2.1, 1, 1); } }
     if ((e.tier || 0) >= 3 && e.anim !== 'death') { const col = e.tier >= 4 ? '120,216,255' : '255,196,90', pu = 0.5 + 0.5 * Math.sin(T * 3 + e.x * 0.05);
       c.strokeStyle = `rgba(${col},${0.45 + 0.35 * pu})`; c.lineWidth = 1.3; c.beginPath(); c.ellipse(x, y + 1, sz * 0.95 + pu * 1.5, sz * 0.38 + pu * 0.6, 0, 0, 7); c.stroke();
       if (e.tier >= 4) { c.strokeStyle = `rgba(${col},${0.25 + 0.2 * (1 - pu)})`; c.beginPath(); c.ellipse(x, y + 1, sz * 1.3 - pu * 1.5, sz * 0.52 - pu * 0.6, 0, 0, 7); c.stroke(); }
@@ -2679,10 +2714,11 @@ function renderWorld(dt) {
   if (S.cash && !inTown()) { const L0 = W.lead, C = S.cash;
     if (C.wagon) { const wg = W.wagon || (W.wagon = { x: L0.x - 60, y: L0.y, a: 0, ph: 0 }), tx = L0.x - Math.cos(L0.a || 0) * 58, ty = L0.y - Math.sin(L0.a || 0) * 58 + 6, dd = Math.hypot(tx - wg.x, ty - wg.y);
       if (dd > 400) { wg.x = tx; wg.y = ty; } const mv = dd > 10; if (mv) { const sp = Math.min(dd, (dd > 90 ? 150 : 70) * dt); wg.a = Math.atan2(ty - wg.y, tx - wg.x); wg.x += Math.cos(wg.a) * sp; wg.y += Math.sin(wg.a) * sp; }
-      const [an, fi] = animOf('dino', mv, 0.7, T); ents.push({ x: wg.x, y: wg.y, a: wg.a, type: 'wagon', len: 52, size: 52 / 2.4, tier: 0, anim: an, fi, ring: 'rgba(120,216,255,.8)' }); }
+      const [an, fi] = animOf('dino', mv, 0.7, T); ents.push({ x: wg.x, y: wg.y, a: wg.a, type: 'wagon', len: 56, size: 56 / 2.4, tier: 0, anim: an, fi, cash: 1 }); }
     for (let q = 0; q < (C.runner || 0); q++) { const tr = (C.trips || [])[q], rg = 'rgba(120,216,255,.8)';
-      if (tr) { const el = tr.total - tr.t, out = el < 3.2, back = tr.t < 3.2; if (out || back) { const d0 = (out ? el : tr.t) * 150, [an, fi] = animOf('human', true, 2.1 + q, T); ents.push({ x: L0.x + Math.cos(tr.a) * (24 + d0), y: L0.y + Math.sin(tr.a) * (24 + d0) + q * 8, a: out ? tr.a : tr.a + Math.PI, type: 'scout', len: 0, size: 11, tier: 0, anim: an, fi, ring: rg }); } }
-      else if (!C.runnerOff) { const [an, fi] = animOf('human', L0.moving, 2.1 + q, T); ents.push({ x: L0.x - Math.cos(L0.a || 0) * 30 - 14 - q * 13, y: L0.y - Math.sin(L0.a || 0) * 30 + 16 + q * 7, a: L0.a || 0, type: 'scout', len: 0, size: 11, tier: 0, anim: an, fi, ring: rg }); } } }
+      if (tr) { const el = tr.total - tr.t, out = el < 3.2, back = tr.t < 3.2; if (out || back) { const d0 = (out ? el : tr.t) * 150, [an, fi] = animOf('human', true, 2.1 + q, T); ents.push({ x: L0.x + Math.cos(tr.a) * (24 + d0), y: L0.y + Math.sin(tr.a) * (24 + d0) + q * 8, a: out ? tr.a : tr.a + Math.PI, type: 'runnerC', len: 0, size: 11, tier: 0, anim: an, fi, cash: 1 }); } }
+      else if (!C.runnerOff) { const [an, fi] = animOf('human', L0.moving, 2.1 + q, T); ents.push({ x: L0.x - Math.cos(L0.a || 0) * 30 - 14 - q * 13, y: L0.y - Math.sin(L0.a || 0) * 30 + 16 + q * 7, a: L0.a || 0, type: 'runnerC', len: 0, size: 11, tier: 0, anim: an, fi, cash: 1 }); } }
+    if (C.scribe) { const [an, fi] = animOf('human', L0.moving, 4.4, T); ents.push({ x: L0.x - Math.cos(L0.a || 0) * 26 + 18, y: L0.y - Math.sin(L0.a || 0) * 26 + 14, a: L0.a || 0, type: 'scribeC', len: 0, size: 11, tier: 0, anim: an, fi, cash: 1 }); } }
   drawScene(wc, ox, oy, w, h, ents);
   // dusk light, as in the illustrations: a warm cast over everything and darker corners
   if (FIELD_ART) { wc.setTransform(1, 0, 0, 1, 0, 0); wc.globalCompositeOperation = 'multiply'; wc.fillStyle = '#ffdcb8'; wc.globalAlpha = 0.3; wc.fillRect(0, 0, pw, phh);
@@ -3199,7 +3235,7 @@ function renderParty() {
       return `<h2>일러스트 도감<small>장비 15종 · 교역품 ${Object.keys(GOODS).length}종 · 소모품 5종</small></h2>${tabs}<h2>장비</h2><div class="itg">${eq}</div><h2>교역품</h2><div class="itg">${gd}</div><h2>소모품과 재료</h2><div class="itg">${misc}</div>`; })() : ''}
     ${partySec === 'skill' ? `<h2>상단 스킬<small>남은 포인트 ${S.sp}</small></h2><div class="card">${Object.entries(SKILLS).map(([k, K]) => { const lv = sk(k); return `<div class="row"><div class="info"><b>${K.n} Lv${lv}</b><small>${lv ? K.ds(lv) : '아직 배우지 않았어요'}${lv < SKILL_MAX ? ` → ${K.ds(lv + 1)}` : ''}</small></div><button class="btn small primary" data-act="skill" data-k="${k}" ${S.sp < 1 || lv >= SKILL_MAX ? 'disabled' : ''}>${lv >= SKILL_MAX ? '최고' : '배우기'}</button></div>`; }).join('')}</div>` : ''}
     ${partySec === 'cash' ? `<h2>캐시샵<small>보유 보석 <span class="gem">${fmt(S.gems)}</span>개 · 한 번 사면 계속 써요</small></h2>
-      <div class="card cashcard">${Object.entries(CASH).map(([k, C]) => `<div class="row"><canvas data-u="${k === 'wagon' ? 'trike' : 'scout'}" data-t="${k === 'wagon' ? 1 : 0}" width="104" height="80"></canvas><div class="info"><b style="color:#8fe4ff">${C.n}</b><small>${C.ds}</small>${k === 'runner' && S.cash.runner ? `<small>보유 ${S.cash.runner}/${RUNNER_MAX}명 · ${S.cash.runnerOff ? '쉬는 중이에요' : (S.cash.trips || []).some(Boolean) ? S.cash.trips.map((tr, q) => tr ? `${q + 1}호: ${GOODS[tr.g].n} ${tr.n}개 → ${ZONES[tr.z].n} ${Math.ceil(tr.t)}초` : '').filter(Boolean).join(' · ') : '팔 물건이 3개 이상 모이면 떠나요 · 식량 6개와 의뢰 납품에 쓸 물건은 남겨요'}</small>` : ''}<small style="color:#8fe4ff">대원 자리를 차지하지 않아요</small></div><div style="display:flex;flex-direction:column;gap:5px;flex:none">${k === 'runner' ? `${(S.cash.runner || 0) < RUNNER_MAX ? `<button class="btn small primary" data-act="cashBuy" data-k="runner" ${S.gems < C.cost ? 'disabled' : ''}>보석 ${C.cost}</button>` : '<span class="tag" style="color:#8fe4ff">3명 보유</span>'}${S.cash.runner ? `<button class="btn small" data-act="runnerToggle">${S.cash.runnerOff ? '일 시키기' : '쉬게 하기'}</button>` : ''}` : S.cash[k] ? '<span class="tag" style="color:#8fe4ff">보유 중</span>' : `<button class="btn small primary" data-act="cashBuy" data-k="${k}" ${S.gems < C.cost ? 'disabled' : ''}>보석 ${C.cost}</button>`}</div></div>`).join('')}</div>
+      <div class="card cashcard">${Object.entries(CASH).map(([k, C]) => `<div class="row"><canvas data-u="${CASH_LOOK[k]}" data-t="0" width="208" height="160" style="width:84px;height:66px"></canvas><div class="info"><b style="color:#8fe4ff">${C.n}</b><small>${C.ds}</small>${k === 'runner' && S.cash.runner ? `<small>보유 ${S.cash.runner}/${RUNNER_MAX}명 · ${S.cash.runnerOff ? '쉬는 중이에요' : (S.cash.trips || []).some(Boolean) ? S.cash.trips.map((tr, q) => tr ? `${q + 1}호: ${GOODS[tr.g].n} ${tr.n}개 → ${ZONES[tr.z].n} ${Math.ceil(tr.t)}초` : '').filter(Boolean).join(' · ') : '팔 물건이 3개 이상 모이면 떠나요 · 식량 6개와 의뢰 납품에 쓸 물건은 남겨요'}</small>` : ''}<small style="color:#8fe4ff">대원 자리를 차지하지 않아요</small></div><div style="display:flex;flex-direction:column;gap:5px;flex:none">${k === 'runner' ? `${(S.cash.runner || 0) < RUNNER_MAX ? `<button class="btn small primary" data-act="cashBuy" data-k="runner" ${S.gems < C.cost ? 'disabled' : ''}>보석 ${C.cost}</button>` : '<span class="tag" style="color:#8fe4ff">3명 보유</span>'}${S.cash.runner ? `<button class="btn small" data-act="runnerToggle">${S.cash.runnerOff ? '일 시키기' : '쉬게 하기'}</button>` : ''}` : S.cash[k] ? '<span class="tag" style="color:#8fe4ff">보유 중</span>' : `<button class="btn small primary" data-act="cashBuy" data-k="${k}" ${S.gems < C.cost ? 'disabled' : ''}>보석 ${C.cost}</button>`}</div></div>`).join('')}</div>
       <h2>보석 충전<small>실제 결제는 스토어에 등록한 뒤에 열려요</small></h2>
       <div class="card">${GEM_PACKS.map(([n, won]) => `<div class="row"><div class="info"><b class="gem">보석 ${fmt(n)}개</b><small>${won}</small></div><button class="btn small" disabled>결제 준비 중</button></div>`).join('')}
         <div class="row"><div class="info"><b>시험용 보석</b><small>출시 전 시험용이에요 · 출시할 때 이 버튼은 없애야 해요</small></div><button class="btn small" data-act="gemTest">보석 1,000 받기</button></div></div>` : ''}
