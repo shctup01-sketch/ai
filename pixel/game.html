@@ -651,7 +651,7 @@ const UNITS = {
   sniper:  { n: '저격수', cls: 'human', role: '원거리', hp: 70, atk: 34, def: 2, spd: 34, range: 210, as: 0.42, carry: 6, cost: 340, gun: true, ds: '아주 멀리서 강한 한 발을 쏴요.' },
   mechanic:{ n: '정비공', cls: 'human', role: '지원', hp: 100, atk: 8, def: 6, spd: 36, range: 100, as: 1, carry: 8, cost: 300, turret: true, ds: '전투가 시작되면 자동 포탑을 설치해요.' },
   medic:   { n: '의사', cls: 'human', role: '회복', hp: 90, atk: 4, def: 4, spd: 38, range: 110, as: 1, carry: 6, cost: 260, heal: 16, ds: '공격은 약하지만 다친 동료를 계속 치료하고, 스킬로 모두를 한꺼번에 회복시켜요. 전투 중 쓰러진 사람 대원을 다시 일으켜요.' },
-  porter:  { n: '짐꾼', cls: 'human', role: '짐꾼', hp: 120, atk: 4, def: 6, spd: 38, range: 20, as: 0.8, carry: 50, cost: 180, ds: '싸움은 못하지만 짐을 50칸 져요. 레벨이 오를 때마다 4칸씩 늘고, 전직할 때마다 훨씬 많이 져요.' },
+  porter:  { n: '짐꾼', cls: 'human', role: '짐꾼', hp: 120, atk: 4, def: 6, spd: 38, range: 20, as: 0.8, carry: 50, cost: 180, ds: '싸움은 못하지만 짐을 50칸 져요. 길가의 상자를 보면 알아서 달려가 주워 와요. 레벨이 오를 때마다 4칸씩 늘고, 전직할 때마다 훨씬 많이 져요.' },
   venomer: { n: '독침술사', cls: 'human', role: '약화', hp: 85, atk: 7, def: 3, spd: 40, range: 115, as: 0.9, carry: 6, cost: 360, shred: 4, ds: '독침으로 적의 장갑을 녹여 모두의 피해를 늘려요.' },
   trike:   { n: '트리케라톱스', cls: 'dino', role: '탱커', hp: 440, atk: 22, def: 16, spd: 27, range: 24, as: 0.7, carry: 40, size: 30, taunt: true, ds: '짐을 40칸 지는 단단한 방패. 상단의 기둥이에요.' },
   para:    { n: '파라사우롤로푸스', cls: 'dino', role: '기절', hp: 230, atk: 16, def: 9, spd: 46, range: 20, as: 0.8, carry: 10, size: 22, stun: 1.2, ds: '볏을 울려 내는 굉음으로 적을 기절시켜요. 큰 적에게는 안 통해요.' },
@@ -2517,9 +2517,19 @@ function updWorld(dt) {
       } else if (W.target) { engage(W.target); return; } else { L.tx = null; if (W.dest) { const o = W.dest.open; if (!o) toast(`${W.dest.label}에 도착했어요`, 'good'); W.dest = null; if (o && inTown()) { S.zone = inTown(); openTown(o); } } }
     }
     let px = L.x, py = L.y;
+    W.fetchT = (W.fetchT || 0) - dt;   // porters trot off to nearby crates and bring the contents back
+    if (W.fetchT <= 0 && !inTown()) { W.fetchT = 0.5; const free = W.crew.filter((c, i) => i && c.u.type === 'porter' && !c.fetch);
+      if (free.length) { const R = FETCH_R, taken = new Set(W.crew.filter(c => c.fetch).map(c => c.fetch.loot)), cx = Math.floor(L.x / CELL), cy = Math.floor(L.y / CELL), found = [];
+        for (let j = cy - 1; j <= cy + 1; j++) for (let i = cx - 1; i <= cx + 1; i++) for (const q of cellProps(i, j)) if (q.loot && !(W.looted[q.loot] > W.t) && !taken.has(q.loot) && d2(L.x, L.y, q.x, q.y) < R * R) found.push(q);
+        found.sort((a, b) => d2(a.x, a.y, L.x, L.y) - d2(b.x, b.y, L.x, L.y)); free.forEach((c, k) => { if (found[k]) c.fetch = found[k]; }); } }
     W.crew.forEach((c, i) => {
       if (i === 0) { c.x = L.x; c.y = L.y; c.a = L.a; c.moving = L.moving; }
-      else { const d = Math.hypot(px - c.x, py - c.y); c.moving = d > c.gap + 0.5; if (c.moving) { c.a = Math.atan2(py - c.y, px - c.x); const sp = Math.min(d - c.gap, 110 * dt); c.x += Math.cos(c.a) * sp; c.y += Math.sin(c.a) * sp; } }
+      else if (c.fetch) { const q = c.fetch, d = Math.hypot(q.x - c.x, q.y - c.y);
+        if (W.looted[q.loot] > W.t || d2(L.x, L.y, q.x, q.y) > 420 * 420) c.fetch = null;
+        else if (d < 9) { c.fetch = null; openCrate(q); }
+        else { c.moving = true; c.a = Math.atan2(q.y - c.y, q.x - c.x); const sp = Math.min(d, 150 * dt); c.x += Math.cos(c.a) * sp; c.y += Math.sin(c.a) * sp; }
+        return; }
+      else { const d = Math.hypot(px - c.x, py - c.y); c.moving = d > c.gap + 0.5; if (c.moving) { c.a = Math.atan2(py - c.y, px - c.x); const sp = Math.min(d - c.gap, (d > 90 ? 170 : 110) * dt); c.x += Math.cos(c.a) * sp; c.y += Math.sin(c.a) * sp; } }
       px = c.x; py = c.y;
     });
     S.pos.x = L.x; S.pos.y = L.y;
@@ -2660,6 +2670,7 @@ const ACH = [   // goals with five steps each
 const achPrize = (i, t) => 300 * Math.pow(4, t) * (1 + (i % 3) * 0.25) | 0;
 const achReady = () => ACH.filter(([k, , fn, th]) => (S.ach[k] || 0) < 5 && fn() >= th[S.ach[k] || 0]).length;
 const coachCost = z => Math.round((Math.hypot(TOWNS[z].x - S.pos.x, TOWNS[z].y - S.pos.y) * 0.12 + ZONES[z].lv * 12) / 10) * 10;
+const FETCH_R = 190;
 function openCrate(p) {
   W.looted[p.loot] = W.t + 240; const r = Math.random(); sfx('loot'); burst(p.x, p.y, 6, 12, '#ffe9a0', { spd: 40, up: 60, life: 0.8 });
   if (r < 0.12) { S.pots++; toast('상자에서 회복약 1개를 찾았어요', 'good'); }
@@ -3580,7 +3591,7 @@ loadModels((n, t) => bootP(4 + n / t * 66, `공룡 모델 불러오는 중 ${n}/
   bootP(82, '픽셀 월드 그리는 중…');
   setTimeout(() => { setView('party'); showWorld(); bootP(100, '준비 완료'); setTimeout(titleScreen, 250); }, 60);
 });
-window.__dino = { PERF, HERO_SK, castSkill, openTown, maxHp, rollPromo, unitSprite, CUT, cutSprite, saveCode, readCode, get S() { return S; }, get B() { return B; }, get W() { return W; }, UNITS, ZONES, TD, unitArt, icon, ICONS, SND, SFX, set speed(v) { bSpeed = v; }, addUnit, xpNeed, partyPower, groundPower, VO: () => VO, walkTo, TOWNS, GROUNDS, SPR };
+window.__dino = { cellProps, syncCrew, PERF, HERO_SK, castSkill, openTown, maxHp, rollPromo, unitSprite, CUT, cutSprite, saveCode, readCode, get S() { return S; }, get B() { return B; }, get W() { return W; }, UNITS, ZONES, TD, unitArt, icon, ICONS, SND, SFX, set speed(v) { bSpeed = v; }, addUnit, xpNeed, partyPower, groundPower, VO: () => VO, walkTo, TOWNS, GROUNDS, SPR };
 requestAnimationFrame(frame);
 })();
 </script>
