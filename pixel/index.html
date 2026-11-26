@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}
 #upd{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:999;padding:11px 18px;border-radius:14px;border:2px solid #f3c79a;background:#d4763c;color:#1c120a;font:700 14px system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.5)}</style>
-<script>window.__VER="20261126-102717"</script>
+<script>window.__VER="20261126-110649"</script>
 </head>
 <body>
 <title>공룡 상단 픽셀</title>
@@ -470,6 +470,7 @@ canvas.bigart { width: min(100%, 300px); height: auto; aspect-ratio: 5 / 4; alig
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/fflate.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FBXLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/SkeletonUtils.js"></script>
 <script>
 (() => {
@@ -688,6 +689,9 @@ const UNITS = {
   stegoRust:    { n: '녹슨등 스테고사우루스', cls: 'dino', role: '가시', rare: true, hp: 460, atk: 28, def: 17, spd: 24, range: 24, as: 0.6, carry: 20, size: 34, taunt: true, thorns: 0.35, ds: '희귀종. 고철 더미에서 자라 골판이 쇠처럼 날카로워요. 물어뜯는 적이 다쳐요.' },
   trexYoung:    { n: '어린 티라노사우루스', cls: 'dino', role: '포식자', rare: true, hp: 380, atk: 32, def: 10, spd: 52, range: 22, as: 0.9, carry: 15, size: 28, ds: '희귀종. 어미를 잃은 어린 폭군. 길들일 수 있는 유일한 티라노예요.' },
   // more species: built from the six base models with their own colours, proportions and add-ons
+  ovi:     { n: '오비랍토르', cls: 'dino', role: '떼', hp: 110, atk: 12, def: 3, spd: 74, range: 13, as: 1.7, carry: 3, size: 15, crit: 0.12, ds: '부리 달린 날쌘 도둑. 무리 지어 빠르게 쪼아 대요.' },
+  ptero:   { n: '프테로닥틸루스', cls: 'dino', role: '암살', hp: 160, atk: 22, def: 4, spd: 88, range: 60, as: 1.2, carry: 4, size: 22, crit: 0.25, ds: '하늘에서 내리꽂는 익룡. 멀리서 덮치고 급소를 잘 노려요.' },
+  plesio:  { n: '플레시오사우루스', cls: 'dino', role: '약화', hp: 480, atk: 26, def: 10, spd: 30, range: 70, as: 0.8, carry: 24, size: 34, shred: 4, regen: 5, ds: '늪과 물가의 긴목 사냥꾼. 멀리서 물어뜯어 장갑을 약하게 하고 상처가 스스로 아물어요.' },
   iguan:   { n: '이구아노돈', cls: 'dino', role: '균형', hp: 380, atk: 24, def: 12, spd: 40, range: 22, as: 0.8, carry: 18, size: 30, ds: '엄지 가시로 찌르는 든든한 초식 공룡. 공격과 방어가 고르게 좋아요.' },
   pachyc:  { n: '파키케팔로사우루스', cls: 'dino', role: '기절', hp: 200, atk: 20, def: 8, spd: 56, range: 18, as: 0.9, carry: 6, size: 20, stun: 1.6, ds: '돌 같은 머리로 들이받아 적을 오래 기절시켜요.' },
   micro:   { n: '미크로랍토르', cls: 'dino', role: '떼', hp: 70, atk: 9, def: 1, spd: 80, range: 11, as: 2.0, carry: 1, size: 11, crit: 0.18, ds: '깃털 달린 작은 사냥꾼. 아주 빠르고 급소를 잘 노려요.' },
@@ -714,7 +718,8 @@ const UNITS = {
 };
 { const add = (z, wild, people) => { ZONES[z].wild.push(...wild); ZONES[z].tame.push(...wild.filter(t => !ZONES[z].tame.includes(t))); ZONES[z].recruit.push(...people); };
   add('plain', ['iguan', 'pachyc'], ['scout', 'shield']); add('city', ['micro', 'micro', 'utah'], ['gunner', 'bomber']); add('swamp', ['kentro', 'allo'], ['shaman']);
-  add('waste', ['anky', 'styra', 'carno'], ['gladiator', 'crossbow']); add('snow', ['iguan', 'utah', 'diplo'], ['tamer', 'shield']); add('volcano', ['allo', 'carno', 'kentro'], ['gladiator', 'shaman', 'bomber']); add('abyss', ['spino', 'allo', 'brachio', 'styra'], ['gunner', 'crossbow', 'tamer', 'scout']); }
+  add('waste', ['anky', 'styra', 'carno'], ['gladiator', 'crossbow']); add('snow', ['iguan', 'utah', 'diplo'], ['tamer', 'shield']); add('volcano', ['allo', 'carno', 'kentro'], ['gladiator', 'shaman', 'bomber']); add('abyss', ['spino', 'allo', 'brachio', 'styra'], ['gunner', 'crossbow', 'tamer', 'scout']);
+  add('plain', ['ovi'], []); add('waste', ['ovi'], []); add('swamp', ['plesio'], []); add('snow', ['ptero', 'plesio'], []); add('volcano', ['ptero'], []); add('abyss', ['ptero', 'plesio'], []); }
 ZONES.plain.soloN = [[1, 1], [1, 2], [2, 3], [3, 4]];
 ZONES.plain.soloWild = [['compy', 'compy', 'compy', 'compy', 'pachyc'], ['compy', 'pachyc', 'pachyc', 'para', 'iguan'], null, null];
 const packN = (z, t) => (ZONES[z].soloN ? ZONES[z].soloN[Math.min(3, t)] : HUNTS[Math.min(3, t)].n);
@@ -1564,16 +1569,16 @@ function groundTex(kind) {
    3D — low-poly CC0 dinosaurs (Quaternius) rendered with three.js.
    The battle simulation stays 2D (x, y on the field); here x→X, y→Z.
    ================================================================ */
-const MODEL_FILES = { wagon: 'Triceratops', iguan: 'Parasaurolophus', pachyc: 'Parasaurolophus', micro: 'Velociraptor', utah: 'Velociraptor', kentro: 'Stegosaurus', anky: 'Stegosaurus', styra: 'Triceratops', carno: 'Trex', allo: 'Trex', spino: 'Trex', diplo: 'Apatosaurus', brachio: 'Apatosaurus', trike: 'Triceratops', para: 'Parasaurolophus', raptor: 'Velociraptor', compy: 'Velociraptor', dilo: 'Trex', stego: 'Stegosaurus', apato: 'Apatosaurus', trex: 'Trex',
+const MODEL_FILES = { wagon: 'Triceratops', iguan: 'Parasaurolophus', pachyc: 'G_Pachycephalosaurus', ovi: 'G_Oviraptor', ptero: 'G_Pterodactylus', plesio: 'G_Plesiosaurus', micro: 'Velociraptor', utah: 'Velociraptor', kentro: 'Stegosaurus', anky: 'G_Ankylosaurus', styra: 'Triceratops', carno: 'G_Carnotaurus', allo: 'Trex', spino: 'G_Spinosaurus', diplo: 'Apatosaurus', brachio: 'Apatosaurus', trike: 'Triceratops', para: 'Parasaurolophus', raptor: 'Velociraptor', compy: 'Velociraptor', dilo: 'Trex', stego: 'Stegosaurus', apato: 'Apatosaurus', trex: 'Trex',
   trikeIron: 'Triceratops', trikeRed: 'Triceratops', paraGold: 'Parasaurolophus', apatoMoss: 'Apatosaurus', raptorShadow: 'Velociraptor', raptorVenom: 'Velociraptor', stegoRust: 'Stegosaurus', trexYoung: 'Trex' };
-const BACK_H = { Trex: 0.5, Velociraptor: 0.5, Parasaurolophus: 0.52, Triceratops: 0.4, Stegosaurus: 0.5, Apatosaurus: 0.4 };   // where the back is, as a share of full height
-const MODEL_SHAPE = { anky: [1.2, 0.72, 0.95], kentro: [0.85, 0.9, 0.92], brachio: [1, 1.38, 0.96], diplo: [0.8, 0.82, 1.22], spino: [0.95, 1, 1.18], carno: [0.9, 0.92, 1], pachyc: [1, 0.92, 0.86], iguan: [1.12, 1.08, 1], utah: [1.08, 1.05, 1], micro: [0.9, 0.9, 1] };   // width, height, length
+const BACK_H = { Trex: 0.5, Velociraptor: 0.5, Parasaurolophus: 0.52, Triceratops: 0.4, Stegosaurus: 0.5, Apatosaurus: 0.4, G_Ankylosaurus: 0.8, G_Spinosaurus: 0.62, G_Carnotaurus: 0.62, G_Pachycephalosaurus: 0.6, G_Oviraptor: 0.6, G_Pterodactylus: 0.55, G_Plesiosaurus: 0.5 };   // where the back is, as a share of full height
+const MODEL_SHAPE = { kentro: [0.85, 0.9, 0.92], brachio: [1, 1.38, 0.96], diplo: [0.8, 0.82, 1.22], iguan: [1.12, 1.08, 1], utah: [1.08, 1.05, 1], micro: [0.9, 0.9, 1] };   // width, height, length
 const HUMAN_PAL = { runnerC: [0x1f8f9c, 0x27323e], scribeC: [0x6a3fa0, 0x3a2a50], leader: [0x6e4a30, 0x3e2c20], hunter: [0x5c6a34, 0x4a3524], spear: [0x7a5a40, 0x3e2c20], sniper: [0x6a5a36, 0x3e3222], mechanic: [0xd0661e, 0xb4561a], medic: [0xe8e0cc, 0x6a4a34], porter: [0x8a5a34, 0x5a3e28],
   venomer: [0x4a4a34, 0x3a2e26], scout: [0x4e5c30, 0x5a3c26], shield: [0x6a5644, 0x3a2c22], gladiator: [0x7c3a28, 0x4a2c20], crossbow: [0x5c4c40, 0x3a2e26], gunner: [0x34425e, 0x3a2a22], bomber: [0x6a4a30, 0x4a3626],
   tamer: [0x9a5a34, 0x6a3a24], cook: [0xece6d8, 0x5a3e2a], smith: [0x7a4a2c, 0x3a2a20], shaman: [0x5a3a6a, 0x3a2630] };
 const HUMAN_AS = { scout: 'sniper', shield: 'spear', gladiator: 'spear', crossbow: 'hunter', gunner: 'leader', bomber: 'mechanic', tamer: 'hunter', cook: 'medic', smith: 'mechanic', shaman: 'medic' };
-const DINO_AS = { iguan: 'para', pachyc: 'para', micro: 'raptor', utah: 'raptor', kentro: 'stego', anky: 'stego', styra: 'trike', carno: 'trex', allo: 'trex', spino: 'trex', diplo: 'apato', brachio: 'apato' };
-const MODEL_TINT = { iguan: [0x5a7a4a, 0.55], pachyc: [0x9a6a3a, 0.55], micro: [0x2a4a8a, 0.65], utah: [0xb0a070, 0.5], kentro: [0x5a3a2a, 0.6], anky: [0x8a7a5a, 0.55], styra: [0x6a4a8a, 0.5], carno: [0xa03a28, 0.55], allo: [0x7a6a3a, 0.5], spino: [0x3a6a7a, 0.55], diplo: [0x7a8a9a, 0.5], brachio: [0xb09a50, 0.5], compy: [0x8a9a50, 0.5], dilo: [0x9aa040, 0.4], trikeIron: [0x7a8694, 0.6], trikeRed: [0xb04428, 0.5], paraGold: [0xe0b030, 0.55], apatoMoss: [0x5a8a40, 0.5],
+const DINO_AS = { ovi: 'raptor', ptero: 'raptor', plesio: 'apato', iguan: 'para', pachyc: 'para', micro: 'raptor', utah: 'raptor', kentro: 'stego', anky: 'stego', styra: 'trike', carno: 'trex', allo: 'trex', spino: 'trex', diplo: 'apato', brachio: 'apato' };
+const MODEL_TINT = { iguan: [0x5a7a4a, 0.55], pachyc: [0x9a6a3a, 0.55], micro: [0x2a4a8a, 0.65], utah: [0xb0a070, 0.5], kentro: [0x5a3a2a, 0.6], anky: [0x8a7a5a, 0.55], styra: [0x6a4a8a, 0.5], carno: [0xa03a28, 0.55], allo: [0x7a6a3a, 0.5], spino: [0x3a6a7a, 0.55], diplo: [0x7a8a9a, 0.5], brachio: [0xb09a50, 0.5], compy: [0x8a9a50, 0.5], ovi: [0x8a8f6a, 0.5], ptero: [0x8a6a4a, 0.5], plesio: [0x3a5a6a, 0.45], dilo: [0x9aa040, 0.4], trikeIron: [0x7a8694, 0.6], trikeRed: [0xb04428, 0.5], paraGold: [0xe0b030, 0.55], apatoMoss: [0x5a8a40, 0.5],
   raptorShadow: [0x141c30, 0.7], raptorVenom: [0x8a3a9a, 0.5], stegoRust: [0xc0601c, 0.55], trexYoung: [0xd0c8b0, 0.45] };
 const MODELS = {}, PORTRAIT = {}, PROPS = {}, ZONESHOT = {};
 let G3 = null;
@@ -1582,7 +1587,8 @@ function lambertize(o) {
   o.traverse(c => {
     if (!c.isMesh) return;
     c.castShadow = true;
-    const conv = m => new THREE.MeshLambertMaterial({ color: m.color ? m.color.clone().multiplyScalar(1.5) : new THREE.Color(0x888888), skinning: !!c.isSkinnedMesh, flatShading: true, name: m.name });
+    const vc = !!(c.geometry && c.geometry.attributes.color);   // the newer models carry their colours on the vertices
+    const conv = m => new THREE.MeshLambertMaterial({ vertexColors: vc, color: vc ? new THREE.Color(0xffffff) : m.color ? m.color.clone().multiplyScalar(1.5) : new THREE.Color(0x888888), skinning: !!c.isSkinnedMesh, flatShading: true, name: m.name });
     c.material = Array.isArray(c.material) ? c.material.map(conv) : conv(c.material);
   });
 }
@@ -1611,11 +1617,19 @@ function loadModels(onProgress) {
       const bin = atob(t.trim()), buf = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
       return L.parse(buf.buffer, 'models/');
     });
-    files.forEach(f => loadOne(f).then(o => {
+    const GL = THREE.GLTFLoader ? new THREE.GLTFLoader() : null;
+    // the second set of models are GLB files with one long animation track: idle, attack, death and walk are cut out of it by frame
+    const loadGlb = f => fetch('models/' + f + '.b64.txt').then(r => { if (!r.ok) throw new Error(r.status); return r.text(); }).then(t => new Promise((ok2, bad) => {
+      if (!GL) return bad(new Error('no loader')); const bin = atob(t.trim()), buf = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+      GL.parse(buf.buffer, '', g => { const o = g.scene, c0 = g.animations[0];
+        o.traverse(m => { const ca = m.isMesh && m.geometry.attributes.color; if (!ca) return; for (let i = 0; i < ca.count; i++) { const r = ca.getX(i), gg = ca.getY(i), b = ca.getZ(i), lum = r * 0.3 + gg * 0.55 + b * 0.15, k = 0.42; ca.setXYZ(i, (r + (lum - r) * k) * 0.82, (gg + (lum - gg) * k) * 0.82, (b + (lum - b) * k) * 0.82); } });   // toy-bright colours pulled toward the dusty palette of the older models
+        const cut = (n, a, b) => { const c = THREE.AnimationUtils.subclip(c0, f + '_' + n, a, b, 24); c.name = f + '_' + n; return c; };
+        o.animations = c0 ? [cut('Idle', 0, 29), cut('Attack', 30, 59), cut('Death', 60, 89), cut('Walk', 90, 119), cut('Run', 90, 119)] : []; ok2(o); }, bad); }));
+    files.forEach(f => (f.startsWith('G_') ? loadGlb(f) : loadOne(f)).then(o => {
       lambertize(o);
       const clips = {}; for (const a of o.animations) clips[a.name.split('_').pop().toLowerCase()] = a;
       const sz = new THREE.Box3().setFromObject(o).getSize(new THREE.Vector3());
-      MODELS[f] = { obj: o, clips, len: Math.max(sz.x, sz.z), h: sz.y, ax: sz.x > sz.z ? 'x' : 'z' };
+      MODELS[f] = f.startsWith('G_') ? { obj: o, clips, len: sz.z, h: sz.y, ax: 'z' } : { obj: o, clips, len: Math.max(sz.x, sz.z), h: sz.y, ax: sz.x > sz.z ? 'x' : 'z' };
       fin();
     }).catch(() => { ok = false; fin(); }));
   });
@@ -1769,9 +1783,7 @@ function makeDino3(type, len, tier = 0) {
   const g = new THREE.Group(), s = new THREE.Group(); s.add(inst); g.add(s);
   { // add-ons that make a species read at a glance: a sail, back armour, a crown of spikes
     const hgt = (M.h || M.len * 0.4) * (len / M.len) * (SH ? SH[1] : 1) * (BACK_H[MODEL_FILES[type]] || 0.55), put = (w, h, l, col, along, up, side = 0) => { const m = new THREE.Mesh(new THREE.BoxGeometry(M.ax === 'x' ? l : w, h, M.ax === 'x' ? w : l), lam(col)); m.position.set(M.ax === 'x' ? along : side, up, M.ax === 'x' ? side : along); s.add(m); return m; };
-    if (type === 'spino') for (let k = -3; k <= 3; k++) put(len * 0.012 + 0.6, len * (0.2 - Math.abs(k) * 0.035), len * 0.07, k % 2 ? 0xc0603a : 0xa84a2c, k * len * 0.07, hgt + len * 0.06);
-    else if (type === 'anky') { for (let k = -2; k <= 2; k++) for (const sd of [-1, 1]) put(len * 0.07, len * 0.05, len * 0.07, 0x4a4030, k * len * 0.1, hgt * 0.98, sd * len * 0.08); }
-    else if (type === 'styra' || type === 'kentro') for (let k = -2; k <= 2; k++) put(len * 0.02 + 0.5, len * 0.11, len * 0.02 + 0.5, 0xe0d6c0, k * len * 0.07, hgt * 0.9 + len * 0.03);
+    if (type === 'styra' || type === 'kentro') for (let k = -2; k <= 2; k++) put(len * 0.02 + 0.5, len * 0.11, len * 0.02 + 0.5, 0xe0d6c0, k * len * 0.07, hgt * 0.9 + len * 0.03);
   }
   if (tier >= 1) {   // a pack saddle once grown, a war banner on the pack leader
     const by = (M.h || M.len * 0.4) * (len / M.len) * (SH ? SH[1] : 1) * (BACK_H[MODEL_FILES[type]] || 0.55) * 0.98, w = len * 0.17, sad = new THREE.Mesh(new THREE.BoxGeometry(w, len * 0.07, len * 0.2), lam(tier >= 2 ? 0xa02a20 : 0x6a4a2a)); sad.position.y = by; s.add(sad);
@@ -2419,7 +2431,7 @@ function cellProps(cx, cy) {
 }
 
 /* ---------- the living world: herds, your caravan, townsfolk and other caravans on the roads ---------- */
-const TYPE_LOOT = { Triceratops: { hide: 2, bone: 1 }, Parasaurolophus: { meat: 2 }, Velociraptor: { bone: 1, hide: 1 }, Trex: { meat: 3, bone: 2 }, Stegosaurus: { bone: 2, hide: 1 }, Apatosaurus: { meat: 4 } };
+const TYPE_LOOT = { Triceratops: { hide: 2, bone: 1 }, Parasaurolophus: { meat: 2 }, Velociraptor: { bone: 1, hide: 1 }, Trex: { meat: 3, bone: 2 }, Stegosaurus: { bone: 2, hide: 1 }, Apatosaurus: { meat: 4 }, G_Ankylosaurus: { hide: 2, bone: 1 }, G_Spinosaurus: { meat: 3, bone: 2 }, G_Carnotaurus: { meat: 2, bone: 1 }, G_Pachycephalosaurus: { bone: 2 }, G_Oviraptor: { meat: 1, bone: 1 }, G_Pterodactylus: { hide: 1, bone: 1 }, G_Plesiosaurus: { meat: 3, hide: 1 } };
 const NPC_NAMES = ['붉은모래 상단', '강철뿔 상단', '떠돌이 넬', '늪지기 조합', '잿빛 발톱', '고철 형제', '새벽길 상단'];
 let W = null, worldOn = false, PSZ = 1.3, VO = { x: 0, y: 0, w: 300, h: 500 };
 function fillPack(p) {
@@ -2673,7 +2685,7 @@ function fieldRevive() {   // between fights too: a doctor or shaman in the part
 }
 function autoEat() { if (S.food > 20) return; const g = ['grain', 'meat', 'jerky'].find(g => S.cargo[g] > 0); if (!g) return; S.cargo[g]--; if (!S.cargo[g]) delete S.cargo[g]; S.food = Math.min(100, S.food + FOODS[g]); toast(`배가 고파 ${GOODS[g].n}을(를) 먹었어요 · 포만감 ${Math.ceil(S.food)}`); }
 $('fPot').onclick = usePotion; $('bPot').onclick = usePotion;
-const TRIAL_TYPES = ['para', 'trike', 'raptor', 'compy', 'pachyc', 'micro', 'iguan', 'dilo', 'stego', 'utah', 'kentro', 'apato', 'styra', 'carno', 'anky', 'trex', 'allo', 'diplo', 'raptorShadow', 'trikeRed', 'spino', 'stegoRust', 'brachio', 'trexYoung'];
+const TRIAL_TYPES = ['para', 'trike', 'raptor', 'compy', 'pachyc', 'micro', 'iguan', 'dilo', 'stego', 'utah', 'ovi', 'kentro', 'apato', 'styra', 'carno', 'ptero', 'anky', 'trex', 'plesio', 'allo', 'diplo', 'raptorShadow', 'trikeRed', 'spino', 'stegoRust', 'brachio', 'trexYoung'];
 const trialBoss = f => { const ks = Object.keys(BOSSES); return ks[Math.min(ks.length - 1, Math.floor(f / 10) - 1)]; };
 function startTrial() {   // one floor of the tower: a set fight at the floor's level, a boss every tenth floor
   if (B || !W.crew.length) return; const f = (S.tower || 0) + 1; if (f > 200) return;
@@ -3620,7 +3632,7 @@ loadModels((n, t) => bootP(4 + n / t * 66, `공룡 모델 불러오는 중 ${n}/
   bootP(82, '픽셀 월드 그리는 중…');
   setTimeout(() => { setView('party'); showWorld(); bootP(100, '준비 완료'); setTimeout(titleScreen, 250); }, 60);
 });
-window.__dino = { cellProps, syncCrew, PERF, HERO_SK, castSkill, openTown, maxHp, rollPromo, unitSprite, CUT, cutSprite, saveCode, readCode, get S() { return S; }, get B() { return B; }, get W() { return W; }, UNITS, ZONES, TD, unitArt, icon, ICONS, SND, SFX, set speed(v) { bSpeed = v; }, addUnit, xpNeed, partyPower, groundPower, VO: () => VO, walkTo, TOWNS, GROUNDS, SPR };
+window.__dino = { MODELS, makeDino3, cellProps, syncCrew, PERF, HERO_SK, castSkill, openTown, maxHp, rollPromo, unitSprite, CUT, cutSprite, saveCode, readCode, get S() { return S; }, get B() { return B; }, get W() { return W; }, UNITS, ZONES, TD, unitArt, icon, ICONS, SND, SFX, set speed(v) { bSpeed = v; }, addUnit, xpNeed, partyPower, groundPower, VO: () => VO, walkTo, TOWNS, GROUNDS, SPR };
 requestAnimationFrame(frame);
 })();
 </script>
@@ -3628,7 +3640,7 @@ requestAnimationFrame(frame);
 <button id="upd" hidden>새 패치가 있어요 · 눌러서 적용</button>
 <script>
 (function () {
-  var VER = "20261126-102717";
+  var VER = "20261126-110649";
   if (!/^https?:$/.test(location.protocol)) return;
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
   var btn = document.getElementById('upd');
