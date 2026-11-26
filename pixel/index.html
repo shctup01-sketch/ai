@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}
 #upd{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:999;padding:11px 18px;border-radius:14px;border:2px solid #f3c79a;background:#d4763c;color:#1c120a;font:700 14px system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.5)}</style>
-<script>window.__VER="20261126-024900"</script>
+<script>window.__VER="20261126-063114"</script>
 </head>
 <body>
 <title>공룡 상단 픽셀</title>
@@ -312,6 +312,96 @@ canvas.bigart { width: min(100%, 300px); height: auto; aspect-ratio: 5 / 4; alig
   .mcard { max-width: 520px; max-height: 94%; }
   #modal { place-items: center; } .mcard { border-radius: 16px; border-bottom: 1px solid var(--line); }
 }
+
+/* ================= RPG skin: carved wood, worn leather and gold trim instead of flat app panels ================= */
+:root { --gold: #d9a94a; --gold-hi: #ffe7a8; --gold-lo: #7a5422; --wood: #3a2817; --wood-hi: #5a3f24; --leather: #241a12; --ink: #150e08; }
+#menu { background: radial-gradient(120% 60% at 50% 0%, rgba(120,80,40,.22), rgba(0,0,0,0) 70%), repeating-linear-gradient(115deg, rgba(255,220,160,.018) 0 2px, rgba(0,0,0,0) 2px 7px), linear-gradient(#211710, #17100a); }
+/* title plaque */
+#menu header { background: linear-gradient(#4a3320, #2c1e12 60%, #241810); border-bottom: 0; box-shadow: inset 0 1px 0 rgba(255,231,168,.25), inset 0 -3px 0 var(--gold-lo), inset 0 -4px 0 var(--gold), 0 4px 10px rgba(0,0,0,.5); padding-block: 9px 12px; position: relative; z-index: 3; }
+.brand h1 { background: linear-gradient(#fff0c0, #e0a040 55%, #a8641e); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 2px 0 rgba(0,0,0,.6)); letter-spacing: .04em; }
+.brand small { color: #c9b08a; }
+.rc { background: linear-gradient(#1a120b, #2a1d12); border: 1px solid var(--gold-lo); border-radius: 8px; box-shadow: inset 0 2px 5px rgba(0,0,0,.7), 0 1px 0 rgba(255,231,168,.15); }
+.rc em { color: #c9b08a; } .rc b { color: #fff3d6; text-shadow: 0 1px 0 #000; } .rc.money b { color: var(--gold-hi); }
+#menuClose { border-radius: 50%; width: 40px; height: 40px; background: radial-gradient(circle at 35% 30%, #e0604a, #8a2416 70%); border: 2px solid var(--gold); color: #fff3d6; font-weight: 700; box-shadow: 0 2px 0 var(--ink), inset 0 1px 0 rgba(255,255,255,.35); text-shadow: 0 1px 0 #5a140a; }
+#menuClose:active { transform: translateY(1px); box-shadow: 0 1px 0 var(--ink); }
+/* section headings: a gold title with a diamond and a fading rule */
+#menu h2, .mcard h2 { position: relative; padding: 2px 0 7px 20px; color: var(--gold-hi); text-shadow: 0 2px 0 rgba(0,0,0,.6); font-size: 18px; background: linear-gradient(90deg, var(--gold), rgba(217,169,74,0) 85%) left bottom / 100% 2px no-repeat; }
+#menu h2::before, .mcard h2::before { content: ''; position: absolute; left: 3px; top: 8px; width: 9px; height: 9px; background: linear-gradient(135deg, var(--gold-hi), var(--gold-lo)); transform: rotate(45deg); box-shadow: 0 0 0 1px var(--ink); }
+#menu h2 small, .mcard h2 small { color: #bfa57e; text-shadow: none; }
+/* windows */
+#menu .card, .mcard .card { position: relative; background: linear-gradient(#33251a, #261b12 40%, #20160e); border: 2px solid var(--gold-lo); border-radius: 10px; box-shadow: 0 0 0 1px var(--ink), inset 0 0 0 1px rgba(255,231,168,.14), inset 0 10px 18px rgba(255,220,160,.04), 0 4px 10px rgba(0,0,0,.45); padding: 13px 13px; }
+#menu .card::before, #menu .card::after, .mcard .card::before, .mcard .card::after { content: ''; position: absolute; width: 9px; height: 9px; top: -5px; background: radial-gradient(circle at 35% 30%, var(--gold-hi), var(--gold) 45%, var(--gold-lo)); border-radius: 50%; box-shadow: 0 0 0 1px var(--ink), 0 1px 2px rgba(0,0,0,.6); pointer-events: none; }
+#menu .card::before, .mcard .card::before { left: -5px; } #menu .card::after, .mcard .card::after { right: -5px; }
+#menu .card.cashcard { border-color: #3a8fb4; box-shadow: 0 0 0 1px var(--ink), inset 0 0 0 1px rgba(143,228,255,.2), 0 0 14px rgba(88,200,255,.18); }
+#menu .row + .row, .mcard .row + .row { border-top: 0; background: linear-gradient(90deg, rgba(217,169,74,0), rgba(217,169,74,.45) 20%, rgba(217,169,74,.45) 80%, rgba(217,169,74,0)) top / 100% 1px no-repeat; }
+#menu .row .info b, .mcard .row .info b { color: #fff3d6; text-shadow: 0 1px 0 rgba(0,0,0,.7); font-size: 14.5px; }
+#menu .row .info small, .mcard .row .info small { color: #c2ae8c; }
+/* item and portrait slots */
+#menu .row canvas, .mcard .row canvas, #menu .ic, .mcard .ic, #menu .row > img, .mcard .row > img { border: 2px solid var(--gold-lo) !important; border-radius: 8px; background: radial-gradient(circle at 50% 35%, #3a2a1c, #150e08); box-shadow: 0 0 0 1px var(--ink), inset 0 0 8px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,231,168,.2); }
+/* buttons: bronze plates; the main action is polished gold */
+#menu .btn, .mcard .btn, #btMenu .btn { background: linear-gradient(#6a5236, #4a3622 48%, #3a2a1a 52%, #2e2114); border: 1px solid #a8854a; border-radius: 8px; color: #fff3d6; text-shadow: 0 1px 0 #000; box-shadow: 0 0 0 1px var(--ink), 0 3px 0 #1a120a, inset 0 1px 0 rgba(255,231,168,.35); font-weight: 700; letter-spacing: .01em; }
+#menu .btn:active, .mcard .btn:active, #btMenu .btn:active { transform: translateY(2px); box-shadow: 0 0 0 1px var(--ink), 0 1px 0 #1a120a, inset 0 2px 4px rgba(0,0,0,.5); }
+#menu .btn.primary, .mcard .btn.primary, #btMenu .btn.primary { background: linear-gradient(#ffe08a, #e8a838 48%, #c9801e 52%, #a8601a); border-color: #fff0b8; color: #2a1606; text-shadow: 0 1px 0 rgba(255,240,190,.6); box-shadow: 0 0 0 1px var(--ink), 0 3px 0 #5a3410, inset 0 1px 0 rgba(255,255,255,.6), 0 0 10px rgba(240,180,70,.25); }
+#menu .btn[disabled], .mcard .btn[disabled] { opacity: .45; filter: grayscale(.6); }
+/* tabs: banners hanging from a gold rail, all visible at once (no sideways scrolling) */
+#menu .chips, .mcard .chips { flex-wrap: wrap; overflow: visible; gap: 5px; background: linear-gradient(#211710, #1c130c); padding: 8px 0 9px; box-shadow: 0 6px 8px -6px rgba(0,0,0,.8); background: linear-gradient(90deg, rgba(217,169,74,0), var(--gold) 15%, var(--gold) 85%, rgba(217,169,74,0)) bottom / 100% 2px no-repeat, linear-gradient(#211710, #1c130c); }
+#menu .chip, .mcard .chip { flex: 1 1 22%; min-width: 0; justify-content: center; height: 40px; padding: 0 6px; border-radius: 7px 7px 3px 3px; background: linear-gradient(#4a3826, #2c2015); border: 1px solid #7a5f38; color: #cdb892; font-family: var(--f-display); font-weight: 400; font-size: 14px; box-shadow: 0 0 0 1px var(--ink), inset 0 1px 0 rgba(255,231,168,.2); white-space: nowrap; }
+#menu .chip.on, .mcard .chip.on { background: linear-gradient(#ffe08a, #d8922a 60%, #a8601a); border-color: #fff0b8; color: #2a1606; box-shadow: 0 0 0 1px var(--ink), 0 0 10px rgba(240,180,70,.35), inset 0 1px 0 rgba(255,255,255,.6); transform: translateY(1px); }
+#menu .chip i { border: 1px solid #fff; box-shadow: 0 1px 2px rgba(0,0,0,.6); }
+/* gauges, tags, numbered badges */
+#menu .bar, .mcard .bar { height: 8px; border-radius: 4px; background: #120b06; border: 1px solid #5a4226; box-shadow: inset 0 1px 3px #000; }
+#menu .bar i, .mcard .bar i { background-image: linear-gradient(rgba(255,255,255,.4), rgba(255,255,255,0) 50%, rgba(0,0,0,.25)); border-radius: 3px; }
+#menu .tag, .mcard .tag { background: linear-gradient(#3a2b1c, #241a10); border: 1px solid var(--gold-lo); color: #e6d2a8; border-radius: 4px; }
+#menu .num { background: radial-gradient(circle at 35% 30%, #5a432a, #241a10); border: 2px solid var(--gold-lo); color: var(--gold-hi); box-shadow: 0 0 0 1px var(--ink); text-shadow: 0 1px 0 #000; }
+#menu .num.done { border-color: #7fbf5a; color: #c8f0a0; } #menu .num.boss { border-color: #d4573c; color: #ffb09a; }
+.tbanner { border: 2px solid var(--gold-lo) !important; box-shadow: 0 0 0 1px var(--ink), inset 0 0 0 1px rgba(255,231,168,.2), 0 4px 10px rgba(0,0,0,.5); border-radius: 10px !important; }
+.tbanner b { color: var(--gold-hi) !important; text-shadow: 0 2px 0 #1c120a, 0 0 8px #000, 0 0 2px #000 !important; }
+.t3 .chip { flex-basis: 30% !important; }
+@media (orientation: landscape) { #app:not(.wo) #tmenu { display: none; } #menu .chip { height: 32px; font-size: 13px; } .t3 .chip { flex-basis: 18% !important; } #menu header { padding-block: 6px 9px; } #tabs { padding-top: 9px; } #tabs button { padding: 7px !important; } }
+.artc, .itc { background: linear-gradient(#33251a, #20160e) !important; border: 2px solid var(--gold-lo) !important; box-shadow: 0 0 0 1px var(--ink), inset 0 0 0 1px rgba(255,231,168,.12); }
+.artc.own { border-color: var(--gold) !important; box-shadow: 0 0 0 1px var(--ink), 0 0 10px rgba(240,180,70,.3); }
+/* the way back to the field: one wide gold bar */
+#tabs { background: linear-gradient(#2c1e12, #1a120b); border-top: 0; box-shadow: inset 0 3px 0 var(--gold-lo), inset 0 4px 0 var(--gold), 0 -4px 10px rgba(0,0,0,.5); padding-top: 12px; }
+#tabs button, #tabs button.on { background: linear-gradient(#ffe08a, #e8a838 48%, #c9801e 52%, #a8601a) !important; color: #2a1606 !important; border: 1px solid #fff0b8; border-radius: 9px; box-shadow: 0 0 0 1px var(--ink), 0 3px 0 #5a3410, inset 0 1px 0 rgba(255,255,255,.6) !important; text-shadow: 0 1px 0 rgba(255,240,190,.6); }
+#tabs button:active { transform: translateY(2px); }
+/* pop-up windows */
+.mcard { background: linear-gradient(#33251a, #1e150d) !important; border: 2px solid var(--gold) !important; box-shadow: 0 0 0 1px var(--ink), inset 0 0 0 1px rgba(255,231,168,.2), 0 -8px 40px rgba(0,0,0,.7); }
+.mcard::before { background: linear-gradient(90deg, var(--gold-lo), var(--gold-hi), var(--gold-lo)) !important; height: 5px !important; width: 64px !important; border-radius: 3px !important; box-shadow: 0 0 0 1px var(--ink); }
+.mcard h3 { background: linear-gradient(#fff0c0, #e0a040 60%, #b06a20); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 2px 0 rgba(0,0,0,.7)); padding-bottom: 8px; position: relative; }
+.mcard h3::after { content: ''; position: absolute; left: 12%; right: 12%; bottom: 0; height: 2px; background: linear-gradient(90deg, rgba(217,169,74,0), var(--gold), rgba(217,169,74,0)); }
+.mcard .sub { color: #c9b08a; }
+.mcard .bigart { border: 2px solid var(--gold) !important; box-shadow: 0 0 0 1px var(--ink), 0 6px 16px rgba(0,0,0,.6); border-radius: 10px; }
+/* messages */
+.tm { background: linear-gradient(#3a2a1a, #20160e) !important; border: 1px solid var(--gold) !important; border-radius: 6px !important; color: #fff3d6; text-shadow: 0 1px 0 #000; box-shadow: 0 0 0 1px var(--ink), 0 4px 14px rgba(0,0,0,.6) !important; position: relative; padding: 8px 18px !important; }
+.tm.warn { border-color: #e0604a !important; } .tm.good { border-color: var(--gold-hi) !important; box-shadow: 0 0 0 1px var(--ink), 0 0 14px rgba(240,180,70,.35) !important; }
+/* field HUD */
+#lf { background: linear-gradient(#3a2a1a, #1e150d); border: 2px solid var(--gold); box-shadow: 0 0 0 1px var(--ink), 0 3px 8px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,231,168,.25); }
+#lf canvas { border: 2px solid var(--gold); box-shadow: 0 0 0 1px var(--ink), inset 0 0 6px #000; }
+.lfb i { border: 1px solid #5a4226; box-shadow: inset 0 1px 3px #000; } .lfb .hp u { background: linear-gradient(#ff7a5a, #c8321e 55%, #8a1e12); } .lfb .xp u { background: linear-gradient(#ffe08a, #d8922a); }
+.pc { border: 1px solid var(--gold-lo); box-shadow: 0 0 0 1px var(--ink), 0 2px 4px rgba(0,0,0,.5); background: linear-gradient(#3a2a1a, #1e150d); } .pc.lead { border-color: var(--gold); }
+.pc i b { background-image: linear-gradient(rgba(255,255,255,.35), rgba(255,255,255,0) 60%); }
+#goal { background: linear-gradient(#3a2a1a, #20160e); border: 1px solid var(--gold); border-radius: 6px; box-shadow: 0 0 0 1px var(--ink), 0 3px 8px rgba(0,0,0,.5); padding-left: 26px; position: relative; color: #fff3d6; }
+#goal::before { content: '!'; position: absolute; left: 6px; top: 6px; width: 14px; height: 14px; border-radius: 50%; background: linear-gradient(#ffe08a, #c9801e); color: #2a1606; font: 700 11px/14px var(--f-body); text-align: center; box-shadow: 0 0 0 1px var(--ink); }
+#goal span { background: #120b06; border: 1px solid #5a4226; height: 5px; } #goal span u { background: linear-gradient(#ffe08a, #d8922a); }
+.bhead { background: linear-gradient(#3a2817, #20150c) !important; box-shadow: inset 0 -2px 0 var(--gold-lo), inset 0 -3px 0 var(--gold); padding-bottom: 10px !important; }
+.bhead b { color: var(--gold-hi); text-shadow: 0 2px 0 #000; }
+.hud { background: linear-gradient(#1a120b, #2a1d12); border: 1px solid var(--gold-lo); border-radius: 7px; box-shadow: inset 0 2px 5px rgba(0,0,0,.7); } .hud.m { color: var(--gold-hi); }
+#tmenu button { background: radial-gradient(circle at 35% 28%, #5a432a, #20160e 75%); border: 2px solid var(--gold); box-shadow: 0 0 0 1px var(--ink), 0 3px 6px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,231,168,.3); color: #fff3d6; text-shadow: 0 1px 0 #000; width: 44px; height: 44px; }
+#tmenu button:active, #battle .bfoot .btn:active { transform: translateY(2px); }
+#battle .bfoot .btn { background: radial-gradient(circle at 35% 28%, #5a432a, #20160e 75%); border: 2px solid var(--gold); box-shadow: 0 0 0 1px var(--ink), 0 4px 8px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,231,168,.3); color: #fff3d6; text-shadow: 0 1px 0 #000; }
+#battle .bfoot .btn.primary { background: radial-gradient(circle at 35% 28%, #ffe9a8, #e8a838 45%, #a8601a); border: 3px solid #fff0b8; color: #2a1606; text-shadow: 0 1px 0 rgba(255,240,190,.6); box-shadow: 0 0 0 1px var(--ink), 0 5px 10px rgba(0,0,0,.6), 0 0 16px rgba(240,180,70,.35), inset 0 2px 0 rgba(255,255,255,.6); }
+#battle #bfoot #bPot { background: radial-gradient(circle at 35% 28%, #ff9a8a, #c8321e 50%, #7a1a10); border: 3px solid #fff0b8; color: #fff; }
+#battle #autoBtn.on { background: radial-gradient(circle at 35% 28%, #c8f0a0, #5aa83a 55%, #2e6a1e); border-color: #e8ffd0; color: #0e2408; text-shadow: none; }
+#joy { background: radial-gradient(circle, rgba(58,42,26,.55), rgba(20,14,8,.6)); border: 2px solid rgba(217,169,74,.7); box-shadow: 0 0 0 1px var(--ink), inset 0 0 14px rgba(0,0,0,.6); }
+#joy i { background: radial-gradient(circle at 35% 28%, #ffe9a8, #d8922a 55%, #8a5416); border: 2px solid #fff0b8; box-shadow: 0 2px 5px rgba(0,0,0,.6); }
+#skbar button { background: linear-gradient(#6a5236, #2e2114); border: 1px solid var(--gold); border-radius: 7px; color: #fff3d6; text-shadow: 0 1px 0 #000; box-shadow: 0 0 0 1px var(--ink), 0 2px 0 #1a120a, inset 0 1px 0 rgba(255,231,168,.35); }
+#bSel { background: linear-gradient(#3a2a1a, #1e150d) !important; border: 2px solid #d4573c !important; box-shadow: 0 0 0 1px var(--ink), 0 3px 8px rgba(0,0,0,.5); border-radius: 8px !important; color: #fff3d6; }
+#cxp { height: 6px; border-top: 1px solid var(--gold-lo); background: #120b06; } #cxp u { background: linear-gradient(90deg, #a8601a, #ffe08a); box-shadow: 0 0 6px rgba(255,224,138,.6); }
+#runner { border-radius: 6px; box-shadow: 0 0 0 1px var(--ink), 0 3px 8px rgba(0,0,0,.5); }
+#btMenu, #btLoad { border: 2px solid var(--gold) !important; box-shadow: 0 0 0 1px var(--ink), inset 0 0 0 1px rgba(255,231,168,.18), 0 10px 30px rgba(0,0,0,.6); border-radius: 10px !important; background: linear-gradient(rgba(51,37,26,.92), rgba(30,21,13,.94)) !important; }
+#btMenu input, #btMenu textarea { background: #120b06; border: 1px solid var(--gold-lo); box-shadow: inset 0 2px 5px #000; border-radius: 7px; color: #fff3d6; }
+#btMenu .tabs2 { background: #120b06; border-color: var(--gold-lo); } #btMenu .tabs2 button.on { background: linear-gradient(#ffe08a, #d8922a 60%, #a8601a); }
+.bt-bar { border-color: var(--gold) !important; background: #120b06 !important; box-shadow: 0 0 0 1px var(--ink), inset 0 2px 4px #000; }
 </style>
 
 <div id="boot">
@@ -478,7 +568,7 @@ function hatchEgg(e) {
 const mastery = u => Math.min(10, Math.floor(Math.sqrt((u.wins || 0) / 2)));
 const masteryNext = u => 2 * (mastery(u) + 1) ** 2;
 const MAST_N = ['낯섦', '익숙함', '믿음', '호흡', '단짝', '전우', '백전노장', '명성', '영웅', '전설', '신화'];
-const PERKS = [[5, '스킬 재사용 15% 빨라짐'], [10, '1차 전직·진화 가능'], [15, '스킬 피해 +20%'], [20, '2차 전직·진화 가능'], [25, '전투 중 체력이 서서히 회복'], [30, '치명타 확률 +10%']];
+const PERKS = [[5, '스킬 재사용 15% 빨라짐'], [10, '1차 전직 가능'], [15, '스킬 피해 +20%'], [25, '전투 중 체력이 서서히 회복'], [30, '2차 전직 가능 · 치명타 확률 +10%'], [60, '3차 전직 가능'], [100, '4차 전직 가능']];
 const powerOf = u => { const D = UNITS[u.type], g = gearMul(u); return Math.round((D.hp * lvMul(u.lv) * g.hp * 0.12 + D.atk * lvMul(u.lv) * g.atk * D.as * 5 + D.def * (1 + 0.05 * (u.lv - 1)) * g.def * 2) * (1 + 0.1 * PERKS.filter(p => u.lv >= p[0]).length * 0.5)); };
 const partyPower = () => party().reduce((s, u) => s + powerOf(u), 0);
 const wildPower = (type, lv) => { const D = UNITS[type], wm = Math.pow(wildMul(lv), 0.7); return D.hp * lvMul(lv) * wm * 0.12 + D.atk * lvMul(lv) * wm * D.as * 5 + D.def * (1 + 0.05 * (lv - 1)) * 2; };
@@ -802,7 +892,8 @@ function runnerTick(dt) {   // errand runners: each takes one whole stack (the b
     C.trips[i] = null; S.money += T.gain; S.stats.earned += T.gain; gainCxp(T.gain / 12); sfx('coin'); toast(`달음이 ${i + 1}호가 돌아왔어요 · ${ZONES[T.z].n}에서 ${GOODS[T.g].n} ${T.n}개를 팔아 ${fmt(T.gain)} 크레딧`, 'good'); if (typeof renderHeader === 'function') renderHeader(); save(); }
   if (C.runnerOff || (C.wait = (C.wait || 0) - dt) > 0) return;
   const free = Array.from({ length: C.runner }, (_, i) => i).find(i => !C.trips[i]); if (free === undefined) return; C.wait = 1.5;
-  const pile = Object.entries(S.cargo).map(([g, have]) => [g, have - (FOODS[g] ? 6 : 0)]).filter(([, n]) => n >= 3).sort((a, b) => b[1] - a[1])[0]; if (!pile) return;   // keeps a few meals back
+  const held = {}; for (const qs of Object.values(S.quests || {})) for (const q of qs || []) if (q.type === 'deliver') held[q.g] = Math.max(held[q.g] || 0, q.n);
+  const pile = Object.entries(S.cargo).map(([g, have]) => [g, have - (FOODS[g] ? 6 : 0) - (held[g] || 0)]).filter(([, n]) => n >= 3).sort((a, b) => b[1] - a[1])[0]; if (!pile) return;   // keeps a few meals back
   const [g, n] = pile, z = Object.keys(TOWNS).sort((a, b) => sellPrice(b, g) - sellPrice(a, g))[0], T = TOWNS[z], dist = Math.hypot(T.x - S.pos.x, T.y - S.pos.y), total = clamp(dist * 2 / 230, 20, 240); let gain = 0;
   for (let q = 0; q < n; q++) { gain += sellPrice(z, g); S.press[z][g] = Math.max(0.4, S.press[z][g] - 0.012); }
   S.cargo[g] -= n; if (S.cargo[g] <= 0) delete S.cargo[g];
@@ -1101,7 +1192,7 @@ function endBattle(win) {
       if (opt.trialBoss) { S.tokens[opt.trialBoss] = (S.tokens[opt.trialBoss] || 0) + 1; S.pots += 3; lines.push(`10층 보상: ${TOKEN_N[opt.trialBoss]}, 회복약 3개`); } gotItem = true; }
     if (opt.boss) S.bossKills[opt.boss] = 1;
     { const pg = rollPromo(opt.foes); for (const [k, n] of Object.entries(pg)) { lines.push(`<b style="color:${k.startsWith('hero-') ? '#ffb347' : '#9fd0ff'}">${promoName(k)}</b> ${n}개를 얻었어요${k.startsWith('hero-') ? ' · 영웅 전용 재료!' : ''}`); if (k.startsWith('hero-')) { flash(0.5, '255,190,90'); sfx('win'); } gotItem = true; } }
-    if (opt.boss) { S.tokens[opt.boss] = (S.tokens[opt.boss] || 0) + 1; lines.push(`<b style="color:var(--amber)">${TOKEN_N[opt.boss]}</b>를 얻었어요 · 변이 진화와 특수 전직에 써요`); gotItem = true; }
+    if (opt.boss) { S.tokens[opt.boss] = (S.tokens[opt.boss] || 0) + 1; lines.push(`<b style="color:var(--amber)">${TOKEN_N[opt.boss]}</b>를 얻었어요 · 특수 전직에 써요`); gotItem = true; }
     { const rareIn = opt.foes.some(f => UNITS[f.type].rare && !f.boss), ch = opt.boss ? 0.6 : rareIn ? 0.15 : opt.tier >= 2 ? 0.05 : 0.015; if (Math.random() < ch) { const bonus = 150 + Math.round(Math.max(...opt.foes.map(f => f.lv)) * 40); S.money += bonus; lines.push(`<b style="color:var(--amber)">공룡 알</b>을 주워 상인에게 넘겼어요 · +${fmt(bonus)} 크레딧`); gotItem = true; } }
     {   // loot roll: deeper grounds, rare dinosaurs and bosses drop better gear
       const H0 = opt.kind === 'hunt' ? HUNTS[opt.tier] : { drop: 0.1 }, Hb = opt.boss ? H0 : H0.boss ? HUNTS[3] : H0, H = { boss: !!opt.boss, drop: Hb.drop + Math.max(0, opt.foes.length - 3) * 0.04 }, rares = opt.foes.filter(f => UNITS[f.type].rare && !f.boss).length;
@@ -2416,7 +2507,7 @@ const GOALS = [
   { t: '대원 5명 모으기', p: () => party().length, n: 5, r: 600, go: () => goSpot('hire') },
   { t: '평원의 우두머리 쓰러뜨리기', p: () => S.bossKills.trikeKing ? 1 : 0, n: 1, r: 1500, go: () => goGround('plain', 4) },
   { t: '무너진 도시 정착지 찾아가기', p: () => S.seen.city ? 1 : 0, n: 1, r: 800, go: () => { walkTo(TOWNS.city.x, TOWNS.city.y + 60, '무너진 도시 정착지'); showWorld(); } },
-  { t: '1차 전직이나 진화 시키기', p: () => S.units.some(u => (u.tier || 0) >= 1 && !u.famed) ? 1 : 0, n: 1, r: 2000, go: () => hideWorld('party') },
+  { t: '대원 한 명 1차 전직 시키기 (재료 10개)', p: () => S.units.some(u => (u.tier || 0) >= 1 && !u.famed) ? 1 : 0, n: 1, r: 2000, go: () => hideWorld('party') },
 ];
 function updGoal() {
   const el = $('goal'), g = GOALS[S.goal || 0]; if (!g || !S.cls) { el.hidden = true; return; }
@@ -2895,7 +2986,7 @@ function renderTown() {
   const qReady = (S.quests[z] || []).filter(q => (q.type === 'deliver' ? (S.cargo[q.g] || 0) : q.prog) >= q.n).length;
   const secs = [['hunt', '사냥터'], ['market', '시장'], ['quest', '의뢰', qReady], ['shop', '공방', outs.length ? '!' : 0], ['hire', '고용'], ['bank', '전장'], ['inn', '여관', hurt.length && townSec !== 'inn' ? '!' : 0]];
   const SPOTN = { hunt: '사냥터 안내소', market: '시장', shop: '공방', bank: '은행', inn: '여관', hire: '고용소', quest: '의뢰소', store: '잡화점', trial: '시련의 탑' };
-  el.innerHTML = `<div class="tbanner" style="background-image:linear-gradient(rgba(20,15,11,0) 35%, rgba(20,15,11,.88)), url(art/town-${bioOf(z)}.webp)"><small>${Z.n} 정착지</small><b>${SPOTN[townSec] || '정착지'}</b></div>
+  el.innerHTML = `<div class="t3">${chips(Object.entries(SPOTN).map(([k, n]) => [k, n.replace(' 안내소', ''), (W && W.badges && W.badges[k]) ? '!' : 0]), townSec, 'tsec')}</div><div class="tbanner" style="background-image:linear-gradient(rgba(20,15,11,0) 35%, rgba(20,15,11,.88)), url(art/town-${bioOf(z)}.webp)"><small>${Z.n} 정착지</small><b>${SPOTN[townSec] || '정착지'}</b></div>
     ${townSec === 'hunt' ? `<h2>사냥터<small>이곳에 사는 공룡: ${tame}</small></h2>
     <div class="card">${HUNTS.map((H, i) => { const done = i < (S.cleared[z] || 0), G = GROUNDS[z][i], dist = Math.round(Math.hypot(G[0] - S.pos.x, G[1] - S.pos.y) / 10);
       return `<div class="row"><span class="num${done ? ' done' : ''}${H.boss ? ' boss' : ''}">${H.boss ? '★' : i + 1}</span><div class="info"><b>${HUNT_NAMES[z][i]} ${done ? '<span class="tag">정복</span>' : ''}${H.boss ? ' <span class="tag" style="color:var(--bad)">우두머리</span>' : ''}</b><small>${H.boss ? `${BOSSES[Z.boss].n} Lv${(Z.bossLv || zl(Z, 6))} · 희귀 이상 장비 확정` : `Lv${zl(Z, H.lv[0])}~${zl(Z, H.lv[1])} · 희귀종 ${Math.round(H.rare * 50)}% · 장비 ${Math.round(H.drop * 100)}%`} · 거리 ${dist}m</small><small style="color:${partyPower() >= groundPower(z, i) ? '#8fbf6a' : 'var(--bad)'}">권장 전투력 ${fmt(groundPower(z, i))} · 내 상단 ${fmt(partyPower())}</small></div>
@@ -2951,15 +3042,15 @@ function renderParty() {
       ${u.type === 'leader' ? '<span class="tag on">대장</span>' : `<button class="btn small ${u.inParty ? '' : 'primary'}" data-act="toggle" data-id="${u.id}">${u.inParty ? '대기' : '참전'}</button>`}</div>`; };
   const reserve = S.units.filter(u => !u.inParty);
   const psecs = [['crew', '대원', S.units.filter(u => u.inParty && u.pts > 0).length], ['rank', '순위'], ['ach', '업적', achReady()], ['bag', '가방', S.items.length], ['dex', '도감'], ['skill', '스킬', S.sp], ['cargo', '짐'], ['cash', '캐시샵']];
-  el.innerHTML = `<div class="card"><div class="row"><div class="info"><b>상단 Lv${S.clv} · ${P.length}/${partyCap()}명</b><div class="bar"><i style="width:${S.cxp / cxpNeed(S.clv) * 100}%;background:var(--amber)"></i></div><small>상단 경험치 ${S.cxp}/${cxpNeed(S.clv)} · 장사, 사냥, 의뢰로 올라요 · 레벨마다 인원 +1(최대 12)</small><small>짐칸 ${cargoUsed()}/${capacity()} · 전투 ${S.stats.battles} · 포획 ${S.stats.captures}</small></div></div><div class="row" style="justify-content:flex-end;gap:6px;flex-wrap:wrap"><button class="btn small" data-act="snd">${['소리 끔', '효과음만', '소리 켬'][S.snd]}</button><button class="btn small" data-act="saveCode">저장 코드</button><button class="btn small" data-act="newGame">새 게임</button></div></div>${chips(psecs, partySec, 'psec')}
+  el.innerHTML = `<div class="card"><div class="row"><div class="info"><b>상단 Lv${S.clv} · ${P.length}/${partyCap()}명</b><div class="bar"><i style="width:${S.cxp / cxpNeed(S.clv) * 100}%;background:var(--amber)"></i></div><small>상단 경험치 ${S.cxp}/${cxpNeed(S.clv)} · 장사, 사냥, 의뢰로 올라요 · 레벨마다 인원 +1(최대 12)</small><small>짐칸 ${cargoUsed()}/${capacity()} · 전투 ${S.stats.battles}</small></div></div><div class="row" style="justify-content:flex-end;gap:6px;flex-wrap:wrap"><button class="btn small" data-act="snd">${['소리 끔', '효과음만', '소리 켬'][S.snd]}</button><button class="btn small" data-act="saveCode">저장 코드</button><button class="btn small" data-act="newGame">새 게임</button></div></div>${chips(psecs, partySec, 'psec')}
     ${partySec === 'crew' ? `<h2>자동 설정</h2><div class="card">${[['skill', '스킬 자동 사용', '대원이 준비된 스킬을 알아서 써요 · 끄면 전투 중에 스킬 버튼이 나와요'], ['pot', '회복약 자동 사용', '누군가 체력 30% 아래로 떨어지면 알아서 마셔요 (전투 중 15초에 한 번)'], ['hunt', '자동 사냥', '가까운 무리를 계속 찾아가 사냥해요']].map(([k, n, d]) => `<div class="row"><div class="info"><b>${n}</b><small>${d}</small></div><button class="btn small ${S.auto[k] ? 'primary' : ''}" data-act="auto" data-k="${k}">${S.auto[k] ? '켜짐' : '꺼짐'}</button></div>`).join('')}</div><h2>진형<small>${FORMS[S.form].ds}</small></h2>${chips(Object.entries(FORMS).map(([k, f]) => [k, f.n]), S.form, 'form')}<h2>출전 대원</h2><div class="sub" style="margin:0">▲▼로 줄 서는 순서를 바꿔요. 대장도 옮길 수 있고, 맨 위 대원이 앞장서요. 전투 중에는 대원을 끌어서 자리를 정할 수 있고, 그 자리는 다음 전투에도 기억돼요.${S.units.some(u => u.pos) ? ' <button class="btn small" data-act="resetPos" style="margin-left:6px">배치 초기화</button>' : ''}</div><h2 style="display:none"><small>${''}</small></h2><div class="sub" style="margin:0">상단 전투력 ${fmt(partyPower())} · 용병 일당 하루 ${fmt(wages())}${S.unpaid ? ' <b style="color:var(--bad)">(밀림 · 공격 -20%)</b>' : ''}</div><div class="card">${P.map(row).join('')}</div>
     <h2>대기 대원<small>정착지 우리에서 쉬어요</small></h2><div class="card">${reserve.length ? reserve.map(row).join('') : '<div class="row"><div class="info"><small>없어요. 사냥터에서 공룡을 포획하거나 고용소에서 대원을 구하세요</small></div></div>'}</div>` : ''}
-    ${partySec === 'bag' ? `<h2>전직·진화 재료<small>대원마다, 단계마다 전용 재료가 따로 있어요 · ${PROMO_N}개를 모으면 전직해요 · 유저 간 거래 가능 품목 (거래소는 서버가 열리면 쓸 수 있어요)</small></h2><div class="card">${Object.keys(S.promo).length ? Object.entries(S.promo).sort((a, b) => a[0].split(':')[1] - b[0].split(':')[1] || a[0].localeCompare(b[0])).map(([k, n]) => { const t = +k.split(':')[1], mine = party().some(u => promoKey(u, u.tier || 0) === k); return `<div class="row">${ic('token', t)}<div class="info"><b style="color:${k.startsWith('hero-') ? '#ffb347' : RAR[Math.min(4, t + 1)].c}">${promoName(k)}</b><small>${t + 1}차 ${k.startsWith('hero-') ? '영웅 ' : ''}전직 재료 · ${mine ? '지금 쓸 수 있는 대원이 있어요' : '지금 쓸 대원이 없어요 · 거래용'}</small></div><b>${n}/${PROMO_N}</b></div>`; }).join('') : '<div class="row"><div class="info"><small>아직 없어요 · 사냥하면 가끔 떨어져요</small></div></div>'}</div><h2>우두머리 증표<small>변이 진화와 특수 전직에 써요 · 우두머리를 잡으면 하나씩 얻어요</small></h2><div class="card"><div class="row"><div class="info"><small style="color:var(--text)">${Object.entries(S.tokens).filter(([, k]) => k > 0).map(([k, n]) => `${TOKEN_N[k]} ${n}개`).join(' · ') || '아직 없어요'}</small><small>공룡 알: ${Object.entries(S.eggBag).filter(([, k]) => k > 0).map(([ez, k]) => `${ZONES[ez].n} ${k}개`).join(' · ') || '없음'}</small></div></div></div><h2>가방<small>장비 ${S.items.length}/${BAG_MAX} · 대원의 관리 버튼에서 착용해요</small></h2><div class="card">${S.items.length ? [...S.items].sort((a, b) => b.r - a.r || b.lv - a.lv).map(it => `<div class="row">${itemIc(it)}<div class="info"><b>${itemName(it)}</b><small>${SLOTS[it.slot]} · Lv${it.lv} · ${itemText(it)}</small></div><button class="btn small" data-act="sellItem" data-it="${it.id}">${itemPrice(it)}에 팔기</button></div>`).join('') : '<div class="row"><div class="info"><small>아직 얻은 장비가 없어요. 사냥에서 이기면 가끔 떨어져요</small></div></div>'}</div>` : ''}
+    ${partySec === 'bag' ? `<h2>전직 재료<small>대원마다, 단계마다 전용 재료가 따로 있어요 · ${PROMO_N}개를 모으면 전직해요 · 유저 간 거래 가능 품목 (거래소는 서버가 열리면 쓸 수 있어요)</small></h2><div class="card">${Object.keys(S.promo).length ? Object.entries(S.promo).sort((a, b) => a[0].split(':')[1] - b[0].split(':')[1] || a[0].localeCompare(b[0])).map(([k, n]) => { const t = +k.split(':')[1], mine = party().some(u => promoKey(u, u.tier || 0) === k); return `<div class="row">${ic('token', t)}<div class="info"><b style="color:${k.startsWith('hero-') ? '#ffb347' : RAR[Math.min(4, t + 1)].c}">${promoName(k)}</b><small>${t + 1}차 ${k.startsWith('hero-') ? '영웅 ' : ''}전직 재료 · ${mine ? '지금 쓸 수 있는 대원이 있어요' : '지금 쓸 대원이 없어요 · 거래용'}</small></div><b>${n}/${PROMO_N}</b></div>`; }).join('') : '<div class="row"><div class="info"><small>아직 없어요 · 사냥하면 가끔 떨어져요</small></div></div>'}</div><h2>우두머리 증표<small>특수 전직에 써요 · 우두머리를 잡으면 하나씩 얻어요</small></h2><div class="card"><div class="row"><div class="info"><small style="color:var(--text)">${Object.entries(S.tokens).filter(([, k]) => k > 0).map(([k, n]) => `${TOKEN_N[k]} ${n}개`).join(' · ') || '아직 없어요'}</small><small>공룡 알: ${Object.entries(S.eggBag).filter(([, k]) => k > 0).map(([ez, k]) => `${ZONES[ez].n} ${k}개`).join(' · ') || '없음'}</small></div></div></div><h2>가방<small>장비 ${S.items.length}/${BAG_MAX} · 대원의 관리 버튼에서 착용해요</small></h2><div class="card">${S.items.length ? [...S.items].sort((a, b) => b.r - a.r || b.lv - a.lv).map(it => `<div class="row">${itemIc(it)}<div class="info"><b>${itemName(it)}</b><small>${SLOTS[it.slot]} · Lv${it.lv} · ${itemText(it)}</small></div><button class="btn small" data-act="sellItem" data-it="${it.id}">${itemPrice(it)}에 팔기</button></div>`).join('') : '<div class="row"><div class="info"><small>아직 얻은 장비가 없어요. 사냥에서 이기면 가끔 떨어져요</small></div></div>'}</div>` : ''}
     ${partySec === 'ach' ? `<h2>업적<small>단계를 채우면 상금을 받아요</small></h2><div class="card">${ACH.map(([k, n, fn, th, unit], i) => { const t = S.ach[k] || 0, v = fn(), done = t >= 5, ok = !done && v >= th[t];
       return `<div class="row"><span class="num${done ? ' done' : ''}">${done ? '★' : t + 1}</span><div class="info"><b>${n}</b>${done ? '<small>모든 단계를 마쳤어요</small>' : `<div class="bar"><i style="width:${Math.min(100, v / th[t] * 100)}%;background:var(--amber)"></i></div><small>${fmt(Math.min(v, th[t]))}/${fmt(th[t])} ${unit} · 상금 ${fmt(achPrize(i, t))}</small>`}</div><button class="btn small ${ok ? 'primary' : ''}" data-act="ach" data-k="${k}" ${ok ? '' : 'disabled'}>${done ? '완료' : '받기'}</button></div>`; }).join('')}</div>` : ''}
     ${partySec === 'rank' ? (() => { const me = partyPower(), list = [...RANKS.map(r => [r[0], r[1], 0]), ['내 상단', me, 1]].sort((a, b) => b[1] - a[1]), up = list[list.findIndex(r => r[2]) - 1];
       return `<h2>상단 순위<small>출전 대원의 전투력 합계로 겨뤄요 · 한 계단 오를 때마다 상금을 받아요</small></h2><div class="card">${list.map((r, i) => `<div class="row"><span class="num${r[2] ? ' done' : ''}">${i + 1}</span><div class="info"><b style="${r[2] ? 'color:var(--amber)' : ''}">${r[0]}</b><small>전투력 ${fmt(r[1])}</small></div></div>`).join('')}</div>
-      <div class="sub">${up ? `${up[0]}까지 전투력 ${fmt(up[1] - me + 1)} 남았어요 · 레벨, 능력치 포인트, 전직·진화, 장비, 숙련도·친밀도가 모두 전투력을 올려요` : '모든 상단을 제쳤어요'}</div>`; })() : ''}
+      <div class="sub">${up ? `${up[0]}까지 전투력 ${fmt(up[1] - me + 1)} 남았어요 · 레벨, 능력치 포인트, 전직, 장비, 숙련도·친밀도가 모두 전투력을 올려요` : '모든 상단을 제쳤어요'}</div>`; })() : ''}
     ${partySec === 'dex' ? (() => { const dinos = Object.keys(UNITS).filter(t => UNITS[t].cls === 'dino'), men = Object.keys(UNITS).filter(t => UNITS[t].cls === 'human');
       const tabs = chips([['dino', '공룡', 0], ['human', '용병', 0], ['boss', '우두머리', 0], ['item', '아이템', 0]], dexTab, 'dtab');
       if (dexTab === 'boss') { const bs = Object.keys(BOSSES), seen = k => S.bossKills[k] || (S.bossSeen || {})[k]; return `<h2>일러스트 도감<small>우두머리 ${bs.filter(k => S.bossKills[k]).length} / ${bs.length} 처치 · 마주친 우두머리만 그림이 보여요</small></h2>${tabs}<div class="artg">${bs.map(k => { const st = seen(k), zn = Object.keys(ZONES).find(z => ZONES[z].boss === k); return `<div class="artc${st ? '' : ' unk'}${S.bossKills[k] ? ' own' : ''}">${ARTIMG['boss:' + k] ? `<img src="${artSrc('boss:' + k)}" alt="">` : `<canvas data-u="${BOSSES[k].base}" data-art="${st ? 1 : 'unk'}"></canvas>`}<b>${st ? BOSSES[k].n : '???'}</b><small>${zn ? ZONES[zn].n : ''}${S.bossKills[k] ? ` · ${S.bossKills[k] === true ? '' : S.bossKills[k] + '번 '}처치` : st ? ' · 아직 쓰러뜨리지 못했어요' : ' · 아직 만나지 못했어요'}</small></div>`; }).join('')}</div>`; }
@@ -2971,7 +3062,7 @@ function renderParty() {
       return `<h2>일러스트 도감<small>장비 15종 · 교역품 ${Object.keys(GOODS).length}종 · 소모품 5종</small></h2>${tabs}<h2>장비</h2><div class="itg">${eq}</div><h2>교역품</h2><div class="itg">${gd}</div><h2>소모품과 재료</h2><div class="itg">${misc}</div>`; })() : ''}
     ${partySec === 'skill' ? `<h2>상단 스킬<small>남은 포인트 ${S.sp}</small></h2><div class="card">${Object.entries(SKILLS).map(([k, K]) => { const lv = sk(k); return `<div class="row"><div class="info"><b>${K.n} Lv${lv}</b><small>${lv ? K.ds(lv) : '아직 배우지 않았어요'}${lv < SKILL_MAX ? ` → ${K.ds(lv + 1)}` : ''}</small></div><button class="btn small primary" data-act="skill" data-k="${k}" ${S.sp < 1 || lv >= SKILL_MAX ? 'disabled' : ''}>${lv >= SKILL_MAX ? '최고' : '배우기'}</button></div>`; }).join('')}</div>` : ''}
     ${partySec === 'cash' ? `<h2>캐시샵<small>보유 보석 <span class="gem">${fmt(S.gems)}</span>개 · 한 번 사면 계속 써요</small></h2>
-      <div class="card cashcard">${Object.entries(CASH).map(([k, C]) => `<div class="row"><canvas data-u="${k === 'wagon' ? 'trike' : 'scout'}" data-t="${k === 'wagon' ? 1 : 0}" width="104" height="80"></canvas><div class="info"><b style="color:#8fe4ff">${C.n}</b><small>${C.ds}</small>${k === 'runner' && S.cash.runner ? `<small>보유 ${S.cash.runner}/${RUNNER_MAX}명 · ${S.cash.runnerOff ? '쉬는 중이에요' : (S.cash.trips || []).some(Boolean) ? S.cash.trips.map((tr, q) => tr ? `${q + 1}호: ${GOODS[tr.g].n} ${tr.n}개 → ${ZONES[tr.z].n} ${Math.ceil(tr.t)}초` : '').filter(Boolean).join(' · ') : '팔 물건이 3개 이상 모이면 떠나요 · 식량은 6개씩 남겨요'}</small>` : ''}<small style="color:#8fe4ff">대원 자리를 차지하지 않아요</small></div><div style="display:flex;flex-direction:column;gap:5px;flex:none">${k === 'runner' ? `${(S.cash.runner || 0) < RUNNER_MAX ? `<button class="btn small primary" data-act="cashBuy" data-k="runner" ${S.gems < C.cost ? 'disabled' : ''}>보석 ${C.cost}</button>` : '<span class="tag" style="color:#8fe4ff">3명 보유</span>'}${S.cash.runner ? `<button class="btn small" data-act="runnerToggle">${S.cash.runnerOff ? '일 시키기' : '쉬게 하기'}</button>` : ''}` : S.cash[k] ? '<span class="tag" style="color:#8fe4ff">보유 중</span>' : `<button class="btn small primary" data-act="cashBuy" data-k="${k}" ${S.gems < C.cost ? 'disabled' : ''}>보석 ${C.cost}</button>`}</div></div>`).join('')}</div>
+      <div class="card cashcard">${Object.entries(CASH).map(([k, C]) => `<div class="row"><canvas data-u="${k === 'wagon' ? 'trike' : 'scout'}" data-t="${k === 'wagon' ? 1 : 0}" width="104" height="80"></canvas><div class="info"><b style="color:#8fe4ff">${C.n}</b><small>${C.ds}</small>${k === 'runner' && S.cash.runner ? `<small>보유 ${S.cash.runner}/${RUNNER_MAX}명 · ${S.cash.runnerOff ? '쉬는 중이에요' : (S.cash.trips || []).some(Boolean) ? S.cash.trips.map((tr, q) => tr ? `${q + 1}호: ${GOODS[tr.g].n} ${tr.n}개 → ${ZONES[tr.z].n} ${Math.ceil(tr.t)}초` : '').filter(Boolean).join(' · ') : '팔 물건이 3개 이상 모이면 떠나요 · 식량 6개와 의뢰 납품에 쓸 물건은 남겨요'}</small>` : ''}<small style="color:#8fe4ff">대원 자리를 차지하지 않아요</small></div><div style="display:flex;flex-direction:column;gap:5px;flex:none">${k === 'runner' ? `${(S.cash.runner || 0) < RUNNER_MAX ? `<button class="btn small primary" data-act="cashBuy" data-k="runner" ${S.gems < C.cost ? 'disabled' : ''}>보석 ${C.cost}</button>` : '<span class="tag" style="color:#8fe4ff">3명 보유</span>'}${S.cash.runner ? `<button class="btn small" data-act="runnerToggle">${S.cash.runnerOff ? '일 시키기' : '쉬게 하기'}</button>` : ''}` : S.cash[k] ? '<span class="tag" style="color:#8fe4ff">보유 중</span>' : `<button class="btn small primary" data-act="cashBuy" data-k="${k}" ${S.gems < C.cost ? 'disabled' : ''}>보석 ${C.cost}</button>`}</div></div>`).join('')}</div>
       <h2>보석 충전<small>실제 결제는 스토어에 등록한 뒤에 열려요</small></h2>
       <div class="card">${GEM_PACKS.map(([n, won]) => `<div class="row"><div class="info"><b class="gem">보석 ${fmt(n)}개</b><small>${won}</small></div><button class="btn small" disabled>결제 준비 중</button></div>`).join('')}
         <div class="row"><div class="info"><b>시험용 보석</b><small>출시 전 시험용이에요 · 출시할 때 이 버튼은 없애야 해요</small></div><button class="btn small" data-act="gemTest">보석 1,000 받기</button></div></div>` : ''}
@@ -3286,7 +3377,7 @@ requestAnimationFrame(frame);
 <button id="upd" hidden>새 패치가 있어요 · 눌러서 적용</button>
 <script>
 (function () {
-  var VER = "20261126-024900";
+  var VER = "20261126-063114";
   if (!/^https?:$/.test(location.protocol)) return;
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
   var btn = document.getElementById('upd');
