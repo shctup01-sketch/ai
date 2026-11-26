@@ -1218,7 +1218,7 @@ function endBattle(win) {
     if (opt.boss) S.bossKills[opt.boss] = 1;
     { const pg = rollPromo(opt.foes); for (const [k, n] of Object.entries(pg)) { lines.push(`<b style="color:${k.startsWith('hero-') ? '#ffb347' : '#9fd0ff'}">${promoName(k)}</b> ${n}개를 얻었어요${k.startsWith('hero-') ? ' · 영웅 전용 재료!' : ''}`); if (k.startsWith('hero-')) { flash(0.5, '255,190,90'); sfx('win'); } gotItem = true; } }
     if (opt.boss) { S.tokens[opt.boss] = (S.tokens[opt.boss] || 0) + 1; lines.push(`<b style="color:var(--amber)">${TOKEN_N[opt.boss]}</b>를 얻었어요 · 특수 전직에 써요`); gotItem = true; }
-    { const rareIn = opt.foes.some(f => UNITS[f.type].rare && !f.boss), ch = opt.boss ? 0.03 : rareIn ? 0.008 : 0.002; if (Math.random() < ch) { S.eggBag.egg = (S.eggBag.egg || 0) + 1; lines.push(`<b style="color:#ffb347">공룡 알</b>을 주웠어요! · 고용소의 부화장에 맡기면 공룡이 태어나요`); flash(0.5, '255,190,90'); sfx('win'); gotItem = true; } }
+    { const rareIn = opt.foes.some(f => UNITS[f.type].rare && !f.boss), ch = opt.boss ? 0.006 : rareIn ? 0.0015 : 0.0004; if (Math.random() < ch) { S.eggBag.egg = (S.eggBag.egg || 0) + 1; lines.push(`<b style="color:#ffb347">공룡 알</b>을 주웠어요! · 고용소의 부화장에 맡기면 공룡이 태어나요`); flash(0.5, '255,190,90'); sfx('win'); gotItem = true; } }
     {   // loot roll: deeper grounds, rare dinosaurs and bosses drop better gear
       const H0 = opt.kind === 'hunt' ? HUNTS[opt.tier] : { drop: 0.1 }, Hb = opt.boss ? H0 : H0.boss ? HUNTS[3] : H0, H = { boss: !!opt.boss, drop: Hb.drop + Math.max(0, opt.foes.length - 3) * 0.04 }, rares = opt.foes.filter(f => UNITS[f.type].rare && !f.boss).length;
       const lv = Math.max(...opt.foes.map(f => f.lv)), luck = (opt.tier || 0) * 0.35 + rares * 0.3;
