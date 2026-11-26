@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}
 #upd{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:999;padding:11px 18px;border-radius:14px;border:2px solid #f3c79a;background:#d4763c;color:#1c120a;font:700 14px system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.5)}</style>
-<script>window.__VER="20261126-065158"</script>
+<script>window.__VER="20261126-065522"</script>
 </head>
 <body>
 <title>공룡 상단 픽셀</title>
@@ -402,6 +402,28 @@ canvas.bigart { width: min(100%, 300px); height: auto; aspect-ratio: 5 / 4; alig
 #btMenu input, #btMenu textarea { background: #120b06; border: 1px solid var(--gold-lo); box-shadow: inset 0 2px 5px #000; border-radius: 7px; color: #fff3d6; }
 #btMenu .tabs2 { background: #120b06; border-color: var(--gold-lo); } #btMenu .tabs2 button.on { background: linear-gradient(#ffe08a, #d8922a 60%, #a8601a); }
 .bt-bar { border-color: var(--gold) !important; background: #120b06 !important; box-shadow: 0 0 0 1px var(--ink), inset 0 2px 4px #000; }
+
+/* ---- a lighter HUD: more of the world, less furniture ---- */
+.lfrow { display: flex; align-items: center; gap: 4px; }
+#lf { width: 150px; padding: 2px 7px 2px 2px; gap: 5px; } #lf canvas { width: 36px; height: 32px; } #lfName { font-size: 10.5px; } .lfb { gap: 2px; } .lfb .hp { height: 10px; } .lfb .hp em { font-size: 8.5px; line-height: 10px; }
+#stripT { width: 26px; height: 26px; border-radius: 50%; background: radial-gradient(circle at 35% 28%, #5a432a, #20160e 75%); border: 1px solid var(--gold); box-shadow: 0 0 0 1px var(--ink); color: var(--gold-hi); font-size: 11px; line-height: 1; position: relative; }
+#stripT::before { content: '▾'; } #hudL.showStrip #stripT::before { content: '▴'; } #stripT i { position: absolute; right: -4px; top: -4px; min-width: 14px; height: 14px; border-radius: 7px; background: #c8321e; border: 1px solid #fff; color: #fff; font: 700 9px/12px var(--f-body); font-style: normal; text-align: center; }
+#hudL:not(.showStrip):not(.inb) #pstrip { display: none; } #hudL.inb #stripT { display: none; }
+#pstrip { max-width: 190px; gap: 2px; } .pc { width: 25px; border-radius: 5px; } .pc canvas { width: 23px; height: 20px; } .pc i { height: 3px; } .pc em { font-size: 8px; }
+#hudL { max-width: 200px; gap: 4px; }
+#goal { max-width: 190px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 10.5px; padding: 4px 8px 4px 24px; line-height: 1.3; } #goal::before { top: 4px; left: 5px; width: 13px; height: 13px; line-height: 13px; } #goal span { margin-top: 3px; height: 3px; }
+#runner { max-width: 190px; font-size: 10px; padding: 3px 7px; }
+#tmT { position: absolute; z-index: 2; right: 12px; top: 150px; width: 62px; height: 26px; border-radius: 13px; background: linear-gradient(#5a432a, #20160e); border: 1px solid var(--gold); box-shadow: 0 0 0 1px var(--ink), 0 2px 5px rgba(0,0,0,.5); color: #fff3d6; font: 700 11px var(--f-body); text-shadow: 0 1px 0 #000; }
+#tmT.dot::after { content: ''; position: absolute; right: -2px; top: -3px; width: 10px; height: 10px; border-radius: 50%; background: #e2573f; border: 1px solid #fff; }
+#battle.inb #tmT { display: none; }
+#tmenu { top: 182px; right: 12px; gap: 5px; } #tmenu:not(.open) { display: none; } #tmenu button { width: 42px; height: 42px; }
+#joy { width: 100px; height: 100px; left: 12px; bottom: 14px; opacity: .72; } #joy.on { opacity: 1; } #joy i { width: 42px; height: 42px; margin: -21px 0 0 -21px; }
+#battle .bfoot { width: 158px; height: 150px; } #battle .bfoot .btn { width: 50px; height: 50px; font-size: 9.5px; } #battle .bfoot .btn::before { width: 18px; height: 18px; }
+#battle .bfoot .btn.primary { width: 72px; height: 72px; right: 8px; bottom: 12px; font-size: 11px; } #battle .bfoot .btn.primary::before { width: 24px; height: 24px; }
+#battle #fPot { right: 86px; bottom: 10px; } #battle #autoBtn { right: 72px; bottom: 66px; }
+#battle #bfoot #bPot { width: 72px; height: 72px; right: 8px; bottom: 12px; } #battle #bfoot #bSpeed { right: 86px; bottom: 10px; } #battle #bfoot #bRetreat { right: 72px; bottom: 66px; }
+.bhead { padding-top: 5px !important; padding-bottom: 8px !important; } .hud { padding: 3px 7px; font-size: 13px; }
+@media (orientation: landscape) { #tmT { top: 50px; right: 104px; } #tmenu { top: 50px; right: 172px; } #hudL { top: 34px; } }
 </style>
 
 <div id="boot">
@@ -434,7 +456,7 @@ canvas.bigart { width: min(100%, 300px); height: auto; aspect-ratio: 5 / 4; alig
   </div>
   <div id="battle" hidden>
     <div class="bhead"><b id="bTitle"></b><small id="bInfo"></small></div>
-    <div class="bfield"><canvas id="b3d"></canvas><canvas id="bcv"></canvas><div id="bTip">적을 눌러 집중 공격 · 대원을 끌어 자리 배치</div><div id="hudL"><button id="lf" data-act="unit"><canvas width="96" height="84"></canvas><span class="lfb"><b id="lfName"></b><i class="hp"><u id="lfHp"></u><em id="lfHpT"></em></i><i class="xp"><u id="lfXp"></u></i></span></button><div id="pstrip"></div><button id="goal" hidden></button><div id="runner" hidden></div><div id="feed"></div></div><div id="bossIn" hidden></div><div id="tmenu"><button data-m="crew">대원</button><button data-m="bag">가방</button><button data-m="skill">스킬</button><button data-m="map">지도</button><button data-m="cash">상점</button></div><div id="cxp"><u></u></div><div id="joy"><i></i></div><div id="skbar" hidden></div><div id="bSel" hidden><span id="bSelName"></span><span class="bar"><i id="bSelHp"></i></span></div></div>
+    <div class="bfield"><canvas id="b3d"></canvas><canvas id="bcv"></canvas><div id="bTip">적을 눌러 집중 공격 · 대원을 끌어 자리 배치</div><div id="hudL"><div class="lfrow"><button id="lf" data-act="unit"><canvas width="96" height="84"></canvas><span class="lfb"><b id="lfName"></b><i class="hp"><u id="lfHp"></u><em id="lfHpT"></em></i><i class="xp"><u id="lfXp"></u></i></span></button><button id="stripT" aria-label="대원 보기"></button></div><div id="pstrip"></div><button id="goal" hidden></button><div id="runner" hidden></div><div id="feed"></div></div><div id="bossIn" hidden></div><button id="tmT" aria-label="메뉴">메뉴</button><div id="tmenu"><button data-m="crew">대원</button><button data-m="bag">가방</button><button data-m="skill">스킬</button><button data-m="map">지도</button><button data-m="cash">상점</button></div><div id="cxp"><u></u></div><div id="joy"><i></i></div><div id="skbar" hidden></div><div id="bSel" hidden><span id="bSelName"></span><span class="bar"><i id="bSelHp"></i></span></div></div>
     <div class="bfoot" id="ffoot" hidden><button class="btn" id="fLeave">상단</button><button class="btn" id="fZoom">지도</button><button class="btn" id="fPot">물약</button><button class="btn" id="autoBtn">자동</button><button class="btn primary" id="fNearest">사냥</button></div>
     <div class="bfoot" id="bfoot"><button class="btn" id="bRetreat">후퇴</button><button class="btn primary" id="bCapture">포획</button><button class="btn" id="bPot">회복약</button><button class="btn" id="bZoom" hidden>크게</button><button class="btn" id="bSpeed">×1</button></div>
   </div>
@@ -2391,7 +2413,7 @@ function updField() {
   const lv = party().filter(u => !u.ko).length; { const cu = cargoUsed(), cp = capacity(); $('bInfo').innerHTML = `<span class="hud m"><i>크레딧</i>${fmt(S.money)}</span><span class="hud${S.food <= 20 ? ' warn' : ''}"><i>포만감</i>${Math.ceil(S.food)}</span><span class="hud${cu >= cp ? ' warn' : ''}"><i>짐</i>${cu}/${cp}</span>`; }
 }
 function worldTap(px, py) {
-  { const cw0 = bcv.clientWidth, my0 = (isLand() ? 50 : 34) + 50; if (Math.hypot(px - (cw0 - 60), py - my0) < 54) { sfx('open'); hideWorld('map'); return; } }
+  { const cw0 = bcv.clientWidth, my0 = (isLand() ? 50 : 34) + 42; if (Math.hypot(px - (cw0 - 51), py - my0) < 46) { sfx('open'); hideWorld('map'); return; } }
   const x = VO.x + px / PSZ, y = VO.y + py / PSZ, L = W.lead;
   let best = null, bd = 34 * 34;
   for (const p of W.packs) { if (p.dead > 0 || d2(p.cx, p.cy, x, y) > 260 * 260) continue; for (const m of p.mons) { const d = d2(x, y, m.x, m.y - m.len * 0.2); if (d < Math.max(bd, (m.len * 0.5) ** 2) && (!best || d < bd)) { bd = d; best = p; } } }
@@ -2518,13 +2540,14 @@ function updPots() { $('fPot').textContent = $('bPot').textContent = `물약 ${S
 let stripKey = '';
 function updStrip() {   // the party at a glance: a face, a level and a health bar for each member
   $('hudL').classList.toggle('inb', !!B); $('battle').classList.toggle('inb', !!B);
-  { const rn = $('runner'), ts = ((S.cash && S.cash.trips) || []).map((tr, q) => tr ? `<b>${q + 1}호</b> ${GOODS[tr.g].n} ${tr.n} → ${ZONES[tr.z].n} ${Math.ceil(tr.t)}초` : '').filter(Boolean); rn.hidden = !ts.length; if (ts.length) rn.innerHTML = ts.join('<br>'); }
+  { const rn = $('runner'), ts = ((S.cash && S.cash.trips) || []).filter(Boolean); rn.hidden = !ts.length; if (ts.length) rn.innerHTML = `<b>달음이 ${ts.length}명</b> 팔러 감 · ${Math.ceil(Math.min(...ts.map(t => t.t)))}초 뒤 +${fmt(ts.reduce((a, t) => a + t.gain, 0))}`; }
   const All = party(), Ld = All.find(u => u.type === 'leader'), lf = $('lf'); lf.hidden = !Ld;
   if (Ld) { const bu = B && B.units.find(x => x.ref === Ld), mx = bu ? bu.max : maxHp(Ld), hp = Math.max(0, Math.min(mx, bu ? bu.hp : Ld.ko ? 0 : Ld.hp)); lf.dataset.id = Ld.id;
     $('lfName').textContent = `Lv${Ld.lv} ${(CLASSES[S.cls] || CLASSES.gunner).n}`; $('lfHp').style.width = (hp / mx * 100) + '%'; $('lfHpT').textContent = `${fmt(Math.round(hp))} / ${fmt(Math.round(mx))}`; $('lfXp').style.width = Math.min(100, (Ld.xp || 0) / xpNeed(Ld.lv) * 100) + '%';
     const lk = (S.cls || '') + (Ld.tier || 0); if (lf.dataset.k !== lk) { lf.dataset.k = lk; const cv = lf.querySelector('canvas'); cv.dataset.u = 'leader'; cv.dataset.t = Ld.tier || 0; portrait(cv, 'leader'); } }
   $('cxp').firstChild.style.width = Math.min(100, S.cxp / cxpNeed(S.clv) * 100) + '%';
-  { const tm = $('tmenu').children; tm[0].classList.toggle('dot', S.units.some(u => u.inParty && u.pts > 0)); tm[2].classList.toggle('dot', S.sp > 0); }
+  { const tm = $('tmenu').children, d0 = S.units.some(u => u.inParty && u.pts > 0), d2 = S.sp > 0; tm[0].classList.toggle('dot', d0); tm[2].classList.toggle('dot', d2); $('tmT').classList.toggle('dot', d0 || d2); $('hudL').classList.toggle('showStrip', !!S.hudStrip);
+    const down = All.filter(u => u.ko).length; $('stripT').innerHTML = down ? `<i>${down}</i>` : ''; }
   const el = $('pstrip'), P = All.filter(u => u !== Ld), key = P.map(u => u.id + ':' + (u.tier || 0) + u.type).join(',') + (S.cls || '');
   if (key !== stripKey) { stripKey = key; el.innerHTML = P.map(u => `<button class="pc${u.type === 'leader' ? ' lead' : ''}" data-act="unit" data-id="${u.id}"><canvas data-u="${u.type}" data-t="${u.tier || 0}" width="64" height="56"></canvas><i><b></b></i><em></em></button>`).join(''); el.querySelectorAll('canvas').forEach(cv => portrait(cv, cv.dataset.u)); }
   P.forEach((u, q) => { const c = el.children[q]; if (!c) return; const bu = B && B.units.find(x => x.ref === u), f = bu ? Math.max(0, bu.hp / bu.max) : u.ko ? 0 : u.hp / maxHp(u), ko = bu ? bu.hp <= 0 : u.ko; c.querySelector('b').style.width = (f * 100) + '%'; c.classList.toggle('ko', ko); c.classList.toggle('low', !ko && f < 0.35); c.querySelector('em').textContent = u.lv; });
@@ -2550,11 +2573,13 @@ function updGoal() {
   const el = $('goal'), g = GOALS[S.goal || 0]; if (!g || !S.cls) { el.hidden = true; return; }
   const v = Math.min(g.n, g.p());
   if (v >= g.n) { S.goal = (S.goal || 0) + 1; S.money += g.r; sfx('loot'); toast(`목표 달성: ${g.t} · 보상 ${fmt(g.r)} 크레딧`, 'good'); renderHeader(); updGoal(); return; }
-  el.hidden = false; el.innerHTML = `<b>목표</b> ${g.t}${g.n > 1 ? ` (${v}/${g.n})` : ''} · 보상 ${fmt(g.r)}<span><u style="width:${v / g.n * 100}%"></u></span>`;
+  el.hidden = false; el.title = g.t; el.innerHTML = `${g.t}${g.n > 1 ? ` (${v}/${g.n})` : ''}<span><u style="width:${v / g.n * 100}%"></u></span>`;
 }
 $('goal').onclick = () => { const g = GOALS[S.goal || 0]; if (g && g.go && !B) { sfx('tap'); g.go(); } };
 $('menuClose').onclick = () => { sfx('tap'); showWorld(); };
-$('tmenu').onclick = e => { const b = e.target.closest('button'); if (!b || B) return; sfx('open'); if (b.dataset.m === 'map') hideWorld('map'); else { partySec = b.dataset.m; hideWorld('party'); } };
+$('tmT').onclick = () => { sfx('tap'); $('tmenu').classList.toggle('open'); };
+$('stripT').onclick = () => { sfx('tap'); S.hudStrip = !S.hudStrip; $('hudL').classList.toggle('showStrip', !!S.hudStrip); };
+$('tmenu').onclick = e => { const b = e.target.closest('button'); if (!b || B) return; $('tmenu').classList.remove('open'); sfx('open'); if (b.dataset.m === 'map') hideWorld('map'); else { partySec = b.dataset.m; hideWorld('party'); } };
 function cookMeal() {   // a cook in the party keeps everyone fed from the cargo, and gets more out of each ingredient
   const c = cookOf(); if (!c || !W || S.food > 70 || W.t < (W.cookT || 0)) return;
   const g = ['meat', 'grain'].find(g => S.cargo[g] > 0); if (!g) return;
@@ -2713,28 +2738,31 @@ function drawWeather(c, cw, ch) {   // each land has its own air: ash, rain, san
   }
 }
 const MINI_COL = { plain: '#8f8250', city: '#6c6f72', swamp: '#4f6f4a', waste: '#a06f42', snow: '#b9c6d2', volcano: '#73402f', abyss: '#40365c' }, MINI = { key: '', cv: null };
-function drawMini(c, cw) {   // round minimap: the land by colour, roads, towns, hunting grounds, nearby herds and which way you face
-  const R = 50, mx = cw - R - 10, my = (isLand() ? 50 : 34) + R, span = WH, wx0 = clamp(W.lead.x - span / 2, 0, WW - span), k = R * 2 / span, X = x => mx - R + (x - wx0) * k, Y = y => my - R + y * k, T = performance.now() / 1000;
-  const key = Math.round(wx0 / 240) + ''; if (MINI.key !== key) { MINI.key = key; const cv = MINI.cv || (MINI.cv = document.createElement('canvas')), n = 25; cv.width = cv.height = n; const g = cv.getContext('2d');
-    for (let gy = 0; gy < n; gy++) for (let gx = 0; gx < n; gx++) { const wx = wx0 + (gx + 0.5) / n * span, wy = (gy + 0.5) / n * span; g.fillStyle = MINI_COL[bioOf(zoneAt(wx, wy))] || '#8f8250'; g.fillRect(gx, gy, 1, 1); const h = Math.sin(gx * 12.9898 + gy * 78.233 + wx0) * 43758.5453; g.fillStyle = `rgba(0,0,0,${(h - Math.floor(h)) * 0.16})`; g.fillRect(gx, gy, 1, 1); } }
+function drawMini(c, cw) {   // round minimap, centred on you: the land by colour, towns, hunting grounds, nearby herds and which way you face
+  const R = 42, mx = cw - R - 9, my = (isLand() ? 50 : 34) + R, span = 3600, k = R * 2 / span, L0 = W.lead, X = x => mx + (x - L0.x) * k, Y = y => my + (y - L0.y) * k, T = performance.now() / 1000;
+  const G = 150, n = 28, bx = Math.round(L0.x / G), by = Math.round(L0.y / G), key = bx + ',' + by;
+  if (MINI.key !== key) { MINI.key = key; const cv = MINI.cv || (MINI.cv = document.createElement('canvas')); cv.width = cv.height = n; const g = cv.getContext('2d');
+    for (let gy = 0; gy < n; gy++) for (let gx = 0; gx < n; gx++) { const wx = (bx + gx - n / 2 + 0.5) * G, wy = (by + gy - n / 2 + 0.5) * G, inW = wx >= 0 && wx <= WW && wy >= 0 && wy <= WH; g.fillStyle = inW ? (MINI_COL[bioOf(zoneAt(wx, wy))] || '#8f8250') : '#17110b'; g.fillRect(gx, gy, 1, 1);
+      if (inW) { const h = Math.sin((bx + gx) * 12.9898 + (by + gy) * 78.233) * 43758.5453; g.fillStyle = `rgba(0,0,0,${(h - Math.floor(h)) * 0.16})`; g.fillRect(gx, gy, 1, 1); } } }
+  const wx0 = L0.x - span / 2;
   c.save(); c.beginPath(); c.arc(mx, my, R, 0, 7); c.clip();
-  c.imageSmoothingEnabled = true; c.drawImage(MINI.cv, mx - R, my - R, R * 2, R * 2);
+  c.imageSmoothingEnabled = true; { const cell = G * k, ox0 = X((bx - n / 2) * G), oy0 = Y((by - n / 2) * G); c.drawImage(MINI.cv, ox0, oy0, cell * n, cell * n); }
   c.lineCap = 'round';
-  const near = x => x > wx0 - 200 && x < wx0 + span + 200;
+  const near = x => x > wx0 - 300 && x < wx0 + span + 300, edge = (x, y) => { const dx = x - mx, dy = y - my, d = Math.hypot(dx, dy); return d > R - 6 ? [mx + dx / d * (R - 6), my + dy / d * (R - 6), true] : [x, y, false]; };
   for (const p of W.packs) { if (p.dead > 0 || !p.mons.length || (p !== W.target && d2(p.cx, p.cy, W.lead.x, W.lead.y) > 1300 * 1300)) continue; const px = X(p.cx), py = Y(p.cy); if (p === W.target) { c.fillStyle = '#ffe070'; c.fillRect(px - 2, py - 2, 4, 4); } else if (!p.boss) { c.fillStyle = 'rgba(214,70,50,.85)'; c.fillRect(px - 1, py - 1, 2, 2); } }
-  for (const z of ZKEYS) { if (!near(TOWNS[z].x) && !GROUNDS[z].some(g => near(g[0]))) continue;
+  for (const z of ZKEYS) { if (Math.abs(TOWNS[z].x - L0.x) > 5200 && !GROUNDS[z].some(g => near(g[0]))) continue;
     GROUNDS[z].forEach(([gx, gy], i) => { const px = X(gx), py = Y(gy), boss = i === 4, r = boss ? 4.5 : 3; c.beginPath(); c.moveTo(px, py - r); c.lineTo(px + r, py); c.lineTo(px, py + r); c.lineTo(px - r, py); c.closePath(); c.fillStyle = boss ? '#e0432c' : '#f4ead2'; c.fill(); c.lineWidth = 1; c.strokeStyle = '#1c120a'; c.stroke(); if (boss) { c.fillStyle = '#fff'; c.fillRect(px - 1.5, py - 1.5, 1.2, 1.2); c.fillRect(px + 0.4, py - 1.5, 1.2, 1.2); } });
-    const tx = X(TOWNS[z].x), ty = Y(TOWNS[z].y); c.fillStyle = '#1c120a'; c.fillRect(tx - 5, ty - 2, 10, 7); c.beginPath(); c.moveTo(tx - 6.5, ty - 1.5); c.lineTo(tx, ty - 8); c.lineTo(tx + 6.5, ty - 1.5); c.closePath(); c.fill();
+    const [tx, ty] = edge(X(TOWNS[z].x), Y(TOWNS[z].y)); c.fillStyle = '#1c120a'; c.fillRect(tx - 5, ty - 2, 10, 7); c.beginPath(); c.moveTo(tx - 6.5, ty - 1.5); c.lineTo(tx, ty - 8); c.lineTo(tx + 6.5, ty - 1.5); c.closePath(); c.fill();
     c.fillStyle = '#f0c060'; c.fillRect(tx - 4, ty - 1, 8, 5); c.fillStyle = '#c8402c'; c.beginPath(); c.moveTo(tx - 5, ty - 1.5); c.lineTo(tx, ty - 6.5); c.lineTo(tx + 5, ty - 1.5); c.closePath(); c.fill(); c.fillStyle = '#4a2e18'; c.fillRect(tx - 1, ty + 1, 2, 3); }
-  if (W.dest) { const dx = clamp(X(W.dest.x), mx - R + 6, mx + R - 6), dy = clamp(Y(W.dest.y), my - R + 6, my + R - 6); c.strokeStyle = '#1c120a'; c.lineWidth = 3; c.beginPath(); c.moveTo(dx, dy + 4); c.lineTo(dx, dy - 6); c.stroke(); c.fillStyle = '#7fe05a'; c.beginPath(); c.moveTo(dx, dy - 6); c.lineTo(dx + 7, dy - 3.5); c.lineTo(dx, dy - 1); c.closePath(); c.fill(); c.strokeStyle = '#1c120a'; c.lineWidth = 1; c.stroke(); }
-  { const px = X(W.lead.x), py = Y(W.lead.y), a = W.lead.a || 0, pu = (T * 1.2) % 1; c.strokeStyle = `rgba(255,255,255,${0.7 * (1 - pu)})`; c.lineWidth = 1.5; c.beginPath(); c.arc(px, py, 4 + pu * 9, 0, 7); c.stroke();
+  if (W.dest) { const [dx, dy] = edge(X(W.dest.x), Y(W.dest.y)); c.strokeStyle = '#1c120a'; c.lineWidth = 3; c.beginPath(); c.moveTo(dx, dy + 4); c.lineTo(dx, dy - 6); c.stroke(); c.fillStyle = '#7fe05a'; c.beginPath(); c.moveTo(dx, dy - 6); c.lineTo(dx + 7, dy - 3.5); c.lineTo(dx, dy - 1); c.closePath(); c.fill(); c.strokeStyle = '#1c120a'; c.lineWidth = 1; c.stroke(); }
+  { const px = mx, py = my, a = W.lead.a || 0, pu = (T * 1.2) % 1; c.strokeStyle = `rgba(255,255,255,${0.7 * (1 - pu)})`; c.lineWidth = 1.5; c.beginPath(); c.arc(px, py, 4 + pu * 9, 0, 7); c.stroke();
     c.save(); c.translate(px, py); c.rotate(a); c.beginPath(); c.moveTo(7, 0); c.lineTo(-5, -5); c.lineTo(-2, 0); c.lineTo(-5, 5); c.closePath(); c.fillStyle = '#ffffff'; c.fill(); c.lineWidth = 1.5; c.strokeStyle = '#1c120a'; c.stroke(); c.restore(); }
   { const g = c.createRadialGradient(mx, my, R * 0.62, mx, my, R); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(10,6,3,.55)'); c.fillStyle = g; c.fillRect(mx - R, my - R, R * 2, R * 2); }
   c.restore();
   c.lineWidth = 6; c.strokeStyle = '#150e08'; c.beginPath(); c.arc(mx, my, R + 1, 0, 7); c.stroke();
   { const g = c.createLinearGradient(mx - R, my - R, mx + R, my + R); g.addColorStop(0, '#ffe7a8'); g.addColorStop(0.5, '#d9a94a'); g.addColorStop(1, '#7a5422'); c.lineWidth = 3.5; c.strokeStyle = g; c.beginPath(); c.arc(mx, my, R + 1, 0, 7); c.stroke(); }
   for (let q = 0; q < 4; q++) { const a = q * Math.PI / 2 - Math.PI / 2, ox = mx + Math.cos(a) * (R + 1), oy = my + Math.sin(a) * (R + 1); c.fillStyle = '#150e08'; c.beginPath(); c.arc(ox, oy, 5, 0, 7); c.fill(); c.fillStyle = q ? '#d9a94a' : '#e0432c'; c.beginPath(); c.arc(ox, oy, 3.4, 0, 7); c.fill(); }
-  c.font = '700 8px "IBM Plex Sans KR", sans-serif'; c.textAlign = 'center'; c.fillStyle = '#fff'; c.fillText('N', mx, my - R + 3.5);
+  c.font = '700 8px "IBM Plex Sans KR", sans-serif'; c.textAlign = 'center'; c.fillStyle = '#fff'; c.fillText('N', mx, my - R + 3);
   { const zn = ZONES[zoneAt(W.lead.x, W.lead.y)].n; c.font = '700 10.5px "IBM Plex Sans KR", sans-serif'; const tw = Math.max(54, c.measureText(zn).width + 16), ly = my + R + 5; c.fillStyle = '#150e08'; c.beginPath(); c.roundRect ? c.roundRect(mx - tw / 2 - 1, ly - 1, tw + 2, 18, 5) : c.rect(mx - tw / 2 - 1, ly - 1, tw + 2, 18); c.fill();
     const g = c.createLinearGradient(0, ly, 0, ly + 16); g.addColorStop(0, '#4a3826'); g.addColorStop(1, '#241a10'); c.fillStyle = g; c.beginPath(); c.roundRect ? c.roundRect(mx - tw / 2, ly, tw, 16, 4) : c.rect(mx - tw / 2, ly, tw, 16); c.fill(); c.strokeStyle = '#d9a94a'; c.lineWidth = 1; c.stroke(); c.fillStyle = '#ffe7a8'; c.fillText(zn, mx, ly + 11.5); }
 }
@@ -2915,6 +2943,64 @@ const SFX = {
     call: () => { const f = 700 + Math.random() * 500; fx(f, 0.2, { type: 'triangle', slide: 1.25, vol: 0.024, vib: 0.02 }); fx(f * 1.1, 0.24, { type: 'triangle', slide: 0.8, vol: 0.02, at: 0.24 }); },
     callBig: () => { fx(110, 1.6, { type: 'sawtooth', det: 12, cut: 500, slide: 1.4, vol: 0.03, attack: 0.5 }); nz(1.3, { freq: 300, type: 'lowpass', vol: 0.05 }); },
   }); }
+// ---- Sound effects, second generation. No beeps: every sound is built from the things real sounds are made of —
+// a burst of filtered noise for the strike, a falling sine for the body, a few ringing partials for metal, wood or bone,
+// a breathy sweep for anything that moves through air. Each play is detuned a little so repeats never sound stamped out.
+{ const C = () => SND.ctx, rv = (x, a = 0.05) => x * (1 - a + Math.random() * a * 2), out = () => SND.fx;
+  const nzz = (dur, o = {}) => { const c = C(); if (!c) return; const t = c.currentTime + (o.at || 0), src = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain(); src.buffer = SND.noise; f.type = o.type || 'bandpass'; f.frequency.setValueAtTime(rv(o.freq || 2000), t); f.Q.value = o.q || 0.9; if (o.sweep) f.frequency.exponentialRampToValueAtTime(o.sweep, t + dur);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(o.vol || 0.2, t + (o.attack || 0.004)); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); src.connect(f).connect(g).connect(out()); src.start(t, Math.random()); src.stop(t + dur + 0.05); };
+  const thump = (f0, f1, dur, vol, at = 0) => { const c = C(); if (!c) return; const t = c.currentTime + at, o = c.createOscillator(), g = c.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(rv(f0), t); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur * 0.8); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); o.connect(g).connect(out()); o.start(t); o.stop(t + dur + 0.05); };
+  // ringing body: partials at given ratios, the higher ones dying sooner
+  const ring = (f, ratios, dur, vol, at = 0, type = 'sine') => { const c = C(); if (!c) return; const t = c.currentTime + at, f0 = rv(f, 0.03); ratios.forEach((r, q) => { const o = c.createOscillator(), g = c.createGain(), d = dur / (1 + q * 0.55); o.type = type; o.frequency.value = f0 * r; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol / (1 + q * 0.6), t + 0.003); g.gain.exponentialRampToValueAtTime(0.0001, t + d); o.connect(g).connect(out()); o.start(t); o.stop(t + d + 0.05); }); };
+  const METAL = [1, 2.32, 3.86, 5.17, 6.71], BELL = [1, 2.0, 2.76, 4.07, 5.4], WOOD = [1, 2.57, 4.1], GLASS = [1, 2.71, 5.2];
+  // soft sustained voice: two detuned sines with a slow attack (warmth, magic, horns far away)
+  const pad = (f, dur, vol, at = 0, type = 'sine', cut = 0) => { const c = C(); if (!c) return; const t = c.currentTime + at, g = c.createGain(); let dest = g; if (cut) { const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = cut; lp.Q.value = 0.7; g.connect(lp); dest = lp; } dest.connect(out());
+    for (const det of [-6, 7]) { const o = c.createOscillator(); o.type = type; o.frequency.value = f; o.detune.value = det; o.connect(g); o.start(t); o.stop(t + dur + 0.05); } g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + Math.min(0.12, dur * 0.3)); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); };
+  // animal voice: a rough saw through a moving low-pass, shaken by a fast tremor, with breath on top
+  const growl = (f0, f1, dur, vol, at = 0, rough = 26) => { const c = C(); if (!c) return; const t = c.currentTime + at, lp = c.createBiquadFilter(), g = c.createGain(), am = c.createGain(), lfo = c.createOscillator(), lg = c.createGain(); lp.type = 'lowpass'; lp.Q.value = 4; lp.frequency.setValueAtTime(f0 * 5, t); lp.frequency.exponentialRampToValueAtTime(Math.max(120, f1 * 3), t + dur);
+    for (const det of [0, 17, -23]) { const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.setValueAtTime(rv(f0, 0.04), t); o.frequency.exponentialRampToValueAtTime(Math.max(25, f1), t + dur); o.detune.value = det; o.connect(lp); o.start(t); o.stop(t + dur + 0.05); }
+    lfo.frequency.value = rv(rough, 0.2); lg.gain.value = 0.45; am.gain.value = 0.55; lfo.connect(lg).connect(am.gain); lfo.start(t); lfo.stop(t + dur + 0.05);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + dur * 0.18); g.gain.setValueAtTime(vol, t + dur * 0.55); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); lp.connect(am).connect(g).connect(out());
+    nzz(dur * 0.9, { type: 'bandpass', freq: f0 * 6, sweep: Math.max(200, f1 * 4), q: 0.8, vol: vol * 0.5, attack: dur * 0.15, at }); };
+  Object.assign(SFX, {
+    // interface: wood, leather, coin — things on a merchant's table
+    tap: () => { ring(1150, WOOD, 0.05, 0.035); nzz(0.018, { type: 'highpass', freq: 3500, vol: 0.03 }); },
+    open: () => { nzz(0.16, { freq: 700, sweep: 2200, q: 0.7, vol: 0.05, attack: 0.04 }); thump(150, 90, 0.09, 0.05, 0.02); },
+    deny: () => { thump(170, 110, 0.09, 0.09); thump(150, 95, 0.11, 0.08, 0.1); nzz(0.05, { type: 'lowpass', freq: 500, vol: 0.05 }); },
+    coin: () => { ring(2900, METAL, 0.22, 0.04); ring(3600, METAL, 0.26, 0.035, 0.055); nzz(0.02, { type: 'highpass', freq: 6000, vol: 0.03 }); },
+    loot: () => { nzz(0.09, { freq: 1800, sweep: 700, q: 0.8, vol: 0.05 }); ring(2500, METAL, 0.2, 0.035, 0.05); ring(3300, METAL, 0.22, 0.03, 0.12); },
+    // travel
+    step: () => { const m = SND.cur; if (m === 'snow') nzz(0.1, { type: 'bandpass', freq: 2400, sweep: 1200, q: 1.4, vol: 0.035 }); else if (m === 'swamp') { nzz(0.09, { type: 'lowpass', freq: 600, vol: 0.05 }); thump(120, 70, 0.06, 0.02); } else nzz(0.06, { type: 'lowpass', freq: rv(420, 0.2), vol: 0.045 }); },
+    march: () => [0, 0.27, 0.54].forEach(a => { nzz(0.09, { type: 'lowpass', freq: 380, vol: 0.07, at: a }); thump(95, 60, 0.08, 0.04, a); }),
+    arrive: () => { ring(392, BELL, 1.6, 0.06); ring(588, BELL, 1.2, 0.03, 0.02); nzz(0.5, { type: 'highpass', freq: 5000, vol: 0.008, attack: 0.1 }); },
+    horn: () => { pad(147, 1.0, 0.06, 0, 'sawtooth', 620); pad(220, 0.9, 0.045, 0.16, 'sawtooth', 700); },
+    // weapons
+    shot: () => { nzz(0.03, { type: 'highpass', freq: 4500, vol: 0.3 }); nzz(0.2, { type: 'lowpass', freq: 3200, sweep: 260, vol: 0.34 }); thump(170, 42, 0.16, 0.26); nzz(0.5, { type: 'bandpass', freq: 900, sweep: 300, q: 0.6, vol: 0.05, attack: 0.05, at: 0.05 }); },
+    bow: () => { thump(260, 130, 0.07, 0.07); ring(410, [1, 2.02, 3.01], 0.16, 0.03, 0, 'triangle'); nzz(0.14, { freq: 3200, sweep: 900, q: 1.6, vol: 0.07, attack: 0.02, at: 0.02 }); },
+    dart: () => { nzz(0.07, { type: 'highpass', freq: 3800, vol: 0.09, attack: 0.01 }); nzz(0.12, { freq: 2600, sweep: 1100, q: 2, vol: 0.05, at: 0.03 }); },
+    miss: () => nzz(0.17, { freq: 1700, sweep: 420, q: 1.2, vol: 0.07, attack: 0.05 }),
+    crit: () => { nzz(0.05, { type: 'highpass', freq: 3000, vol: 0.26 }); nzz(0.2, { type: 'lowpass', freq: 2400, sweep: 320, vol: 0.24 }); thump(210, 48, 0.2, 0.26); ring(1250, METAL, 0.32, 0.035, 0.01); },
+    stun: () => { ring(520, METAL, 0.55, 0.06); thump(160, 70, 0.12, 0.12); nzz(0.07, { type: 'lowpass', freq: 1500, vol: 0.1 }); },
+    // teeth, claws and big bodies
+    bite: () => { nzz(0.035, { type: 'lowpass', freq: 2600, vol: 0.18 }); nzz(0.05, { type: 'lowpass', freq: 1400, vol: 0.13, at: 0.045 }); thump(140, 75, 0.07, 0.07); },
+    crunch: () => { nzz(0.05, { type: 'lowpass', freq: 2200, vol: 0.22 }); nzz(0.11, { type: 'lowpass', freq: 900, sweep: 300, vol: 0.2, at: 0.04 }); thump(150, 55, 0.14, 0.16); ring(820, WOOD, 0.07, 0.03, 0.02); },
+    crunchBig: () => { nzz(0.07, { type: 'lowpass', freq: 1800, vol: 0.3 }); nzz(0.45, { type: 'lowpass', freq: 700, sweep: 110, vol: 0.34, at: 0.03 }); thump(95, 30, 0.5, 0.38); thump(60, 28, 0.6, 0.2, 0.08); },
+    spit: () => { nzz(0.14, { freq: 900, sweep: 260, q: 2.6, vol: 0.13, attack: 0.02 }); thump(420, 150, 0.09, 0.04, 0.03); nzz(0.2, { type: 'highpass', freq: 5000, vol: 0.012, at: 0.1, attack: 0.04 }); },
+    cry: () => growl(rv(430, 0.2), 230, 0.36, 0.07, 0, 40),
+    cryBig: () => { growl(170, 62, 0.85, 0.14, 0, 22); thump(70, 34, 0.5, 0.1, 0.35); },
+    roar: () => { growl(120, 52, 1.25, 0.17, 0, 19); growl(240, 95, 0.9, 0.05, 0.05, 31); thump(55, 30, 0.9, 0.12, 0.1); },
+    call: () => growl(rv(520, 0.25), rv(420, 0.2), 0.3, 0.022, 0, 34),
+    callBig: () => growl(130, 78, 1.6, 0.035, 0, 15),
+    down: () => { thump(120, 42, 0.32, 0.22); nzz(0.28, { type: 'lowpass', freq: 420, sweep: 150, vol: 0.16, at: 0.02 }); nzz(0.4, { type: 'lowpass', freq: 250, vol: 0.05, attack: 0.1, at: 0.15 }); },
+    drums: () => [0, 0.2, 0.4, 0.5, 0.6].forEach((a, q) => { thump(q === 4 ? 82 : 96, 44, 0.24, 0.26, a); nzz(0.05, { type: 'lowpass', freq: 1300, vol: 0.09, at: a }); }),
+    // good news, bad news
+    heal: () => { [523, 784, 1047].forEach((f, q) => pad(f, 0.75, 0.03, q * 0.07)); ring(2093, GLASS, 0.5, 0.015, 0.12); nzz(0.6, { type: 'highpass', freq: 6000, vol: 0.01, attack: 0.2 }); },
+    capture: () => { ring(1319, BELL, 0.7, 0.045); ring(1976, BELL, 0.8, 0.04, 0.11); },
+    levelup: () => { [523, 659, 784, 1047].forEach((f, q) => ring(f * 2, BELL, 0.7, 0.035, q * 0.085)); pad(262, 1.0, 0.04, 0, 'triangle'); pad(392, 1.0, 0.03, 0.1, 'triangle'); },
+    win: () => { [[196, 0], [247, 0.16], [294, 0.32], [392, 0.5]].forEach(([f, a]) => pad(f, a === 0.5 ? 1.1 : 0.34, 0.06, a, 'sawtooth', 900)); thump(98, 60, 0.3, 0.14, 0.5); ring(1568, BELL, 1.0, 0.03, 0.52); },
+    lose: () => { [[196, 0], [175, 0.3], [147, 0.6]].forEach(([f, a]) => pad(f, a === 0.6 ? 1.3 : 0.5, 0.055, a, 'sawtooth', 520)); thump(70, 36, 0.8, 0.14, 0.6); },
+  });
+}
 function sfx(n, throttle = 0) { if (!SND.ctx || !S.snd) return; const now = performance.now(); if (throttle && now - (SND.last[n] || 0) < throttle) return; SND.last[n] = now; try { SFX[n](); } catch (e) { /* ignore */ } }
 // wasteland score: low drones and a slow pentatonic guitar-like pluck in town; pounding drums in battle
 // One synth voice: an oscillator (or two, detuned) through a low-pass that can close as the note decays, with optional vibrato.
@@ -3444,7 +3530,7 @@ requestAnimationFrame(frame);
 <button id="upd" hidden>새 패치가 있어요 · 눌러서 적용</button>
 <script>
 (function () {
-  var VER = "20261126-065158";
+  var VER = "20261126-065522";
   if (!/^https?:$/.test(location.protocol)) return;
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
   var btn = document.getElementById('upd');
