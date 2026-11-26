@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}
 #upd{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:999;padding:11px 18px;border-radius:14px;border:2px solid #f3c79a;background:#d4763c;color:#1c120a;font:700 14px system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.5)}</style>
-<script>window.__VER="20261126-101755"</script>
+<script>window.__VER="20261126-102717"</script>
 </head>
 <body>
 <title>공룡 상단 픽셀</title>
@@ -2504,7 +2504,7 @@ function engage(pack) {
 }
 function afterBattle(opt) {
   const L = W.lead;
-  if (opt.won) for (const p of opt.packs) { p.dead = p.boss ? 150 : rand(40, 70); p.mons = []; }
+  if (opt.won) for (const p of opt.packs) { p.dead = p.boss ? 90 : rand(15, 25); p.mons = []; }
   else for (const p of opt.packs) for (const m of p.mons) { m.x = p.cx + rand(-26, 26); m.y = p.cy + rand(-26, 26); }
   const pos = new Map(opt.endPos || []);
   syncCrew(); for (const c of W.crew) { const p = pos.get(c.u.id); if (p) { c.x = p.x; c.y = p.y; c.a = p.a; } }
@@ -2570,7 +2570,7 @@ function updWorld(dt) {
   }
   // herds graze and wander near home; only the ones around you are simulated
   for (const p of W.packs) {
-    if (p.dead > 0) { p.dead -= dt; if (p.dead <= 0) { if (d2(p.cx, p.cy, L.x, L.y) < 200 * 200) p.dead = 5; else { fillPack(p); if (p.boss && d2(p.cx, p.cy, L.x, L.y) < 900 * 900) { toast(`${BOSSES[ZONES[p.z].boss].n}가 다시 나타났어요`, 'warn'); sfx('roar'); } } } continue; }
+    if (p.dead > 0) { p.dead -= dt; if (p.dead <= 0) { if (d2(p.cx, p.cy, L.x, L.y) < 110 * 110) p.dead = 3; else { fillPack(p); if (p.boss && d2(p.cx, p.cy, L.x, L.y) < 900 * 900) { toast(`${BOSSES[ZONES[p.z].boss].n}가 다시 나타났어요`, 'warn'); sfx('roar'); } } } continue; }
     if (d2(p.cx, p.cy, W.cam.x, W.cam.y) > 620 * 620 || (B && B.opt.packs.includes(p))) continue;
     for (const m of p.mons) { m.wait -= dt; if (m.wait <= 0) { m.tx = p.cx + rand(-42, 42); m.ty = p.cy + rand(-42, 42); m.wait = rand(4, 10); } const d = Math.hypot(m.tx - m.x, m.ty - m.y); m.moving = d > 3; if (m.moving) { m.a = Math.atan2(m.ty - m.y, m.tx - m.x); const sp = UNITS[m.f.type].spd * 0.3 * dt; m.x += Math.cos(m.a) * sp; m.y += Math.sin(m.a) * sp; } }
   }
@@ -3628,7 +3628,7 @@ requestAnimationFrame(frame);
 <button id="upd" hidden>새 패치가 있어요 · 눌러서 적용</button>
 <script>
 (function () {
-  var VER = "20261126-101755";
+  var VER = "20261126-102717";
   if (!/^https?:$/.test(location.protocol)) return;
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
   var btn = document.getElementById('upd');
