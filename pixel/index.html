@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}
 #upd{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:999;padding:11px 18px;border-radius:14px;border:2px solid #f3c79a;background:#d4763c;color:#1c120a;font:700 14px system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.5)}</style>
-<script>window.__VER="20261127-023829"</script>
+<script>window.__VER="20261127-071315"</script>
 </head>
 <body>
 <title>공룡 상단 픽셀</title>
@@ -3733,6 +3733,11 @@ document.body.addEventListener('click', e => {
   else if (act === 'hatch') { const e = S.eggs[+b.dataset.i]; if (!e || e.t > 0) return; S.eggs.splice(+b.dataset.i, 1); const r = hatchEgg(e); sfx(r.grade >= 2 ? 'win' : 'capture'); flash(r.grade >= 3 ? 0.8 : 0.4, r.grade >= 3 ? '255,200,90' : '255,240,210'); toast(`알에서 ${RAR[r.grade].n} 등급 ${UNITS[r.u.type].n}이(가) 태어났어요!${r.inP ? '' : ' (공룡 자리가 꽉 차 대기)'}`, 'good'); syncCrew(); save(); renderAll(); unitModal(r.u.id); return; }
   else if (act === 'coupon') {   // gift codes are checked on the device for now; they belong on a server once there is one
     const code = (prompt('쿠폰 코드를 입력하세요') || '').trim().toUpperCase(); if (!code) return; S.coupons = S.coupons || {};
+    if (code === 'ALL-HEROES-2026') {   // every hero at level 1, each already in their own full set
+      if (S.coupons[code]) { toast('이미 사용한 쿠폰이에요', 'warn'); sfx('deny'); return; } S.coupons[code] = 1; let added = 0, dressed = 0;
+      for (const h of HEROES) { let u = S.units.find(x => x.famed && x.name === h.name); if (!u) { u = addUnit(h.type, 1, slotFree(h.type)); u.name = h.name; u.famed = true; u.tier = 1; S.heroes[h.name] = 1; added++; } else dressed++;
+        u.hset = { weapon: 1, armor: 1, charm: 1 }; if (u.eq) for (const sl of Object.keys(u.hset)) if (u.eq[sl]) { S.items.push(u.eq[sl]); delete u.eq[sl]; } u.hp = maxHp(u); }
+      sfx('win'); flash(0.8, '143,228,255'); toast(`쿠폰 선물: 영웅 ${added}명이 전용 세트를 입고 합류했어요${dressed ? ` · 이미 있던 영웅 ${dressed}명도 세트를 받았어요` : ''} · 자리가 없는 영웅은 대기 중이에요`, 'good'); stripKey = ''; syncCrew(); save(); renderAll(); return; }
     if (code !== 'HERO-SET-2026') { toast('없는 쿠폰이에요', 'warn'); sfx('deny'); return; } if (S.coupons[code]) { toast('이미 사용한 쿠폰이에요', 'warn'); sfx('deny'); return; }
     const left = HEROES.filter(h => !S.heroes[h.name] && !['porter', 'cook', 'smith'].includes(h.type)), h = pick(left.length ? left : HEROES); S.coupons[code] = 1; S.heroes[h.name] = 1;
     const u = addUnit(h.type, 60, slotFree(h.type)); u.name = h.name; u.famed = true; u.tier = 1; u.hset = { weapon: 1, armor: 1, charm: 1 }; u.hp = maxHp(u);
@@ -3974,7 +3979,7 @@ requestAnimationFrame(frame);
 <button id="upd" hidden>새 패치가 있어요 · 눌러서 적용</button>
 <script>
 (function () {
-  var VER = "20261127-023829";
+  var VER = "20261127-071315";
   if (!/^https?:$/.test(location.protocol)) return;
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
   var btn = document.getElementById('upd');
