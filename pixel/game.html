@@ -1095,16 +1095,17 @@ function startBattle(opt) {
   const Z = ZONES[opt.zone];
   B = { opt, t: 0, units: [], fx: [], nums: [], over: false, focus: null, sel: null, loot: {}, xp: 0, captured: [], idSeq: 1, ground: groundTex(Z.ground) };
   // the fight starts right where everyone is standing: your caravan in its marching line, the herd where it was grazing
-  if (!worldOn) showWorld(); syncCrew(); const ours = W.crew.map(c => c.u);
-  for (const c of W.crew) { const u = spawn(0, c.u.type, c.u.lv, c.x, c.y, c.u); u.a = c.a; }
+  if (!worldOn) showWorld(); syncCrew(); const crew = opt.pvp ? W.crew.slice(0, 5) : W.crew, ours = crew.map(c => c.u);   // a duel is five against five: the first five in marching order
+  if (opt.pvp) crew.forEach((c, i) => { c.x = W.lead.x + (i - (crew.length - 1) / 2) * 30; c.y = W.lead.y; c.u.hp = maxHp(c.u); });
+  for (const c of crew) { const u = spawn(0, c.u.type, c.u.lv, c.x, c.y, c.u); u.a = c.a; if (opt.pvp) u.hp = u.max; }
   // members who fell in an earlier fight are carried along: they lie where the party stands, so a doctor can still bring them back
-  party().filter(m => m.ko).forEach((m, q) => { const u = spawn(0, m.type, m.lv, W.lead.x - 26 - (q % 3) * 16, W.lead.y + 22 + Math.floor(q / 3) * 14, m); u.hp = 0; u.deadT = 2; u.carried = true; });
+  if (!opt.pvp) party().filter(m => m.ko).forEach((m, q) => { const u = spawn(0, m.type, m.lv, W.lead.x - 26 - (q % 3) * 16, W.lead.y + 22 + Math.floor(q / 3) * 14, m); u.hp = 0; u.deadT = 2; u.carried = true; });
   for (const u of B.units.filter(u => u.side === 0 && UNITS[u.type].turret)) spawnTurret(u);
   if (opt.pvp) opt.pvp.forEach((r, i) => { const m = opt.mons[i], u = spawn(1, r.type, r.lv, m.x, m.y, r); u.a = m.a; u.hp = u.max; });
   else opt.mons.forEach(m => { const u = spawn(1, m.f.type, m.f.lv, m.x, m.y, null, m.f.boss); u.a = m.a; });
   { const ex = opt.mons.reduce((s, m) => s + m.x, 0) / opt.mons.length, ey = opt.mons.reduce((s, m) => s + m.y, 0) / opt.mons.length; B.org = { x: W.lead.x, y: W.lead.y }; B.dir = Math.atan2(ey - W.lead.y, ex - W.lead.x);
     const c = Math.cos(B.dir), sn = Math.sin(B.dir); for (const u of B.units) if (u.ref && u.ref.pos) u.order = { x: clamp(B.org.x + c * u.ref.pos.a - sn * u.ref.pos.s, 10, WW - 10), y: clamp(B.org.y + sn * u.ref.pos.a + c * u.ref.pos.s, 10, WH - 10) }; }
-  $('bTitle').textContent = opt.kind === 'ambush' ? '습격!' : opt.boss ? `우두머리 사냥 · ${BOSSES[opt.boss].n}` : opt.kind === 'hunt' ? `${Z.n} · ${HUNT_NAMES[opt.zone][opt.tier]}` : `${Z.n} 사냥터`;
+  $('bTitle').textContent = opt.pvp ? opt.title || '대전' : opt.kind === 'ambush' ? '습격!' : opt.boss ? `우두머리 사냥 · ${BOSSES[opt.boss].n}` : opt.kind === 'hunt' ? `${Z.n} · ${HUNT_NAMES[opt.zone][opt.tier]}` : `${Z.n} 사냥터`;
   $('bInfo').innerHTML = `<span class="hud warn"><i>적</i>${opt.foes.length}</span><span class="hud"><i>아군</i>${ours.length}</span>`;
   if (opt.boss) { S.bossSeen = S.bossSeen || {}; S.bossSeen[opt.boss] = 1; if (ARTIMG['boss:' + opt.boss]) { const el = $('bossIn'); el.innerHTML = `<img src="${artSrc('boss:' + opt.boss)}" alt=""><small>우두머리 출현</small><b>${BOSSES[opt.boss].n}</b>`; el.hidden = false; el.className = ''; void el.offsetWidth; el.className = 'show'; clearTimeout(el._t); el._t = setTimeout(() => { el.hidden = true; }, 2600); } }
   for (const f of opt.foes) { S.dex[f.type] = Math.max(S.dex[f.type] || 0, 1); if (UNITS[f.type].rare && !f.boss) setTimeout(() => toast(`희귀종 발견: ${UNITS[f.type].n}!`, 'good'), 900); }
@@ -1319,7 +1320,7 @@ function tryCapture() {
 }
 function endBattle(win) {
   if (B.over) return;
-  if (B.opt.pvp) { B.over = true; B.opt.won = win; B.opt.pvpEnd = { t: B.t, mine: alive(0).filter(u => u.ref).length, theirs: alive(1).length }; for (const bu of B.units) if (bu.ref && bu.side === 0) { bu.ref.hp = maxHp(bu.ref); bu.ref.ko = false; } sfx(win ? 'win' : 'lose'); return; } B.over = true; S.stats.battles++; S.food = Math.max(0, S.food - 1.5); B.opt.won = win; B.opt.endPos = B.units.filter(u => u.ref && u.hp > 0).map(u => [u.ref.id, { x: u.x, y: u.y, a: u.a }]);
+  if (B.opt.pvp) { const opt0 = B.opt; B.over = true; B.opt.won = win; B.opt.pvpEnd = { t: B.t, mine: alive(0).filter(u => u.ref).length, theirs: alive(1).length }; for (const bu of B.units) if (bu.ref && bu.side === 0) { bu.ref.hp = maxHp(bu.ref); bu.ref.ko = false; } sfx(win ? 'win' : 'lose'); if (opt0.tour) setTimeout(() => tourResult(win), 700); return; } B.over = true; S.stats.battles++; S.food = Math.max(0, S.food - 1.5); B.opt.won = win; B.opt.endPos = B.units.filter(u => u.ref && u.hp > 0).map(u => [u.ref.id, { x: u.x, y: u.y, a: u.a }]);
   const opt = B.opt;
   for (const bu of B.units) if (bu.ref) { bu.ref.hp = Math.max(0, Math.round(bu.hp)); bu.ref.ko = bu.hp <= 0; }
   const lines = []; let lvUp = false, gotItem = false;
@@ -2813,6 +2814,35 @@ function autoEat() { if (S.food > 20) return; const g = ['grain', 'meat', 'jerky
 $('fPot').onclick = usePotion; $('bPot').onclick = usePotion;
 const TRIAL_TYPES = ['para', 'trike', 'raptor', 'compy', 'pachyc', 'micro', 'iguan', 'dilo', 'stego', 'utah', 'ovi', 'kentro', 'apato', 'styra', 'carno', 'ptero', 'anky', 'trex', 'plesio', 'allo', 'diplo', 'raptorShadow', 'trikeRed', 'spino', 'stegoRust', 'brachio', 'trexYoung'];
 const trialBoss = f => { const ks = Object.keys(BOSSES); return ks[Math.min(ks.length - 1, Math.floor(f / 10) - 1)]; };
+// The arena: ten grades of tournament. Eight caravans pay the entry fee; a fifth of the pot is taken as tax and the rest goes to the top three.
+// Until there is a server the other seven caravans are run by the game, built to the grade's level.
+const TOUR = [['새싹', 500, 10], ['청동', 2000, 20], ['철', 8000, 35], ['은', 25000, 50], ['금', 80000, 70], ['백금', 250000, 90], ['다이아', 700000, 115], ['용사', 2000000, 145], ['영웅', 5000000, 175], ['전설', 12000000, 200]];
+const TOUR_N = 8, TOUR_TAX = 0.2, TOUR_SPLIT = [0.6, 0.25, 0.15], TOUR_ROUND = ['8강', '4강', '결승'], tourPot = g => Math.round(TOUR[g][1] * TOUR_N * (1 - TOUR_TAX)), tourPrize = (g, place) => Math.round(tourPot(g) * TOUR_SPLIT[place]);
+function tourTeam(g, round) {   // a rival caravan of five for this grade; a little stronger each round
+  const lv = Math.min(200, Math.round(TOUR[g][2] * (1 + round * 0.04))), tier = Math.min(4, Math.floor((g + 1) / 2.5)), rar = Math.min(4, Math.floor(g / 2)), hero = g >= 4, set = g >= 7, front = ['spear', 'shield', 'gladiator'], back = ['hunter', 'sniper', 'gunner', 'crossbow', 'bomber', 'venomer', 'scout', 'mechanic'], heal = ['medic', 'shaman'];
+  const types = [pick(front), pick(front), pick(back), pick(back), pick(heal)], used = {};
+  return types.map((type, i) => { const u = { id: -(i + 1), type, lv, xp: 0, hp: 0, ko: false, inParty: false, st: { a: 0, h: 0, d: 0 }, pts: 3 * (lv - 1), wins: g * 60, tier, eq: {} };
+    for (const sl of Object.keys(SLOTS)) u.eq[sl] = { id: -1, slot: sl, n: '대회 장비', r: rar, lv, en: Math.min(ENH_MAX, g) };
+    if (hero) { const hs = HEROES.filter(h => h.type === type && !used[h.name]); if (hs.length) { const h = pick(hs); used[h.name] = 1; u.famed = true; u.name = h.name; if (set) { u.hset = { weapon: 1, armor: 1, charm: 1 }; if (g >= 9) u.hsetEn = { weapon: 3, armor: 3, charm: 3 }; } } }
+    spendStats(u, 'rec'); u.hp = maxHp(u); return u; });
+}
+function tourMatch() {
+  const T = S.tour; if (!T || B || !W.crew.length) return; const g = T.g, round = T.third ? 1 : T.r, theirs = tourTeam(g, round), L = W.lead, name = pick(['붉은 모래 상단', '철갑 상단', '새벽 상단', '검은 깃발 상단', '폭풍 상단', '은빛 수레 상단', '늑대 이빨 상단', '황금 뿔 상단']);
+  const mons = theirs.map((u, i) => ({ f: { type: u.type, lv: u.lv }, x: L.x + (i - 2) * 30, y: L.y - 170, a: Math.PI / 2, len: 30 }));
+  showWorld(); L.tx = null; W.target = null; W.dest = null; sfx('horn');
+  startBattle({ kind: 'pvp', zone: S.zone, tier: 0, foes: mons.map(m => m.f), mons, boss: null, packs: [], pvp: theirs, tour: 1, title: `${TOUR[g][0]} 등급 대회 · ${T.third ? '3·4위전' : TOUR_ROUND[T.r]} · ${name}` });
+}
+function tourResult(win) {
+  const T = S.tour; if (!T) { closeBattle(); return; } const g = T.g; let head, body, next = false, prize = 0;
+  if (T.third) { if (win) { prize = tourPrize(g, 2); head = '3위'; body = `3·4위전에서 이겼어요 · 상금 ${fmt(prize)} 크레딧`; } else { head = '4위'; body = '3·4위전에서 졌어요 · 상금은 3위까지예요'; } }
+  else if (win) { if (T.r >= 2) { prize = tourPrize(g, 0); head = '우승!'; body = `${TOUR[g][0]} 등급 대회에서 우승했어요 · 상금 ${fmt(prize)} 크레딧`; S.tourWins = S.tourWins || {}; S.tourWins[g] = (S.tourWins[g] || 0) + 1; } else { T.r++; next = true; head = '승리'; body = `${TOUR_ROUND[T.r]}에 올랐어요`; } }
+  else if (T.r >= 2) { prize = tourPrize(g, 1); head = '준우승'; body = `결승에서 졌어요 · 상금 ${fmt(prize)} 크레딧`; }
+  else if (T.r === 1) { T.third = true; next = true; head = '4강 탈락'; body = '3·4위전이 남았어요 · 이기면 3위 상금을 받아요'; }
+  else { head = '8강 탈락'; body = '상금은 3위까지예요 · 참가비는 돌아오지 않아요'; }
+  if (prize) { S.money += prize; S.stats.earned += prize; } if (!next) S.tour = null; save();
+  showModal(`<h3>${head}</h3><div class="sub">${$('bTitle').textContent}</div><div class="card"><div class="row"><div class="info"><small style="color:var(--text)">${body}</small><small>대회에서는 아무도 다치지 않아요 · 경기 시간 ${Math.round(B ? B.t : 0)}초</small></div></div></div>
+    <div class="mbtns">${next ? '<button class="btn primary" data-act="tourNext">다음 경기</button>' : '<button class="btn primary" data-act="closeBattle">확인</button>'}</div>`);
+}
 function startTrial() {   // one floor of the tower: a set fight at the floor's level, a boss every tenth floor
   if (B || !W.crew.length) return; const f = (S.tower || 0) + 1; if (f > 200) return;
   const L = W.lead, cx = L.x, cy = L.y - 130, n = Math.min(10, 3 + Math.floor(f / 12)), bossK = f % 10 === 0 ? trialBoss(f) : null, R = seeded(f * 7919);
@@ -3388,7 +3418,10 @@ function renderTown() {
       <h2>여각 (창고)<small>짐을 이 정착지에 맡겨 둬요 · 다른 정착지에서는 찾을 수 없어요</small></h2>
       <div class="card">${cg.length ? cg.map(([g, k]) => `<div class="row"><div class="info"><b>${GOODS[g].n} ${k}개</b><small>가방에 있어요</small></div><button class="btn small" data-act="stIn" data-g="${g}">맡기기</button></div>`).join('') : ''}${st.map(([g, k]) => `<div class="row"><div class="info"><b>${GOODS[g].n} ${k}개</b><small>창고에 있어요</small></div><button class="btn small primary" data-act="stOut" data-g="${g}">찾기</button></div>`).join('')}${cg.length || st.length ? '' : '<div class="row"><div class="info"><small>맡긴 짐이 없어요</small></div></div>'}</div>`; })() : ''}
     ${townSec === 'trial' ? `<h2>시련의 탑<small>층마다 그 층 레벨의 공룡이 나와요 · 10층마다 우두머리 · 한 번 넘은 층은 다시 오르지 않아요</small></h2>
-    <div class="card"><div class="row"><div class="info"><b>${S.tower >= 200 ? '꼭대기에 올랐어요 (200층)' : `다음: ${S.tower + 1}층`}</b><div class="bar"><i style="width:${S.tower / 2}%;background:var(--amber)"></i></div><small>최고 ${S.tower}/200층${S.tower < 200 ? ` · 적 Lv${S.tower + 1} · ${Math.min(10, 3 + Math.floor((S.tower + 1) / 12))}마리${(S.tower + 1) % 10 === 0 ? ` · <b style="color:var(--bad)">우두머리 ${BOSSES[trialBoss(S.tower + 1)].n}</b>` : ''} · 상금 ${fmt(60 * (S.tower + 1))}${(S.tower + 1) % 10 === 0 ? ' + 증표·알·회복약' : ''}` : ''}</small><small>내 대원 최고 Lv${Math.max(...S.units.map(u => u.lv))} · 정착지 바로 옆에서 싸워요</small></div><button class="btn small primary" data-act="trial" ${S.tower >= 200 ? 'disabled' : ''}>도전</button></div></div>` : ''}
+    <div class="card"><div class="row"><div class="info"><b>${S.tower >= 200 ? '꼭대기에 올랐어요 (200층)' : `다음: ${S.tower + 1}층`}</b><div class="bar"><i style="width:${S.tower / 2}%;background:var(--amber)"></i></div><small>최고 ${S.tower}/200층${S.tower < 200 ? ` · 적 Lv${S.tower + 1} · ${Math.min(10, 3 + Math.floor((S.tower + 1) / 12))}마리${(S.tower + 1) % 10 === 0 ? ` · <b style="color:var(--bad)">우두머리 ${BOSSES[trialBoss(S.tower + 1)].n}</b>` : ''} · 상금 ${fmt(60 * (S.tower + 1))}${(S.tower + 1) % 10 === 0 ? ' + 증표·알·회복약' : ''}` : ''}</small><small>내 대원 최고 Lv${Math.max(...S.units.map(u => u.lv))} · 정착지 바로 옆에서 싸워요</small></div><button class="btn small primary" data-act="trial" ${S.tower >= 200 ? 'disabled' : ''}>도전</button></div></div>
+    <h2>투기 대회<small>5대5 · 대원 순서의 앞 다섯이 나가요 · 여덟 상단이 참가비를 내고, 세금 ${TOUR_TAX * 100}%를 뗀 나머지를 1·2·3위가 ${TOUR_SPLIT.map(x => x * 100).join(':')}으로 나눠요 · 지금은 다른 상단을 게임이 조종해요 (유저 간 대회는 서버가 열리면)</small></h2>
+    <div class="card">${S.tour ? `<div class="row"><div class="info"><b style="color:var(--amber)">${TOUR[S.tour.g][0]} 등급 대회 진행 중</b><small>다음 경기: ${S.tour.third ? '3·4위전' : TOUR_ROUND[S.tour.r]}</small></div><button class="btn small primary" data-act="tourNext">경기 시작</button></div>` : ''}
+      ${TOUR.map(([n, fee, lv], g) => `<div class="row"><span class="num${(S.tourWins || {})[g] ? ' done' : ''}">${g + 1}</span><div class="info"><b>${n} 등급${(S.tourWins || {})[g] ? ` <span class="tag" style="color:var(--amber)">우승 ${S.tourWins[g]}회</span>` : ''}</b><small>참가비 ${fmt(fee)} · 상대 Lv${lv} 안팎${g >= 7 ? ' · 영웅과 전용 세트' : g >= 4 ? ' · 영웅' : ''}</small><small>상금 1위 ${fmt(tourPrize(g, 0))} · 2위 ${fmt(tourPrize(g, 1))} · 3위 ${fmt(tourPrize(g, 2))}</small></div><button class="btn small" data-act="tourJoin" data-k="${g}" ${S.tour || S.money < fee ? 'disabled' : ''}>참가</button></div>`).join('')}</div>` : ''}
     ${townSec === 'store' ? `<h2>잡화점<small>필드에서 쓰는 물건을 팔아요</small></h2>
     <div class="card">
       <div class="row"><div class="info"><b>회복약</b><small>필드나 전투 중에 쓰면 모두의 체력을 30% 채워요 · 전투 중에는 15초에 한 번 · 전투 밖에서는 쓰러진 대원도 일어나요 · 대원 레벨이 오르면 값도 올라요 · 보유 ${S.pots}개</small></div><button class="btn small" data-act="pot" data-n="1" ${S.money < potPrice() ? 'disabled' : ''}>${potPrice()}</button><button class="btn small primary" data-act="pot" data-n="5" ${S.money < potPrice() * 5 ? 'disabled' : ''}>5개 ${potPrice() * 5}</button></div>
@@ -3590,6 +3623,8 @@ document.body.addEventListener('click', e => {
   }
   else if (act === 'resetPos') { for (const u of S.units) delete u.pos; sfx('tap'); toast('전투 배치를 초기화했어요'); }
   else if (act === 'trial') { closeModal(); startTrial(); return; }
+  else if (act === 'tourJoin') { const g = +b.dataset.k, fee = TOUR[g] && TOUR[g][1]; if (!fee || S.tour || S.money < fee || B) return; if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = `${fmt(fee)} 내기`; b.classList.add('primary'); return; } S.money -= fee; S.tour = { g, r: 0 }; save(); closeModal(); tourMatch(); return; }
+  else if (act === 'tourNext') { if (!S.tour) return; if (B) closeBattle(); closeModal(); setTimeout(tourMatch, 60); return; }
   else if (act === 'ach') { const i = ACH.findIndex(a => a[0] === b.dataset.k), A = ACH[i], t = S.ach[A[0]] || 0; if (t >= 5 || A[2]() < A[3][t]) return; const pz = achPrize(i, t); S.money += pz; S.ach[A[0]] = t + 1; sfx('win'); toast(`업적 달성: ${A[1]} ${t + 1}단계 · 상금 ${fmt(pz)} 크레딧`, 'good'); }
   else if (act === 'coach') { const zt = b.dataset.z, c = coachCost(zt); if (B || !inTown() || !S.seen[zt] || S.money < c) return; S.money -= c; const T = TOWNS[zt]; W.lead.x = T.x; W.lead.y = T.y + 60; W.lead.tx = null; W.dest = null; W.target = null; for (const cr of W.crew) { cr.x = T.x; cr.y = T.y + 60; } W.cam.x = T.x; W.cam.y = T.y; S.pos = { x: T.x, y: T.y + 60 }; S.zone = zt; W.here = ''; flash(0.8); sfx('march'); toast(`역마차로 ${ZONES[zt].n}에 도착했어요`, 'good'); showWorld(); return; }
   else if (act === 'asc') { const u = S.units.find(x => x.id === +b.dataset.id); if (!u || (u.asc || 0) >= ASC.length || u.lv < ASC[u.asc || 0] || S.money < ascCost(u)) return; S.money -= ascCost(u); u.asc = (u.asc || 0) + 1; u.hp = maxHp(u); u.ko = false; sfx('win'); flash(0.7); toast(`${unitName(u)} · 초월 ${u.asc}단계!`, 'good'); checkRank(); save(); renderAll(); unitModal(u.id); return; }
