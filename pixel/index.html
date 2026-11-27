@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}
 #upd{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:999;padding:11px 18px;border-radius:14px;border:2px solid #f3c79a;background:#d4763c;color:#1c120a;font:700 14px system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.5)}</style>
-<script>window.__VER="20261127-003029"</script>
+<script>window.__VER="20261127-003547"</script>
 </head>
 <body>
 <title>공룡 상단 픽셀</title>
@@ -435,7 +435,9 @@ canvas.bigart { width: min(100%, 300px); height: auto; aspect-ratio: 5 / 4; alig
 .invact { display: flex; flex-direction: column; gap: 4px; flex: none; } .invact .btn { min-width: 62px; }
 .invgrid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; }
 .slot { position: relative; aspect-ratio: 1; padding: 0; border-radius: 7px; background: linear-gradient(#2a2018, #17110b); border: 1.5px solid #4a3a28; box-shadow: inset 0 0 0 1px rgba(0,0,0,.6); overflow: hidden; }
-.slot.empty { opacity: .45; } .slot.on { box-shadow: 0 0 0 2px #fff3d6, 0 0 10px rgba(255,220,130,.7); } .slot .ic { width: 100%; height: 100%; border: 0; border-radius: 0; display: block; }
+.slot.empty { opacity: .45; }
+.slot.lock { background: linear-gradient(#1c1610, #0e0a07); border-color: #3a2e20; } .slot.lock::before { content: ''; position: absolute; left: 50%; top: 52%; width: 44%; height: 34%; margin: -10% 0 0 -22%; border-radius: 3px; background: linear-gradient(#c9a04a, #7a5a1e); box-shadow: inset 0 0 0 1px rgba(0,0,0,.45); }
+.slot.lock::after { content: ''; position: absolute; left: 50%; top: 20%; width: 26%; height: 30%; margin-left: -13%; border: 3px solid #a8a8a0; border-bottom: 0; border-radius: 8px 8px 0 0; box-sizing: border-box; } .slot.lock em { color: #ffe9a0; font-size: 9.5px; right: 50%; transform: translateX(50%); white-space: nowrap; } .slot.on { box-shadow: 0 0 0 2px #fff3d6, 0 0 10px rgba(255,220,130,.7); } .slot .ic { width: 100%; height: 100%; border: 0; border-radius: 0; display: block; }
 .slot em { position: absolute; right: 2px; bottom: 1px; font: 700 11px var(--f-body); font-style: normal; color: #fff; text-shadow: 0 0 2px #000, 0 1px 0 #000, 1px 0 0 #000, -1px 0 0 #000; }
 .slot i { position: absolute; left: 2px; top: 1px; font: 700 8.5px var(--f-body); font-style: normal; color: #ffe9a0; text-shadow: 0 0 2px #000, 0 1px 0 #000; }
 .invmiscs { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 5px; } .invmisc { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px 2px 2px; border-radius: 14px; background: rgba(0,0,0,.3); border: 1px solid var(--line); font-size: 11.5px; } .invmisc .ic { width: 22px; height: 22px; border-radius: 50%; } .invmisc b { font-weight: 400; color: var(--muted); }
@@ -1018,7 +1020,8 @@ const promoHave = k => (S.promo[k] || 0) + ((S.pstore || {})[k] || 0);   // carr
 const promoLoad = () => Object.values(S.promo || {}).reduce((a, b) => a + b, 0);   // promotion materials ride in the hold too, one slot each (they are never left behind)
 const cargoUsed = () => Object.values(S.cargo).reduce((a, b) => a + b, 0) + gearOver() + Math.ceil(promoLoad() * W_PROMO);   // total weight carried
 // The bag: every kind of goods, every promotion material and every spare piece of gear takes one slot. Weight is what the porters can carry.
-const invMax = () => 40 + (S.cash && S.cash.wagon ? 20 : 0), invUsed = () => Object.keys(S.cargo).length + (S.items || []).length + Object.keys(S.promo || {}).length, invFree = () => invUsed() < invMax(), canTake = g => (S.cargo[g] > 0 || invFree()) && cargoUsed() < capacity();
+const INV_EXTRA = 60, invCost = n => Math.round(2000 * Math.pow(1.12, n) / 100) * 100,   // bought slots: each one dearer than the last, 2,000 for the first and about 1.6 million for the sixtieth
+  invMax = () => 40 + (S.cash && S.cash.wagon ? 20 : 0) + (S.invX || 0), invUsed = () => Object.keys(S.cargo).length + (S.items || []).length + Object.keys(S.promo || {}).length, invFree = () => invUsed() < invMax(), canTake = g => (S.cargo[g] > 0 || invFree()) && cargoUsed() < capacity();
 function load() { try { const r = localStorage.getItem(SAVE); return r ? JSON.parse(r) : null; } catch (e) { return null; } }
 function save() { if (!S || !SESSION) return;   // nothing is kept until someone has signed in or started as a guest
   try { localStorage.setItem(SAVE, JSON.stringify(S)); } catch (e) { /* storage unavailable */ } }
@@ -3445,17 +3448,19 @@ function bagHtml() {   // an RPG bag: one grid of slots, everything visible at o
   for (const [g, k] of Object.entries(S.cargo)) cells.push({ k: 'g:' + g, cat: GOODS[g].relic || GOODS[g].junk ? 'mat' : 'goods', img: ic(g), n: k, col: GOODS[g].relic ? '#ffb347' : GOODS[g].junk ? RAR[Math.min(4, GOODS[g].junk - 1)].c : null, w: k });
   for (const [k, n] of Object.entries(S.promo).sort((a, b) => a[0].split(':')[1] - b[0].split(':')[1] || a[0].localeCompare(b[0]))) { const t = +k.split(':')[1]; cells.push({ k: 'p:' + k, cat: 'mat', img: ic('token', t), n, col: k.startsWith('hero-') ? '#ffb347' : RAR[Math.min(4, t + 1)].c, w: n * W_PROMO }); }
   for (const it of [...S.items].sort((a, b) => b.r - a.r || b.lv - a.lv)) cells.push({ k: 'i:' + it.id, cat: 'gear', img: itemIc(it), n: it.en ? '+' + it.en : '', col: RAR[it.r].c, w: W_GEAR, lv: it.lv });
-  if (bagSel && !cells.some(c => c.k === bagSel)) bagSel = null;
+  if (bagSel && bagSel !== 'lock' && !cells.some(c => c.k === bagSel)) bagSel = null;
+  const lockLeft = INV_EXTRA - (S.invX || 0), nextCost = invCost(S.invX || 0); if (bagSel === 'lock' && lockLeft <= 0) bagSel = null;
   const max = invMax(), used = cells.length, wt = cargoUsed(), cap = capacity(), show = cells.filter(c => bagTab === 'all' || c.cat === bagTab), tabs = [['all', '전체', used], ['goods', '교역품', cells.filter(c => c.cat === 'goods').length], ['gear', '장비', cells.filter(c => c.cat === 'gear').length], ['mat', '재료', cells.filter(c => c.cat === 'mat').length]];
   const bar = (label, a, b, col) => `<div class="invbar"><span>${label} <b style="color:${a > b ? 'var(--bad)' : a >= b * 0.9 ? 'var(--amber)' : 'inherit'}">${a}/${b}</b></span><i><u style="width:${Math.min(100, a / Math.max(1, b) * 100)}%;background:${a > b ? 'var(--bad)' : col}"></u></i></div>`;
   let det = '<div class="invdet"><small>칸을 누르면 물건 설명과 쓸 수 있는 버튼이 나와요</small></div>';
-  if (bagSel) { const [kind, id] = [bagSel[0], bagSel.slice(2)];
+  if (bagSel === 'lock') det = `<div class="invdet"><span class="slot lock" style="width:42px;flex:none"></span><div class="info"><b>잠긴 칸 열기</b><small>${fmt(nextCost)} 크레딧 · 열 때마다 값이 12%씩 올라요 · 남은 잠긴 칸 ${lockLeft}개 · 가진 돈 ${fmt(S.money)}</small></div><div class="invact"><button class="btn small primary" data-act="invBuy" ${S.money < nextCost ? 'disabled' : ''}>열기</button></div></div>`;
+  else if (bagSel) { const [kind, id] = [bagSel[0], bagSel.slice(2)];
     if (kind === 'g') { const G = GOODS[id], k = S.cargo[id]; det = `<div class="invdet">${ic(id)}<div class="info"><b>${G.n} ${k}개</b><small>${G.relic ? '영웅 전용 장비 재료' : G.junk ? '귀중품 · 팔거나 영웅 장비 재료로 써요' : G.made ? '가공품' : '교역품'} · 무게 ${k} · ${ZONES[S.zone].n}에서 팔면 개당 ${sellPrice(S.zone, id)}${FOODS[id] ? ` · 먹으면 포만감 +${FOODS[id]}` : ''}</small></div><div class="invact">${FOODS[id] ? `<button class="btn small primary" data-act="eat" data-g="${id}" ${S.food >= 100 ? 'disabled' : ''}>먹기</button>` : ''}<button class="btn small" data-act="drop" data-g="${id}" data-n="1">버리기</button><button class="btn small" data-act="drop" data-g="${id}" data-n="all">전부</button></div></div>`; }
     else if (kind === 'p') { const t = +id.split(':')[1], n = S.promo[id], mine = party().some(u => promoKey(u, u.tier || 0) === id); det = `<div class="invdet">${ic('token', t)}<div class="info"><b style="color:${id.startsWith('hero-') ? '#ffb347' : RAR[Math.min(4, t + 1)].c}">${promoName(id)} ${n}개</b><small>${t + 1}차 ${id.startsWith('hero-') ? '영웅 ' : ''}전직 재료 · ${PROMO_N}개를 모으면 전직 · 창고 보관함에 ${(S.pstore || {})[id] || 0}개 더 있어요 · ${mine ? '지금 쓸 수 있는 대원이 있어요' : '지금 쓸 대원이 없어요 · 거래용'}</small></div></div>`; }
     else { const it = S.items.find(x => x.id === +id); if (it) det = `<div class="invdet">${itemIc(it)}<div class="info"><b style="color:${RAR[it.r].c}">${itemName(it)}</b><small>${RAR[it.r].n} ${SLOTS[it.slot]} · Lv${it.lv} · ${itemText(it)} · 무게 ${W_GEAR} · 대원의 관리 버튼에서 착용해요</small></div><div class="invact"><button class="btn small" data-act="sellItem" data-it="${it.id}">${fmt(itemPrice(it))}에 팔기</button></div></div>`; } }
-  const grid = show.map(c => `<button class="slot${c.k === bagSel ? ' on' : ''}" data-act="bagSel" data-k="${c.k}" style="${c.col ? `border-color:${c.col}` : ''}">${c.img}${c.n !== '' ? `<em>${c.n}</em>` : ''}${c.lv ? `<i>Lv${c.lv}</i>` : ''}</button>`).join('') + (bagTab === 'all' ? Array.from({ length: Math.max(0, max - used) }, () => '<span class="slot empty"></span>').join('') : '');
+  const grid = show.map(c => `<button class="slot${c.k === bagSel ? ' on' : ''}" data-act="bagSel" data-k="${c.k}" style="${c.col ? `border-color:${c.col}` : ''}">${c.img}${c.n !== '' ? `<em>${c.n}</em>` : ''}${c.lv ? `<i>Lv${c.lv}</i>` : ''}</button>`).join('') + (bagTab === 'all' ? Array.from({ length: Math.max(0, max - used) }, () => '<span class="slot empty"></span>').join('') + Array.from({ length: Math.min(lockLeft, 12) }, (_, q) => `<button class="slot lock${bagSel === 'lock' && q === 0 ? ' on' : ''}" data-act="bagSel" data-k="lock">${q === 0 ? `<em>${nextCost >= 10000 ? Math.round(nextCost / 1000) + 'k' : fmt(nextCost)}</em>` : ''}</button>`).join('') : '');
   const misc = [['potion', '회복약', S.pots], ['stone', '귀환석', S.stones], ['token', '우두머리 증표', Object.values(S.tokens).reduce((a, b) => a + b, 0)], ['egg', '공룡 알', Object.values(S.eggBag).reduce((a, b) => a + b, 0)]].map(([k, n, v]) => `<span class="invmisc">${ic(k)}<b>${n}</b> ${v}</span>`).join('');
-  return `<h2>가방<small>물건 종류마다, 장비 하나마다 한 칸 · 같은 물건은 한 칸에 겹쳐요 · 무게는 짐꾼과 짐마차가 늘려 줘요 · 버린 물건은 돌아오지 않아요</small></h2>
+  return `<h2>가방<small>물건 종류마다, 장비 하나마다 한 칸 · 같은 물건은 한 칸에 겹쳐요 · 자물쇠 칸은 크레딧으로 열 수 있어요 · 무게는 짐꾼과 짐마차가 늘려 줘요 · 버린 물건은 돌아오지 않아요</small></h2>
     <div class="card invcard">${bar('칸', used, max, '#8fb4e4')}${bar('무게', wt, cap, 'var(--amber)')}${wt > cap ? '<small style="color:var(--bad)">무게가 넘쳐서 이동 속도가 절반이에요</small>' : ''}
       <div class="invtabs">${tabs.map(([k, n, c]) => `<button class="chip${bagTab === k ? ' on' : ''}" data-act="bagTab" data-k="${k}">${n} ${c}</button>`).join('')}</div>${det}
       <div class="invgrid">${grid || '<small style="grid-column:1/-1;padding:10px;color:var(--muted)">이 분류에는 아무것도 없어요</small>'}</div>
@@ -3605,6 +3610,7 @@ document.body.addEventListener('click', e => {
   else if (act === 'psec') { partySec = b.dataset.k; sfx('tap'); }
   else if (act === 'bagSel') { bagSel = bagSel === b.dataset.k ? null : b.dataset.k; sfx('tap'); }
   else if (act === 'bagTab') { bagTab = b.dataset.k; sfx('tap'); }
+  else if (act === 'invBuy') { const n = S.invX || 0, c = invCost(n); if (n >= INV_EXTRA || S.money < c) { sfx('deny'); return; } S.money -= c; S.invX = n + 1; sfx('coin'); toast(`가방 칸을 열었어요 · 이제 ${invMax()}칸`, 'good'); }
   else if (act === 'cashBuy') { const k = b.dataset.k, C = CASH[k]; if (!C || S.gems < C.cost || (k === 'runner' ? (S.cash.runner || 0) >= RUNNER_MAX : S.cash[k])) return; S.gems -= C.cost; S.cash[k] = (S.cash[k] || 0) + 1; sfx('win'); flash(0.5, '120,216,255'); toast(`${C.n}을(를) 들였어요`, 'good'); }
   else if (act === 'gearSell') { S.cash.gearSell = +b.dataset.k; if (S.cash.gearSell < 0) delete S.cash.gearSell; S.cash.wait = 0; sfx('tap'); }
   else if (act === 'runnerToggle') { S.cash.runnerOff = !S.cash.runnerOff; sfx('tap'); }
@@ -3793,7 +3799,7 @@ requestAnimationFrame(frame);
 <button id="upd" hidden>새 패치가 있어요 · 눌러서 적용</button>
 <script>
 (function () {
-  var VER = "20261127-003029";
+  var VER = "20261127-003547";
   if (!/^https?:$/.test(location.protocol)) return;
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
   var btn = document.getElementById('upd');
