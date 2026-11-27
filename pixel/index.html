@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}
 #upd{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:999;padding:11px 18px;border-radius:14px;border:2px solid #f3c79a;background:#d4763c;color:#1c120a;font:700 14px system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.5)}</style>
-<script>window.__VER="20261127-005035"</script>
+<script>window.__VER="20261127-010952"</script>
 </head>
 <body>
 <title>공룡 상단 픽셀</title>
@@ -976,6 +976,7 @@ function freshState() {
 }
 function addUnit(type, lv, inParty) {
   const u = { id: S.idSeq++, type, lv, xp: 0, hp: 0, ko: false, inParty: !!inParty, st: { a: 0, h: 0, d: 0 }, pts: 3 * (lv - 1), wins: 0 };
+  u.autoSt = 'rec'; spendStats(u, 'rec');   // new companions share out their stat points the recommended way unless you switch it off
   u.hp = maxHp(u); S.units.push(u); if (UNITS[type].cls === 'dino') S.dex[type] = 2; return u;
 }
 const maxHp = u => Math.round(UNITS[u.type].hp * lvMul(u.lv) * gearMul(u).hp);
@@ -1078,7 +1079,7 @@ function tick(dt) {
   for (const e of S.eggs) if (e.t > 0) { e.t -= dt; if (e.t <= 0) toast('부화장의 알이 흔들려요 · 고용소에서 깨울 수 있어요', 'good'); }
   if (!B) for (const u of S.units) {
     const mh = maxHp(u); if (u.hp >= mh || (hungry() && !inTown())) continue;
-    u.hp = Math.min(mh, u.hp + mh * (inTown() ? 0.04 : 0.015) * dt);
+    u.hp = Math.min(mh, u.hp + mh * (inTown() ? 0.04 : W && W.resting ? 0.06 : 0.015) * dt);   // a caravan that has stopped to rest mends quickly
     if (u.ko && u.hp >= mh * 0.3) { u.ko = false; if (view === 'town') toast(`${unitName(u)}가 기운을 차렸어요`); }
   }
 }
@@ -1086,6 +1087,11 @@ function tick(dt) {
 /* ================================================================
    TRAVEL
    ================================================================ */
+function sellAllList(z) {   // what "sell everything" would take: loot only, never meals you need, hero-set materials or goods a notice-board job is waiting for
+  const held = {}; for (const q of (S.quests && S.quests[z]) || []) if (q.type === 'deliver') held[q.g] = Math.max(held[q.g] || 0, q.n);
+  for (const u of S.units) if (hsetOf(u)) for (const sl of Object.keys(HSET_COST)) if (!(u.hset || {})[sl]) for (const [g, n] of Object.entries(HSET_COST[sl])) if (g !== 'money') held[g] = (held[g] || 0) + n;
+  return Object.entries(S.cargo).filter(([g]) => !GOODS[g].relic).map(([g, n]) => [g, n - (FOODS[g] ? 6 : 0) - (held[g] || 0)]).filter(([, n]) => n > 0);
+}
 function addCargo(g, k) { const room = S.cargo[g] > 0 || invFree() ? Math.max(0, capacity() - cargoUsed()) : 0; k = Math.min(k, room); if (k > 0) S.cargo[g] = (S.cargo[g] || 0) + k; return k; }
 
 /* ================================================================
@@ -2612,7 +2618,7 @@ function updField() {
     if (t) { S.seen[t] = 1; if (S.zone !== t || W.out) { S.zone = t; toast(`${ZONES[t].n} 정착지에 도착했어요`, 'good'); sfx('arrive'); } W.out = false; }
     else { W.out = true; if (g) { const H = HUNTS[Math.min(3, g.i)], Z = ZONES[g.z]; const need = groundPower(g.z, g.i), weak = partyPower() < need; toast(`${g.i === 4 ? `${HUNT_NAMES[g.z][4]} · ${BOSSES[Z.boss].n}의 영역` : `${HUNT_NAMES[g.z][g.i]} · 야생 Lv${zl(Z, H.lv[0])}~${zl(Z, H.lv[1])}`} · 권장 전투력 ${fmt(need)}${weak ? ' (내 상단이 약해요)' : ''}`, g.i === 4 || weak ? 'warn' : ''); if (g.i === 4) sfx('roar'); } }
   }
-  const lv = party().filter(u => !u.ko).length; { const cu = cargoUsed(), cp = capacity(); $('bInfo').innerHTML = `<span class="hud m"><i>크레딧</i>${fmt(S.money)}</span><span class="hud${S.food <= 20 ? ' warn' : ''}"><i>포만감</i>${Math.ceil(S.food)}</span><span class="hud${cu >= cp ? ' warn' : ''}"><i>짐</i>${cu}/${cp}</span>`; }
+  const lv = party().filter(u => !u.ko).length; { const cu = cargoUsed(), cp = capacity(); $('bInfo').innerHTML = `<span class="hud m"><i>크레딧</i>${fmt(S.money)}</span><span class="hud${S.food <= 20 ? ' warn' : ''}"><i>포만감</i>${Math.ceil(S.food)}</span><span class="hud${cu >= cp ? ' warn' : ''}"><i>무게</i>${cu}/${cp}</span>`; }
 }
 function worldTap(px, py) {
   { const cw0 = bcv.clientWidth, my0 = (isLand() ? 50 : 34) + 42; if (Math.hypot(px - (cw0 - 51), py - my0) < 46) { sfx('open'); hideWorld('map'); return; } }
@@ -3362,6 +3368,7 @@ function renderTown() {
       return `<div class="row"><span class="num${done ? ' done' : ''}${H.boss ? ' boss' : ''}">${H.boss ? '★' : i + 1}</span><div class="info"><b>${HUNT_NAMES[z][i]} ${done ? '<span class="tag">정복</span>' : ''}${H.boss ? ' <span class="tag" style="color:var(--bad)">우두머리</span>' : ''}</b><small>${H.boss ? `${BOSSES[Z.boss].n} Lv${(Z.bossLv || zl(Z, 6))} · 희귀 이상 장비 확정` : `Lv${zl(Z, H.lv[0])}~${zl(Z, H.lv[1])} · 희귀종 ${Math.round(H.rare * 50)}% · 장비 ${Math.round(H.drop * 100)}%`} · 거리 ${dist}m</small><small style="color:${partyPower() >= groundPower(z, i) ? '#8fbf6a' : 'var(--bad)'}">권장 전투력 ${fmt(groundPower(z, i))} · 내 상단 ${fmt(partyPower())}</small></div>
         <button class="btn small primary" data-act="walk" data-x="${G[0]}" data-y="${G[1] + (H.boss ? 150 : 0)}" data-l="${HUNT_NAMES[z][i]}">가기</button></div>`; }).join('')}</div>` : ''}
     ${townSec === 'market' ? `<h2>시장<small>사면 값이 오르고, 팔면 떨어져요 · 매일 시세가 바뀌어요</small></h2>
+    ${(() => { const L = sellAllList(z), sum = L.reduce((a, [g, n]) => a + sellPrice(z, g) * n, 0); return `<div class="card"><div class="row"><div class="info"><b>전리품 한꺼번에 팔기</b><small>${L.length ? `${L.map(([g, n]) => `${GOODS[g].n} ${n}`).join(' · ')} · 약 ${fmt(sum)} 크레딧` : '지금은 팔 전리품이 없어요'}</small><small>식량은 6개씩 남기고, 영웅 장비 재료와 의뢰에 낼 물건은 팔지 않아요</small></div><button class="btn small primary" data-act="sellAll" ${L.length ? '' : 'disabled'}>모두 팔기</button></div></div>`; })()}
     <div class="cargobar"><span>무게 ${used}/${cap}</span><div class="bar"><i style="width:${Math.min(100, used / Math.max(1, cap) * 100)}%;background:${used >= cap ? 'var(--bad)' : 'var(--amber)'}"></i></div></div><div class="card">${goods}</div>` : ''}
     ${townSec === 'quest' ? `<h2>의뢰 게시판<small>매일 새 의뢰가 올라와요</small></h2>
     <div class="card">${quests}</div>` : ''}
@@ -3546,6 +3553,8 @@ document.body.addEventListener('click', e => {
   if (act === 'backFight') { sfx('tap'); showWorld(); return; }
   if (B && !B.over && FIGHT_BLOCK.has(act)) { sfx('deny'); toast('전투 중에는 할 수 없어요 · 대원 구성, 진형, 이동은 전투가 끝난 뒤에 바꿔요', 'warn'); return; }
   if (act === 'buy') { const g = b.dataset.g; let n = b.dataset.n === 'max' ? 40 : +b.dataset.n, spent = 0; while (n-- > 0 && S.money >= price(z, g) && canTake(g)) { const p = price(z, g); S.money -= p; spent += p; S.cargo[g] = (S.cargo[g] || 0) + 1; S.press[z][g] += 0.025; } if (spent) { sfx('coin'); S.stats.trades++; } }
+  else if (act === 'sellAll') { let got = 0, cnt = 0; for (const [g, n] of sellAllList(z)) { for (let q = 0; q < n; q++) { const pr = sellPrice(z, g); S.money += pr; got += pr; S.press[z][g] = Math.max(0.4, S.press[z][g] - 0.022); } S.cargo[g] -= n; if (S.cargo[g] <= 0) delete S.cargo[g]; cnt += n; }
+    if (!cnt) return; S.stats.earned += got; S.stats.trades = (S.stats.trades || 0) + 1; gainCxp(got / 12); sfx('coin'); toast(`전리품 ${cnt}개를 팔아 ${fmt(got)} 크레딧`, 'good'); }
   else if (act === 'sell') { const g = b.dataset.g; let got = 0; while (S.cargo[g] > 0) { const p = sellPrice(z, g); S.money += p; got += p; S.cargo[g]--; S.press[z][g] = Math.max(0.4, S.press[z][g] - 0.022); } delete S.cargo[g]; S.stats.earned += got; gainCxp(got / 12); sfx('coin'); toast(`${GOODS[g].n}을 팔아 ${got} 크레딧`, 'good'); }
   else if (act === 'hire') { const t = b.dataset.t, D = UNITS[t], hc = hireCost(t, z); if (S.money < hc) return; S.money -= hc; const u = addUnit(t, 1, slotFree(t)); sfx('coin'); toast(`${D.n}을 고용했어요${u.inParty ? '' : ' (상단이 가득 차 대기)'}`, 'good'); }
   else if (act === 'aid') { for (const u of S.units) { const mh = maxHp(u); u.hp = Math.max(u.hp, Math.round(mh * 0.5)); u.ko = false; } toast('구호소에서 쉬고 모두 일어났어요', 'good'); sfx('arrive'); }
@@ -3812,7 +3821,7 @@ requestAnimationFrame(frame);
 <button id="upd" hidden>새 패치가 있어요 · 눌러서 적용</button>
 <script>
 (function () {
-  var VER = "20261127-005035";
+  var VER = "20261127-010952";
   if (!/^https?:$/.test(location.protocol)) return;
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
   var btn = document.getElementById('upd');
