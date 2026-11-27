@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}
 #upd{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:999;padding:11px 18px;border-radius:14px;border:2px solid #f3c79a;background:#d4763c;color:#1c120a;font:700 14px system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.5)}</style>
-<script>window.__VER="20261127-020829"</script>
+<script>window.__VER="20261127-022007"</script>
 </head>
 <body>
 <title>공룡 상단 픽셀</title>
@@ -1114,7 +1114,9 @@ function startBattle(opt) {
   const Z = ZONES[opt.zone];
   B = { opt, t: 0, units: [], fx: [], nums: [], over: false, focus: null, sel: null, loot: {}, xp: 0, captured: [], idSeq: 1, ground: groundTex(Z.ground) };
   // the fight starts right where everyone is standing: your caravan in its marching line, the herd where it was grazing
-  if (!worldOn) showWorld(); syncCrew(); const crew = opt.pvp ? W.crew.slice(0, 5) : W.crew, ours = crew.map(c => c.u);   // a duel is five against five: the first five in marching order
+  if (!worldOn) showWorld(); syncCrew(); const crew = opt.watch ? [] : opt.pvp ? W.crew.slice(0, 5) : W.crew, ours = opt.watch || crew.map(c => c.u);
+  if (opt.pvp) B.arena = { x: W.lead.x, y: W.lead.y - 85, cheer: 0 };   // duels are fought on the sand of the colosseum, with the stands all round
+  if (opt.watch) opt.watch.forEach((r, i) => { const u = spawn(0, r.type, r.lv, W.lead.x + (i - 2) * 30, W.lead.y, r); u.a = -Math.PI / 2; u.hp = u.max; });   // a duel is five against five: the first five in marching order
   if (opt.pvp) crew.forEach((c, i) => { c.x = W.lead.x + (i - (crew.length - 1) / 2) * 30; c.y = W.lead.y; c.u.hp = maxHp(c.u); });
   for (const c of crew) { const u = spawn(0, c.u.type, c.u.lv, c.x, c.y, c.u); u.a = c.a; if (opt.pvp) u.hp = u.max; }
   // members who fell in an earlier fight are carried along: they lie where the party stands, so a doctor can still bring them back
@@ -1150,7 +1152,7 @@ function spawnTurret(owner) {
 }
 const alive = side => B.units.filter(u => u.side === side && u.hp > 0);
 function bStep(dt) {
-  B.t += dt;
+  B.t += dt; if (B.arena && B.arena.cheer > 0) B.arena.cheer -= dt;
   if (B.opt.pvp) for (const u of B.units) {   // duel rules: scale back whatever was healed since the last step, keep stuns short and unchainable
     if (u.hp > 0 && u.h0 !== undefined) { const healed = u.hp - u.h0 + (u.ds || 0); if (healed > 0.5) u.hp -= healed * (1 - pvpHeal()); }
     u.ds = 0; u.h0 = u.hp;
@@ -1184,7 +1186,7 @@ function bStep(dt) {
       if (d2(u.x, u.y, u.order.x, u.order.y) > 36) { const sp0 = u.spd; u.spd = Math.max(sp0, 40) * 1.5; moveToward(u, u.order, 3, dt); u.spd = sp0; continue; }
       if (u.range > 40) u.anchor = { t: 0 }; u.order = null;
     }
-    if (u.sk && S.auto.skill && u.skCd <= 0) castSkill(u);
+    if (u.sk && (S.auto.skill || u.side === 1 || B.opt.watch) && u.skCd <= 0) castSkill(u);   // the other side, and both sides of a match you are only watching, always use their skills
     let tgt = chooseTarget(u);
     if (tgt && u.anchor) {   // ranged members hold the spot while anything is in reach
       const inR = f => d2(u.x, u.y, f.x, f.y) < (u.range + (u.size + f.size) * 0.45) ** 2;
@@ -1293,7 +1295,7 @@ function drawPX(c) {
 function shakeCam(cam) { if (SHAKE > 0.01) { cam.position.x += (Math.random() - 0.5) * SHAKE * 9; cam.position.y += (Math.random() - 0.5) * SHAKE * 6; } }
 function num(t, s, col) { const str = String(s), big = str.endsWith('!') && col === '#e3a843', word = /[가-힣]/.test(str); B.nums.push({ x: t.x + rand(-6, 6), y: t.y - t.size * 0.6, y0: t.y, s, col, t: big || word ? 1.05 : 0.8, t0: big || word ? 1.05 : 0.8, big, word, vx: rand(-9, 9) }); }
 function onKill(u, t) {
-  t.hp = 0; sfx(t.size > 25 ? 'crunchBig' : 'crunch', 60);
+  t.hp = 0; if (B.arena) B.arena.cheer = Math.max(B.arena.cheer, 1.6); sfx(t.size > 25 ? 'crunchBig' : 'crunch', 60);
   if (B.fx.length < 140) { B.fx.push({ kind: 'poof', t: 0.7, t0: 0.7, x: t.x, y: t.y, r: t.size }); if (t.boss) B.fx.push({ kind: 'fireball', t: 0.9, t0: 0.9, x: t.x, y: t.y, r: t.size * 2.2 }, { kind: 'wave', t: 0.7, t0: 0.7, x: t.x, y: t.y, r: t.size * 4, col: '255,240,210' }); }
   { const big = t.size > 25; burst(t.x, t.y, 2, big ? 22 : 12, '#c9b48a', { spd: big ? 75 : 50, up: 30, life: 0.8, r: big ? 4.5 : 3.2, g: 60 }); ringFx(t.x, t.y, 'rgba(210,190,150,.9)', big ? 46 : 26, 0.55);
     if (t.side === 1 && UNITS[t.type] && UNITS[t.type].cls === 'dino') sfx(big ? 'cryBig' : 'cry', 250);
@@ -1339,7 +1341,7 @@ function tryCapture() {
 }
 function endBattle(win) {
   if (B.over) return;
-  if (B.opt.pvp) { const opt0 = B.opt; B.over = true; B.opt.won = win; B.opt.pvpEnd = { t: B.t, mine: alive(0).filter(u => u.ref).length, theirs: alive(1).length }; for (const bu of B.units) if (bu.ref && bu.side === 0) { bu.ref.hp = maxHp(bu.ref); bu.ref.ko = false; } sfx(win ? 'win' : 'lose'); if (opt0.tour) setTimeout(() => tourResult(win), 700); return; } B.over = true; S.stats.battles++; S.food = Math.max(0, S.food - 1.5); B.opt.won = win; B.opt.endPos = B.units.filter(u => u.ref && u.hp > 0).map(u => [u.ref.id, { x: u.x, y: u.y, a: u.a }]);
+  if (B.opt.pvp) { const opt0 = B.opt; B.over = true; B.opt.won = win; B.opt.pvpEnd = { t: B.t, mine: alive(0).filter(u => u.ref).length, theirs: alive(1).length }; for (const bu of B.units) if (bu.ref && bu.side === 0 && !B.opt.watch) { bu.ref.hp = maxHp(bu.ref); bu.ref.ko = false; } sfx(win ? 'win' : 'lose'); if (B.arena) B.arena.cheer = 4; if (opt0.tour) setTimeout(() => tourResult(win), 700); else if (opt0.watch) setTimeout(() => { if (B) showModal(`<h3>경기 종료</h3><div class="sub">${$('bTitle').textContent}</div><div class="card"><div class="row"><div class="info"><small style="color:var(--text)">${opt0.names[win ? 0 : 1]}의 승리 · 경기 시간 ${Math.round(B.t)}초</small></div></div></div><div class="mbtns"><button class="btn primary" data-act="closeBattle">나가기</button></div>`); }, 900); return; } B.over = true; S.stats.battles++; S.food = Math.max(0, S.food - 1.5); B.opt.won = win; B.opt.endPos = B.units.filter(u => u.ref && u.hp > 0).map(u => [u.ref.id, { x: u.x, y: u.y, a: u.a }]);
   const opt = B.opt;
   for (const bu of B.units) if (bu.ref) { bu.ref.hp = Math.max(0, Math.round(bu.hp)); bu.ref.ko = bu.hp <= 0; }
   const lines = []; let lvUp = false, gotItem = false;
@@ -2447,6 +2449,10 @@ const PDEF = {   // key: [maker, collision radius, fallback colour]
     b_hire: [() => { const c = new THREE.Mesh(new THREE.ConeGeometry(26, 26, 8), lam(0x8a2e24)); c.position.y = 27; const g = grp(cyl(25, 25, 14, 8, 0xc8b890, 0, 7, 0), c, boxM(9, 12, 1.6, 0x2a1c14, 0, 6, 24.4), boxM(1.6, 40, 1.6, 0x4a3a2a, -30, 20, 6), boxM(11, 8, 0.8, 0xe3a843, -24, 35, 6), boxM(1.6, 40, 1.6, 0x4a3a2a, 30, 20, 6), boxM(11, 8, 0.8, 0xe3a843, 36, 35, 6), boxM(16, 1.4, 1.4, 0x4a3422, 30, 9, 18), boxM(1.4, 10, 1.4, 0x4a3422, 23, 5, 18), boxM(1.4, 10, 1.4, 0x4a3422, 37, 5, 18)); for (const x of [25, 30, 35]) g.add(rot(boxM(0.9, 15, 0.9, 0xc8c8c0, x, 9, 19), 0.25, 0, 0)); return g; }, 24, '#8a2e24'],
     b_board: [() => { const g = grp(boxM(2, 24, 2, 0x4a3422, -12, 12, 0), boxM(2, 24, 2, 0x4a3422, 12, 12, 0), boxM(28, 15, 1.4, 0x7a5a34, 0, 14, 0), boxM(31, 2, 6, 0x3a2a1c, 0, 23.5, 0)); [[-8, 17, 0xf0e8d0], [0, 13, 0xe8d8a0], [7, 17, 0xf0e8d0], [-5, 10, 0xd8c890], [9, 11, 0xf0e8d0]].forEach(([x, y, c]) => g.add(boxM(5, 5, 0.6, c, x, y, 1))); g.add(boxM(1.4, 1.4, 0.8, 0xc0302a, 7, 19, 1.4)); return g; }, 8, '#7a5a34'],
     b_cart: [() => { const g = grp(boxM(34, 3, 17, 0x6a4a2a, 0, 8, 0), boxM(34, 6, 1.6, 0x5a3e24, 0, 12, 8), boxM(34, 6, 1.6, 0x5a3e24, 0, 12, -8), boxM(1.6, 18, 1.6, 0x4a3422, -15, 18, -7), boxM(1.6, 18, 1.6, 0x4a3422, 15, 18, -7), boxM(1.6, 14, 1.6, 0x4a3422, -15, 16, 7), boxM(1.6, 14, 1.6, 0x4a3422, 15, 16, 7), rot(boxM(38, 1.6, 20, 0x2e7a86, 0, 25.5, 0), 0.2, 0, 0), boxM(14, 1.6, 1.6, 0x4a3422, 23, 7, 0)); for (const [x, z] of [[-11, 9.6], [11, 9.6], [-11, -9.6], [11, -9.6]]) g.add(rot(cyl(5.5, 5.5, 1.6, 8, 0x3a2a1c, x, 5.5, z), Math.PI / 2, 0, 0)); [[0x6ab04a, -10], [0xd04a3a, -3], [0xe8d8a0, 4], [0x3a6ab0, 11]].forEach(([c, x]) => g.add(boxM(5, 5, 5, c, x, 12, 1))); return g; }, 14, '#2e7a86'],
+    b_arena: [() => { const g = grp(cyl(50, 52, 6, 20, 0x8f866f, 0, 3, 0), cyl(48, 49, 30, 20, 0xcbbf9f, 0, 21, 0), cyl(50, 48, 4, 20, 0xb0a583, 0, 38, 0), cyl(39, 39, 1.2, 20, 0xd9bf82, 0, 40.2, 0), cyl(41, 41, 1, 20, 0x6a5f4a, 0, 39.8, 0));
+      for (let k = 0; k < 20; k++) { const a = k / 20 * 6.283, c = Math.cos(a), sn = Math.sin(a); const ar = boxM(6.5, 13, 2, 0x2e261c, c * 48.6, 14, sn * 48.6); ar.rotation.y = -a + 1.571; g.add(ar); const ar2 = boxM(5, 8, 2, 0x3a3024, c * 48.4, 30, sn * 48.4); ar2.rotation.y = -a + 1.571; g.add(ar2); g.add(boxM(3.4, 5, 3.4, 0xb8ad8c, c * 48, 42.5, sn * 48)); }
+      for (let k = 0; k < 4; k++) { const a = k / 4 * 6.283 + 0.785; g.add(boxM(1.4, 20, 1.4, 0x4a3a2a, Math.cos(a) * 47, 50, Math.sin(a) * 47), boxM(1, 7, 9, k % 2 ? 0xc0382a : 0xe3a843, Math.cos(a) * 47, 56, Math.sin(a) * 47 + 5)); }
+      g.add(boxM(16, 20, 4, 0x1c1610, 0, 10, 50), boxM(20, 3, 6, 0xe3a843, 0, 22, 51)); return g; }, 46, '#cbbf9f'],
     b_trial: [() => { const g = grp(cyl(13, 16, 70, 8, 0x6e6a72, 0, 35, 0), cyl(16, 13, 6, 8, 0x58545c, 0, 73, 0), boxM(8, 13, 1.6, 0x1c1620, 0, 6.5, 15.4), boxM(4, 6, 1.4, 0x9a6ae0, 0, 34, 14.2), boxM(4, 6, 1.4, 0x9a6ae0, 0, 54, 13.6), cyl(18, 19, 3, 8, 0x55515a, 0, 1.5, 0)); for (let k = 0; k < 8; k++) { const a = k / 8 * 6.283; g.add(boxM(5, 6, 5, 0x58545c, Math.cos(a) * 14, 79, Math.sin(a) * 14)); } const orb = new THREE.Mesh(new THREE.IcosahedronGeometry(6, 1), new THREE.MeshBasicMaterial({ color: srgb(0xb48cff) })); orb.position.y = 88; g.add(orb); return g; }, 17, '#6e6a72'],
     well: [() => grp(cyl(9, 9, 7, 8, 0x8a8a84, 0, 3.5, 0), cyl(7, 7, 1, 8, 0x24444e, 0, 6.6, 0), boxM(1.6, 18, 1.6, 0x4a3422, -8, 9, 0), boxM(1.6, 18, 1.6, 0x4a3422, 8, 9, 0), roof(18, 12, 6, 0x7a4a2a, 17), boxM(3, 4, 3, 0x6a4a2a, 0, 10, 0)), 10, '#8a8a84'],
     barrel: [() => grp(cyl(4.4, 4, 9, 8, 0x7a5a34, 0, 4.5, 0), cyl(4.6, 4.6, 1, 8, 0x3a3a3c, 0, 6.5, 0), cyl(4.4, 4.4, 1, 8, 0x3a3a3c, 0, 2.5, 0)), 4, '#7a5a34'],
@@ -2497,8 +2503,8 @@ const ZPROPS = {
   swamp: 'grassG grassG grassG grassG grassG plant plant plant bushG willow willow willow willowD willowD3 treeS ruinS1 ruinS2 car1 car2 rockM rockM2 stump log lamp lily lily'.split(' '),
 };
 // Every settlement is built from its own recipe: a street plan, a floor, a kind of wall, a centrepiece, its own houses, and the services dealt out to different plots.
-const SPOT = { market: ['시장', 'b_market', 46], shop: ['공방', 'b_forge', 54, 'smoke'], bank: ['전장·창고', 'b_bank', 52], inn: ['여관', 'b_inn', 62, 'smoke'], hire: ['고용소', 'b_hire', 50], quest: ['의뢰', 'b_board', 40], hunt: ['사냥 안내', 'tower', 66], store: ['잡화점', 'b_cart', 40], trial: ['시련의 탑', 'b_trial', 104, 'orb'] };
-const KEEPER = { market: 'porter', shop: 'mechanic', bank: 'shield', inn: 'medic', hire: 'gladiator', quest: 'hunter', hunt: 'scout', store: 'tamer', trial: 'shaman' };
+const SPOT = { market: ['시장', 'b_market', 46], shop: ['공방', 'b_forge', 54, 'smoke'], bank: ['전장·창고', 'b_bank', 52], inn: ['여관', 'b_inn', 62, 'smoke'], hire: ['고용소', 'b_hire', 50], quest: ['의뢰', 'b_board', 40], hunt: ['사냥 안내', 'tower', 66], store: ['잡화점', 'b_cart', 40], trial: ['시련의 탑', 'b_trial', 104, 'orb'], arena: ['투기장', 'b_arena', 70] };
+const KEEPER = { market: 'porter', shop: 'mechanic', bank: 'shield', inn: 'medic', hire: 'gladiator', quest: 'hunter', hunt: 'scout', store: 'tamer', trial: 'shaman', arena: 'gladiator' };
 const THEMES = {
   plain: { shape: 'ring', floor: 'cobble', wall: 'wood', center: 'fountain', houses: ['house1', 'house2'], extra: ['tree1', 'birch', 'bench', 'barrel', 'crate', 'wheat', 'bush'] },
   city: { shape: 'grid', floor: 'concrete', wall: 'barrier', center: 'statue', houses: ['ruinL1', 'cont1', 'ruinL2', 'cont2'], extra: ['lamp', 'car1', 'car3', 'rubble', 'barrel', 'crate', 'bushG'] },
@@ -2528,7 +2534,7 @@ function genTown(z, idx) {
   else slots = [30, 90, 150, 210, 270, 330].map(a => [Math.round(Math.cos(a / 57.3) * 150), Math.round(Math.sin(a / 57.3) * 150)]).concat([10, 46, 82, 118, 154, 190, 226, 262, 298, 334].map(a => [Math.round(Math.cos(a / 57.3) * 256), Math.round(Math.sin(a / 57.3) * 256)]));
   for (let q = slots.length - 1; q > 0; q--) { const w = Math.floor(R() * (q + 1)); [slots[q], slots[w]] = [slots[w], slots[q]]; }
   Object.keys(SPOT).forEach((k, q) => { const [n, key, h, fx] = SPOT[k], [x, y] = slots[q]; lay.push([key, x, y, fx]); spots.push([k, n, x, y, h]); });
-  slots.slice(9).forEach(([x, y], q) => { const key = TH.houses[(q + idx) % TH.houses.length]; lay.push([key, x, y, (key === 'house1' || key === 'house2') && q % 3 === 0 ? 'smoke' : undefined]); });
+  slots.slice(Object.keys(SPOT).length).forEach(([x, y], q) => { const key = TH.houses[(q + idx) % TH.houses.length]; lay.push([key, x, y, (key === 'house1' || key === 'house2') && q % 3 === 0 ? 'smoke' : undefined]); });
   lay.push([center, 0, 0]);
   const taken = [...slots, [0, 0], [0, 65]], open = (x, y, gap) => taken.every(t => d2(t[0], t[1], x, y) > gap * gap);
   for (let n = 0, q = 0; n < 26 && q < 400; q++) {   // trees, benches, barrels and the like, kept off the streets
@@ -2605,7 +2611,7 @@ function initWorld() {
   // other caravans walking the roads, and people going about their day in each settlement
   NPC_NAMES.forEach((name, i) => { const [a, b] = ROADS[i % 3], t = R(), A = TOWNS[a], Bt = TOWNS[b], types = [pick(['hunter', 'spear', 'sniper', 'medic', 'venomer']), pick(['hunter', 'spear', 'mechanic']), pick(['trike', 'para', 'apato', 'stego'])].slice(i % 2 ? 0 : 1);
     W.npcs.push({ name, a, b, dir: i % 2 ? 1 : -1, t, wait: 0, mem: [{ type: 'leader' }, ...types.map(type => ({ type }))].map((m, k) => ({ ...m, x: A.x + (Bt.x - A.x) * t, y: A.y + (Bt.y - A.y) * t + k * 14, a: 0, moving: false, ph: R() * 9 })) }); });
-  for (const z of ZKEYS) { const T = TOWNS[z]; for (const [k, n, dx, dy] of TD[z].spots) W.folk.push({ z, type: KEEPER[k], x: T.x + dx + (k === 'trial' || k === 'hunt' ? 22 : 0), y: T.y + dy + 30, a: Math.PI / 2, still: true, moving: false, ph: 0, wait: 0 }); TD[z].gates.forEach(([gx, gy], q) => { if (q % 2 === 0) W.folk.push({ z, type: q % 4 ? 'spear' : 'shield', x: T.x + gx * 0.9 + (gx ? 0 : 0), y: T.y + gy * 0.9, a: Math.atan2(gy, gx), still: true, moving: false, ph: 0, wait: 0 }); }); }
+  for (const z of ZKEYS) { const T = TOWNS[z]; for (const [k, n, dx, dy] of TD[z].spots) W.folk.push({ z, type: KEEPER[k], x: T.x + dx + (k === 'trial' || k === 'hunt' ? 22 : k === 'arena' ? 30 : 0), y: T.y + dy + (k === 'arena' ? 58 : 30), a: Math.PI / 2, still: true, moving: false, ph: 0, wait: 0 }); TD[z].gates.forEach(([gx, gy], q) => { if (q % 2 === 0) W.folk.push({ z, type: q % 4 ? 'spear' : 'shield', x: T.x + gx * 0.9 + (gx ? 0 : 0), y: T.y + gy * 0.9, a: Math.atan2(gy, gx), still: true, moving: false, ph: 0, wait: 0 }); }); }
   for (const z of ZKEYS) for (let i = 0; i < 18; i++) { const T = TOWNS[z]; W.folk.push({ z, type: pick(['hunter', 'spear', 'medic', 'mechanic', 'venomer', 'sniper']), x: T.x + rand(-240, 240), y: T.y + rand(-240, 240), a: rand(0, 6.28), tx: T.x, ty: T.y, wait: rand(0, 6), ph: rand(0, 9), moving: false }); }
   syncCrew();
 }
@@ -2761,7 +2767,7 @@ let skT = 0;
 function updSkbar(dt) {   // manual skill buttons, shown only when auto skills are off
   const el = $('skbar'), on = !!B && !B.over && !S.auto.skill; if (el.hidden === on) el.hidden = !on; if (!on) return;
   skT -= dt; if (skT > 0) return; skT = 0.25;
-  el.innerHTML = B.units.filter(u => u.side === 0 && u.sk && u.hp > 0).map(u => `<button data-sk="${u.id}" ${u.skCd > 0 ? 'disabled' : ''}>${u.hsk ? u.hsk.n : skName(u.sk, u.tier)}${u.skCd > 0 ? ' ' + Math.ceil(u.skCd) : ''}</button>`).join('');
+  el.innerHTML = B.opt.watch ? '' : B.units.filter(u => u.side === 0 && u.sk && u.hp > 0).map(u => `<button data-sk="${u.id}" ${u.skCd > 0 ? 'disabled' : ''}>${u.hsk ? u.hsk.n : skName(u.sk, u.tier)}${u.skCd > 0 ? ' ' + Math.ceil(u.skCd) : ''}</button>`).join('');
 }
 $('skbar').addEventListener('pointerdown', e => { const b = e.target.closest('button'); if (!b || !B) return; const u = B.units.find(x => x.id === +b.dataset.sk); if (u && !castSkill(u)) toast('지금은 쓸 수 없어요 · 적이 사거리 밖이에요'); skT = 0; });
 const potPrice = () => 40 + 12 * Math.max(...S.units.map(u => u.lv));
@@ -2845,8 +2851,18 @@ function tourTeam(g, round) {   // a rival caravan of five for this grade; a lit
     if (hero) { const hs = HEROES.filter(h => h.type === type && !used[h.name]); if (hs.length) { const h = pick(hs); used[h.name] = 1; u.famed = true; u.name = h.name; if (set) { u.hset = { weapon: 1, armor: 1, charm: 1 }; if (g >= 9) u.hsetEn = { weapon: 3, armor: 3, charm: 3 }; } } }
     spendStats(u, 'rec'); u.hp = maxHp(u); return u; });
 }
+const TOUR_NAMES = ['붉은 모래 상단', '철갑 상단', '새벽 상단', '검은 깃발 상단', '폭풍 상단', '은빛 수레 상단', '늑대 이빨 상단', '황금 뿔 상단', '잿빛 송곳니 상단', '푸른 등불 상단', '천둥 발굽 상단', '녹슨 왕관 상단'];
+function tourLive() {   // three matches "going on right now": they change every few minutes
+  const R = seeded(Math.floor(Date.now() / 240000) * 13 + 7); return [0, 1, 2].map(() => { const g = Math.floor(R() * TOUR.length), r = Math.floor(R() * TOUR_ROUND.length), a = Math.floor(R() * TOUR_NAMES.length); let b = Math.floor(R() * TOUR_NAMES.length); if (b === a) b = (b + 1) % TOUR_NAMES.length; return { g, r, a: TOUR_NAMES[a], b: TOUR_NAMES[b], crowd: 40 + Math.floor(R() * 260) + g * 30 }; });
+}
+function tourWatch(g, r, an, bn) {   // sit in the stands: both caravans are run by the game
+  if (B) return; const L = W.lead, A = tourTeam(g, r), T2 = tourTeam(g, r); A.forEach((u, i) => { u.id = -(i + 11); });
+  const mons = T2.map((u, i) => ({ f: { type: u.type, lv: u.lv }, x: L.x + (i - 2) * 30, y: L.y - 170, a: Math.PI / 2, len: 30 }));
+  showWorld(); L.tx = null; W.target = null; W.dest = null; sfx('horn');
+  startBattle({ kind: 'pvp', zone: S.zone, tier: 0, foes: mons.map(m => m.f), mons, boss: null, packs: [], pvp: T2, watch: A, names: [an, bn], title: `관전 · ${TOUR[g][0]} 등급 ${TOUR_ROUND[r]} · ${an} vs ${bn}` });
+}
 function tourMatch() {
-  const T = S.tour; if (!T || B || !W.crew.length) return; if (T.third) { T.br = 34; delete T.third; } const g = T.g, round = T.br ? TOUR_FIN - 1 : T.r, theirs = tourTeam(g, round), L = W.lead, name = pick(['붉은 모래 상단', '철갑 상단', '새벽 상단', '검은 깃발 상단', '폭풍 상단', '은빛 수레 상단', '늑대 이빨 상단', '황금 뿔 상단']);
+  const T = S.tour; if (!T || B || !W.crew.length) return; if (T.third) { T.br = 34; delete T.third; } const g = T.g, round = T.br ? TOUR_FIN - 1 : T.r, theirs = tourTeam(g, round), L = W.lead, name = pick(TOUR_NAMES);
   const mons = theirs.map((u, i) => ({ f: { type: u.type, lv: u.lv }, x: L.x + (i - 2) * 30, y: L.y - 170, a: Math.PI / 2, len: 30 }));
   showWorld(); L.tx = null; W.target = null; W.dest = null; sfx('horn');
   startBattle({ kind: 'pvp', zone: S.zone, tier: 0, foes: mons.map(m => m.f), mons, boss: null, packs: [], pvp: theirs, tour: 1, title: `${TOUR[g][0]} 등급 대회 · ${tourStage(T)} · ${name}` });
@@ -2906,13 +2922,29 @@ function drawGround(c, ox, oy, w, h) {
   for (let cy = y0; cy <= y1; cy++) for (let cx = x0; cx <= x1; cx++) c.drawImage(chunk(cx, cy), cx * CH - ox, cy * CH - oy);
   if (!SYNC_GEN) for (let cy = y0 - 1; cy <= y1 + 1; cy++) for (let cx = x0 - 1; cx <= x1 + 1; cx++) if ((cx < x0 || cx > x1 || cy < y0 || cy > y1) && cx >= 0 && cy >= 0 && cx * CH < WW && cy * CH < WH) chunk(cx, cy, true);   // paint the tiles just off-screen ahead of time
 }
+const ARENA_RX = 215, ARENA_RY = 150, CROWD_COL = ['#c0382a', '#3a6ab0', '#e3a843', '#5a9a4a', '#8a5ab0', '#d8cdb9', '#b0603a', '#4a8a9a'];
+function drawArena(c, ox, oy, front) {   // the colosseum floor and its stands; the crowd bobs, and jumps when someone falls
+  const A = B.arena, cx = Math.round(A.x - ox), cy = Math.round(A.y - oy), T = performance.now() / 1000, hype = A.cheer > 0 ? 3 : 1;
+  if (!front) {
+    pxEllipse(c, cx, cy, ARENA_RX + 150, ARENA_RY + 125, '#2a2118'); pxEllipse(c, cx, cy, ARENA_RX + 62, ARENA_RY + 52, '#5a5044'); pxEllipse(c, cx, cy, ARENA_RX + 46, ARENA_RY + 39, '#6a5f50'); pxEllipse(c, cx, cy, ARENA_RX + 30, ARENA_RY + 26, '#7a6e5c');
+    pxEllipse(c, cx, cy, ARENA_RX + 12, ARENA_RY + 10, '#a89a7c'); pxEllipse(c, cx, cy, ARENA_RX + 6, ARENA_RY + 5, '#4a3f30'); pxEllipse(c, cx, cy, ARENA_RX, ARENA_RY, '#c9ad76'); pxEllipse(c, cx, cy - 3, ARENA_RX - 14, ARENA_RY - 12, '#d2b780');
+    for (let q = 0; q < 70; q++) { const a = q * 2.399, r = Math.sqrt((q * 37 % 100) / 100); c.fillStyle = q % 3 ? 'rgba(120,95,55,.35)' : 'rgba(255,240,200,.3)'; c.fillRect(cx + Math.round(Math.cos(a) * r * (ARENA_RX - 12)), cy + Math.round(Math.sin(a) * r * (ARENA_RY - 10)), 2, 1); }
+    c.fillStyle = 'rgba(120,95,55,.4)'; c.fillRect(cx - 60, cy, 120, 1);
+  }
+  for (let t = 0; t < 3; t++) { const n = 58 + t * 10; for (let k = 0; k < n; k++) { const a = k / n * 6.2832 + t * 0.05, sn = Math.sin(a); if ((sn > 0.2) !== front) continue;
+      const x = cx + Math.round(Math.cos(a) * (ARENA_RX + 21 + t * 16)), y = cy + Math.round(sn * (ARENA_RY + 18 + t * 13)), hsh = (k * 7 + t * 13) % 8, bob = Math.round(Math.abs(Math.sin(T * (4 + hype) + k * 1.7 + t * 2.1)) * hype);
+      c.fillStyle = CROWD_COL[hsh]; c.fillRect(x - 2, y - 5 - bob, 4, 5); c.fillStyle = hsh % 2 ? '#d9a47c' : '#b9845c'; c.fillRect(x - 1, y - 8 - bob, 3, 3); if (hype > 1 && (k + t) % 3 === 0) { c.fillStyle = CROWD_COL[hsh]; c.fillRect(x - 3, y - 9 - bob, 1, 4); c.fillRect(x + 2, y - 9 - bob, 1, 4); } } }
+  if (front) { c.fillStyle = '#a89a7c'; for (let k = -3; k <= 3; k++) c.fillRect(cx + k * 62 - 1, cy + ARENA_RY + 2, 3, 9); }
+}
 function drawScene(c, ox, oy, w, h, ents) {
   drawGround(c, ox, oy, w, h);
-  const list = ents || [];
-  for (let cy = Math.floor((oy - 40) / CELL); cy <= Math.floor((oy + h + 190) / CELL); cy++) for (let cx = Math.floor((ox - 80) / CELL); cx <= Math.floor((ox + w + 80) / CELL); cx++) for (const p of cellProps(cx, cy)) { if (p.loot && W && W.looted[p.loot] > W.t) continue; list.push({ y: p.y, p }); }
+  const AR = B && B.arena, list = AR ? (ents || []).filter(e => e.bt) : ents || []; if (AR) drawArena(c, ox, oy, false);
+  for (let cy = Math.floor((oy - 40) / CELL); cy <= Math.floor((oy + h + 190) / CELL); cy++) for (let cx = Math.floor((ox - 80) / CELL); cx <= Math.floor((ox + w + 80) / CELL); cx++) for (const p of cellProps(cx, cy)) { if (p.loot && W && W.looted[p.loot] > W.t) continue; if (AR && d2(p.x, p.y, AR.x, AR.y) < 330 * 330) continue; list.push({ y: p.y, p }); }
+  if (AR) list.push({ y: AR.y + ARENA_RY + 8, arenaFront: 1 });
   list.sort((a, b) => a.y - b.y);
   const T = performance.now() / 1000;
   for (const e of list) {
+    if (e.arenaFront) { drawArena(c, ox, oy, true); continue; }
     if (e.p) { const p = e.p, s = propSprite(p.key), x = Math.round(p.x - ox), y = Math.round(p.y - oy); if (p.r > 3) pxEllipse(c, x, y + 1, Math.min(26, p.r + 3), Math.max(2, Math.min(9, p.r * 0.3) | 0), 'rgba(0,0,0,.25)'); c.drawImage(s.cv, x - s.ax, y - s.ay);
       if (p.fx === 'smoke') { for (let q = 0; q < 6; q++) { const f = (T * 0.35 + q / 6) % 1; c.fillStyle = `rgba(${200 - f * 60 | 0},${196 - f * 60 | 0},${190 - f * 60 | 0},${0.55 * (1 - f)})`; const sx = x + (p.key === 'b_inn' ? 15 : 11) + Math.round(Math.sin(q * 1.9 + T) * 2 + f * 9), sy = y - (p.key === 'b_inn' ? 52 : 44) - Math.round(f * 26), r2 = 2 + Math.round(f * 3); c.fillRect(sx - r2, sy - r2, r2 * 2, r2 * 2); } }
       else if (p.fx === 'glow') { const pu = 0.5 + 0.2 * Math.sin(T * 3 + p.x); c.fillStyle = `rgba(255,216,112,${0.16 * pu + 0.08})`; c.fillRect(x - 7, y - 30, 14, 12); c.fillRect(x - 4, y - 33, 8, 18); }
@@ -2961,7 +2993,7 @@ function renderWorld(dt) {
     else if (u.atkT > 0) { anim = 'attack'; fi = (1 - u.atkT / 0.5) * n[0]; }
     else [anim, fi] = animOf(kind, u.moving, u.id * 1.7, T, u.spd > 50);
     const sel = u === B.sel || u === B.focus;
-    ents.push({ flash: u.hp > 0 && u.hitT > 0.05, tier: u.lk !== undefined ? u.lk : u.tier || 0, x: u.x, y: u.y, a: u.turret ? (u.target ? Math.atan2(u.target.y - u.y, u.target.x - u.x) : u.a) : u.a, boss: u.boss, ph: u.id * 1.7, type: u.turret ? 'turret' : u.type, len: Math.round(u.size * 2.4), size: u.size, anim, fi, jit: u.hp > 0 && u.hitT > 0 ? Math.round(Math.sin(B.t * 90) * 1.5) : 0, ring: u.hp <= 0 ? null : sel ? '#ffe070' : u.boss ? '#a02018' : u.side ? 'rgba(212,87,60,.75)' : 'rgba(227,168,67,.7)' });
+    ents.push({ bt: 1, flash: u.hp > 0 && u.hitT > 0.05, tier: u.lk !== undefined ? u.lk : u.tier || 0, x: u.x, y: u.y, a: u.turret ? (u.target ? Math.atan2(u.target.y - u.y, u.target.x - u.x) : u.a) : u.a, boss: u.boss, ph: u.id * 1.7, type: u.turret ? 'turret' : u.type, len: Math.round(u.size * 2.4), size: u.size, anim, fi, jit: u.hp > 0 && u.hitT > 0 ? Math.round(Math.sin(B.t * 90) * 1.5) : 0, ring: u.hp <= 0 ? null : sel ? '#ffe070' : u.boss ? '#a02018' : u.side ? 'rgba(212,87,60,.75)' : 'rgba(227,168,67,.7)' });
   } else for (const c of W.crew) { if (inTown() && c.u.type !== 'leader') continue; const dn = UNITS[c.u.type].cls === 'dino', [anim, fi] = animOf(dn ? 'dino' : 'human', c.moving, c.ph, T); ents.push({ ring: c.u.elite || c.u.famed ? 'rgba(255,216,112,.9)' : null, tier: lookTier(c.u), x: c.x, y: c.y, a: c.a, type: c.u.type, len: c.len, size: (UNITS[c.u.type].size || 11) * (1 + 0.07 * (c.u.tier || 0)), anim, fi }); }
   if (S.cash && !inTown()) { const L0 = W.lead, C = S.cash;
     if (C.wagon) { const wg = W.wagon || (W.wagon = { x: L0.x - 60, y: L0.y, a: 0, ph: 0 }), tx = L0.x - Math.cos(L0.a || 0) * 58, ty = L0.y - Math.sin(L0.a || 0) * 58 + 6, dd = Math.hypot(tx - wg.x, ty - wg.y);
@@ -3410,7 +3442,7 @@ function renderTown() {
   const hurt = S.units.filter(u => u.hp < maxHp(u) || u.ko), healCost = Math.round(S.units.reduce((s, u) => s + (maxHp(u) - u.hp), 0) * 0.12) + (hurt.length ? 5 : 0);
   const qReady = (S.quests[z] || []).filter(q => (q.type === 'deliver' ? (S.cargo[q.g] || 0) : q.prog) >= q.n).length;
   const secs = [['hunt', '사냥터'], ['market', '시장'], ['quest', '의뢰', qReady], ['shop', '공방', outs.length ? '!' : 0], ['hire', '고용'], ['bank', '전장'], ['inn', '여관', hurt.length && townSec !== 'inn' ? '!' : 0]];
-  const SPOTN = { hunt: '사냥터 안내소', market: '시장', shop: '공방', bank: '은행', inn: '여관', hire: '고용소', quest: '의뢰소', store: '잡화점', trial: '시련의 탑' };
+  const SPOTN = { hunt: '사냥터 안내소', market: '시장', shop: '공방', bank: '은행', inn: '여관', hire: '고용소', quest: '의뢰소', store: '잡화점', trial: '시련의 탑', arena: '투기장' };
   el.innerHTML = `<div class="t3">${chips(Object.entries(SPOTN).map(([k, n]) => [k, n.replace(' 안내소', ''), (W && W.badges && W.badges[k]) ? '!' : 0]), townSec, 'tsec')}</div><div class="tbanner" style="background-image:linear-gradient(rgba(20,15,11,0) 35%, rgba(20,15,11,.88)), url(art/town-${bioOf(z)}.webp)"><small>${Z.n} 정착지</small><b>${SPOTN[townSec] || '정착지'}</b></div>
     ${townSec === 'hunt' ? `<h2>사냥터<small>이곳에 사는 공룡: ${tame}</small></h2>
     <div class="card">${HUNTS.map((H, i) => { const done = i < (S.cleared[z] || 0), G = GROUNDS[z][i], dist = Math.round(Math.hypot(G[0] - S.pos.x, G[1] - S.pos.y) / 10);
@@ -3443,10 +3475,12 @@ function renderTown() {
       <h2>여각 (창고)<small>짐을 이 정착지에 맡겨 둬요 · 다른 정착지에서는 찾을 수 없어요</small></h2>
       <div class="card">${cg.length ? cg.map(([g, k]) => `<div class="row"><div class="info"><b>${GOODS[g].n} ${k}개</b><small>가방에 있어요</small></div><button class="btn small" data-act="stIn" data-g="${g}">맡기기</button></div>`).join('') : ''}${st.map(([g, k]) => `<div class="row"><div class="info"><b>${GOODS[g].n} ${k}개</b><small>창고에 있어요</small></div><button class="btn small primary" data-act="stOut" data-g="${g}">찾기</button></div>`).join('')}${cg.length || st.length ? '' : '<div class="row"><div class="info"><small>맡긴 짐이 없어요</small></div></div>'}</div>`; })() : ''}
     ${townSec === 'trial' ? `<h2>시련의 탑<small>층마다 그 층 레벨의 공룡이 나와요 · 10층마다 우두머리 · 한 번 넘은 층은 다시 오르지 않아요</small></h2>
-    <div class="card"><div class="row"><div class="info"><b>${S.tower >= 200 ? '꼭대기에 올랐어요 (200층)' : `다음: ${S.tower + 1}층`}</b><div class="bar"><i style="width:${S.tower / 2}%;background:var(--amber)"></i></div><small>최고 ${S.tower}/200층${S.tower < 200 ? ` · 적 Lv${S.tower + 1} · ${Math.min(10, 3 + Math.floor((S.tower + 1) / 12))}마리${(S.tower + 1) % 10 === 0 ? ` · <b style="color:var(--bad)">우두머리 ${BOSSES[trialBoss(S.tower + 1)].n}</b>` : ''} · 상금 ${fmt(60 * (S.tower + 1))}${(S.tower + 1) % 10 === 0 ? ' + 증표·알·회복약' : ''}` : ''}</small><small>내 대원 최고 Lv${Math.max(...S.units.map(u => u.lv))} · 정착지 바로 옆에서 싸워요</small></div><button class="btn small primary" data-act="trial" ${S.tower >= 200 ? 'disabled' : ''}>도전</button></div></div>
-    <h2>투기 대회<small>5대5 · 대원 순서의 앞 다섯이 나가요 · 서른두 상단이 참가비를 내고 32강부터 다섯 번을 이기면 우승 · 세금 ${TOUR_TAX * 100}%를 뗀 나머지를 1위부터 7위까지 ${TOUR_SPLIT.map(x => Math.round(x * 100)).join(':')}으로 나눠요 · 4강에서 지면 3·4위전, 8강에서 지면 5~8위 결정전을 해요 · 지금은 다른 상단을 게임이 조종해요 (유저 간 대회는 서버가 열리면)</small></h2>
+    <div class="card"><div class="row"><div class="info"><b>${S.tower >= 200 ? '꼭대기에 올랐어요 (200층)' : `다음: ${S.tower + 1}층`}</b><div class="bar"><i style="width:${S.tower / 2}%;background:var(--amber)"></i></div><small>최고 ${S.tower}/200층${S.tower < 200 ? ` · 적 Lv${S.tower + 1} · ${Math.min(10, 3 + Math.floor((S.tower + 1) / 12))}마리${(S.tower + 1) % 10 === 0 ? ` · <b style="color:var(--bad)">우두머리 ${BOSSES[trialBoss(S.tower + 1)].n}</b>` : ''} · 상금 ${fmt(60 * (S.tower + 1))}${(S.tower + 1) % 10 === 0 ? ' + 증표·알·회복약' : ''}` : ''}</small><small>내 대원 최고 Lv${Math.max(...S.units.map(u => u.lv))} · 정착지 바로 옆에서 싸워요</small></div><button class="btn small primary" data-act="trial" ${S.tower >= 200 ? 'disabled' : ''}>도전</button></div></div>` : ''}
+    ${townSec === 'arena' ? `<h2>투기 대회<small>5대5 · 대원 순서의 앞 다섯이 나가요 · 서른두 상단이 참가비를 내고 32강부터 다섯 번을 이기면 우승 · 세금 ${TOUR_TAX * 100}%를 뗀 나머지를 1위부터 7위까지 ${TOUR_SPLIT.map(x => Math.round(x * 100)).join(':')}으로 나눠요 · 4강에서 지면 3·4위전, 8강에서 지면 5~8위 결정전을 해요 · 경기는 콜로세움 안에서 관중이 지켜봐요 · 지금은 다른 상단과 관중을 게임이 채워요 (유저 간 대회와 실제 관중은 서버가 열리면)</small></h2>
     <div class="card">${S.tour ? `<div class="row"><div class="info"><b style="color:var(--amber)">${TOUR[S.tour.g][0]} 등급 대회 진행 중</b><small>다음 경기: ${tourStage(S.tour)}</small></div><button class="btn small primary" data-act="tourNext">경기 시작</button></div>` : ''}
-      ${TOUR.map(([n, fee, lv], g) => `<div class="row"><span class="num${(S.tourWins || {})[g] ? ' done' : ''}">${g + 1}</span><div class="info"><b>${n} 등급${(S.tourWins || {})[g] ? ` <span class="tag" style="color:var(--amber)">우승 ${S.tourWins[g]}회</span>` : ''}</b><small>참가비 ${fmt(fee)} · 상대 Lv${lv} 안팎${g >= 7 ? ' · 영웅과 전용 세트' : g >= 4 ? ' · 영웅' : ''}</small><small>상금 ${TOUR_SPLIT.map((x, q) => `${q + 1}위 ${fmt(tourPrize(g, q))}`).join(' · ')}</small></div><button class="btn small" data-act="tourJoin" data-k="${g}" ${S.tour || S.money < fee ? 'disabled' : ''}>참가</button></div>`).join('')}</div>` : ''}
+      ${TOUR.map(([n, fee, lv], g) => `<div class="row"><span class="num${(S.tourWins || {})[g] ? ' done' : ''}">${g + 1}</span><div class="info"><b>${n} 등급${(S.tourWins || {})[g] ? ` <span class="tag" style="color:var(--amber)">우승 ${S.tourWins[g]}회</span>` : ''}</b><small>참가비 ${fmt(fee)} · 상대 Lv${lv} 안팎${g >= 7 ? ' · 영웅과 전용 세트' : g >= 4 ? ' · 영웅' : ''}</small><small>상금 ${TOUR_SPLIT.map((x, q) => `${q + 1}위 ${fmt(tourPrize(g, q))}`).join(' · ')}</small></div><button class="btn small" data-act="tourJoin" data-k="${g}" ${S.tour || S.money < fee ? 'disabled' : ''}>참가</button></div>`).join('')}</div>
+    <h2>지금 열리는 경기<small>관중석에서 다른 상단의 경기를 구경해요 · 무료</small></h2>
+    <div class="card">${tourLive().map(m => `<div class="row"><span class="num">${m.g + 1}</span><div class="info"><b>${m.a} <span style="color:var(--muted);font-weight:400">vs</span> ${m.b}</b><small>${TOUR[m.g][0]} 등급 · ${TOUR_ROUND[m.r]} · 관중 ${m.crowd}명</small></div><button class="btn small" data-act="tourWatch" data-k="${m.g}" data-r="${m.r}" data-a="${m.a}" data-b="${m.b}">관전</button></div>`).join('')}</div>` : ''}
     ${townSec === 'store' ? `<h2>잡화점<small>필드에서 쓰는 물건을 팔아요</small></h2>
     <div class="card">
       <div class="row"><div class="info"><b>회복약</b><small>필드나 전투 중에 쓰면 모두의 체력을 30% 채워요 · 전투 중에는 15초에 한 번 · 전투 밖에서는 쓰러진 대원도 일어나요 · 대원 레벨이 오르면 값도 올라요 · 보유 ${S.pots}개</small></div><button class="btn small" data-act="pot" data-n="1" ${S.money < potPrice() ? 'disabled' : ''}>${potPrice()}</button><button class="btn small primary" data-act="pot" data-n="5" ${S.money < potPrice() * 5 ? 'disabled' : ''}>5개 ${potPrice() * 5}</button></div>
@@ -3648,6 +3682,7 @@ document.body.addEventListener('click', e => {
   }
   else if (act === 'resetPos') { for (const u of S.units) delete u.pos; sfx('tap'); toast('전투 배치를 초기화했어요'); }
   else if (act === 'trial') { closeModal(); startTrial(); return; }
+  else if (act === 'tourWatch') { if (B) return; closeModal(); tourWatch(+b.dataset.k, +b.dataset.r, b.dataset.a, b.dataset.b); return; }
   else if (act === 'tourJoin') { const g = +b.dataset.k, fee = TOUR[g] && TOUR[g][1]; if (!fee || S.tour || S.money < fee || B) return; if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = `${fmt(fee)} 내기`; b.classList.add('primary'); return; } S.money -= fee; S.tour = { g, r: 0 }; save(); closeModal(); tourMatch(); return; }
   else if (act === 'tourNext') { if (!S.tour) return; if (B) closeBattle(); closeModal(); setTimeout(tourMatch, 60); return; }
   else if (act === 'ach') { const i = ACH.findIndex(a => a[0] === b.dataset.k), A = ACH[i], t = S.ach[A[0]] || 0; if (t >= 5 || A[2]() < A[3][t]) return; const pz = achPrize(i, t); S.money += pz; S.ach[A[0]] = t + 1; sfx('win'); toast(`업적 달성: ${A[1]} ${t + 1}단계 · 상금 ${fmt(pz)} 크레딧`, 'good'); }
@@ -3875,7 +3910,7 @@ requestAnimationFrame(frame);
 <button id="upd" hidden>새 패치가 있어요 · 눌러서 적용</button>
 <script>
 (function () {
-  var VER = "20261127-020829";
+  var VER = "20261127-022007";
   if (!/^https?:$/.test(location.protocol)) return;
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
   var btn = document.getElementById('upd');
