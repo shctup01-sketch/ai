@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}
 #upd{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:999;padding:11px 18px;border-radius:14px;border:2px solid #f3c79a;background:#d4763c;color:#1c120a;font:700 14px system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.5)}</style>
-<script>window.__VER="20261127-020324"</script>
+<script>window.__VER="20261127-020829"</script>
 </head>
 <body>
 <title>공룡 상단 픽셀</title>
@@ -2836,7 +2836,7 @@ const trialBoss = f => { const ks = Object.keys(BOSSES); return ks[Math.min(ks.l
 // The arena: ten grades of tournament. Thirty-two caravans pay the entry fee; a fifth of the pot is taken as tax and the rest goes to the top three.
 // Until there is a server the other seven caravans are run by the game, built to the grade's level.
 const TOUR = [['새싹', 500, 10], ['청동', 2000, 20], ['철', 8000, 35], ['은', 25000, 50], ['금', 80000, 70], ['백금', 250000, 90], ['다이아', 700000, 115], ['용사', 2000000, 145], ['영웅', 5000000, 175], ['전설', 12000000, 200]];
-const TOUR_N = 32, TOUR_TAX = 0.2, TOUR_SPLIT = [0.6, 0.25, 0.15], TOUR_ROUND = ['32강', '16강', '8강', '4강', '결승'], TOUR_FIN = TOUR_ROUND.length - 1, tourPot = g => Math.round(TOUR[g][1] * TOUR_N * (1 - TOUR_TAX)), tourPrize = (g, place) => Math.round(tourPot(g) * TOUR_SPLIT[place]);
+const TOUR_N = 32, TOUR_TAX = 0.2, TOUR_SPLIT = [0.4, 0.22, 0.13, 0.09, 0.07, 0.05, 0.04], TOUR_ROUND = ['32강', '16강', '8강', '4강', '결승'], TOUR_FIN = TOUR_ROUND.length - 1, TOUR_BR = { 34: '3·4위전', 58: '5~8위 결정전', 56: '5·6위전', 78: '7·8위전' }, tourStage = T => T.br ? TOUR_BR[T.br] : TOUR_ROUND[T.r], tourPot = g => Math.round(TOUR[g][1] * TOUR_N * (1 - TOUR_TAX)), tourPrize = (g, place) => Math.round(tourPot(g) * TOUR_SPLIT[place]);
 function tourTeam(g, round) {   // a rival caravan of five for this grade; a little stronger each round
   const lv = Math.min(200, Math.round(TOUR[g][2] * (1 + round * 0.025))), tier = Math.min(4, Math.floor((g + 1) / 2.5)), rar = Math.min(4, Math.floor(g / 2)), hero = g >= 4, set = g >= 7, front = ['spear', 'shield', 'gladiator'], back = ['hunter', 'sniper', 'gunner', 'crossbow', 'bomber', 'venomer', 'scout', 'mechanic'], heal = ['medic', 'shaman'];
   const types = [pick(front), pick(front), pick(back), pick(back), pick(heal)], used = {};
@@ -2846,18 +2846,24 @@ function tourTeam(g, round) {   // a rival caravan of five for this grade; a lit
     spendStats(u, 'rec'); u.hp = maxHp(u); return u; });
 }
 function tourMatch() {
-  const T = S.tour; if (!T || B || !W.crew.length) return; const g = T.g, round = T.third ? TOUR_FIN - 1 : T.r, theirs = tourTeam(g, round), L = W.lead, name = pick(['붉은 모래 상단', '철갑 상단', '새벽 상단', '검은 깃발 상단', '폭풍 상단', '은빛 수레 상단', '늑대 이빨 상단', '황금 뿔 상단']);
+  const T = S.tour; if (!T || B || !W.crew.length) return; if (T.third) { T.br = 34; delete T.third; } const g = T.g, round = T.br ? TOUR_FIN - 1 : T.r, theirs = tourTeam(g, round), L = W.lead, name = pick(['붉은 모래 상단', '철갑 상단', '새벽 상단', '검은 깃발 상단', '폭풍 상단', '은빛 수레 상단', '늑대 이빨 상단', '황금 뿔 상단']);
   const mons = theirs.map((u, i) => ({ f: { type: u.type, lv: u.lv }, x: L.x + (i - 2) * 30, y: L.y - 170, a: Math.PI / 2, len: 30 }));
   showWorld(); L.tx = null; W.target = null; W.dest = null; sfx('horn');
-  startBattle({ kind: 'pvp', zone: S.zone, tier: 0, foes: mons.map(m => m.f), mons, boss: null, packs: [], pvp: theirs, tour: 1, title: `${TOUR[g][0]} 등급 대회 · ${T.third ? '3·4위전' : TOUR_ROUND[T.r]} · ${name}` });
+  startBattle({ kind: 'pvp', zone: S.zone, tier: 0, foes: mons.map(m => m.f), mons, boss: null, packs: [], pvp: theirs, tour: 1, title: `${TOUR[g][0]} 등급 대회 · ${tourStage(T)} · ${name}` });
 }
-function tourResult(win) {
+function tourResult(win) {   // seven places are paid: the semi-final losers play for third, the quarter-final losers play on for fifth to eighth
   const T = S.tour; if (!T) { closeBattle(); return; } const g = T.g; let head, body, next = false, prize = 0;
-  if (T.third) { if (win) { prize = tourPrize(g, 2); head = '3위'; body = `3·4위전에서 이겼어요 · 상금 ${fmt(prize)} 크레딧`; } else { head = '4위'; body = '3·4위전에서 졌어요 · 상금은 3위까지예요'; } }
-  else if (win) { if (T.r >= TOUR_FIN) { prize = tourPrize(g, 0); head = '우승!'; body = `${TOUR[g][0]} 등급 대회에서 우승했어요 · 상금 ${fmt(prize)} 크레딧`; S.tourWins = S.tourWins || {}; S.tourWins[g] = (S.tourWins[g] || 0) + 1; } else { T.r++; next = true; head = '승리'; body = `${TOUR_ROUND[T.r]}에 올랐어요`; } }
-  else if (T.r >= TOUR_FIN) { prize = tourPrize(g, 1); head = '준우승'; body = `결승에서 졌어요 · 상금 ${fmt(prize)} 크레딧`; }
-  else if (T.r === TOUR_FIN - 1) { T.third = true; next = true; head = '4강 탈락'; body = '3·4위전이 남았어요 · 이기면 3위 상금을 받아요'; }
-  else { head = `${TOUR_ROUND[T.r]} 탈락`; body = '상금은 3위까지예요 · 참가비는 돌아오지 않아요'; }
+  const place = (n, how) => { if (n <= TOUR_SPLIT.length) { prize = tourPrize(g, n - 1); head = n === 1 ? '우승!' : n === 2 ? '준우승' : `${n}위`; body = `${how} · 상금 ${fmt(prize)} 크레딧`; } else { head = `${n}위`; body = `${how} · 상금은 ${TOUR_SPLIT.length}위까지예요`; } };
+  const go = (br, h, t) => { T.br = br; next = true; head = h; body = t; };
+  if (T.br === 34) place(win ? 3 : 4, win ? '3·4위전에서 이겼어요' : '3·4위전에서 졌어요');
+  else if (T.br === 58) win ? go(56, '승리', '5·6위전에 올랐어요') : go(78, '패배', '7·8위전이 남았어요 · 이기면 7위 상금을 받아요');
+  else if (T.br === 56) place(win ? 5 : 6, win ? '5·6위전에서 이겼어요' : '5·6위전에서 졌어요');
+  else if (T.br === 78) place(win ? 7 : 8, win ? '7·8위전에서 이겼어요' : '7·8위전에서 졌어요');
+  else if (win) { if (T.r >= TOUR_FIN) { place(1, `${TOUR[g][0]} 등급 대회에서 우승했어요`); S.tourWins = S.tourWins || {}; S.tourWins[g] = (S.tourWins[g] || 0) + 1; } else { T.r++; next = true; head = '승리'; body = `${TOUR_ROUND[T.r]}에 올랐어요`; } }
+  else if (T.r >= TOUR_FIN) place(2, '결승에서 졌어요');
+  else if (T.r === TOUR_FIN - 1) go(34, '4강 탈락', '3·4위전이 남았어요 · 이기면 3위, 져도 4위 상금을 받아요');
+  else if (T.r === TOUR_FIN - 2) go(58, '8강 탈락', '5~8위 결정전이 남았어요 · 7위까지 상금을 받아요');
+  else { head = `${TOUR_ROUND[T.r]} 탈락`; body = `상금은 ${TOUR_SPLIT.length}위까지예요 · 참가비는 돌아오지 않아요`; }
   if (prize) { S.money += prize; S.stats.earned += prize; } if (!next) S.tour = null; save();
   showModal(`<h3>${head}</h3><div class="sub">${$('bTitle').textContent}</div><div class="card"><div class="row"><div class="info"><small style="color:var(--text)">${body}</small><small>대회에서는 아무도 다치지 않아요 · 경기 시간 ${Math.round(B ? B.t : 0)}초</small></div></div></div>
     <div class="mbtns">${next ? '<button class="btn primary" data-act="tourNext">다음 경기</button>' : '<button class="btn primary" data-act="closeBattle">확인</button>'}</div>`);
@@ -3438,9 +3444,9 @@ function renderTown() {
       <div class="card">${cg.length ? cg.map(([g, k]) => `<div class="row"><div class="info"><b>${GOODS[g].n} ${k}개</b><small>가방에 있어요</small></div><button class="btn small" data-act="stIn" data-g="${g}">맡기기</button></div>`).join('') : ''}${st.map(([g, k]) => `<div class="row"><div class="info"><b>${GOODS[g].n} ${k}개</b><small>창고에 있어요</small></div><button class="btn small primary" data-act="stOut" data-g="${g}">찾기</button></div>`).join('')}${cg.length || st.length ? '' : '<div class="row"><div class="info"><small>맡긴 짐이 없어요</small></div></div>'}</div>`; })() : ''}
     ${townSec === 'trial' ? `<h2>시련의 탑<small>층마다 그 층 레벨의 공룡이 나와요 · 10층마다 우두머리 · 한 번 넘은 층은 다시 오르지 않아요</small></h2>
     <div class="card"><div class="row"><div class="info"><b>${S.tower >= 200 ? '꼭대기에 올랐어요 (200층)' : `다음: ${S.tower + 1}층`}</b><div class="bar"><i style="width:${S.tower / 2}%;background:var(--amber)"></i></div><small>최고 ${S.tower}/200층${S.tower < 200 ? ` · 적 Lv${S.tower + 1} · ${Math.min(10, 3 + Math.floor((S.tower + 1) / 12))}마리${(S.tower + 1) % 10 === 0 ? ` · <b style="color:var(--bad)">우두머리 ${BOSSES[trialBoss(S.tower + 1)].n}</b>` : ''} · 상금 ${fmt(60 * (S.tower + 1))}${(S.tower + 1) % 10 === 0 ? ' + 증표·알·회복약' : ''}` : ''}</small><small>내 대원 최고 Lv${Math.max(...S.units.map(u => u.lv))} · 정착지 바로 옆에서 싸워요</small></div><button class="btn small primary" data-act="trial" ${S.tower >= 200 ? 'disabled' : ''}>도전</button></div></div>
-    <h2>투기 대회<small>5대5 · 대원 순서의 앞 다섯이 나가요 · 서른두 상단이 참가비를 내고 32강부터 다섯 번을 이기면 우승 · 세금 ${TOUR_TAX * 100}%를 뗀 나머지를 1·2·3위가 ${TOUR_SPLIT.map(x => x * 100).join(':')}으로 나눠요 · 지금은 다른 상단을 게임이 조종해요 (유저 간 대회는 서버가 열리면)</small></h2>
-    <div class="card">${S.tour ? `<div class="row"><div class="info"><b style="color:var(--amber)">${TOUR[S.tour.g][0]} 등급 대회 진행 중</b><small>다음 경기: ${S.tour.third ? '3·4위전' : TOUR_ROUND[S.tour.r]}</small></div><button class="btn small primary" data-act="tourNext">경기 시작</button></div>` : ''}
-      ${TOUR.map(([n, fee, lv], g) => `<div class="row"><span class="num${(S.tourWins || {})[g] ? ' done' : ''}">${g + 1}</span><div class="info"><b>${n} 등급${(S.tourWins || {})[g] ? ` <span class="tag" style="color:var(--amber)">우승 ${S.tourWins[g]}회</span>` : ''}</b><small>참가비 ${fmt(fee)} · 상대 Lv${lv} 안팎${g >= 7 ? ' · 영웅과 전용 세트' : g >= 4 ? ' · 영웅' : ''}</small><small>상금 1위 ${fmt(tourPrize(g, 0))} · 2위 ${fmt(tourPrize(g, 1))} · 3위 ${fmt(tourPrize(g, 2))}</small></div><button class="btn small" data-act="tourJoin" data-k="${g}" ${S.tour || S.money < fee ? 'disabled' : ''}>참가</button></div>`).join('')}</div>` : ''}
+    <h2>투기 대회<small>5대5 · 대원 순서의 앞 다섯이 나가요 · 서른두 상단이 참가비를 내고 32강부터 다섯 번을 이기면 우승 · 세금 ${TOUR_TAX * 100}%를 뗀 나머지를 1위부터 7위까지 ${TOUR_SPLIT.map(x => Math.round(x * 100)).join(':')}으로 나눠요 · 4강에서 지면 3·4위전, 8강에서 지면 5~8위 결정전을 해요 · 지금은 다른 상단을 게임이 조종해요 (유저 간 대회는 서버가 열리면)</small></h2>
+    <div class="card">${S.tour ? `<div class="row"><div class="info"><b style="color:var(--amber)">${TOUR[S.tour.g][0]} 등급 대회 진행 중</b><small>다음 경기: ${tourStage(S.tour)}</small></div><button class="btn small primary" data-act="tourNext">경기 시작</button></div>` : ''}
+      ${TOUR.map(([n, fee, lv], g) => `<div class="row"><span class="num${(S.tourWins || {})[g] ? ' done' : ''}">${g + 1}</span><div class="info"><b>${n} 등급${(S.tourWins || {})[g] ? ` <span class="tag" style="color:var(--amber)">우승 ${S.tourWins[g]}회</span>` : ''}</b><small>참가비 ${fmt(fee)} · 상대 Lv${lv} 안팎${g >= 7 ? ' · 영웅과 전용 세트' : g >= 4 ? ' · 영웅' : ''}</small><small>상금 ${TOUR_SPLIT.map((x, q) => `${q + 1}위 ${fmt(tourPrize(g, q))}`).join(' · ')}</small></div><button class="btn small" data-act="tourJoin" data-k="${g}" ${S.tour || S.money < fee ? 'disabled' : ''}>참가</button></div>`).join('')}</div>` : ''}
     ${townSec === 'store' ? `<h2>잡화점<small>필드에서 쓰는 물건을 팔아요</small></h2>
     <div class="card">
       <div class="row"><div class="info"><b>회복약</b><small>필드나 전투 중에 쓰면 모두의 체력을 30% 채워요 · 전투 중에는 15초에 한 번 · 전투 밖에서는 쓰러진 대원도 일어나요 · 대원 레벨이 오르면 값도 올라요 · 보유 ${S.pots}개</small></div><button class="btn small" data-act="pot" data-n="1" ${S.money < potPrice() ? 'disabled' : ''}>${potPrice()}</button><button class="btn small primary" data-act="pot" data-n="5" ${S.money < potPrice() * 5 ? 'disabled' : ''}>5개 ${potPrice() * 5}</button></div>
@@ -3869,7 +3875,7 @@ requestAnimationFrame(frame);
 <button id="upd" hidden>새 패치가 있어요 · 눌러서 적용</button>
 <script>
 (function () {
-  var VER = "20261127-020324";
+  var VER = "20261127-020829";
   if (!/^https?:$/.test(location.protocol)) return;
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
   var btn = document.getElementById('upd');
