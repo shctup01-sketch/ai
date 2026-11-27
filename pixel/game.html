@@ -625,7 +625,7 @@ const HSET_ENH = [0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.25, 0.2, 0.15], HSET_SAFE
 // enhancing a set piece: +10% of its strength per step up to +10, paid in enhancement stones; from +3 on a failure destroys the piece
 const hsetStat = (u, sl) => { const q = itemStat({ slot: sl, r: 4, lv: u.lv, en: ENH_MAX, hx: 1 }), k = 1 + 0.1 * hsetEn(u, sl); for (const a in q) q[a] *= k; return q; }, hsetText = (u, sl) => { const q = hsetStat(u, sl); return Object.entries(q).map(([k, v]) => `${{ atk: '공격', hp: '체력', def: '방어' }[k]} +${Math.round(v * 100)}%`).join(' · '); };
 const hsetName = (u, sl) => `${HSET[u.name].n}의 ${sl === 'weapon' ? HSET_WORD[u.type] || '무기' : HSET_SLOT[sl]}`;
-const setAura = () => { const A = { aAtk: 0, aDef: 0, aHp: 0, aRegen: 0, aDino: 0, cargo: 0, speed: 0, cook: 0, enh: 0 }; if (S && S.units) for (const u of S.units) { const ab = u.inParty && !u.ko && hsetFull(u); if (ab) for (const k in A) A[k] += ab[k] || 0; } return A; };
+const setAura = team => { const A = { aAtk: 0, aDef: 0, aHp: 0, aRegen: 0, aDino: 0, cargo: 0, speed: 0, cook: 0, enh: 0 }; if (team || (S && S.units)) for (const u of team || S.units) { const ab = (team || (u.inParty && !u.ko)) && hsetFull(u); if (ab) for (const k in A) A[k] += ab[k] || 0; } return A; };
 const lkT = t => t >= 1000 ? t % 10 : t, lkSet = t => t >= 1000 ? { S: HSET[(HEROES[Math.floor((t - 1000) / 100)] || {}).name], m: Math.floor(t % 100 / 10) } : null;
 const heroCost = h => 1000000 + UNITS[h.type].cost * 1500;   // heroes are a long-term goal, not an early purchase
 const hireAll = () => Object.keys(UNITS).filter(t => UNITS[t].cls === 'human' && t !== 'leader').sort((a, b) => UNITS[a].cost - UNITS[b].cost);
@@ -775,6 +775,11 @@ const lvEdge = (a, t) => clamp(1 + 0.07 * ((a.lv || 1) - (t.lv || 1)), 0.3, 1.6)
 const wildMul = lv => (1 + 0.05 * (lv - 1)) * (lv >= 20 ? 1.6 : lv >= 10 ? 1.25 : 1) * Math.min(1, 0.62 + 0.05 * lv) * 0.72 * (1 + clamp(lv - 14, 0, 36) * 0.04 + Math.max(0, lv - 50) * 0.01) * (1 + Math.max(0, lv - 45) * 0.008);                                                      // wild things grow tougher than level alone
 // The last lands are tuned for caravans of heroes in their signature sets: from level 120 the wild hits harder and lasts longer, steeply near 200.
 const END_ATK = 12, END_HP = 1.5, endF = lv => { const f = clamp((lv - 120) / 80, 0, 1); return f * f; }, endAtk = lv => 1 + endF(lv) * (END_ATK - 1), endHp = lv => 1 + endF(lv) * (END_HP - 1);
+// Duel rules (caravan against caravan). Healing is worth far less, stuns are short and cannot be chained, nobody is brought back, and after
+// PVP_RAGE seconds the fight "boils over": healing stops and every blow lands harder each second, so a match always ends.
+const PVP_HEAL = 0.3, PVP_RAGE = 40, PVP_STUN = 1.2, PVP_IMMUNE = 5, pvpOn = () => !!(B && B.opt.pvp), PVP_TIME = 90, PVP_DMG = 0.3, pvpDmg = () => !pvpOn() ? 1 : PVP_DMG * (B.t > PVP_RAGE ? Math.pow(1.09, B.t - PVP_RAGE) : 1), pvpHeal = () => !pvpOn() ? 1 : B.t > PVP_RAGE ? 0 : PVP_HEAL;
+// armour in a duel: the monster formula would let two caravans in full sets chip at each other for hours, so duels use a flatter curve
+const defMul = def => pvpOn() ? 100 / (100 + Math.sqrt(def) * 8) : 40 / (40 + def);
 const STUN_HP_LIMIT = 700;   // like monster grades: big creatures shrug off stuns
 const DAY_LEN = 90;
 
@@ -834,7 +839,7 @@ const SKX = { volley: ['적 셋을 쏴요', '적 다섯을 더 세게 쏴요', '
 const skName = (k, t) => SKN[k][Math.min(2, t || 0)], skDesc = (k, t) => SKX[k][Math.min(2, t || 0)];
 const JOBS = { leader: ['상단 대장', '행수', '대행수'], hunter: ['사냥꾼', '명사수', '신궁'], spear: ['창잡이', '중갑 창병', '철벽 수호자'], sniper: ['저격수', '명저격수', '유령 저격수'], mechanic: ['정비공', '기술자', '병기 장인'], medic: ['의사', '군의관', '명의'], porter: ['짐꾼', '보부상', '거상'], scout: ['척후병', '추적자', '그림자 추적자'], shield: ['방패병', '중장 방패병', '움직이는 성벽'], gladiator: ['검투사', '투사', '검투왕'], crossbow: ['석궁수', '연발 석궁수', '관통 사수'], gunner: ['총잡이', '쌍권총', '속사왕'], bomber: ['폭파병', '공병', '파괴 전문가'], tamer: ['조련사', '수석 조련사', '공룡 조련 대가'], cook: ['요리사', '주방장', '전설의 요리장'], smith: ['대장장이', '숙련 대장장이', '명장'], shaman: ['주술사', '대주술사', '정령 주술사'], venomer: ['독침술사', '독술사', '역병술사'] };
 const skillOf = type => SK_OF[type] || SK_MODEL[MODEL_FILES[type]] || null;
-function skHit(u, t, mult, crit) { const def = Math.max(0, t.def * (t.guardT > 0 ? 2 : 1) - t.shred * 2.5), dmg = u.atk * (u.roarT > 0 ? 1.25 : 1) * mult * lvEdge(u, t) * (1 + 0.08 * (u.skLv || 0)) * (u.plv >= 15 ? 1.2 : 1) * 40 / (40 + def); t.hp -= dmg; t.hitT = 0.2; num(t, Math.round(dmg) + '!', '#ffd870'); burst(t.x, t.y, 10, 7, '#ffd870', { spd: 65, life: 0.4, r: 2.6 }); if (t.hp <= 0) onKill(u, t); }
+function skHit(u, t, mult, crit) { const def = Math.max(0, t.def * (t.guardT > 0 ? 2 : 1) - t.shred * 2.5), dmg = u.atk * (u.roarT > 0 ? 1.25 : 1) * mult * lvEdge(u, t) * (1 + 0.08 * (u.skLv || 0)) * (u.plv >= 15 ? 1.2 : 1) * defMul(def) * pvpDmg(); t.hp -= dmg; t.ds = (t.ds || 0) + dmg; t.hitT = 0.2; num(t, Math.round(dmg) + '!', '#ffd870'); burst(t.x, t.y, 10, 7, '#ffd870', { spd: 65, life: 0.4, r: 2.6 }); if (t.hp <= 0) onKill(u, t); }
 const fxAdd = (kind, t, o) => { if (B && B.fx.length < 140) B.fx.push(Object.assign({ kind, t, t0: t }, o)); };
 const SK_COL = { volley: '255,216,112', multishot: '255,216,112', snipe: '255,120,90', grenade: '255,150,60', firstaid: '150,240,130', mist: '170,220,70', acid: '200,235,80', charge: '248,232,138', boom: '248,232,138', roar: '255,130,90', stomp: '220,196,150', tail: '255,236,200', pounce: '255,244,226', guard: '159,208,255' };
 function skillFx(k, u, t, T) {
@@ -883,9 +888,9 @@ const HERO_SK = {
   '안개 무녀 소하': { n: '혼령의 춤', ds: '쓰러진 대원을 일으키고 전원 회복 · 적의 장갑을 녹여요', col: '200,150,255', pat: 'heal', heal: 0.3, revive: 1, shred: 4, cd: 17 },
 };
 function castHero(u) {
-  const H = u.hsk, foes = alive(1), mates = alive(0); if (!foes.length || u.skCd > 0 || u.hp <= 0 || u.stun > 0 || B.over) return false;
+  const H = u.hsk, foes = alive(1 - u.side), mates = alive(u.side); if (!foes.length || u.skCd > 0 || u.hp <= 0 || u.stun > 0 || B.over) return false;
   const col = H.col, hex = '#' + col.split(',').map(v => (+v).toString(16).padStart(2, '0')).join(''), M = (H.m || 1) * (1 + 0.25 * (u.tier || 0));
-  const byDist = foes.slice().sort((a, b) => d2(a.x, a.y, u.x, u.y) - d2(b.x, b.y, u.x, u.y)), t = u.target && u.target.hp > 0 && u.target.side === 1 ? u.target : byDist[0];
+  const byDist = foes.slice().sort((a, b) => d2(a.x, a.y, u.x, u.y) - d2(b.x, b.y, u.x, u.y)), t = u.target && u.target.hp > 0 && u.target.side !== u.side ? u.target : byDist[0];
   const hit = (f, m, dl = 0) => { if (f.hp <= 0) return; skHit(u, f, m); if (H.stun && f.hp > 0 && !f.boss) f.stun = Math.max(f.stun, H.stun); if (H.shred) { f.shred = Math.min(6, f.shred + H.shred); f.shredT = 10; } fxAdd('spark', 0.45, { x: f.x, y: f.y, col, big: 1, delay: dl }); };
   // the opener every hero shares: a gold flare, rings, a pillar of light and a tint over the screen
   fxAdd('cast', 0.9, { x: u.x, y: u.y, r: u.size * 1.4, col, gold: true }); fxAdd('pillar', 1.1, { x: u.x, y: u.y, col }); fxAdd('rise', 1.1, { x: u.x, y: u.y, col });
@@ -899,8 +904,8 @@ function castHero(u) {
     for (const f of foes) { const px = f.x - u.x, py = f.y - u.y, along = px * Math.cos(a) + py * Math.sin(a), off = Math.abs(-px * Math.sin(a) + py * Math.cos(a)); if (along > -10 && along < L && off < 34 + f.size) hit(f, M, along / 900); } SHAKE = Math.max(SHAKE, 0.8); sfx('crunchBig'); }
   else if (H.pat === 'exec') { fxAdd('reticle', 0.5, { x: t.x, y: t.y }); fxAdd('beam', 0.5, { x: u.x, y: u.y, x2: t.x, y2: t.y, delay: 0.2 }); fxAdd('fireball', 0.9, { x: t.x, y: t.y, r: t.size * 2.2, delay: 0.22 }); fxAdd('crack', 1.8, { x: t.x, y: t.y, r: 60, col: '60,20,16', delay: 0.24 }); for (let q = 0; q < 3; q++) fxAdd('wave', 0.6, { x: t.x, y: t.y, r: 50 + q * 26, col, delay: 0.22 + q * 0.07 });
     hit(t, M * (1 + (1 - t.hp / t.max) * 1.2), 0.22); SHAKE = Math.max(SHAKE, 1); sfx('crit'); }
-  else if (H.pat === 'barrage') { for (let q = 0; q < H.hits; q++) { const f = pick(alive(1).length ? alive(1) : foes), dl = q * 0.045, ox = u.x + rand(-26, 26), oy = u.y + rand(-18, 18); fxAdd('bullet', 0.22, { x: ox, y: oy, x2: f.x, y2: f.y, delay: dl }); if (q % 3 === 0) fxAdd('afterimg', 0.3, { x: u.x, y: u.y, x2: ox, y2: oy, r: u.size, col, delay: dl }); hit(f, M, dl + 0.1); } sfx('shot'); }
-  else if (H.pat === 'meteor') { for (let q = 0; q < H.hits; q++) { const c0 = q === 0 ? t : pick(alive(1).length ? alive(1) : foes), cx = c0.x + (q ? rand(-20, 20) : 0), cy = c0.y + (q ? rand(-20, 20) : 0), dl = q * 0.22;
+  else if (H.pat === 'barrage') { for (let q = 0; q < H.hits; q++) { const f = pick(alive(1 - u.side).length ? alive(1 - u.side) : foes), dl = q * 0.045, ox = u.x + rand(-26, 26), oy = u.y + rand(-18, 18); fxAdd('bullet', 0.22, { x: ox, y: oy, x2: f.x, y2: f.y, delay: dl }); if (q % 3 === 0) fxAdd('afterimg', 0.3, { x: u.x, y: u.y, x2: ox, y2: oy, r: u.size, col, delay: dl }); hit(f, M, dl + 0.1); } sfx('shot'); }
+  else if (H.pat === 'meteor') { for (let q = 0; q < H.hits; q++) { const c0 = q === 0 ? t : pick(alive(1 - u.side).length ? alive(1 - u.side) : foes), cx = c0.x + (q ? rand(-20, 20) : 0), cy = c0.y + (q ? rand(-20, 20) : 0), dl = q * 0.22;
       fxAdd('lob', 0.34, { x: cx + rand(-40, 40), y: cy - 220, x2: cx, y2: cy, delay: dl }); fxAdd('blast', 1, { x: cx, y: cy, r: H.r, delay: dl + 0.3 }); fxAdd('fireball', 0.9, { x: cx, y: cy, r: H.r * 0.9, delay: dl + 0.3 }); fxAdd('crack', 2, { x: cx, y: cy, r: H.r * 0.8, col: '40,26,18', delay: dl + 0.32 }); fxAdd('rocks', 0.8, { x: cx, y: cy, r: H.r * 0.7, delay: dl + 0.32 }); fxAdd('wave', 0.6, { x: cx, y: cy, r: H.r * 1.2, col, delay: dl + 0.3 });
       for (const f of foes) if (d2(f.x, f.y, cx, cy) < (H.r + f.size) ** 2) hit(f, M, dl + 0.3); } SHAKE = Math.max(SHAKE, 1.1); sfx('crunchBig'); }
   else if (H.pat === 'nova') { const n = H.hits || 1, R = H.r; for (let q = 0; q < n; q++) { fxAdd('crescent', 0.45, { x: u.x, y: u.y, r: Math.min(R, 130) * 0.9, a: q * 1.3, col, delay: q * 0.12 }); fxAdd('wave', 0.6, { x: u.x, y: u.y, r: Math.min(R, 240), col, delay: q * 0.12 }); }
@@ -908,8 +913,8 @@ function castHero(u) {
     for (const f of foes) if (d2(f.x, f.y, u.x, u.y) < (R + f.size) ** 2) { for (let q = 0; q < n; q++) hit(f, M, q * 0.12); if (H.stun) fxAdd('stun', 0.7, { x: f.x, y: f.y, delay: 0.2 }); } SHAKE = Math.max(SHAKE, 1); sfx('crunchBig'); }
   else if (H.pat === 'plague') { fxAdd('wave', 1, { x: u.x, y: u.y, r: 260, col }); for (const f of foes) { fxAdd('cloud', 2.2, { x: f.x, y: f.y, r: 30, col }); fxAdd('bubbles', 1.8, { x: f.x, y: f.y, r: 22, col }); fxAdd('splash', 0.6, { x: f.x, y: f.y, r: 34, col, delay: 0.1 }); hit(f, M, 0.1); if (H.stun) fxAdd('stun', 0.7, { x: f.x, y: f.y, delay: 0.25 }); } sfx('spit'); }
   if (H.pat === 'heal' || H.pat === 'ward' || H.guard || H.buff) {   // the parts that look after your own side
-    if (H.revive) for (const m of B.units) if (m.side === 0 && m.ref && m.hp <= 0 && !m.turret) { m.hp = m.max * 0.5; m.deadT = 0; m.stun = 0; m.ref.ko = false; m.ref.hp = Math.round(m.hp); num(m, '소생!', hex); fxAdd('pillar', 1.3, { x: m.x, y: m.y, col }); }
-    for (const m of alive(0)) { if (H.heal) { const h = Math.min(m.max - m.hp, m.max * H.heal); m.hp += h; if (h > 1) num(m, '+' + Math.round(h), '#8fbf6a'); fxAdd('cross', 1, { x: m.x, y: m.y, delay: 0.1 }); }
+    if (H.revive && !pvpOn()) for (const m of B.units) if (m.side === u.side && m.ref && m.hp <= 0 && !m.turret) { m.hp = m.max * 0.5; m.deadT = 0; m.stun = 0; m.ref.ko = false; m.ref.hp = Math.round(m.hp); num(m, '소생!', hex); fxAdd('pillar', 1.3, { x: m.x, y: m.y, col }); }
+    for (const m of alive(u.side)) { if (H.heal) { const h = Math.min(m.max - m.hp, m.max * H.heal); m.hp += h; if (h > 1) num(m, '+' + Math.round(h), '#8fbf6a'); fxAdd('cross', 1, { x: m.x, y: m.y, delay: 0.1 }); }
       if (H.guard) { m.guardT = Math.max(m.guardT, H.guard); fxAdd('hex', 0.9, { x: m.x, y: m.y, r: m.size * 1.2, col }); }
       if (H.buff) m.roarT = Math.max(m.roarT, H.buff);
       fxAdd('pillar', 1, { x: m.x, y: m.y, col, delay: 0.05 }); fxAdd('rise', 1, { x: m.x, y: m.y, col, delay: 0.05 }); }
@@ -922,7 +927,7 @@ function castSkill(u) {
   if (u.hsk) return castHero(u);
   const k = u.sk, K = SK[k]; if (!K || u.skCd > 0 || u.hp <= 0 || u.stun > 0 || B.over) return false;
   const T = Math.min(2, (u.tier || 0) + (u.famed ? 1 : 0)), P = [1, 1.4, 1.9][T] * (1 + 0.3 * Math.max(0, (u.tier || 0) - 2)) * (u.famed ? 1.5 : 1);   // promotion and evolution change the skill itself, not only its strength
-  const foes = alive(1), mates = alive(0), near = r => foes.filter(f => d2(f.x, f.y, u.x, u.y) < r * r), byDist = () => foes.slice().sort((a, b) => d2(a.x, a.y, u.x, u.y) - d2(b.x, b.y, u.x, u.y)), t = u.target && u.target.hp > 0 && u.target.side === 1 ? u.target : byDist()[0];
+  const foes = alive(1 - u.side), mates = alive(u.side), near = r => foes.filter(f => d2(f.x, f.y, u.x, u.y) < r * r), byDist = () => foes.slice().sort((a, b) => d2(a.x, a.y, u.x, u.y) - d2(b.x, b.y, u.x, u.y)), t = u.target && u.target.hp > 0 && u.target.side !== u.side ? u.target : byDist()[0];
   if (!t) return false; const reach = u.range + (u.size + t.size) * 0.5 + 14, inR = d2(u.x, u.y, t.x, t.y) < reach * reach, around = r => foes.filter(f => d2(f.x, f.y, t.x, t.y) < r * r);
   if (k === 'volley') { if (!inR) return false; byDist().slice(0, [3, 5, 99][T]).forEach(f => { B.fx.push({ t: 0.25, kind: 'bullet', x: u.x, y: u.y, x2: f.x, y2: f.y }); skHit(u, f, 1.6 * P); }); sfx('shot'); }
   else if (k === 'multishot') { if (!inR) return false; if (T === 2) foes.forEach(f => { B.fx.push({ t: 0.3, kind: 'arrow', x: u.x, y: u.y, x2: f.x, y2: f.y }); skHit(u, f, 1.5); }); else for (let i = 0; i < 3 + T; i++) if (t.hp > 0) { B.fx.push({ t: 0.25 + i * 0.05, kind: 'arrow', x: u.x, y: u.y, x2: t.x, y2: t.y }); skHit(u, t, 0.85 * P); } sfx('bow'); }
@@ -1095,7 +1100,8 @@ function startBattle(opt) {
   // members who fell in an earlier fight are carried along: they lie where the party stands, so a doctor can still bring them back
   party().filter(m => m.ko).forEach((m, q) => { const u = spawn(0, m.type, m.lv, W.lead.x - 26 - (q % 3) * 16, W.lead.y + 22 + Math.floor(q / 3) * 14, m); u.hp = 0; u.deadT = 2; u.carried = true; });
   for (const u of B.units.filter(u => u.side === 0 && UNITS[u.type].turret)) spawnTurret(u);
-  opt.mons.forEach(m => { const u = spawn(1, m.f.type, m.f.lv, m.x, m.y, null, m.f.boss); u.a = m.a; });
+  if (opt.pvp) opt.pvp.forEach((r, i) => { const m = opt.mons[i], u = spawn(1, r.type, r.lv, m.x, m.y, r); u.a = m.a; u.hp = u.max; });
+  else opt.mons.forEach(m => { const u = spawn(1, m.f.type, m.f.lv, m.x, m.y, null, m.f.boss); u.a = m.a; });
   { const ex = opt.mons.reduce((s, m) => s + m.x, 0) / opt.mons.length, ey = opt.mons.reduce((s, m) => s + m.y, 0) / opt.mons.length; B.org = { x: W.lead.x, y: W.lead.y }; B.dir = Math.atan2(ey - W.lead.y, ex - W.lead.x);
     const c = Math.cos(B.dir), sn = Math.sin(B.dir); for (const u of B.units) if (u.ref && u.ref.pos) u.order = { x: clamp(B.org.x + c * u.ref.pos.a - sn * u.ref.pos.s, 10, WW - 10), y: clamp(B.org.y + sn * u.ref.pos.a + c * u.ref.pos.s, 10, WH - 10) }; }
   $('bTitle').textContent = opt.kind === 'ambush' ? '습격!' : opt.boss ? `우두머리 사냥 · ${BOSSES[opt.boss].n}` : opt.kind === 'hunt' ? `${Z.n} · ${HUNT_NAMES[opt.zone][opt.tier]}` : `${Z.n} 사냥터`;
@@ -1108,12 +1114,12 @@ function startBattle(opt) {
 function spawn(side, type, lv, x, y, ref, boss) {
   const D = UNITS[type], st = unitStats(type, lv, boss);
   if (!ref && side === 1) { const wm = wildMul(lv) * (boss ? 1.9 : 1); st.hp *= wm * endHp(lv); st.atk *= wm * (boss ? 0.8 : 1) * (1 + Math.max(0, lv - 45) * 0.014) * endAtk(lv); }
-  if (ref) { const cb = 1 + cookBuff(); st.atk *= cb; st.hp *= cb; }
-  if (ref) { const fm = FORMS[S.form] || FORMS.bal; st.atk *= fm.atk * (S.cls === 'tamer' ? 1.08 : 1) * (hungry() ? 0.7 : 1) * (S.unpaid && UNITS[type].cls === 'human' ? 0.8 : 1); st.def *= fm.def; }
-  if (ref) { const A = B.aura || (B.aura = setAura()); st.atk *= 1 + A.aAtk + (D.cls === 'dino' ? A.aDino : 0); st.hp *= 1 + A.aHp; st.def *= 1 + A.aDef; }
+  if (ref && side === 0) { const cb = 1 + cookBuff(); st.atk *= cb; st.hp *= cb; }
+  if (ref && side === 0) { const fm = FORMS[S.form] || FORMS.bal; st.atk *= fm.atk * (S.cls === 'tamer' ? 1.08 : 1) * (hungry() ? 0.7 : 1) * (S.unpaid && UNITS[type].cls === 'human' ? 0.8 : 1); st.def *= fm.def; }
+  if (ref) { const A = side === 0 ? B.aura || (B.aura = setAura()) : B.aura2 || (B.aura2 = setAura(B.opt.pvp || [])); st.atk *= 1 + A.aAtk + (D.cls === 'dino' ? A.aDino : 0); st.hp *= 1 + A.aHp; st.def *= 1 + A.aDef; }
   if (ref) { const gm = gearMul(ref); st.hp *= gm.hp; st.atk *= gm.atk; st.def *= gm.def; st.size *= 1 + 0.07 * (ref.tier || 0); }
   const u = { id: B.idSeq++, side, type, lv, ref, boss, x, y, a: side ? Math.PI / 2 : -Math.PI / 2, hp: ref ? Math.min(ref.hp, st.hp) : st.hp, max: st.hp, atk: st.atk, def: st.def, size: st.size,
-              tier: ref ? ref.tier || 0 : 0, lk: ref ? lookTier(ref) : undefined, plv: ref ? ref.lv : 0, skLv: ref ? ref.skLv || 0 : 0, elite: !!(ref && ref.elite), famed: !!(ref && ref.famed), hsk: ref && ref.famed && HERO_SK[ref.name] || null, hs: ref ? hsetFull(ref) : null, areg: ref && B.aura ? B.aura.aRegen : 0, sk: side === 0 ? (ref && ref.famed && HERO_SK[ref.name] ? 'hero' : ref ? unitSkill(ref) : skillOf(type)) : null, skCd: rand(2, 6), guardT: ref && hsetFull(ref) && hsetFull(ref).open || 0, roarT: 0,
+              tier: ref ? ref.tier || 0 : 0, lk: ref ? lookTier(ref) : undefined, plv: ref ? ref.lv : 0, skLv: ref ? ref.skLv || 0 : 0, elite: !!(ref && ref.elite), famed: !!(ref && ref.famed), hsk: ref && ref.famed && HERO_SK[ref.name] || null, hs: ref ? hsetFull(ref) : null, areg: ref ? (side === 0 ? B.aura : B.aura2).aRegen : 0, sk: side === 0 || ref ? (ref && ref.famed && HERO_SK[ref.name] ? 'hero' : ref ? unitSkill(ref) : skillOf(type)) : null, skCd: rand(2, 6) + (B.opt.pvp ? 4 : 0), guardT: ref && hsetFull(ref) && hsetFull(ref).open || 0, roarT: 0,
               range: D.range, as: D.as, spd: D.spd, cd: rand(0, 0.6), stun: 0, shred: 0, shredT: 0, leg: rand(0, 6), moving: false, hitT: 0 };
   B.units.push(u); return u;
 }
@@ -1125,6 +1131,11 @@ function spawnTurret(owner) {
 const alive = side => B.units.filter(u => u.side === side && u.hp > 0);
 function bStep(dt) {
   B.t += dt;
+  if (B.opt.pvp) for (const u of B.units) {   // duel rules: scale back whatever was healed since the last step, keep stuns short and unchainable
+    if (u.hp > 0 && u.h0 !== undefined) { const healed = u.hp - u.h0 + (u.ds || 0); if (healed > 0.5) u.hp -= healed * (1 - pvpHeal()); }
+    u.ds = 0; u.h0 = u.hp;
+    if (u.stun > 0) { if (!u.stunOn && (u.stunImm || 0) > B.t) u.stun = 0; else { u.stunOn = true; u.stun = Math.min(u.stun, PVP_STUN); } } else if (u.stunOn) { u.stunOn = false; u.stunImm = B.t + PVP_IMMUNE; }
+  }
   const us = B.units;
   for (const u of us) {
     if (u.hp <= 0) { u.hitT = 0; continue; }   // the fallen do not flinch
@@ -1135,7 +1146,7 @@ function bStep(dt) {
     if (u.stun > 0) { u.stun -= dt; u.moving = false; continue; }
     const D = UNITS[u.type] || {};
     // doctors bring fallen people back, tamers bring fallen dinosaurs back
-    if (u.side === 0 && u.ref) {
+    if (u.side === 0 && u.ref && !B.opt.pvp) {
       const rv = D.heal && D.cls === 'human' ? 'human' : (u.type === 'tamer' || (u.type === 'leader' && S.cls === 'tamer') || (u.type === 'hunter' && u.elite)) ? 'dino' : null;
       if (rv) { u.rvCd = (u.rvCd === undefined ? 6 : u.rvCd) - dt;
         if (u.rvCd <= 0) { const m = B.units.find(o => o.side === 0 && o.ref && o.hp <= 0 && (o.deadT || 0) > 0.8 && (UNITS[o.type] || {}).cls === rv);
@@ -1146,7 +1157,7 @@ function bStep(dt) {
     }
     // medics heal instead of attacking when someone is hurt
     if (D.heal) {
-      const hurt = alive(u.side).filter(o => o !== u && o.hp < o.max * 0.85).sort((a, b) => a.hp / a.max - b.hp / b.max)[0];
+      const hurt = pvpHeal() <= 0 ? null : alive(u.side).filter(o => o !== u && o.hp < o.max * 0.85).sort((a, b) => a.hp / a.max - b.hp / b.max)[0];
       if (hurt) { moveToward(u, hurt, D.range * 0.8, dt); u.cd -= dt; if (u.cd <= 0 && d2(u.x, u.y, hurt.x, hurt.y) < (D.range + 10) ** 2) { u.cd = 1 / u.as; const h = D.heal * lvMul(u.lv); hurt.hp = Math.min(hurt.max, hurt.hp + h); B.fx.push({ t: 0.5, kind: 'heal', x: hurt.x, y: hurt.y }); burst(hurt.x, hurt.y, 4, 6, '#8fd36a', { spd: 14, up: 55, g: 0, life: 0.7 }); sfx('heal', 150); num(hurt, '+' + Math.round(h), '#8fbf6a'); } continue; }
     }
     if (u.order) {   // walking to the spot you dragged them to
@@ -1157,7 +1168,7 @@ function bStep(dt) {
     let tgt = chooseTarget(u);
     if (tgt && u.anchor) {   // ranged members hold the spot while anything is in reach
       const inR = f => d2(u.x, u.y, f.x, f.y) < (u.range + (u.size + f.size) * 0.45) ** 2;
-      if (!inR(tgt)) { const near = alive(1).filter(inR).sort((a, b) => d2(a.x, a.y, u.x, u.y) - d2(b.x, b.y, u.x, u.y))[0]; if (near) { tgt = near; u.anchor.t = 0; } else { u.anchor.t += dt; if (u.anchor.t > 2.5) u.anchor = null; else { u.moving = false; continue; } } }
+      if (!inR(tgt)) { const near = alive(1 - u.side).filter(inR).sort((a, b) => d2(a.x, a.y, u.x, u.y) - d2(b.x, b.y, u.x, u.y))[0]; if (near) { tgt = near; u.anchor.t = 0; } else { u.anchor.t += dt; if (u.anchor.t > 2.5) u.anchor = null; else { u.moving = false; continue; } } }
     }
     if (!tgt) { u.moving = false; continue; }
     u.target = tgt;
@@ -1182,14 +1193,15 @@ function bStep(dt) {
   for (const f of B.fx) f.t -= dt; B.fx = B.fx.filter(f => f.t > 0);
   for (const n of B.nums) { n.t -= dt; n.y -= dt * 22; } B.nums = B.nums.filter(n => n.t > 0);
   if (B.focus && B.focus.hp <= 0) B.focus = null;
+  if (B.opt.pvp && B.t >= PVP_TIME && alive(0).length && alive(1).length) { const hp = sd => alive(sd).filter(u => !u.turret).reduce((a, u) => a + u.hp / u.max, 0); endBattle(hp(0) >= hp(1)); return; }   // time is up: the side with more life left takes it
   if (!alive(1).length) endBattle(true);
   else if (!alive(0).filter(u => !u.turret).length) endBattle(false);
 }
 function chooseTarget(u) {
   const foes = alive(1 - u.side); if (!foes.length) return null;
   if (u.side === 0 && B.focus && B.focus.hp > 0) return B.focus;
-  if (u.side === 1) {   // enemies are drawn to taunting tanks nearby
-    const tank = foes.filter(f => UNITS[f.type] && UNITS[f.type].taunt && d2(f.x, f.y, u.x, u.y) < 160 * 160).sort((a, b) => d2(a.x, a.y, u.x, u.y) - d2(b.x, b.y, u.x, u.y))[0];
+  if (u.side === 1 || B.opt.pvp) {   // enemies are drawn to taunting tanks nearby (in a duel that goes for both sides)
+    const tank = foes.filter(f => UNITS[f.type] && UNITS[f.type].taunt && d2(f.x, f.y, u.x, u.y) < (B.opt.pvp ? 70 * 70 : 160 * 160)).sort((a, b) => d2(a.x, a.y, u.x, u.y) - d2(b.x, b.y, u.x, u.y))[0];
     if (tank) return tank;
   }
   if (u.target && u.target.hp > 0 && Math.random() > 0.01) return u.target;
@@ -1209,27 +1221,27 @@ function attack(u, t) {
   let atk = u.atk * (u.roarT > 0 ? 1.25 : 1);
   if (D.pack) atk *= 1 + 0.15 * Math.min(3, alive(u.side).filter(o => o !== u && o.type === u.type && d2(o.x, o.y, u.x, u.y) < 90 * 90).length);
   const def = Math.max(0, t.def * (t.guardT > 0 ? 2 : 1) - t.shred * 2.5);
-  let dmg = atk * lvEdge(u, t) * rand(0.85, 1.15) * 40 / (40 + def), crit = Math.random() < (D.crit || 0.08) + (u.plv >= 30 ? 0.1 : 0) + (HS.crit || 0);
+  let dmg = atk * lvEdge(u, t) * rand(0.85, 1.15) * defMul(def), crit = Math.random() < (D.crit || 0.08) + (u.plv >= 30 ? 0.1 : 0) + (HS.crit || 0);
   if (crit) dmg *= 1.8;
   if (HS.exec && t.hp < t.max * 0.35) dmg *= 1 + HS.exec; if (HS.boss && t.boss) dmg *= 1 + HS.boss; if (TS.tough) dmg *= 1 - TS.tough;
   const ranged = u.range > 40;
   { const mf = MODEL_FILES[u.type], kind = D.acid ? 'acid' : u.turret || D.gun ? 'bullet' : D.bow ? 'arrow' : ranged ? 'dart' : D.cls === 'human' ? 'slash' : mf === 'Velociraptor' ? 'claw' : mf === 'Trex' ? 'bite' : 'smash';
     B.fx.push({ t: ranged ? 0.26 : 0.22, kind, x: u.x, y: u.y, x2: t.x, y2: t.y, side: u.side, big: t.size, crit }); }
   const TD = UNITS[t.type];
-  if (TS.thorns && !u.turret) { const back = dmg * TS.thorns; u.hp -= back; num(u, Math.round(back), '#8fe4ff'); if (u.hp <= 0) onKill(t, u); }
-  if (TD && TD.thorns && u.range <= 40 && !u.turret) { const back = dmg * TD.thorns; u.hp -= back; num(u, Math.round(back), '#c0601c'); if (u.hp <= 0) onKill(t, u); }
+  if (TS.thorns && !u.turret) { const back = dmg * TS.thorns * (pvpOn() ? 0.3 : 1); u.hp -= back; u.ds = (u.ds || 0) + back; num(u, Math.round(back), '#8fe4ff'); if (u.hp <= 0) onKill(t, u); }
+  if (TD && TD.thorns && u.range <= 40 && !u.turret) { const back = dmg * TD.thorns * (pvpOn() ? 0.3 : 1); u.hp -= back; u.ds = (u.ds || 0) + back; num(u, Math.round(back), '#c0601c'); if (u.hp <= 0) onKill(t, u); }
   { const gun = u.turret || D.gun, big = t.size > 25;
     if (gun) burst(u.x, u.y, 12, 3, '#ffe9a0', { spd: 25, life: 0.12, up: 10, r: 2.6 });
     burst(t.x, t.y, big ? 16 : 9, crit ? 9 : 4, D.acid ? '#c0e040' : gun ? '#ffd870' : '#e0452e', { spd: crit ? 70 : 45, life: 0.4, r: crit ? 2.8 : 2 });
     if (crit) { ringFx(t.x, t.y, '#ffd870', 20, 0.3); SHAKE = Math.max(SHAKE, u.side === 0 ? 0.35 : 0.5); sfx('crit', 90); }
     else if (u.side === 1 && u.boss) SHAKE = Math.max(SHAKE, 0.45); }
-  t.hp -= dmg; t.hitT = 0.15; num(t, Math.round(dmg) + (crit ? '!' : ''), crit ? '#e3a843' : t.side ? '#ece3d4' : '#d4573c');
+  dmg *= pvpDmg(); t.hp -= dmg; t.ds = (t.ds || 0) + dmg; t.hitT = 0.15; num(t, Math.round(dmg) + (crit ? '!' : ''), crit ? '#e3a843' : t.side ? '#ece3d4' : '#d4573c');
   if (D.shred) { t.shred = Math.min(5, t.shred + 1); t.shredT = 5; }
   if (HS.shred) { t.shred = Math.min(5, t.shred + HS.shred); t.shredT = 5; }
   if (HS.leech && u.hp > 0) u.hp = Math.min(u.max, u.hp + dmg * HS.leech);
-  if (HS.dbl && Math.random() < HS.dbl) { const d2x = dmg * 0.6; t.hp -= d2x; num(t, Math.round(d2x) + '+', '#8fe4ff'); burst(t.x, t.y, 8, 4, '#8fe4ff', { spd: 50, life: 0.3, r: 2 }); }
+  if (HS.dbl && Math.random() < HS.dbl) { const d2x = dmg * 0.6; t.hp -= d2x; t.ds = (t.ds || 0) + d2x; num(t, Math.round(d2x) + '+', '#8fe4ff'); burst(t.x, t.y, 8, 4, '#8fe4ff', { spd: 50, life: 0.3, r: 2 }); }
   if (HS.stun && Math.random() < HS.stun && !t.boss && !((t.stunCd || 0) > B.t)) { t.stun = 1; t.stunCd = B.t + 5; B.fx.push({ t: 0.6, kind: 'stun', x: t.x, y: t.y }); ringFx(t.x, t.y, '#f8e88a', 18, 0.4); }
-  if (HS.splash) { for (const o of alive(t.side)) if (o !== t && d2(o.x, o.y, t.x, t.y) < 60 * 60) { const sd = dmg * HS.splash; o.hp -= sd; o.hitT = 0.15; num(o, Math.round(sd), '#ffb347'); if (o.hp <= 0) onKill(u, o); } ringFx(t.x, t.y, '#ff9a3a', 30, 0.3); }
+  if (HS.splash) { for (const o of alive(t.side)) if (o !== t && d2(o.x, o.y, t.x, t.y) < 60 * 60) { const sd = dmg * HS.splash; o.hp -= sd; o.ds = (o.ds || 0) + sd; o.hitT = 0.15; num(o, Math.round(sd), '#ffb347'); if (o.hp <= 0) onKill(u, o); } ringFx(t.x, t.y, '#ff9a3a', 30, 0.3); }
   if (D.stun && t.max <= STUN_HP_LIMIT && !t.boss && !((t.stunCd || 0) > B.t)) { t.stun = D.stun; t.stunCd = B.t + D.stun + 4;   // no stun-locking: a breather after every stun
     B.fx.push({ t: 0.6, kind: 'stun', x: t.x, y: t.y }); sfx('stun', 200); ringFx(t.x, t.y, '#f8e88a', 18, 0.4); }
   sfx(u.turret || D.gun ? 'shot' : D.bow ? 'bow' : ranged ? 'spit' : 'bite', 70);
@@ -1306,7 +1318,8 @@ function tryCapture() {
   }, 320);
 }
 function endBattle(win) {
-  if (B.over) return; B.over = true; S.stats.battles++; S.food = Math.max(0, S.food - 1.5); B.opt.won = win; B.opt.endPos = B.units.filter(u => u.ref && u.hp > 0).map(u => [u.ref.id, { x: u.x, y: u.y, a: u.a }]);
+  if (B.over) return;
+  if (B.opt.pvp) { B.over = true; B.opt.won = win; B.opt.pvpEnd = { t: B.t, mine: alive(0).filter(u => u.ref).length, theirs: alive(1).length }; for (const bu of B.units) if (bu.ref && bu.side === 0) { bu.ref.hp = maxHp(bu.ref); bu.ref.ko = false; } sfx(win ? 'win' : 'lose'); return; } B.over = true; S.stats.battles++; S.food = Math.max(0, S.food - 1.5); B.opt.won = win; B.opt.endPos = B.units.filter(u => u.ref && u.hp > 0).map(u => [u.ref.id, { x: u.x, y: u.y, a: u.a }]);
   const opt = B.opt;
   for (const bu of B.units) if (bu.ref) { bu.ref.hp = Math.max(0, Math.round(bu.hp)); bu.ref.ko = bu.hp <= 0; }
   const lines = []; let lvUp = false, gotItem = false;
@@ -2628,7 +2641,7 @@ function engage(pack) {
   startBattle({ kind: 'hunt', zone: pack.z, tier: pack.boss ? 4 : pack.g, foes: mons.map(m => m.f), mons, boss: boss ? boss.f.boss : null, packs: joined });
 }
 function afterBattle(opt) {
-  const L = W.lead;
+  const L = W.lead; if (opt.pvp) opt.won = true;   // nobody is carried home from a duel
   if (opt.won) for (const p of opt.packs) { p.dead = p.boss ? 90 : rand(15, 25); p.mons = []; }
   else for (const p of opt.packs) for (const m of p.mons) { m.x = p.cx + rand(-26, 26); m.y = p.cy + rand(-26, 26); }
   const pos = new Map(opt.endPos || []);
