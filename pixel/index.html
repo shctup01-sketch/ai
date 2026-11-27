@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}
 #upd{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:999;padding:11px 18px;border-radius:14px;border:2px solid #f3c79a;background:#d4763c;color:#1c120a;font:700 14px system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.5)}</style>
-<script>window.__VER="20261127-001029"</script>
+<script>window.__VER="20261127-003029"</script>
 </head>
 <body>
 <title>공룡 상단 픽셀</title>
@@ -427,6 +427,19 @@ canvas.bigart { width: min(100%, 300px); height: auto; aspect-ratio: 5 / 4; alig
 #battle #bfoot #bPot { width: 72px; height: 72px; right: 8px; bottom: 12px; } #battle #bfoot #bSpeed { right: 86px; bottom: 10px; } #battle #bfoot #bRetreat { right: 72px; bottom: 66px; }
 .bhead { padding-top: 5px !important; padding-bottom: 8px !important; } .hud { padding: 3px 7px; font-size: 13px; }
 @media (orientation: landscape) { #tmT { top: 50px; right: 104px; } #tmenu { top: 50px; right: 172px; } #hudL { top: 34px; } }
+
+/* ---- the bag: a grid of slots ---- */
+.invcard { padding: 10px; } .invbar { display: flex; align-items: center; gap: 8px; font-size: 12px; margin-bottom: 5px; } .invbar span { flex: none; width: 96px; } .invbar i { flex: 1; height: 7px; border-radius: 4px; background: rgba(0,0,0,.45); border: 1px solid var(--line); overflow: hidden; } .invbar u { display: block; height: 100%; }
+.invtabs { display: flex; gap: 5px; margin: 8px 0; flex-wrap: wrap; } .invtabs .chip { height: 28px; font-size: 11.5px; padding: 0 9px; }
+.invdet { display: flex; align-items: center; gap: 8px; min-height: 58px; padding: 7px; margin-bottom: 8px; border-radius: 8px; background: rgba(0,0,0,.3); border: 1px solid var(--line); } .invdet .info { flex: 1; min-width: 0; } .invdet .info b { display: block; font-size: 13px; } .invdet small { font-size: 11px; color: var(--muted); line-height: 1.35; }
+.invact { display: flex; flex-direction: column; gap: 4px; flex: none; } .invact .btn { min-width: 62px; }
+.invgrid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; }
+.slot { position: relative; aspect-ratio: 1; padding: 0; border-radius: 7px; background: linear-gradient(#2a2018, #17110b); border: 1.5px solid #4a3a28; box-shadow: inset 0 0 0 1px rgba(0,0,0,.6); overflow: hidden; }
+.slot.empty { opacity: .45; } .slot.on { box-shadow: 0 0 0 2px #fff3d6, 0 0 10px rgba(255,220,130,.7); } .slot .ic { width: 100%; height: 100%; border: 0; border-radius: 0; display: block; }
+.slot em { position: absolute; right: 2px; bottom: 1px; font: 700 11px var(--f-body); font-style: normal; color: #fff; text-shadow: 0 0 2px #000, 0 1px 0 #000, 1px 0 0 #000, -1px 0 0 #000; }
+.slot i { position: absolute; left: 2px; top: 1px; font: 700 8.5px var(--f-body); font-style: normal; color: #ffe9a0; text-shadow: 0 0 2px #000, 0 1px 0 #000; }
+.invmiscs { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 5px; } .invmisc { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px 2px 2px; border-radius: 14px; background: rgba(0,0,0,.3); border: 1px solid var(--line); font-size: 11.5px; } .invmisc .ic { width: 22px; height: 22px; border-radius: 50%; } .invmisc b { font-weight: 400; color: var(--muted); }
+@media (orientation: landscape) { .invgrid { grid-template-columns: repeat(7, 1fr); } }
 </style>
 
 <div id="boot">
@@ -445,7 +458,7 @@ canvas.bigart { width: min(100%, 300px); height: auto; aspect-ratio: 5 / 4; alig
     <div class="brand"><h1>공룡 상단</h1><small id="sub"></small></div>
     <div class="res">
       <span class="rc money"><em>크레딧</em><b id="rMoney">0</b></span>
-      <span class="rc"><em>짐칸</em><b id="rCargo">0/0</b></span>
+      <span class="rc"><em>무게</em><b id="rCargo">0/0</b></span>
       <span class="rc"><em>날짜</em><b id="rDay">1</b></span>
     </div>
     <button id="menuClose" aria-label="닫기">✕</button>
@@ -459,7 +472,7 @@ canvas.bigart { width: min(100%, 300px); height: auto; aspect-ratio: 5 / 4; alig
   </div>
   <div id="battle" hidden>
     <div class="bhead"><b id="bTitle"></b><small id="bInfo"></small></div>
-    <div class="bfield"><canvas id="b3d"></canvas><canvas id="bcv"></canvas><div id="bTip">적을 눌러 집중 공격 · 대원을 끌어 자리 배치</div><div id="hudL"><div class="lfrow"><button id="lf" data-act="unit"><canvas width="96" height="84"></canvas><span class="lfb"><b id="lfName"></b><i class="hp"><u id="lfHp"></u><em id="lfHpT"></em></i><i class="xp"><u id="lfXp"></u></i></span></button><button id="stripT" aria-label="대원 보기"></button></div><div id="pstrip"></div><button id="goal" hidden></button><div id="runner" hidden></div><div id="feed"></div></div><div id="bossIn" hidden></div><button id="tmT" aria-label="메뉴">메뉴</button><div id="tmenu"><button data-m="crew">대원</button><button data-m="bag">짐칸</button><button data-m="skill">스킬</button><button data-m="map">지도</button><button data-m="cash">상점</button></div><div id="cxp"><u></u></div><div id="joy"><i></i></div><div id="skbar" hidden></div><div id="bSel" hidden><span id="bSelName"></span><span class="bar"><i id="bSelHp"></i></span></div></div>
+    <div class="bfield"><canvas id="b3d"></canvas><canvas id="bcv"></canvas><div id="bTip">적을 눌러 집중 공격 · 대원을 끌어 자리 배치</div><div id="hudL"><div class="lfrow"><button id="lf" data-act="unit"><canvas width="96" height="84"></canvas><span class="lfb"><b id="lfName"></b><i class="hp"><u id="lfHp"></u><em id="lfHpT"></em></i><i class="xp"><u id="lfXp"></u></i></span></button><button id="stripT" aria-label="대원 보기"></button></div><div id="pstrip"></div><button id="goal" hidden></button><div id="runner" hidden></div><div id="feed"></div></div><div id="bossIn" hidden></div><button id="tmT" aria-label="메뉴">메뉴</button><div id="tmenu"><button data-m="crew">대원</button><button data-m="bag">가방</button><button data-m="skill">스킬</button><button data-m="map">지도</button><button data-m="cash">상점</button></div><div id="cxp"><u></u></div><div id="joy"><i></i></div><div id="skbar" hidden></div><div id="bSel" hidden><span id="bSelName"></span><span class="bar"><i id="bSelHp"></i></span></div></div>
     <div class="bfoot" id="ffoot" hidden><button class="btn" id="fLeave">상단</button><button class="btn" id="fZoom">지도</button><button class="btn" id="fPot">물약</button><button class="btn" id="autoBtn">자동</button><button class="btn primary" id="fNearest">사냥</button></div>
     <div class="bfoot" id="bfoot"><button class="btn" id="bRetreat">후퇴</button><button class="btn primary" id="bCapture">포획</button><button class="btn" id="bPot">회복약</button><button class="btn" id="bZoom" hidden>크게</button><button class="btn" id="bSpeed">×1</button></div>
   </div>
@@ -590,7 +603,7 @@ const TOKEN_N = { trikeKing: '늙은 뿔의 증표', oneEye: '외눈의 증표',
 const MUT = { trike: [['trikeIron', 'trikeKing'], ['trikeRed', 'emberKing']], para: [['paraGold', 'trikeKing']], apato: [['apatoMoss', 'frostTitan']], raptor: [['raptorShadow', 'oneEye'], ['raptorVenom', 'swampKing']], stego: [['stegoRust', 'ironHorn']] };
 const ELITE = { hunter: { n: '맹수 조련사', token: 'oneEye', sk: 'roar', ds: '포효로 아군의 공격을 끌어올려요' }, spear: { n: '용기사', token: 'trikeKing', sk: 'charge', ds: '적진으로 돌진해 쓰러뜨려요' }, sniper: { n: '폭군 사냥꾼', token: 'swampKing', sk: 'snipe', ds: '저격이 더 자주, 더 세게 들어가요' },
   mechanic: { n: '포격 기술자', token: 'ironHorn', sk: 'grenade', ds: '폭탄을 더 자주 던져요' }, medic: { n: '생명의 손', token: 'frostTitan', sk: 'firstaid', ds: '회복 스킬을 더 자주 써요' }, venomer: { n: '역병 군주', token: 'emberKing', sk: 'acid', ds: '넓은 산성 구름으로 장갑을 녹여요' },
-  porter: { n: '전설의 거상', token: 'trikeKing', sk: null, ds: '짐칸이 1.5배가 돼요' }, leader: { n: '공룡왕', token: 'origin', sk: 'volley', ds: '모든 능력이 크게 올라요' } };
+  porter: { n: '전설의 거상', token: 'trikeKing', sk: null, ds: '무게 한도가 1.5배가 돼요' }, leader: { n: '공룡왕', token: 'origin', sk: 'volley', ds: '모든 능력이 크게 올라요' } };
 const FAMED = { hunter: ['은빛 화살 세라', '폭풍 사수 유나'], spear: ['백발 창수 고르', '철의 여인 타샤'], sniper: ['잿눈 카이', '그림자 넬라'], mechanic: ['고철의 손 벤', '무쇠팔 도건'], medic: ['늪의 의원 모아', '약초꾼 이든'], venomer: ['붉은 망토 리브', '독안개 실'], porter: ['외다리 한', '천 리 길 보로'],
   scout: ['바람발 시아'], shield: ['철문 바르가'], gladiator: ['투기장의 왕 도란'], crossbow: ['외눈 사수 켈'], gunner: ['쌍권총 레아'], bomber: ['불꽃 손 미로'], tamer: ['공룡의 벗 유카'], cook: ['큰솥의 달인 마루'], smith: ['무쇠팔 고른'], shaman: ['안개 무녀 소하'] };
 const HEROES = Object.entries(FAMED).flatMap(([type, names]) => names.map(name => ({ type, name })));
@@ -609,8 +622,8 @@ const HSET = {
   '약초꾼 이든': { n: '푸른 뿌리', c1: 0x6a9a3a, c2: 0xf0e060, orn: 'leaves', ab: { aHp: 0.15 }, ds: '상단 전원 최대 체력 +15%' },
   '붉은 망토 리브': { n: '붉은 맹독', c1: 0xa0202a, c2: 0x70e040, orn: 'cape', ab: { shred: 2 }, ds: '때릴 때마다 적의 방어를 두 단계씩 깎아요' },
   '독안개 실': { n: '독안개', c1: 0x5a3a7a, c2: 0x9aff6a, orn: 'orbs', ab: { leech: 0.2 }, ds: '준 피해의 20%만큼 체력을 회복' },
-  '외다리 한': { n: '천근 지게', c1: 0x9a7a4a, c2: 0xffd24a, orn: 'pack', ab: { cargo: 400 }, ds: '짐칸 +400' },
-  '천 리 길 보로': { n: '천 리 바람', c1: 0x4a8aa0, c2: 0xffffff, orn: 'wings', ab: { cargo: 250, speed: 0.2 }, ds: '짐칸 +250 · 필드 이동 속도 +20%' },
+  '외다리 한': { n: '천근 지게', c1: 0x9a7a4a, c2: 0xffd24a, orn: 'pack', ab: { cargo: 400 }, ds: '무게 한도 +400' },
+  '천 리 길 보로': { n: '천 리 바람', c1: 0x4a8aa0, c2: 0xffffff, orn: 'wings', ab: { cargo: 250, speed: 0.2 }, ds: '무게 한도 +250 · 필드 이동 속도 +20%' },
   '바람발 시아': { n: '바람 발자국', c1: 0x5ab0a0, c2: 0xe0fff0, orn: 'wings', ab: { dodge: 0.35 }, ds: '공격의 35%를 피해요' },
   '철문 바르가': { n: '닫힌 성문', c1: 0x5a6068, c2: 0xe3a843, orn: 'horns', ab: { thorns: 0.3, tough: 0.2 }, ds: '받는 피해 -20% · 맞은 피해의 30%를 되돌려줘요' },
   '투기장의 왕 도란': { n: '피의 왕관', c1: 0x8a1a1a, c2: 0xffd24a, orn: 'crown', ab: { leech: 0.3 }, ds: '준 피해의 30%만큼 체력을 회복' },
@@ -809,7 +822,7 @@ const CLASSES = {
   warrior: { n: '검투사', look: 'gladiator', role: '탱커', ds: '맨 앞에서 맞으며 싸워요. 체력과 방어가 가장 높고 적의 눈길을 끌어요.', perk: '체력 260, 방어 12 · 공격은 낮은 편 · 스킬: 돌진', st: { hp: 260, atk: 15, def: 12, spd: 44, range: 20, as: 1.1 }, flags: { taunt: true }, sk: 'charge' },
   archer: { n: '사냥꾼', look: 'hunter', role: '원거리', ds: '가장 멀리서 쏘고 치명타가 잘 터져요. 몸은 약해요.', perk: '사거리 150, 치명타 20% · 스킬: 연속 사격', st: { hp: 150, atk: 21, def: 5, spd: 44, range: 150, as: 0.9 }, flags: { bow: true, crit: 0.2 }, sk: 'multishot' },
   tamer: { n: '조련사', look: 'tamer', role: '지원', ds: '공룡의 습성을 꿰고 있어요. 혼자서는 약하지만 대원이 늘수록 강해져요.', perk: '모든 대원의 공격 +8% · 스킬: 포효로 아군 공격을 끌어올려요', st: { hp: 180, atk: 14, def: 6, spd: 42, range: 100, as: 1.0 }, flags: { bow: true }, sk: 'roar' },
-  merchant: { n: '상인', look: 'porter', role: '지원', ds: '장사에 능해요. 싸움은 평범하지만 돈이 빨리 모여요.', perk: '5% 싸게 사고 5% 비싸게 팔기 · 짐칸 +30 · 550 크레딧으로 시작 · 스킬: 일제 사격', st: { hp: 180, atk: 15, def: 7, spd: 40, range: 110, as: 1.0 }, flags: { gun: true }, sk: 'volley' },
+  merchant: { n: '상인', look: 'porter', role: '지원', ds: '장사에 능해요. 싸움은 평범하지만 돈이 빨리 모여요.', perk: '5% 싸게 사고 5% 비싸게 팔기 · 무게 한도 +30 · 550 크레딧으로 시작 · 스킬: 일제 사격', st: { hp: 180, atk: 15, def: 7, spd: 40, range: 110, as: 1.0 }, flags: { gun: true }, sk: 'volley' },
 };
 let LEADER_LOOK = null;
 function applyClass() {
@@ -965,7 +978,7 @@ const party = () => S.units.filter(u => u.inParty);
 const carryOf = u => u.type === 'porter' ? Math.round((UNITS.porter.carry + 4 * (u.lv - 1)) * [1, 1.6, 2.4, 3.4, 4.6][Math.min(4, u.tier || 0)] * (u.elite ? 1.5 : 1)) : UNITS[u.type].carry + (u.type === 'leader' && S.cls === 'merchant' ? 30 : 0);
 // Cash shop. Gems are the paid currency; real payment is wired in when the game goes on a store.
 const CASH = {
-  wagon: { n: '뿔둥이 짐마차', cost: 300, ds: '트리케라톱스가 끄는 큰 짐마차가 상단을 따라다녀요 · 싸우지 않아요 · 짐칸 +1,000칸' },
+  wagon: { n: '뿔둥이 짐마차', cost: 300, ds: '트리케라톱스가 끄는 큰 짐마차가 상단을 따라다녀요 · 싸우지 않아요 · 무게 한도 +1,000칸' },
   scribe: { n: '기록관 먹물이', cost: 400, ds: '상단의 여정을 빠짐없이 적어 둬요 · 상단 경험치 +50% · 싸우지 않아요' },
   runner: { n: '심부름꾼 달음이', cost: 500, ds: '사냥하는 동안 가장 많이 쌓인 품목부터 통째로 들고 가장 비싸게 쳐주는 정착지에 팔고 돌아와요 · 싸우지 않아요 · 3명까지 둘 수 있어요' },
 };
@@ -1000,10 +1013,12 @@ function runnerTick(dt) {   // errand runners: each takes one whole stack (the b
   toast(`달음이 ${free + 1}호가 ${GOODS[g].n} ${n}개를 들고 ${ZONES[z].n}(으)로 떠났어요 · ${Math.round(total)}초 뒤 돌아와요`); sfx('tap');
 }
 
-const gearOver = () => (S.items || []).length;   // spare gear rides in the cargo hold, one slot each
+const W_GEAR = 2, W_PROMO = 0.2, gearOver = () => (S.items || []).length * W_GEAR;   // what a spare piece of gear and a promotion token weigh; goods weigh 1 each
 const promoHave = k => (S.promo[k] || 0) + ((S.pstore || {})[k] || 0);   // carried plus what sits in the warehouse
 const promoLoad = () => Object.values(S.promo || {}).reduce((a, b) => a + b, 0);   // promotion materials ride in the hold too, one slot each (they are never left behind)
-const cargoUsed = () => Object.values(S.cargo).reduce((a, b) => a + b, 0) + gearOver() + promoLoad();
+const cargoUsed = () => Object.values(S.cargo).reduce((a, b) => a + b, 0) + gearOver() + Math.ceil(promoLoad() * W_PROMO);   // total weight carried
+// The bag: every kind of goods, every promotion material and every spare piece of gear takes one slot. Weight is what the porters can carry.
+const invMax = () => 40 + (S.cash && S.cash.wagon ? 20 : 0), invUsed = () => Object.keys(S.cargo).length + (S.items || []).length + Object.keys(S.promo || {}).length, invFree = () => invUsed() < invMax(), canTake = g => (S.cargo[g] > 0 || invFree()) && cargoUsed() < capacity();
 function load() { try { const r = localStorage.getItem(SAVE); return r ? JSON.parse(r) : null; } catch (e) { return null; } }
 function save() { if (!S || !SESSION) return;   // nothing is kept until someone has signed in or started as a guest
   try { localStorage.setItem(SAVE, JSON.stringify(S)); } catch (e) { /* storage unavailable */ } }
@@ -1064,7 +1079,7 @@ function tick(dt) {
 /* ================================================================
    TRAVEL
    ================================================================ */
-function addCargo(g, k) { const room = Math.max(0, capacity() - cargoUsed()); k = Math.min(k, room); if (k > 0) S.cargo[g] = (S.cargo[g] || 0) + k; return k; }
+function addCargo(g, k) { const room = S.cargo[g] > 0 || invFree() ? Math.max(0, capacity() - cargoUsed()) : 0; k = Math.min(k, room); if (k > 0) S.cargo[g] = (S.cargo[g] || 0) + k; return k; }
 
 /* ================================================================
    BATTLE — real-time, up to 12 on our side, formation start, auto with focus fire
@@ -1313,7 +1328,7 @@ function endBattle(win) {
       const H0 = opt.kind === 'hunt' ? HUNTS[opt.tier] : { drop: 0.1 }, Hb = opt.boss ? H0 : H0.boss ? HUNTS[3] : H0, H = { boss: !!opt.boss, drop: Hb.drop + Math.max(0, opt.foes.length - 3) * 0.04 }, rares = opt.foes.filter(f => UNITS[f.type].rare && !f.boss).length;
       const lv = Math.max(...opt.foes.map(f => f.lv)), luck = (opt.tier || 0) * 0.35 + rares * 0.3;
       const drops = []; if (Math.random() < H.drop + rares * 0.15) drops.push(rollItem(lv, luck, H.boss ? 2 : 0)); if (H.boss && Math.random() < 0.5) drops.push(rollItem(lv, luck, 1));
-      for (const it of drops) { if (cargoUsed() >= capacity()) { lines.push(`<span style="color:#ff8a6a">짐칸이 꽉 차서 ${itemName(it)}을(를) 두고 왔어요</span>`); } else { S.items.push(it); lines.push(`${itemName(it)} <span style="color:var(--muted)">${SLOTS[it.slot]} · ${itemText(it)}</span>`); gotItem = true; } }
+      for (const it of drops) { if (cargoUsed() + W_GEAR > capacity() || !invFree()) { lines.push(`<span style="color:#ff8a6a">가방 칸이나 무게가 꽉 차서 ${itemName(it)}을(를) 두고 왔어요</span>`); } else { S.items.push(it); lines.push(`${itemName(it)} <span style="color:var(--muted)">${SLOTS[it.slot]} · ${itemText(it)}</span>`); gotItem = true; } }
     }
     if (opt.kind === 'hunt') for (const q of S.quests[opt.zone] || []) if (q.type === 'hunt' && !q.done && q.prog < q.n) q.prog++;
     const ours = party();
@@ -1323,7 +1338,7 @@ function endBattle(win) {
       if (!u.ko) { const m0 = mastery(u); u.wins = (u.wins || 0) + 1; if (mastery(u) > m0) lines.push(`${unitName(u)}의 ${UNITS[u.type].cls === 'dino' ? '친밀도' : '숙련도'}가 '${MAST_N[mastery(u)]}'(으)로 올랐어요 · 공격 +3%, 체력 +2%`); }
       while (u.xp >= xpNeed(u.lv) && u.lv < 200) { u.xp -= xpNeed(u.lv); u.lv++; u.hp = Math.min(maxHp(u), u.hp + Math.round(maxHp(u) * 0.3)); u.pts = (u.pts || 0) + 3; if (u.autoSt && STAT_STYLE[u.autoSt]) spendStats(u, u.autoSt); { const pk = PERKS.find(p => p[0] === u.lv); lines.push(`${unitName(u)} Lv${u.lv} 달성 · 능력치 포인트 +3${pk ? ` · <b style="color:var(--amber)">${pk[1]}</b>` : ''}`); } lvUp = true; if (PROMO[u.tier || 0] && u.lv === PROMO[u.tier || 0].lv) lines.push(`<b style="color:var(--amber)">${unitName(u)}: ${UNITS[u.type].cls === 'dino' ? '진화' : '전직'}할 수 있어요</b> (상단 창에서)`); }
     }
-    let sold = 0; for (const [g, k] of Object.entries(B.loot)) { const got = addCargo(g, k); if (got < k) sold += Math.round((k - got) * GOODS[g].base * 0.5); lines.unshift(`${GOODS[g].relic ? `<b style="color:#ffb347">${GOODS[g].n}</b>` : GOODS[g].junk ? `<b style="color:${RAR[Math.min(4, GOODS[g].junk - 1)].c}">${GOODS[g].n}</b>` : GOODS[g].n} +${got}${got < k ? ` (${k - got}개는 짐칸이 없어 그 자리에서 처분)` : ''}`); }
+    let sold = 0; for (const [g, k] of Object.entries(B.loot)) { const got = addCargo(g, k); if (got < k) sold += Math.round((k - got) * GOODS[g].base * 0.5); lines.unshift(`${GOODS[g].relic ? `<b style="color:#ffb347">${GOODS[g].n}</b>` : GOODS[g].junk ? `<b style="color:${RAR[Math.min(4, GOODS[g].junk - 1)].c}">${GOODS[g].n}</b>` : GOODS[g].n} +${got}${got < k ? ` (${k - got}개는 가방이 꽉 차 그 자리에서 처분)` : ''}`); }
     { const m = (B.money || 0) + sold; if (m) { S.money += m; S.stats.earned += m; lines.unshift(`<b style="color:var(--amber)">크레딧 +${m}</b>${sold ? ` (넘친 전리품 처분 ${sold} 포함)` : ''}`); } }
     for (const c of B.captured) { const inP = party().length < partyCap(); const u = addUnit(c.type, c.lv, inP); u.hp = Math.round(maxHp(u) * 0.4); lines.push(`${UNITS[c.type].n} Lv${c.lv}이(가) 상단에 합류했어요${inP ? '' : ' (대기)'}`); S.stats.captures++; }
     lines.splice(Object.keys(B.loot).length + (B.money ? 1 : 0), 0, `경험치 +${share} (참전 대원 모두)`);
@@ -2813,8 +2828,8 @@ const FETCH_R = 190;
 function openCrate(p) {
   W.looted[p.loot] = W.t + 240; const r = Math.random(); sfx('loot'); burst(p.x, p.y, 6, 12, '#ffe9a0', { spd: 40, up: 60, life: 0.8 });
   if (r < 0.12) { S.pots++; toast('상자에서 회복약 1개를 찾았어요', 'good'); }
-  else if (r < 0.3) { const k = addCargo('parts', Math.round(rand(2, 5))); toast(k ? `버려진 상자에서 기계 부품 ${k}개를 찾았어요` : '상자를 찾았지만 짐칸이 가득해요', 'good'); }
-  else if (r < 0.55) { const k = addCargo('water', Math.round(rand(3, 6))); toast(k ? `상자에서 깨끗한 물 ${k}통을 찾았어요` : '상자를 찾았지만 짐칸이 가득해요', 'good'); }
+  else if (r < 0.3) { const k = addCargo('parts', Math.round(rand(2, 5))); toast(k ? `버려진 상자에서 기계 부품 ${k}개를 찾았어요` : '상자를 찾았지만 무게 한도가 가득해요', 'good'); }
+  else if (r < 0.55) { const k = addCargo('water', Math.round(rand(3, 6))); toast(k ? `상자에서 깨끗한 물 ${k}통을 찾았어요` : '상자를 찾았지만 무게 한도가 가득해요', 'good'); }
   else if (r < 0.7) { S.pots += 1; updPots(); toast('상자에서 회복약 1개를 찾았어요', 'good'); }
   else { const m = Math.round(rand(20, 70) * ZONES[zoneAt(p.x, p.y)].danger); S.money += m; toast(`낡은 금고에서 ${m} 크레딧을 찾았어요`, 'good'); }
   renderHeader();
@@ -3338,7 +3353,7 @@ function renderTown() {
       return `<div class="row"><span class="num${done ? ' done' : ''}${H.boss ? ' boss' : ''}">${H.boss ? '★' : i + 1}</span><div class="info"><b>${HUNT_NAMES[z][i]} ${done ? '<span class="tag">정복</span>' : ''}${H.boss ? ' <span class="tag" style="color:var(--bad)">우두머리</span>' : ''}</b><small>${H.boss ? `${BOSSES[Z.boss].n} Lv${(Z.bossLv || zl(Z, 6))} · 희귀 이상 장비 확정` : `Lv${zl(Z, H.lv[0])}~${zl(Z, H.lv[1])} · 희귀종 ${Math.round(H.rare * 50)}% · 장비 ${Math.round(H.drop * 100)}%`} · 거리 ${dist}m</small><small style="color:${partyPower() >= groundPower(z, i) ? '#8fbf6a' : 'var(--bad)'}">권장 전투력 ${fmt(groundPower(z, i))} · 내 상단 ${fmt(partyPower())}</small></div>
         <button class="btn small primary" data-act="walk" data-x="${G[0]}" data-y="${G[1] + (H.boss ? 150 : 0)}" data-l="${HUNT_NAMES[z][i]}">가기</button></div>`; }).join('')}</div>` : ''}
     ${townSec === 'market' ? `<h2>시장<small>사면 값이 오르고, 팔면 떨어져요 · 매일 시세가 바뀌어요</small></h2>
-    <div class="cargobar"><span>짐칸 ${used}/${cap}</span><div class="bar"><i style="width:${Math.min(100, used / Math.max(1, cap) * 100)}%;background:${used >= cap ? 'var(--bad)' : 'var(--amber)'}"></i></div></div><div class="card">${goods}</div>` : ''}
+    <div class="cargobar"><span>무게 ${used}/${cap}</span><div class="bar"><i style="width:${Math.min(100, used / Math.max(1, cap) * 100)}%;background:${used >= cap ? 'var(--bad)' : 'var(--amber)'}"></i></div></div><div class="card">${goods}</div>` : ''}
     ${townSec === 'quest' ? `<h2>의뢰 게시판<small>매일 새 의뢰가 올라와요</small></h2>
     <div class="card">${quests}</div>` : ''}
     ${townSec === 'shop' ? `<h2>공방<small>재료를 맡기면 시간이 지나 가공품이 돼요 · 장비와 비싼 교역품을 만들어요</small></h2>
@@ -3358,10 +3373,10 @@ function renderTown() {
       <div class="row"><div class="info"><b>찾기</b><small>어느 정착지 전장에서든 찾을 수 있어요</small></div>${amt('wd', S.bank)}</div></div>
       <h2>마을 투자<small>투자금의 3%를 매일 배당으로 받아요 · 가장 많이 투자하면 이 마을의 대방이 돼요</small></h2>
       <div class="card"><div class="row"><div class="info"><b>${head ? '당신이 이 마을의 대방이에요' : `현재 대방: ${RIVALS[z][0]}`}</b><small>내 투자 ${fmt(inv)} · ${head ? `2위 ${RIVALS[z][0]} ${fmt(S.rival[z])}` : `대방까지 ${fmt(S.rival[z] - inv + 1)} 더`} · 대방 혜택: 이 마을에서 5% 싸게 사고 5% 비싸게 팔아요</small></div>${amt('inv', S.money)}</div></div>
-      <h2>전직 재료 보관함<small>어느 정착지 창고에서든 넣고 꺼내요 · 짐칸을 쓰지 않아요 · 창고에 있어도 전직에 바로 쓰여요 · 심부름꾼이 있으면 주운 재료를 알아서 넣어 줘요</small></h2>
-      <div class="card">${promoLoad() ? `<div class="row"><div class="info"><b>짐칸의 전직 재료 ${promoLoad()}개</b><small>모두 보관함에 넣어요</small></div><button class="btn small primary" data-act="psIn">모두 넣기</button></div>` : ''}${Object.entries(S.pstore).sort((a, b) => a[0].split(':')[1] - b[0].split(':')[1] || a[0].localeCompare(b[0])).map(([k, n]) => { const t = +k.split(':')[1]; return `<div class="row">${ic('token', t)}<div class="info"><b style="color:${k.startsWith('hero-') ? '#ffb347' : RAR[Math.min(4, t + 1)].c}">${promoName(k)}</b><small>${t + 1}차 전직 재료 · 보관 ${n}개</small></div><button class="btn small" data-act="psOut" data-k="${k}">꺼내기</button></div>`; }).join('')}${promoLoad() || Object.keys(S.pstore).length ? '' : '<div class="row"><div class="info"><small>보관한 전직 재료가 없어요</small></div></div>'}</div>
+      <h2>전직 재료 보관함<small>어느 정착지 창고에서든 넣고 꺼내요 · 가방 칸과 무게를 쓰지 않아요 · 창고에 있어도 전직에 바로 쓰여요 · 심부름꾼이 있으면 주운 재료를 알아서 넣어 줘요</small></h2>
+      <div class="card">${promoLoad() ? `<div class="row"><div class="info"><b>가방의 전직 재료 ${promoLoad()}개</b><small>모두 보관함에 넣어요</small></div><button class="btn small primary" data-act="psIn">모두 넣기</button></div>` : ''}${Object.entries(S.pstore).sort((a, b) => a[0].split(':')[1] - b[0].split(':')[1] || a[0].localeCompare(b[0])).map(([k, n]) => { const t = +k.split(':')[1]; return `<div class="row">${ic('token', t)}<div class="info"><b style="color:${k.startsWith('hero-') ? '#ffb347' : RAR[Math.min(4, t + 1)].c}">${promoName(k)}</b><small>${t + 1}차 전직 재료 · 보관 ${n}개</small></div><button class="btn small" data-act="psOut" data-k="${k}">꺼내기</button></div>`; }).join('')}${promoLoad() || Object.keys(S.pstore).length ? '' : '<div class="row"><div class="info"><small>보관한 전직 재료가 없어요</small></div></div>'}</div>
       <h2>여각 (창고)<small>짐을 이 정착지에 맡겨 둬요 · 다른 정착지에서는 찾을 수 없어요</small></h2>
-      <div class="card">${cg.length ? cg.map(([g, k]) => `<div class="row"><div class="info"><b>${GOODS[g].n} ${k}개</b><small>짐칸에 있어요</small></div><button class="btn small" data-act="stIn" data-g="${g}">맡기기</button></div>`).join('') : ''}${st.map(([g, k]) => `<div class="row"><div class="info"><b>${GOODS[g].n} ${k}개</b><small>창고에 있어요</small></div><button class="btn small primary" data-act="stOut" data-g="${g}">찾기</button></div>`).join('')}${cg.length || st.length ? '' : '<div class="row"><div class="info"><small>맡긴 짐이 없어요</small></div></div>'}</div>`; })() : ''}
+      <div class="card">${cg.length ? cg.map(([g, k]) => `<div class="row"><div class="info"><b>${GOODS[g].n} ${k}개</b><small>가방에 있어요</small></div><button class="btn small" data-act="stIn" data-g="${g}">맡기기</button></div>`).join('') : ''}${st.map(([g, k]) => `<div class="row"><div class="info"><b>${GOODS[g].n} ${k}개</b><small>창고에 있어요</small></div><button class="btn small primary" data-act="stOut" data-g="${g}">찾기</button></div>`).join('')}${cg.length || st.length ? '' : '<div class="row"><div class="info"><small>맡긴 짐이 없어요</small></div></div>'}</div>`; })() : ''}
     ${townSec === 'trial' ? `<h2>시련의 탑<small>층마다 그 층 레벨의 공룡이 나와요 · 10층마다 우두머리 · 한 번 넘은 층은 다시 오르지 않아요</small></h2>
     <div class="card"><div class="row"><div class="info"><b>${S.tower >= 200 ? '꼭대기에 올랐어요 (200층)' : `다음: ${S.tower + 1}층`}</b><div class="bar"><i style="width:${S.tower / 2}%;background:var(--amber)"></i></div><small>최고 ${S.tower}/200층${S.tower < 200 ? ` · 적 Lv${S.tower + 1} · ${Math.min(10, 3 + Math.floor((S.tower + 1) / 12))}마리${(S.tower + 1) % 10 === 0 ? ` · <b style="color:var(--bad)">우두머리 ${BOSSES[trialBoss(S.tower + 1)].n}</b>` : ''} · 상금 ${fmt(60 * (S.tower + 1))}${(S.tower + 1) % 10 === 0 ? ' + 증표·알·회복약' : ''}` : ''}</small><small>내 대원 최고 Lv${Math.max(...S.units.map(u => u.lv))} · 정착지 바로 옆에서 싸워요</small></div><button class="btn small primary" data-act="trial" ${S.tower >= 200 ? 'disabled' : ''}>도전</button></div></div>` : ''}
     ${townSec === 'store' ? `<h2>잡화점<small>필드에서 쓰는 물건을 팔아요</small></h2>
@@ -3389,12 +3404,11 @@ function renderParty() {
       ${u.inParty ? `<span class="ord"><button class="btn small" data-act="ord" data-id="${u.id}" data-d="-1" aria-label="앞으로">▲</button><button class="btn small" data-act="ord" data-id="${u.id}" data-d="1" aria-label="뒤로">▼</button></span>` : ''}
       ${u.type === 'leader' ? '<span class="tag on">대장</span>' : `<button class="btn small ${u.inParty ? '' : 'primary'}" data-act="toggle" data-id="${u.id}">${u.inParty ? '대기' : '참전'}</button>`}</div>`; };
   const reserve = S.units.filter(u => !u.inParty);
-  const psecs = [['crew', '대원', S.units.filter(u => u.inParty && u.pts > 0).length], ['rank', '순위'], ['ach', '업적', achReady()], ['bag', '짐칸', S.items.length], ['dex', '도감'], ['skill', '스킬', S.sp], ['cash', '캐시샵']];
-  el.innerHTML = `${B && !B.over ? `<div id="fightBar"><span id="fightTxt">전투 중 · 적 ${alive(1).length}마리 남음</span><button data-act="backFight">전투로 돌아가기</button></div>` : ''}<div class="card"><div class="row"><div class="info"><b>상단 Lv${S.clv} · 용병 ${mercs().length}/${partyCap()}명 · 공룡 ${dinos().length}/${DINO_CAP}마리</b><div class="bar"><i style="width:${S.cxp / cxpNeed(S.clv) * 100}%;background:var(--amber)"></i></div><small>상단 경험치 ${S.cxp}/${cxpNeed(S.clv)} · 장사, 사냥, 의뢰로 올라요 · 레벨마다 인원 +1(최대 12)</small><small>짐칸 ${cargoUsed()}/${capacity()} · 전투 ${S.stats.battles}</small></div></div><div class="row" style="justify-content:flex-end;gap:6px;flex-wrap:wrap"><button class="btn small" data-act="snd">${['소리 끔', '효과음만', '소리 켬'][S.snd]}</button><button class="btn small primary" data-act="statAll">능력치 전원 자동 분배</button><button class="btn small" data-act="saveCode">저장 코드</button><button class="btn small" data-act="coupon">쿠폰</button><button class="btn small" data-act="newGame">새 게임</button></div></div>${chips(psecs, partySec, 'psec')}
+  const psecs = [['crew', '대원', S.units.filter(u => u.inParty && u.pts > 0).length], ['rank', '순위'], ['ach', '업적', achReady()], ['bag', '가방', S.items.length], ['dex', '도감'], ['skill', '스킬', S.sp], ['cash', '캐시샵']];
+  el.innerHTML = `${B && !B.over ? `<div id="fightBar"><span id="fightTxt">전투 중 · 적 ${alive(1).length}마리 남음</span><button data-act="backFight">전투로 돌아가기</button></div>` : ''}<div class="card"><div class="row"><div class="info"><b>상단 Lv${S.clv} · 용병 ${mercs().length}/${partyCap()}명 · 공룡 ${dinos().length}/${DINO_CAP}마리</b><div class="bar"><i style="width:${S.cxp / cxpNeed(S.clv) * 100}%;background:var(--amber)"></i></div><small>상단 경험치 ${S.cxp}/${cxpNeed(S.clv)} · 장사, 사냥, 의뢰로 올라요 · 레벨마다 인원 +1(최대 12)</small><small>무게 ${cargoUsed()}/${capacity()} · 전투 ${S.stats.battles}</small></div></div><div class="row" style="justify-content:flex-end;gap:6px;flex-wrap:wrap"><button class="btn small" data-act="snd">${['소리 끔', '효과음만', '소리 켬'][S.snd]}</button><button class="btn small primary" data-act="statAll">능력치 전원 자동 분배</button><button class="btn small" data-act="saveCode">저장 코드</button><button class="btn small" data-act="coupon">쿠폰</button><button class="btn small" data-act="newGame">새 게임</button></div></div>${chips(psecs, partySec, 'psec')}
     ${partySec === 'crew' ? `<h2>자동 설정</h2><div class="card">${[['skill', '스킬 자동 사용', '대원이 준비된 스킬을 알아서 써요 · 끄면 전투 중에 스킬 버튼이 나와요'], ['pot', '회복약 자동 사용', '누군가 체력 30% 아래로 떨어지면 알아서 마셔요 (전투 중 15초에 한 번)'], ['hunt', '자동 사냥', '가까운 무리를 계속 찾아가 사냥해요']].map(([k, n, d]) => `<div class="row"><div class="info"><b>${n}</b><small>${d}</small></div><button class="btn small ${S.auto[k] ? 'primary' : ''}" data-act="auto" data-k="${k}">${S.auto[k] ? '켜짐' : '꺼짐'}</button></div>`).join('')}<div class="row" style="flex-wrap:wrap"><div class="info" style="flex:1 1 100%"><b>자동 사냥 범위</b><small>자동 사냥을 켠 자리를 중심으로 이 거리 안의 무리만 잡아요 · 켜져 있으면 필드에 점선 원으로 보여요</small></div><div class="chips" style="position:static;flex:1 1 100%;margin:0;padding:4px 0 0;background:none;box-shadow:none">${AUTO_RANGE.map(([n, r], q) => `<button class="chip${(S.auto.range === undefined ? 1 : S.auto.range) === q ? ' on' : ''}" data-act="autoRange" data-k="${q}">${n}</button>`).join('')}</div></div></div><h2>진형<small>${FORMS[S.form].ds}</small></h2>${chips(Object.entries(FORMS).map(([k, f]) => [k, f.n]), S.form, 'form')}<h2>출전 대원</h2><div class="sub" style="margin:0">▲▼로 줄 서는 순서를 바꿔요. 대장도 옮길 수 있고, 맨 위 대원이 앞장서요. 전투 중에는 대원을 끌어서 자리를 정할 수 있고, 그 자리는 다음 전투에도 기억돼요.${S.units.some(u => u.pos) ? ' <button class="btn small" data-act="resetPos" style="margin-left:6px">배치 초기화</button>' : ''}</div><h2 style="display:none"><small>${''}</small></h2><div class="sub" style="margin:0">상단 전투력 ${fmt(partyPower())} · 용병 일당 하루 ${fmt(wages())}${S.unpaid ? ' <b style="color:var(--bad)">(밀림 · 공격 -20%)</b>' : ''}</div><div class="card">${P.map(row).join('')}</div>
     <h2>대기 대원<small>정착지 우리에서 쉬어요</small></h2><div class="card">${reserve.length ? reserve.map(row).join('') : '<div class="row"><div class="info"><small>없어요. 사냥터에서 공룡을 포획하거나 고용소에서 대원을 구하세요</small></div></div>'}</div>` : ''}
-    ${partySec === 'bag' ? `<h2>짐칸 ${cargoUsed()}/${capacity()}<small>교역품 ${cargoUsed() - S.items.length - promoLoad()}칸 · 전직 재료 ${promoLoad()}칸 · 장비 ${S.items.length}칸 · 꽉 차면 전리품도 장비도 더 못 주워요 · 버린 물건은 돌아오지 않아요</small></h2><div class="card">${Object.keys(S.cargo).length ? Object.entries(S.cargo).map(([g, k]) => `<div class="row">${ic(g)}<div class="info"><b>${GOODS[g].n} ${k}개</b><small>${ZONES[S.zone].n}에서 팔면 개당 ${sellPrice(S.zone, g)}${FOODS[g] ? ` · 먹으면 포만감 +${FOODS[g]}` : ''}</small></div>${FOODS[g] ? `<button class="btn small" data-act="eat" data-g="${g}" ${S.food >= 100 ? 'disabled' : ''}>먹기</button>` : ''}<button class="btn small" data-act="drop" data-g="${g}" data-n="1">버리기</button><button class="btn small" data-act="drop" data-g="${g}" data-n="all">전부</button></div>`).join('') : '<div class="row"><div class="info"><small>짐칸이 비었어요</small></div></div>'}</div>` : ''}
-    ${partySec === 'bag' ? `<h2>전직 재료 ${promoLoad()}개<small>하나가 짐칸 한 칸을 써요 · 짐칸이 꽉 차도 놓치지 않고 주워요 · 창고 보관함에 ${Object.values(S.pstore).reduce((a, b) => a + b, 0)}개 (심부름꾼이 알아서 옮겨 줘요) · 대원마다, 단계마다 전용 재료가 따로 있어요 · ${PROMO_N}개를 모으면 전직해요 · 유저 간 거래 가능 품목 (거래소는 서버가 열리면 쓸 수 있어요)</small></h2><div class="card">${Object.keys(S.promo).length ? Object.entries(S.promo).sort((a, b) => a[0].split(':')[1] - b[0].split(':')[1] || a[0].localeCompare(b[0])).map(([k, n]) => { const t = +k.split(':')[1], mine = party().some(u => promoKey(u, u.tier || 0) === k); return `<div class="row">${ic('token', t)}<div class="info"><b style="color:${k.startsWith('hero-') ? '#ffb347' : RAR[Math.min(4, t + 1)].c}">${promoName(k)}</b><small>${t + 1}차 ${k.startsWith('hero-') ? '영웅 ' : ''}전직 재료 · ${mine ? '지금 쓸 수 있는 대원이 있어요' : '지금 쓸 대원이 없어요 · 거래용'}</small></div><b>${n}/${PROMO_N}</b></div>`; }).join('') : '<div class="row"><div class="info"><small>아직 없어요 · 사냥하면 가끔 떨어져요</small></div></div>'}</div><h2>우두머리 증표<small>특수 전직에 써요 · 우두머리를 잡으면 하나씩 얻어요</small></h2><div class="card"><div class="row"><div class="info"><small style="color:var(--text)">${Object.entries(S.tokens).filter(([, k]) => k > 0).map(([k, n]) => `${TOKEN_N[k]} ${n}개`).join(' · ') || '아직 없어요'}</small><small>공룡 알: ${Object.entries(S.eggBag).filter(([, k]) => k > 0).map(([ez, k]) => `${ZONES[ez].n} ${k}개`).join(' · ') || '없음'}</small></div></div></div><h2>장비 ${S.items.length}개<small>장비 하나가 짐칸 한 칸을 써요 · 대원의 관리 버튼에서 착용해요</small></h2><div class="card">${S.items.length ? [...S.items].sort((a, b) => b.r - a.r || b.lv - a.lv).map(it => `<div class="row">${itemIc(it)}<div class="info"><b>${itemName(it)}</b><small>${SLOTS[it.slot]} · Lv${it.lv} · ${itemText(it)}</small></div><button class="btn small" data-act="sellItem" data-it="${it.id}">${itemPrice(it)}에 팔기</button></div>`).join('') : '<div class="row"><div class="info"><small>아직 얻은 장비가 없어요. 사냥에서 이기면 가끔 떨어져요</small></div></div>'}</div>` : ''}
+    ${partySec === 'bag' ? bagHtml() : ''}
     ${partySec === 'ach' ? `<h2>업적<small>단계를 채우면 상금을 받아요</small></h2><div class="card">${ACH.map(([k, n, fn, th, unit], i) => { const t = S.ach[k] || 0, v = fn(), done = t >= 5, ok = !done && v >= th[t];
       return `<div class="row"><span class="num${done ? ' done' : ''}">${done ? '★' : t + 1}</span><div class="info"><b>${n}</b>${done ? '<small>모든 단계를 마쳤어요</small>' : `<div class="bar"><i style="width:${Math.min(100, v / th[t] * 100)}%;background:var(--amber)"></i></div><small>${fmt(Math.min(v, th[t]))}/${fmt(th[t])} ${unit} · 상금 ${fmt(achPrize(i, t))}</small>`}</div><button class="btn small ${ok ? 'primary' : ''}" data-act="ach" data-k="${k}" ${ok ? '' : 'disabled'}>${done ? '완료' : '받기'}</button></div>`; }).join('')}</div>` : ''}
     ${partySec === 'rank' ? (() => { const me = partyPower(), list = [...RANKS.map(r => [r[0], r[1], 0]), ['내 상단', me, 1]].sort((a, b) => b[1] - a[1]), up = list[list.findIndex(r => r[2]) - 1];
@@ -3422,8 +3436,30 @@ function itemModal(uid, slot) {
   const list = S.items.filter(x => x.slot === slot).sort((a, b) => RAR[b.r].m * (1 + b.lv * 0.03) - RAR[a.r].m * (1 + a.lv * 0.03));
   showModal(`<h3>${SLOTS[slot]} 고르기</h3><div class="sub">${unitName(u)} · 지금: ${cur ? itemName(cur) + ' ' + itemText(cur) : '없음'}</div>
     <div class="card">${cur ? `<div class="row">${itemIc(cur)}<div class="info"><b>${itemName(cur)}</b><small>착용 중 · ${itemText(cur)}</small></div><button class="btn small" data-act="unequip" data-id="${uid}" data-slot="${slot}">해제</button></div>` : ''}
-    ${list.map(it => `<div class="row">${itemIc(it)}<div class="info"><b>${itemName(it)}</b><small>Lv${it.lv} · ${itemText(it)}</small></div><button class="btn small primary" data-act="equip" data-id="${uid}" data-it="${it.id}">착용</button></div>`).join('') || '<div class="row"><div class="info"><small>짐칸에 맞는 장비가 없어요. 사냥터 깊은 곳일수록 좋은 장비가 나와요</small></div></div>'}</div>
+    ${list.map(it => `<div class="row">${itemIc(it)}<div class="info"><b>${itemName(it)}</b><small>Lv${it.lv} · ${itemText(it)}</small></div><button class="btn small primary" data-act="equip" data-id="${uid}" data-it="${it.id}">착용</button></div>`).join('') || '<div class="row"><div class="info"><small>가방에 맞는 장비가 없어요. 사냥터 깊은 곳일수록 좋은 장비가 나와요</small></div></div>'}</div>
     <div class="mbtns"><button class="btn" data-act="unit" data-id="${uid}">돌아가기</button></div>`);
+}
+let bagSel = null, bagTab = 'all';
+function bagHtml() {   // an RPG bag: one grid of slots, everything visible at once; tap a slot to see the item and what you can do with it
+  const cells = [];
+  for (const [g, k] of Object.entries(S.cargo)) cells.push({ k: 'g:' + g, cat: GOODS[g].relic || GOODS[g].junk ? 'mat' : 'goods', img: ic(g), n: k, col: GOODS[g].relic ? '#ffb347' : GOODS[g].junk ? RAR[Math.min(4, GOODS[g].junk - 1)].c : null, w: k });
+  for (const [k, n] of Object.entries(S.promo).sort((a, b) => a[0].split(':')[1] - b[0].split(':')[1] || a[0].localeCompare(b[0]))) { const t = +k.split(':')[1]; cells.push({ k: 'p:' + k, cat: 'mat', img: ic('token', t), n, col: k.startsWith('hero-') ? '#ffb347' : RAR[Math.min(4, t + 1)].c, w: n * W_PROMO }); }
+  for (const it of [...S.items].sort((a, b) => b.r - a.r || b.lv - a.lv)) cells.push({ k: 'i:' + it.id, cat: 'gear', img: itemIc(it), n: it.en ? '+' + it.en : '', col: RAR[it.r].c, w: W_GEAR, lv: it.lv });
+  if (bagSel && !cells.some(c => c.k === bagSel)) bagSel = null;
+  const max = invMax(), used = cells.length, wt = cargoUsed(), cap = capacity(), show = cells.filter(c => bagTab === 'all' || c.cat === bagTab), tabs = [['all', '전체', used], ['goods', '교역품', cells.filter(c => c.cat === 'goods').length], ['gear', '장비', cells.filter(c => c.cat === 'gear').length], ['mat', '재료', cells.filter(c => c.cat === 'mat').length]];
+  const bar = (label, a, b, col) => `<div class="invbar"><span>${label} <b style="color:${a > b ? 'var(--bad)' : a >= b * 0.9 ? 'var(--amber)' : 'inherit'}">${a}/${b}</b></span><i><u style="width:${Math.min(100, a / Math.max(1, b) * 100)}%;background:${a > b ? 'var(--bad)' : col}"></u></i></div>`;
+  let det = '<div class="invdet"><small>칸을 누르면 물건 설명과 쓸 수 있는 버튼이 나와요</small></div>';
+  if (bagSel) { const [kind, id] = [bagSel[0], bagSel.slice(2)];
+    if (kind === 'g') { const G = GOODS[id], k = S.cargo[id]; det = `<div class="invdet">${ic(id)}<div class="info"><b>${G.n} ${k}개</b><small>${G.relic ? '영웅 전용 장비 재료' : G.junk ? '귀중품 · 팔거나 영웅 장비 재료로 써요' : G.made ? '가공품' : '교역품'} · 무게 ${k} · ${ZONES[S.zone].n}에서 팔면 개당 ${sellPrice(S.zone, id)}${FOODS[id] ? ` · 먹으면 포만감 +${FOODS[id]}` : ''}</small></div><div class="invact">${FOODS[id] ? `<button class="btn small primary" data-act="eat" data-g="${id}" ${S.food >= 100 ? 'disabled' : ''}>먹기</button>` : ''}<button class="btn small" data-act="drop" data-g="${id}" data-n="1">버리기</button><button class="btn small" data-act="drop" data-g="${id}" data-n="all">전부</button></div></div>`; }
+    else if (kind === 'p') { const t = +id.split(':')[1], n = S.promo[id], mine = party().some(u => promoKey(u, u.tier || 0) === id); det = `<div class="invdet">${ic('token', t)}<div class="info"><b style="color:${id.startsWith('hero-') ? '#ffb347' : RAR[Math.min(4, t + 1)].c}">${promoName(id)} ${n}개</b><small>${t + 1}차 ${id.startsWith('hero-') ? '영웅 ' : ''}전직 재료 · ${PROMO_N}개를 모으면 전직 · 창고 보관함에 ${(S.pstore || {})[id] || 0}개 더 있어요 · ${mine ? '지금 쓸 수 있는 대원이 있어요' : '지금 쓸 대원이 없어요 · 거래용'}</small></div></div>`; }
+    else { const it = S.items.find(x => x.id === +id); if (it) det = `<div class="invdet">${itemIc(it)}<div class="info"><b style="color:${RAR[it.r].c}">${itemName(it)}</b><small>${RAR[it.r].n} ${SLOTS[it.slot]} · Lv${it.lv} · ${itemText(it)} · 무게 ${W_GEAR} · 대원의 관리 버튼에서 착용해요</small></div><div class="invact"><button class="btn small" data-act="sellItem" data-it="${it.id}">${fmt(itemPrice(it))}에 팔기</button></div></div>`; } }
+  const grid = show.map(c => `<button class="slot${c.k === bagSel ? ' on' : ''}" data-act="bagSel" data-k="${c.k}" style="${c.col ? `border-color:${c.col}` : ''}">${c.img}${c.n !== '' ? `<em>${c.n}</em>` : ''}${c.lv ? `<i>Lv${c.lv}</i>` : ''}</button>`).join('') + (bagTab === 'all' ? Array.from({ length: Math.max(0, max - used) }, () => '<span class="slot empty"></span>').join('') : '');
+  const misc = [['potion', '회복약', S.pots], ['stone', '귀환석', S.stones], ['token', '우두머리 증표', Object.values(S.tokens).reduce((a, b) => a + b, 0)], ['egg', '공룡 알', Object.values(S.eggBag).reduce((a, b) => a + b, 0)]].map(([k, n, v]) => `<span class="invmisc">${ic(k)}<b>${n}</b> ${v}</span>`).join('');
+  return `<h2>가방<small>물건 종류마다, 장비 하나마다 한 칸 · 같은 물건은 한 칸에 겹쳐요 · 무게는 짐꾼과 짐마차가 늘려 줘요 · 버린 물건은 돌아오지 않아요</small></h2>
+    <div class="card invcard">${bar('칸', used, max, '#8fb4e4')}${bar('무게', wt, cap, 'var(--amber)')}${wt > cap ? '<small style="color:var(--bad)">무게가 넘쳐서 이동 속도가 절반이에요</small>' : ''}
+      <div class="invtabs">${tabs.map(([k, n, c]) => `<button class="chip${bagTab === k ? ' on' : ''}" data-act="bagTab" data-k="${k}">${n} ${c}</button>`).join('')}</div>${det}
+      <div class="invgrid">${grid || '<small style="grid-column:1/-1;padding:10px;color:var(--muted)">이 분류에는 아무것도 없어요</small>'}</div>
+      <div class="invmiscs">${misc}</div><small style="color:var(--muted)">아래 소지품은 칸과 무게를 쓰지 않아요 · 우두머리 증표: ${Object.entries(S.tokens).filter(([, k]) => k > 0).map(([k, n]) => `${TOKEN_N[k]} ${n}`).join(', ') || '없음'}</small></div>`;
 }
 function unitModal(id) {
   const u = S.units.find(x => x.id === id); if (!u) return;
@@ -3441,13 +3477,13 @@ function unitModal(id) {
     <div class="card"><div class="row"><div class="info"><small style="color:var(--text)">체력 ${maxHp(u)} · 공격 ${Math.round(D.atk * lvMul(u.lv) * gm.atk)} · 방어 ${Math.round(D.def * (1 + 0.05 * (u.lv - 1)) * gm.def)} · 짐 ${carryOf(u)}칸</small></div></div>
     ${gearRow('gw', 'weapon', dino ? '발톱 덮개 단련' : '무기 단련', '공방 제작품으로 강화 · 단계마다 공격 +15%')}
     ${gearRow('ga', 'armor', dino ? '갑주 보강' : '방어구 보강', '공방 제작품으로 강화 · 단계마다 방어 +25%, 체력 +10%')}
-    ${Object.entries(SLOTS).map(([sl, sn]) => { const it = (u.eq || {})[sl], n = S.items.filter(x => x.slot === sl).length; return `<div class="row">${it ? itemIc(it) : ''}<div class="info"><b>착용 ${sn}: ${it ? itemName(it) : '<span style="color:var(--muted)">비어 있음</span>'}</b><small>${it ? itemText(it) + ` · Lv${it.lv}${(it.en || 0) < ENH_MAX ? ` · 강화 성공률 ${Math.round(enhRate(it) * 100)}%` : ''}` : '사냥터에서 얻은 장비를 착용해요'} · 짐칸에 ${n}개</small></div>${it ? `<button class="btn small primary" data-act="enh" data-id="${u.id}" data-slot="${sl}" ${(it.en || 0) >= ENH_MAX || S.money < enhCost(it) ? 'disabled' : ''}>${(it.en || 0) >= ENH_MAX ? '최고' : `강화 ${fmt(enhCost(it))}`}</button>` : ''}<button class="btn small" data-act="pickItem" data-id="${u.id}" data-slot="${sl}" ${n || it ? '' : 'disabled'}>교체</button></div>`; }).join('')}
+    ${Object.entries(SLOTS).map(([sl, sn]) => { const it = (u.eq || {})[sl], n = S.items.filter(x => x.slot === sl).length; return `<div class="row">${it ? itemIc(it) : ''}<div class="info"><b>착용 ${sn}: ${it ? itemName(it) : '<span style="color:var(--muted)">비어 있음</span>'}</b><small>${it ? itemText(it) + ` · Lv${it.lv}${(it.en || 0) < ENH_MAX ? ` · 강화 성공률 ${Math.round(enhRate(it) * 100)}%` : ''}` : '사냥터에서 얻은 장비를 착용해요'} · 가방에 ${n}개</small></div>${it ? `<button class="btn small primary" data-act="enh" data-id="${u.id}" data-slot="${sl}" ${(it.en || 0) >= ENH_MAX || S.money < enhCost(it) ? 'disabled' : ''}>${(it.en || 0) >= ENH_MAX ? '최고' : `강화 ${fmt(enhCost(it))}`}</button>` : ''}<button class="btn small" data-act="pickItem" data-id="${u.id}" data-slot="${sl}" ${n || it ? '' : 'disabled'}>교체</button></div>`; }).join('')}
     ${hsetOf(u) ? (() => { const Z = HSET[u.name], hx = '#' + Z.c2.toString(16).padStart(6, '0'), have = hsetMask(u), cnt = [1, 2, 4].filter(b => have & b).length;
       return `<div class="row"><div class="info"><b style="color:${hx}">전용 장비: ${Z.n} 세트 (${cnt}/3)</b><small>이 영웅만 쓸 수 있어요 · 최종 단계 장비 · 같은 레벨 전설 +10강 장비의 1.5배 성능 · 태고의 정수는 Lv50 이상 우두머리가 드물게 떨어뜨려요 · 한 벌씩 만들 때마다 겉모습이 바뀌어요 · 일반 장비와 함께 착용돼요</small><small style="color:${cnt === 3 ? hx : 'var(--muted)'}">세트 능력 (3벌): ${Z.ds}${cnt === 3 ? ' · 발동 중' : ''}</small></div></div>` + Object.keys(HSET_COST).map(sl => { const C = HSET_COST[sl], own = (u.hset || {})[sl], ok = !own && u.lv >= HSET_LV && S.money >= C.money && Object.entries(C).every(([g, n]) => g === 'money' || (S.cargo[g] || 0) >= n);
         return `<div class="row">${ic(sl === 'weapon' ? 'weapon4' : sl === 'armor' ? 'armor4' : 'charm4', 4)}<div class="info"><b style="color:${own ? hx : 'inherit'}">${hsetName(u, sl)}</b><small>${hsetText(u, sl)} · 영웅 레벨이 오르면 함께 강해져요</small>${own ? '' : `<small>재료: ${Object.entries(C).filter(([g]) => g !== 'money').map(([g, n]) => `${GOODS[g].n} ${S.cargo[g] || 0}/${n}`).join(' · ')} · ${fmt(C.money)} 크레딧${u.lv < HSET_LV ? ` · <span style="color:var(--bad)">영웅 Lv${HSET_LV}부터</span>` : ''}</small>`}</div>${own ? `<span class="tag" style="color:${hx}">착용 중</span>` : `<button class="btn small primary" data-act="hcraft" data-id="${u.id}" data-k="${sl}" ${ok ? '' : 'disabled'}>제작</button>`}</div>`; }).join(''); })() : ''}
     ${u.famed && HERO_SK[u.name] ? `<div class="row"><div class="info"><b style="color:var(--amber)">전용 스킬: ${HERO_SK[u.name].n}</b><small>${HERO_SK[u.name].ds} · 전직할 때마다 위력 +25%</small></div></div>` : ''}
     ${unitSkill(u) ? `<div class="row"><div class="info"><b>스킬 수련 ${u.skLv || 0}/10</b><small>${skName(unitSkill(u), tier)}의 위력이 단계마다 +8% · 지금 +${(u.skLv || 0) * 8}%</small></div><button class="btn small primary" data-act="train" data-id="${u.id}" ${(u.skLv || 0) >= 10 || S.money < trainCost(u) ? 'disabled' : ''}>${(u.skLv || 0) >= 10 ? '최고' : fmt(trainCost(u))}</button></div>` : ''}
-    <div class="row"><div class="info"><b>${dino ? '진화' : '전직'} ${tier}/4단계: ${tier >= 4 ? '최고 단계' : tierNameOf(u.type, tier + 1)}</b><small>${tier >= 4 ? '더 오를 단계가 없어요' : `체력과 공격 +30% · 겉모습이 더 화려해져요${u.type === 'porter' ? ` · 짐칸 ${carryOf(u)} → ${carryOf({ ...u, tier: tier + 1 })}칸` : ''}${isHero(u) ? ' · 전용 스킬 위력 +25%' : skillOf(u.type) && tier < 2 ? ` · 스킬이 ${skName(skillOf(u.type), tier + 1)}(으)로 바뀌어요: ${skDesc(skillOf(u.type), tier + 1)}` : skillOf(u.type) ? ' · 스킬 위력 +30%' : ''} · 조건: Lv${P.lv}, <b style="color:#9fd0ff">${promoName(promoKey(u, tier))}</b> ${promoHave(promoKey(u, tier))}/${PROMO_N}개 (Lv${PROMO_DROP[tier][0]} 이상 공룡이 ${isHero(u) ? '극악의 확률로' : ['가끔', '드물게', '아주 드물게', '극히 드물게'][tier]} 떨어뜨려요)`}</small></div><button class="btn small primary" data-act="promote" data-id="${u.id}" ${tier >= 4 || u.lv < P.lv || promoHave(promoKey(u, tier)) < PROMO_N ? 'disabled' : ''}>${dino ? '진화' : '전직'}</button></div>
+    <div class="row"><div class="info"><b>${dino ? '진화' : '전직'} ${tier}/4단계: ${tier >= 4 ? '최고 단계' : tierNameOf(u.type, tier + 1)}</b><small>${tier >= 4 ? '더 오를 단계가 없어요' : `체력과 공격 +30% · 겉모습이 더 화려해져요${u.type === 'porter' ? ` · 무게 한도 ${carryOf(u)} → ${carryOf({ ...u, tier: tier + 1 })}칸` : ''}${isHero(u) ? ' · 전용 스킬 위력 +25%' : skillOf(u.type) && tier < 2 ? ` · 스킬이 ${skName(skillOf(u.type), tier + 1)}(으)로 바뀌어요: ${skDesc(skillOf(u.type), tier + 1)}` : skillOf(u.type) ? ' · 스킬 위력 +30%' : ''} · 조건: Lv${P.lv}, <b style="color:#9fd0ff">${promoName(promoKey(u, tier))}</b> ${promoHave(promoKey(u, tier))}/${PROMO_N}개 (Lv${PROMO_DROP[tier][0]} 이상 공룡이 ${isHero(u) ? '극악의 확률로' : ['가끔', '드물게', '아주 드물게', '극히 드물게'][tier]} 떨어뜨려요)`}</small></div><button class="btn small primary" data-act="promote" data-id="${u.id}" ${tier >= 4 || u.lv < P.lv || promoHave(promoKey(u, tier)) < PROMO_N ? 'disabled' : ''}>${dino ? '진화' : '전직'}</button></div>
     ${(u.asc || 0) < ASC.length ? `<div class="row"><div class="info"><b style="color:var(--amber)">초월 ${(u.asc || 0) + 1}단계</b><small>체력과 공격 +22% · 지금 ${u.asc || 0}/${ASC.length}단계 · 조건: Lv${ASC[u.asc || 0]}, ${fmt(ascCost(u))} 크레딧</small></div><button class="btn small primary" data-act="asc" data-id="${u.id}" ${u.lv < ASC[u.asc || 0] || S.money < ascCost(u) ? 'disabled' : ''}>초월</button></div>` : `<div class="row"><div class="info"><b style="color:var(--amber)">초월 완료 (${ASC.length}/${ASC.length})</b></div></div>`}
     ${dino && MUT[u.type] ? MUT[u.type].map(([to, tk]) => `<div class="row"><div class="info"><b style="color:var(--amber)">변이 진화: ${UNITS[to].n}</b><small>${UNITS[to].ds} · 레벨과 능력치는 그대로 · 조건: Lv20, ${TOKEN_N[tk]} 1개 (보유 ${S.tokens[tk] || 0}), 8,000 크레딧</small></div><button class="btn small primary" data-act="mutate" data-id="${u.id}" data-to="${to}" data-tk="${tk}" ${u.lv < 20 || !(S.tokens[tk] > 0) || S.money < 8000 ? 'disabled' : ''}>변이</button></div>`).join('') : ''}
     ${!dino && ELITE[u.type] && !u.elite ? `<div class="row"><div class="info"><b style="color:var(--amber)">특수 전직: ${ELITE[u.type].n}</b><small>${ELITE[u.type].ds} · 체력과 공격 +25% · 스킬을 30% 더 자주 써요 · 조건: 2차 전직 완료, ${TOKEN_N[ELITE[u.type].token]} 1개 (보유 ${S.tokens[ELITE[u.type].token] || 0}), 20,000 크레딧</small></div><button class="btn small primary" data-act="elite" data-id="${u.id}" ${tier < 2 || !(S.tokens[ELITE[u.type].token] > 0) || S.money < 20000 ? 'disabled' : ''}>전직</button></div>` : ''}
@@ -3498,7 +3534,7 @@ document.body.addEventListener('click', e => {
   const act = b.dataset.act, z = S.zone;
   if (act === 'backFight') { sfx('tap'); showWorld(); return; }
   if (B && !B.over && FIGHT_BLOCK.has(act)) { sfx('deny'); toast('전투 중에는 할 수 없어요 · 대원 구성, 진형, 이동은 전투가 끝난 뒤에 바꿔요', 'warn'); return; }
-  if (act === 'buy') { const g = b.dataset.g; let n = b.dataset.n === 'max' ? 40 : +b.dataset.n, spent = 0; while (n-- > 0 && S.money >= price(z, g) && cargoUsed() < capacity()) { const p = price(z, g); S.money -= p; spent += p; S.cargo[g] = (S.cargo[g] || 0) + 1; S.press[z][g] += 0.025; } if (spent) { sfx('coin'); S.stats.trades++; } }
+  if (act === 'buy') { const g = b.dataset.g; let n = b.dataset.n === 'max' ? 40 : +b.dataset.n, spent = 0; while (n-- > 0 && S.money >= price(z, g) && canTake(g)) { const p = price(z, g); S.money -= p; spent += p; S.cargo[g] = (S.cargo[g] || 0) + 1; S.press[z][g] += 0.025; } if (spent) { sfx('coin'); S.stats.trades++; } }
   else if (act === 'sell') { const g = b.dataset.g; let got = 0; while (S.cargo[g] > 0) { const p = sellPrice(z, g); S.money += p; got += p; S.cargo[g]--; S.press[z][g] = Math.max(0.4, S.press[z][g] - 0.022); } delete S.cargo[g]; S.stats.earned += got; gainCxp(got / 12); sfx('coin'); toast(`${GOODS[g].n}을 팔아 ${got} 크레딧`, 'good'); }
   else if (act === 'hire') { const t = b.dataset.t, D = UNITS[t], hc = hireCost(t, z); if (S.money < hc) return; S.money -= hc; const u = addUnit(t, 1, slotFree(t)); sfx('coin'); toast(`${D.n}을 고용했어요${u.inParty ? '' : ' (상단이 가득 차 대기)'}`, 'good'); }
   else if (act === 'aid') { for (const u of S.units) { const mh = maxHp(u); u.hp = Math.max(u.hp, Math.round(mh * 0.5)); u.ko = false; } toast('구호소에서 쉬고 모두 일어났어요', 'good'); sfx('arrive'); }
@@ -3509,7 +3545,7 @@ document.body.addEventListener('click', e => {
   else if (act === 'psIn') { for (const [k, v] of Object.entries(S.promo)) S.pstore[k] = (S.pstore[k] || 0) + v; S.promo = {}; sfx('tap'); toast('전직 재료를 보관함에 넣었어요', 'good'); }
   else if (act === 'psOut') { const k = b.dataset.k, v = S.pstore[k] || 0; if (!v) return; S.promo[k] = (S.promo[k] || 0) + v; delete S.pstore[k]; if (S.cash && S.cash.runner) S.cash.wait = 60; sfx('tap'); }
   else if (act === 'stIn') { const g = b.dataset.g, k = S.cargo[g] || 0; if (!k) return; S.store[z] = S.store[z] || {}; S.store[z][g] = (S.store[z][g] || 0) + k; delete S.cargo[g]; sfx('tap'); }
-  else if (act === 'stOut') { const g = b.dataset.g, k = (S.store[z] || {})[g] || 0; if (!k) return; const got = addCargo(g, k); S.store[z][g] -= got; sfx('tap'); if (got < k) toast(`짐칸이 모자라 ${k - got}개는 창고에 남겼어요`, 'warn'); }
+  else if (act === 'stOut') { const g = b.dataset.g, k = (S.store[z] || {})[g] || 0; if (!k) return; const got = addCargo(g, k); S.store[z][g] -= got; sfx('tap'); if (got < k) toast(`무게 한도가 모자라 ${k - got}개는 창고에 남겼어요`, 'warn'); }
   else if (act === 'meal') { if (S.money < 20 || S.food >= 100) return; S.money -= 20; S.food = 100; sfx('heal'); toast('든든하게 먹었어요 · 포만감 100'); }
   else if (act === 'eat') { const g = b.dataset.g; if (!S.cargo[g] || S.food >= 100) return; S.cargo[g]--; if (!S.cargo[g]) delete S.cargo[g]; S.food = Math.min(100, S.food + FOODS[g]); sfx('heal'); }
   else if (act === 'auto') { S.auto[b.dataset.k] = !S.auto[b.dataset.k]; if (b.dataset.k === 'hunt' && S.auto.hunt) autoAnchor(); sfx('tap'); updAuto(); }
@@ -3519,7 +3555,7 @@ document.body.addEventListener('click', e => {
     if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = '정말요? 한 번 더'; b.classList.add('primary'); return; }
     for (const it of Object.values(u.eq || {})) if (it) S.items.push(it);
     const back = Math.round((UNITS[u.type].cost || 60) * 0.3 + u.lv * 10); S.money += back; S.units = S.units.filter(x => x !== u);
-    toast(`${unitName(u)}${UNITS[u.type].cls === 'dino' ? '을(를) 야생으로 돌려보냈어요' : '와(과) 작별했어요'} · 착용 장비는 짐칸으로 · 위로금 ${back} 크레딧`); sfx('tap'); syncCrew(); closeModal(); save(); renderAll(); return;
+    toast(`${unitName(u)}${UNITS[u.type].cls === 'dino' ? '을(를) 야생으로 돌려보냈어요' : '와(과) 작별했어요'} · 착용 장비는 가방으로 · 위로금 ${back} 크레딧`); sfx('tap'); syncCrew(); closeModal(); save(); renderAll(); return;
   }
   else if (act === 'mutate') { const u = S.units.find(x => x.id === +b.dataset.id), tk = b.dataset.tk; if (!u || u.lv < 20 || !(S.tokens[tk] > 0) || S.money < 8000) return; S.tokens[tk]--; S.money -= 8000; const r = u.hp / maxHp(u); u.type = b.dataset.to; u.hp = Math.round(maxHp(u) * r); S.dex[u.type] = 2; sfx('win'); flash(0.7); toast(`${unitName(u)}(으)로 변이했어요!`, 'good'); syncCrew(); checkRank(); save(); renderAll(); unitModal(u.id); return; }
   else if (act === 'elite') { const u = S.units.find(x => x.id === +b.dataset.id), E = u && ELITE[u.type]; if (!E || u.elite || (u.tier || 0) < 2 || !(S.tokens[E.token] > 0) || S.money < 20000) return; S.tokens[E.token]--; S.money -= 20000; u.elite = true; u.hp = maxHp(u); u.ko = false; sfx('win'); flash(0.7); toast(`${E.n}(으)로 특수 전직했어요!`, 'good'); syncCrew(); checkRank(); save(); renderAll(); unitModal(u.id); return; }
@@ -3555,7 +3591,7 @@ document.body.addEventListener('click', e => {
   else if (act === 'form') { S.form = b.dataset.k; sfx('tap'); }
   else if (act === 'npcBuy' || act === 'npcSell') {
     const n = W.npcs[+b.dataset.i], o = n && n.offer; if (!o) return;
-    if (act === 'npcBuy') { let k = 0; while (o.sn > 0 && S.money >= o.sp && cargoUsed() < capacity()) { S.money -= o.sp; o.sn--; S.cargo[o.sg] = (S.cargo[o.sg] || 0) + 1; k++; } if (!k) { toast('돈이나 짐칸이 모자라요', 'warn'); return; } toast(`${GOODS[o.sg].n} ${k}개를 샀어요`, 'good'); }
+    if (act === 'npcBuy') { let k = 0; while (o.sn > 0 && S.money >= o.sp && canTake(o.sg)) { S.money -= o.sp; o.sn--; S.cargo[o.sg] = (S.cargo[o.sg] || 0) + 1; k++; } if (!k) { toast('돈이나 무게 한도가 모자라요', 'warn'); return; } toast(`${GOODS[o.sg].n} ${k}개를 샀어요`, 'good'); }
     else { let k = 0, got = 0; while (o.bn > 0 && S.cargo[o.bg] > 0) { S.cargo[o.bg]--; o.bn--; S.money += o.bp; got += o.bp; k++; } if (!S.cargo[o.bg]) delete S.cargo[o.bg]; if (!k) { toast(`${GOODS[o.bg].n}이(가) 없어요`, 'warn'); return; } S.stats.earned += got; gainCxp(got / 12); toast(`${GOODS[o.bg].n} ${k}개를 팔아 ${got} 크레딧`, 'good'); }
     sfx('coin'); S.stats.trades++; save(); renderHeader(); npcModal(+b.dataset.i); return;
   }
@@ -3564,9 +3600,11 @@ document.body.addEventListener('click', e => {
   else if (act === 'recall') { if (S.stones < 1 || B) return; S.stones--; const near = nearestTown(), T = TOWNS[near.z]; W.lead.x = T.x; W.lead.y = T.y + 60; W.lead.tx = null; W.dest = null; W.target = null; for (const c of W.crew) { c.x = T.x; c.y = T.y + 60; } W.cam.x = T.x; W.cam.y = T.y; S.pos = { x: T.x, y: T.y + 60 }; flash(0.8); sfx('arrive'); showWorld(); return; }
   else if (act === 'dart') { const n = +b.dataset.n, cost = n === 5 ? 165 : 35; if (S.money < cost) return; S.money -= cost; S.darts += n; sfx('coin'); }
   else if (act === 'walk') { walkTo(+b.dataset.x, +b.dataset.y, b.dataset.l); showWorld(); return; }
-  else if (act === 'toggle') { const u = S.units.find(x => x.id === +b.dataset.id); if (!u) return; if (!u.inParty && !slotFree(u.type)) { toast(isDino(u) ? `공룡은 ${DINO_CAP}마리까지 데리고 다닐 수 있어요` : `지금은 대장 포함 ${partyCap()}명까지예요. 상단 레벨을 올리면 늘어나요 (최대 12명)`); return; } u.inParty = !u.inParty; if (cargoUsed() > capacity()) toast('짐칸이 모자라요. 출발 전에 짐을 줄이세요', 'warn'); }
+  else if (act === 'toggle') { const u = S.units.find(x => x.id === +b.dataset.id); if (!u) return; if (!u.inParty && !slotFree(u.type)) { toast(isDino(u) ? `공룡은 ${DINO_CAP}마리까지 데리고 다닐 수 있어요` : `지금은 대장 포함 ${partyCap()}명까지예요. 상단 레벨을 올리면 늘어나요 (최대 12명)`); return; } u.inParty = !u.inParty; if (cargoUsed() > capacity()) toast('무게 한도가 모자라요. 출발 전에 짐을 줄이세요', 'warn'); }
   else if (act === 'tsec') { townSec = b.dataset.k; sfx('tap'); }
   else if (act === 'psec') { partySec = b.dataset.k; sfx('tap'); }
+  else if (act === 'bagSel') { bagSel = bagSel === b.dataset.k ? null : b.dataset.k; sfx('tap'); }
+  else if (act === 'bagTab') { bagTab = b.dataset.k; sfx('tap'); }
   else if (act === 'cashBuy') { const k = b.dataset.k, C = CASH[k]; if (!C || S.gems < C.cost || (k === 'runner' ? (S.cash.runner || 0) >= RUNNER_MAX : S.cash[k])) return; S.gems -= C.cost; S.cash[k] = (S.cash[k] || 0) + 1; sfx('win'); flash(0.5, '120,216,255'); toast(`${C.n}을(를) 들였어요`, 'good'); }
   else if (act === 'gearSell') { S.cash.gearSell = +b.dataset.k; if (S.cash.gearSell < 0) delete S.cash.gearSell; S.cash.wait = 0; sfx('tap'); }
   else if (act === 'runnerToggle') { S.cash.runnerOff = !S.cash.runnerOff; sfx('tap'); }
@@ -3586,7 +3624,7 @@ document.body.addEventListener('click', e => {
   else if (act === 'collect') {
     const o = S.out[z] || {}; let left = 0;
     for (const [g, k] of Object.entries(o)) { if (g === 'dart') { S.darts += k; o[g] = 0; } else { const got = addCargo(g, k); o[g] = k - got; left += k - got; } }
-    sfx('coin'); toast(left ? `짐칸이 모자라 ${left}개는 공방에 남겨 뒀어요` : '완성품을 모두 찾았어요', left ? 'warn' : 'good');
+    sfx('coin'); toast(left ? `무게 한도가 모자라 ${left}개는 공방에 남겨 뒀어요` : '완성품을 모두 찾았어요', left ? 'warn' : 'good');
   }
   else if (act === 'skill') { const k = b.dataset.k; if (S.sp < 1 || sk(k) >= SKILL_MAX) return; S.sp--; S.skills[k] = sk(k) + 1; sfx('capture'); }
   else if (act === 'unit') { unitModal(+b.dataset.id); return; }
@@ -3653,7 +3691,7 @@ for (const z of Object.keys(ZONES)) for (const g of Object.keys(GOODS)) { if (S.
 ensureQuests(); S.wander = null; S.heroes = S.heroes || {}; const freshRun = !S.cls && S.stats.battles === 0 && S.units.length === 1; if (!S.cls && !freshRun) S.cls = 'gunner'; applyClass();
 S.dex = S.dex || {}; for (const u of S.units) if (UNITS[u.type].cls === 'dino') S.dex[u.type] = 2;
 // ---- start-up: loading bar, then the title screen, then the world
-const TIPS = ['용병은 어느 마을 고용소에서나 구할 수 있어요', '의사와 주술사는 쓰러진 대원을, 조련사는 쓰러진 공룡을 다시 일으켜요', '공룡 알은 아주 드물게 떨어져요 · 고용소 부화장에서 깨우면 무엇이든 나올 수 있어요', '요리사가 있으면 가는 길에 밥을 지어 포만감을 채워 줘요', '대장장이와 함께 있으면 장비 강화가 더 잘 붙어요', '전투 중에 대원을 끌어다 놓으면 자리를 직접 정할 수 있어요', '사냥터마다 우두머리가 있어요. 쓰러뜨리면 증표를 얻어요', '짐칸이 차면 시장에서 전리품을 팔아 크레딧을 모으세요'];
+const TIPS = ['용병은 어느 마을 고용소에서나 구할 수 있어요', '의사와 주술사는 쓰러진 대원을, 조련사는 쓰러진 공룡을 다시 일으켜요', '공룡 알은 아주 드물게 떨어져요 · 고용소 부화장에서 깨우면 무엇이든 나올 수 있어요', '요리사가 있으면 가는 길에 밥을 지어 포만감을 채워 줘요', '대장장이와 함께 있으면 장비 강화가 더 잘 붙어요', '전투 중에 대원을 끌어다 놓으면 자리를 직접 정할 수 있어요', '사냥터마다 우두머리가 있어요. 쓰러뜨리면 증표를 얻어요', '무게 한도가 차면 시장에서 전리품을 팔아 크레딧을 모으세요'];
 const bootP = (pc, txt) => { $('btFill').style.width = pc + '%'; if (txt) $('btTxt').textContent = txt; };
 { let ti = Math.floor(Math.random() * TIPS.length); const tip = () => { $('btTip').textContent = 'TIP · ' + TIPS[ti++ % TIPS.length]; }; tip(); const iv = setInterval(() => { if ($('boot').classList.contains('out')) clearInterval(iv); else tip(); }, 3800); }
 $('btVer').textContent = window.__VER ? 'v' + window.__VER : ''; $('btPriv').hidden = !window.__VER;
@@ -3755,7 +3793,7 @@ requestAnimationFrame(frame);
 <button id="upd" hidden>새 패치가 있어요 · 눌러서 적용</button>
 <script>
 (function () {
-  var VER = "20261127-001029";
+  var VER = "20261127-003029";
   if (!/^https?:$/.test(location.protocol)) return;
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
   var btn = document.getElementById('upd');
