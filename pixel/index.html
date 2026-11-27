@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}
 #upd{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:999;padding:11px 18px;border-radius:14px;border:2px solid #f3c79a;background:#d4763c;color:#1c120a;font:700 14px system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.5)}</style>
-<script>window.__VER="20261127-004156"</script>
+<script>window.__VER="20261127-004337"</script>
 </head>
 <body>
 <title>공룡 상단 픽셀</title>
@@ -640,7 +640,7 @@ const HSET_SLOT = { weapon: '무기', armor: '갑옷', charm: '징표' }, HSET_C
 const HSET_WORD = { hunter: '장궁', spear: '창', sniper: '장총', mechanic: '공구', medic: '약상자', venomer: '독침', porter: '지게', scout: '단검', shield: '대방패', gladiator: '대검', crossbow: '쇠뇌', gunner: '쌍권총', bomber: '화약통', tamer: '채찍', cook: '국자', smith: '망치', shaman: '방울' };
 const hsetMask = u => { const h = u.hset || {}; return (h.weapon ? 1 : 0) | (h.armor ? 2 : 0) | (h.charm ? 4 : 0); }, hsetOf = u => u && u.famed && HSET[u.name] ? HSET[u.name] : null, hsetFull = u => hsetOf(u) && hsetMask(u) === 7 ? HSET[u.name].ab : null;
 // a set piece is worth one and a half legendary pieces of the hero's own level at full enhancement, and it grows as the hero levels
-const HSET_ENH = [0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.25, 0.2, 0.15], HSET_SAFE = 3, hsetEn = (u, sl) => (u.hsetEn || {})[sl] || 0, hsetEnRate = (u, sl) => Math.min(0.95, HSET_ENH[hsetEn(u, sl)] + smithBonus() * 0.5), hsetEnCost = (u, sl) => ({ stone: hsetEn(u, sl) + 1, money: 200000 * (hsetEn(u, sl) + 1) });
+const HSET_ENH = [0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.25, 0.2, 0.15], HSET_SAFE = 3, hsetEn = (u, sl) => (u.hsetEn || {})[sl] || 0, hsetEnRate = (u, sl) => Math.min(0.95, HSET_ENH[hsetEn(u, sl)] + smithBonus() * 0.5), hsetEnCost = (u, sl) => ({ stone: 1, money: 200000 * (hsetEn(u, sl) + 1) });
 // enhancing a set piece: +10% of its strength per step up to +10, paid in enhancement stones; from +3 on a failure destroys the piece
 const hsetStat = (u, sl) => { const q = itemStat({ slot: sl, r: 4, lv: u.lv, en: ENH_MAX, hx: 1 }), k = 1 + 0.1 * hsetEn(u, sl); for (const a in q) q[a] *= k; return q; }, hsetText = (u, sl) => { const q = hsetStat(u, sl); return Object.entries(q).map(([k, v]) => `${{ atk: '공격', hp: '체력', def: '방어' }[k]} +${Math.round(v * 100)}%`).join(' · '); };
 const hsetName = (u, sl) => `${HSET[u.name].n}의 ${sl === 'weapon' ? HSET_WORD[u.type] || '무기' : HSET_SLOT[sl]}`;
@@ -1284,7 +1284,7 @@ function onKill(u, t) {
     if (B.opt.kind !== 'escort') for (const [g, k] of Object.entries(ZONES[B.opt.zone].loot)) { const x = k * (t.size / 20) * rand(0.6, 1.3) * (1 + 0.15 * sk('loot')) * 0.18 * (t.boss ? 5 : 1), n = Math.floor(x) + (Math.random() < x % 1 ? 1 : 0); if (n) B.loot[g] = (B.loot[g] || 0) + n; }
     if (B.opt.kind !== 'escort') for (const [g, lv, ch] of JUNK) if (t.lv >= lv && Math.random() < ch * (t.boss ? 6 : 1) * (1 + 0.15 * sk('loot'))) B.loot[g] = (B.loot[g] || 0) + 1;
     if (B.opt.kind !== 'escort' && t.lv >= 50 && Math.random() < (t.boss ? 0.08 : t.lv >= 70 ? 0.0005 : 0)) B.loot.relic = (B.loot.relic || 0) + 1;   // the heart of a hero's set: bosses of the deep lands, almost never anything else
-    if (B.opt.kind !== 'escort' && t.lv >= 40 && Math.random() < (t.boss ? 0.3 : 0.003)) B.loot.estone = (B.loot.estone || 0) + 1;   // enhancement stones for hero sets
+    if (B.opt.kind !== 'escort' && t.lv >= 40 && Math.random() < (t.boss ? 0.1 : 0.0008)) B.loot.estone = (B.loot.estone || 0) + 1;   // enhancement stones for hero sets
     B.money = (B.money || 0) + Math.round((t.size * 1.2 + t.lv * 2.2) * (t.boss ? 8 : 1) * rand(0.8, 1.2) * (1 + 0.1 * sk('loot')));
     { const TL = TYPE_LOOT[MODEL_FILES[t.type]] || {}, own = t.type === 'compy' ? { meat: 1 } : t.type === 'dilo' ? { venom: 1, meat: 1 } : TL; for (const [g] of Object.entries(own)) if (Math.random() < 0.22) B.loot[g] = (B.loot[g] || 0) + 1; }
     if (t.type === 'dilo' || t.type === 'sarco') B.loot.venom = (B.loot.venom || 0) + (t.type === 'dilo' ? 1 : 0);
@@ -3810,7 +3810,7 @@ requestAnimationFrame(frame);
 <button id="upd" hidden>새 패치가 있어요 · 눌러서 적용</button>
 <script>
 (function () {
-  var VER = "20261127-004156";
+  var VER = "20261127-004337";
   if (!/^https?:$/.test(location.protocol)) return;
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
   var btn = document.getElementById('upd');
