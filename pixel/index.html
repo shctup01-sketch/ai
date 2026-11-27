@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}
 #upd{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:999;padding:11px 18px;border-radius:14px;border:2px solid #f3c79a;background:#d4763c;color:#1c120a;font:700 14px system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.5)}</style>
-<script>window.__VER="20261127-023449"</script>
+<script>window.__VER="20261127-023829"</script>
 </head>
 <body>
 <title>공룡 상단 픽셀</title>
@@ -253,7 +253,8 @@ h2 { margin-top: 2px; } h2 small { display: block; margin: 3px 0 0; line-height:
 #tmenu button.dot::after { content: ''; position: absolute; right: 1px; top: 1px; width: 9px; height: 9px; border-radius: 50%; background: #e2573f; border: 1px solid #1c120a; }
 #tmenu [data-m=crew]::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ece3d4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='8' cy='8' r='3'/%3E%3Ccircle cx='17' cy='9' r='2.5'/%3E%3Cpath d='M2 20c0-4 3-6 6-6s6 2 6 6M14 20c0-3 1.5-5 4-5s4 2 4 5'/%3E%3C/svg%3E"); } #tmenu [data-m=bag]::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ece3d4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 8h14l1 12H4zM9 8V6a3 3 0 0 1 6 0v2M9 13h6'/%3E%3C/svg%3E"); }
 #tmenu [data-m=skill]::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ece3d4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M13 2 4 14h7l-1 8 9-12h-7z'/%3E%3C/svg%3E"); } #tmenu [data-m=map]::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ece3d4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14'/%3E%3C/svg%3E"); }
-#battle.inb #tmenu [data-m=map] { display: none; }
+#battle.inb #tmenu [data-m=map], #battle.inb #tmenu [data-m=arena] { display: none; }
+#tmenu [data-m=arena] { border-color: #e3a843; color: #ffe9a0; } #tmenu [data-m=arena]::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffd24a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cellipse cx='12' cy='8' rx='9' ry='4'/%3E%3Cpath d='M3 8v8c0 2.2 4 4 9 4s9-1.8 9-4V8'/%3E%3Cpath d='M8 12v6M12 12.500v7M16 12v6'/%3E%3C/svg%3E"); }
 #runner { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 10.5px; line-height: 1.35; padding: 4px 8px; border-radius: 9px; background: rgba(14,26,34,.86); border: 1px solid #58c8ff; color: #dff4ff; max-width: 100%; pointer-events: none; } #runner b { color: #8fe4ff; }
 #tmenu [data-m=cash] { border-color: #58c8ff; color: #dff4ff; } #tmenu [data-m=cash]::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238fe4ff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 4h12l4 6-10 11L2 10zM2 10h20M9 4l-2 6 5 11 5-11-2-6'/%3E%3C/svg%3E"); }
 .gem { color: #8fe4ff; font-weight: 700; } .cashcard { border-color: #58c8ff !important; }
@@ -478,7 +479,7 @@ canvas.bigart { width: min(100%, 300px); height: auto; aspect-ratio: 5 / 4; alig
   </div>
   <div id="battle" hidden>
     <div class="bhead"><b id="bTitle"></b><small id="bInfo"></small></div>
-    <div class="bfield"><canvas id="b3d"></canvas><canvas id="bcv"></canvas><div id="bTip">적을 눌러 집중 공격 · 대원을 끌어 자리 배치</div><div id="hudL"><div class="lfrow"><button id="lf" data-act="unit"><canvas width="96" height="84"></canvas><span class="lfb"><b id="lfName"></b><i class="hp"><u id="lfHp"></u><em id="lfHpT"></em></i><i class="xp"><u id="lfXp"></u></i></span></button><button id="stripT" aria-label="대원 보기"></button></div><div id="pstrip"></div><button id="goal" hidden></button><div id="runner" hidden></div><div id="feed"></div></div><div id="bossIn" hidden></div><button id="tmT" aria-label="메뉴">메뉴</button><div id="tmenu"><button data-m="crew">대원</button><button data-m="bag">가방</button><button data-m="skill">스킬</button><button data-m="map">지도</button><button data-m="cash">상점</button></div><div id="cxp"><u></u></div><div id="joy"><i></i></div><div id="skbar" hidden></div><div id="bSel" hidden><span id="bSelName"></span><span class="bar"><i id="bSelHp"></i></span></div></div>
+    <div class="bfield"><canvas id="b3d"></canvas><canvas id="bcv"></canvas><div id="bTip">적을 눌러 집중 공격 · 대원을 끌어 자리 배치</div><div id="hudL"><div class="lfrow"><button id="lf" data-act="unit"><canvas width="96" height="84"></canvas><span class="lfb"><b id="lfName"></b><i class="hp"><u id="lfHp"></u><em id="lfHpT"></em></i><i class="xp"><u id="lfXp"></u></i></span></button><button id="stripT" aria-label="대원 보기"></button></div><div id="pstrip"></div><button id="goal" hidden></button><div id="runner" hidden></div><div id="feed"></div></div><div id="bossIn" hidden></div><button id="tmT" aria-label="메뉴">메뉴</button><div id="tmenu"><button data-m="crew">대원</button><button data-m="bag">가방</button><button data-m="skill">스킬</button><button data-m="map">지도</button><button data-m="cash">상점</button><button data-m="arena">투기장</button></div><div id="cxp"><u></u></div><div id="joy"><i></i></div><div id="skbar" hidden></div><div id="bSel" hidden><span id="bSelName"></span><span class="bar"><i id="bSelHp"></i></span></div></div>
     <div class="bfoot" id="ffoot" hidden><button class="btn" id="fLeave">상단</button><button class="btn" id="fZoom">지도</button><button class="btn" id="fPot">물약</button><button class="btn" id="autoBtn">자동</button><button class="btn primary" id="fNearest">사냥</button></div>
     <div class="bfoot" id="bfoot"><button class="btn" id="bRetreat">후퇴</button><button class="btn primary" id="bCapture">포획</button><button class="btn" id="bPot">회복약</button><button class="btn" id="bZoom" hidden>크게</button><button class="btn" id="bSpeed">×1</button></div>
   </div>
@@ -2665,7 +2666,7 @@ function worldTap(px, py) {
   let best = null, bd = 34 * 34;
   for (const p of W.packs) { if (p.dead > 0 || d2(p.cx, p.cy, x, y) > 260 * 260) continue; for (const m of p.mons) { const d = d2(x, y, m.x, m.y - m.len * 0.2); if (d < Math.max(bd, (m.len * 0.5) ** 2) && (!best || d < bd)) { bd = d; best = p; } } }
   W.dest = null;
-  { const tz = nearTown(x, y, TOWN_R + 40); if (tz) for (const [k, n, dx, dy] of TD[tz].spots) { const T = TOWNS[tz]; if (d2(x, y, T.x + dx, T.y + dy - 14) < 30 * 30) { if (inTown() === tz && d2(L.x, L.y, T.x + dx, T.y + dy) < 110 * 110) openTown(k); else { walkTo(T.x + dx, T.y + dy + 28, `${ZONES[tz].n} ${n}`); W.dest.open = k; } return; } } }
+  { const tz = nearTown(x, y, TOWN_R + 40); if (tz) for (const [k, n, dx, dy] of TD[tz].spots) { const T = TOWNS[tz]; if (d2(x, y, T.x + dx, T.y + dy - (k === 'arena' ? 34 : 14)) < (k === 'arena' ? 62 * 62 : 30 * 30)) { if (inTown() === tz && d2(L.x, L.y, T.x + dx, T.y + dy) < 110 * 110) openTown(k); else { walkTo(T.x + dx, T.y + dy + (k === 'arena' ? 74 : 28), `${ZONES[tz].n} ${n}`); W.dest.open = k; } return; } } }
   for (let i = 0; i < W.npcs.length; i++) { const m = W.npcs[i].mem[0]; if (d2(x, y, m.x, m.y - 10) < 26 * 26) { if (d2(L.x, L.y, m.x, m.y) > 170 * 170) { toast(`${W.npcs[i].name}: 가까이 오면 거래할 수 있어요`); L.tx = m.x; L.ty = m.y + 30; W.target = null; } else npcModal(i); return; } }
   if (best) { W.target = best; sfx('tap'); return; }
   if (S.auto.hunt) { S.auto.hunt = false; updAuto(); toast('자동 사냥을 껐어요'); }
@@ -2815,7 +2816,7 @@ function updStrip() {   // the party at a glance: a face, a level and a health b
   P.forEach((u, q) => { const c = el.children[q]; if (!c) return; const bu = B && B.units.find(x => x.ref === u), f = bu ? Math.max(0, bu.hp / bu.max) : u.ko ? 0 : u.hp / maxHp(u), ko = bu ? bu.hp <= 0 : u.ko; c.querySelector('b').style.width = (f * 100) + '%'; c.classList.toggle('ko', ko); c.classList.toggle('low', !ko && f < 0.35); c.querySelector('em').textContent = u.lv; });
 }
 // A short chain of goals that shows a new player what to do next. Each pays out once.
-const goSpot = k => { const z = nearestTown().z, T = TOWNS[z], sp = TD[z].spots.find(q => q[0] === k); walkTo(T.x + sp[2], T.y + sp[3] + 28, `${ZONES[z].n} ${sp[1]}`); W.dest.open = k; showWorld(); };
+const goSpot = k => { const z = nearestTown().z, T = TOWNS[z], sp = TD[z].spots.find(q => q[0] === k); walkTo(T.x + sp[2], T.y + sp[3] + (k === 'arena' ? 74 : 28), `${ZONES[z].n} ${sp[1]}`); W.dest.open = k; showWorld(); };
 const goGround = (z, q) => { walkTo(GROUNDS[z][q][0], GROUNDS[z][q][1], HUNT_NAMES[z][q]); showWorld(); };
 const GOALS = [
   { t: '작은 공룡 3마리 사냥하기', p: () => S.stats.kills || 0, n: 3, r: 100, go: () => goGround('plain', 0) },
@@ -2841,7 +2842,7 @@ $('goal').onclick = () => { const g = GOALS[S.goal || 0]; if (g && g.go && !B) {
 $('menuClose').onclick = () => { sfx('tap'); showWorld(); };
 $('tmT').onclick = () => { sfx('tap'); $('tmenu').classList.toggle('open'); };
 $('stripT').onclick = () => { sfx('tap'); S.hudStrip = !S.hudStrip; $('hudL').classList.toggle('showStrip', !!S.hudStrip); };
-$('tmenu').onclick = e => { const b = e.target.closest('button'); if (!b || (B && b.dataset.m === 'map')) return; $('tmenu').classList.remove('open'); sfx('open'); if (b.dataset.m === 'map') hideWorld('map'); else { partySec = b.dataset.m; hideWorld('party'); } };
+$('tmenu').onclick = e => { const b = e.target.closest('button'); if (!b || (B && b.dataset.m === 'map')) return; $('tmenu').classList.remove('open'); sfx('open'); if (b.dataset.m === 'arena') { if (B) return; goSpot('arena'); } else if (b.dataset.m === 'map') hideWorld('map'); else { partySec = b.dataset.m; hideWorld('party'); } };
 function cookMeal() {   // a cook in the party keeps everyone fed from the cargo, and gets more out of each ingredient
   const c = cookOf(); if (!c || !W || S.food > 70 || W.t < (W.cookT || 0)) return;
   const g = ['meat', 'grain'].find(g => S.cargo[g] > 0); if (!g) return;
@@ -3126,7 +3127,8 @@ function drawMini(c, cw) {   // round minimap, centred on you: the land by colou
   for (const z of ZKEYS) { if (Math.abs(TOWNS[z].x - L0.x) > 5200 && !GROUNDS[z].some(g => near(g[0]))) continue;
     GROUNDS[z].forEach(([gx, gy], i) => { const px = X(gx), py = Y(gy), boss = i === 4, r = boss ? 4.5 : 3; c.beginPath(); c.moveTo(px, py - r); c.lineTo(px + r, py); c.lineTo(px, py + r); c.lineTo(px - r, py); c.closePath(); c.fillStyle = boss ? '#e0432c' : '#f4ead2'; c.fill(); c.lineWidth = 1; c.strokeStyle = '#1c120a'; c.stroke(); if (boss) { c.fillStyle = '#fff'; c.fillRect(px - 1.5, py - 1.5, 1.2, 1.2); c.fillRect(px + 0.4, py - 1.5, 1.2, 1.2); } });
     const [tx, ty] = edge(X(TOWNS[z].x), Y(TOWNS[z].y)); c.fillStyle = '#1c120a'; c.fillRect(tx - 5, ty - 2, 10, 7); c.beginPath(); c.moveTo(tx - 6.5, ty - 1.5); c.lineTo(tx, ty - 8); c.lineTo(tx + 6.5, ty - 1.5); c.closePath(); c.fill();
-    c.fillStyle = '#f0c060'; c.fillRect(tx - 4, ty - 1, 8, 5); c.fillStyle = '#c8402c'; c.beginPath(); c.moveTo(tx - 5, ty - 1.5); c.lineTo(tx, ty - 6.5); c.lineTo(tx + 5, ty - 1.5); c.closePath(); c.fill(); c.fillStyle = '#4a2e18'; c.fillRect(tx - 1, ty + 1, 2, 3); }
+    c.fillStyle = '#f0c060'; c.fillRect(tx - 4, ty - 1, 8, 5); c.fillStyle = '#c8402c'; c.beginPath(); c.moveTo(tx - 5, ty - 1.5); c.lineTo(tx, ty - 6.5); c.lineTo(tx + 5, ty - 1.5); c.closePath(); c.fill(); c.fillStyle = '#4a2e18'; c.fillRect(tx - 1, ty + 1, 2, 3);
+    { const sp = TD[z].spots.find(q => q[0] === 'arena'); if (sp) { const ax = X(TOWNS[z].x + sp[2]), ay = Y(TOWNS[z].y + sp[3]); if (Math.hypot(ax - mx, ay - my) < R - 5) { c.fillStyle = '#1c120a'; c.beginPath(); c.ellipse(ax, ay, 5.5, 4, 0, 0, 7); c.fill(); c.fillStyle = '#e3a843'; c.beginPath(); c.ellipse(ax, ay, 4.3, 3, 0, 0, 7); c.fill(); c.fillStyle = '#f4dfa0'; c.beginPath(); c.ellipse(ax, ay, 2.2, 1.4, 0, 0, 7); c.fill(); } } } }   // the colosseum shows as a gold ring
   if (S.auto.hunt && W.autoOrg) { c.strokeStyle = 'rgba(143,207,106,.9)'; c.lineWidth = 1.2; c.setLineDash([3, 3]); c.beginPath(); c.arc(X(W.autoOrg.x), Y(W.autoOrg.y), autoR() * k, 0, 7); c.stroke(); c.setLineDash([]); }
   if (W.dest) { const [dx, dy] = edge(X(W.dest.x), Y(W.dest.y)); c.strokeStyle = '#1c120a'; c.lineWidth = 3; c.beginPath(); c.moveTo(dx, dy + 4); c.lineTo(dx, dy - 6); c.stroke(); c.fillStyle = '#7fe05a'; c.beginPath(); c.moveTo(dx, dy - 6); c.lineTo(dx + 7, dy - 3.5); c.lineTo(dx, dy - 1); c.closePath(); c.fill(); c.strokeStyle = '#1c120a'; c.lineWidth = 1; c.stroke(); }
   { const px = mx, py = my, a = W.lead.a || 0, pu = (T * 1.2) % 1; c.strokeStyle = `rgba(255,255,255,${0.7 * (1 - pu)})`; c.lineWidth = 1.5; c.beginPath(); c.arc(px, py, 4 + pu * 9, 0, 7); c.stroke();
@@ -3972,7 +3974,7 @@ requestAnimationFrame(frame);
 <button id="upd" hidden>새 패치가 있어요 · 눌러서 적용</button>
 <script>
 (function () {
-  var VER = "20261127-023449";
+  var VER = "20261127-023829";
   if (!/^https?:$/.test(location.protocol)) return;
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
   var btn = document.getElementById('upd');
