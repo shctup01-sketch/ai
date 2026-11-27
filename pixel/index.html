@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}
 #upd{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:999;padding:11px 18px;border-radius:14px;border:2px solid #f3c79a;background:#d4763c;color:#1c120a;font:700 14px system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.5)}</style>
-<script>window.__VER="20261127-022007"</script>
+<script>window.__VER="20261127-022526"</script>
 </head>
 <body>
 <title>공룡 상단 픽셀</title>
@@ -442,6 +442,10 @@ canvas.bigart { width: min(100%, 300px); height: auto; aspect-ratio: 5 / 4; alig
 .slot i { position: absolute; left: 2px; top: 1px; font: 700 8.5px var(--f-body); font-style: normal; color: #ffe9a0; text-shadow: 0 0 2px #000, 0 1px 0 #000; }
 .invmiscs { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 5px; } .invmisc { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px 2px 2px; border-radius: 14px; background: rgba(0,0,0,.3); border: 1px solid var(--line); font-size: 11.5px; } .invmisc .ic { width: 22px; height: 22px; border-radius: 50%; } .invmisc b { font-weight: 400; color: var(--muted); }
 @media (orientation: landscape) { .invgrid { grid-template-columns: repeat(7, 1fr); } }
+
+/* in the colosseum the scoreboard carries the names; watching from the stands hides everything that is about your own caravan */
+#battle.arena .bhead, #battle.arena #bTip { display: none !important; } #battle.arena #hudL { top: 58px; }
+#battle.watch #hudL, #battle.watch #bPot, #battle.watch #skbar, #battle.watch #tmT, #battle.watch #tmenu { display: none !important; }
 </style>
 
 <div id="boot">
@@ -1116,6 +1120,7 @@ function startBattle(opt) {
   // the fight starts right where everyone is standing: your caravan in its marching line, the herd where it was grazing
   if (!worldOn) showWorld(); syncCrew(); const crew = opt.watch ? [] : opt.pvp ? W.crew.slice(0, 5) : W.crew, ours = opt.watch || crew.map(c => c.u);
   if (opt.pvp) B.arena = { x: W.lead.x, y: W.lead.y - 85, cheer: 0 };   // duels are fought on the sand of the colosseum, with the stands all round
+  $('battle').classList.toggle('arena', !!opt.pvp); $('battle').classList.toggle('watch', !!opt.watch); $('bRetreat').textContent = opt.watch ? '나가기' : '후퇴';
   if (opt.watch) opt.watch.forEach((r, i) => { const u = spawn(0, r.type, r.lv, W.lead.x + (i - 2) * 30, W.lead.y, r); u.a = -Math.PI / 2; u.hp = u.max; });   // a duel is five against five: the first five in marching order
   if (opt.pvp) crew.forEach((c, i) => { c.x = W.lead.x + (i - (crew.length - 1) / 2) * 30; c.y = W.lead.y; c.u.hp = maxHp(c.u); });
   for (const c of crew) { const u = spawn(0, c.u.type, c.u.lv, c.x, c.y, c.u); u.a = c.a; if (opt.pvp) u.hp = u.max; }
@@ -1341,7 +1346,7 @@ function tryCapture() {
 }
 function endBattle(win) {
   if (B.over) return;
-  if (B.opt.pvp) { const opt0 = B.opt; B.over = true; B.opt.won = win; B.opt.pvpEnd = { t: B.t, mine: alive(0).filter(u => u.ref).length, theirs: alive(1).length }; for (const bu of B.units) if (bu.ref && bu.side === 0 && !B.opt.watch) { bu.ref.hp = maxHp(bu.ref); bu.ref.ko = false; } sfx(win ? 'win' : 'lose'); if (B.arena) B.arena.cheer = 4; if (opt0.tour) setTimeout(() => tourResult(win), 700); else if (opt0.watch) setTimeout(() => { if (B) showModal(`<h3>경기 종료</h3><div class="sub">${$('bTitle').textContent}</div><div class="card"><div class="row"><div class="info"><small style="color:var(--text)">${opt0.names[win ? 0 : 1]}의 승리 · 경기 시간 ${Math.round(B.t)}초</small></div></div></div><div class="mbtns"><button class="btn primary" data-act="closeBattle">나가기</button></div>`); }, 900); return; } B.over = true; S.stats.battles++; S.food = Math.max(0, S.food - 1.5); B.opt.won = win; B.opt.endPos = B.units.filter(u => u.ref && u.hp > 0).map(u => [u.ref.id, { x: u.x, y: u.y, a: u.a }]);
+  if (B.opt.pvp) { const opt0 = B.opt; B.over = true; B.opt.won = win; B.opt.pvpEnd = { t: B.t, mine: alive(0).filter(u => u.ref).length, theirs: alive(1).length }; for (const bu of B.units) if (bu.ref && bu.side === 0 && !B.opt.watch) { bu.ref.hp = maxHp(bu.ref); bu.ref.ko = false; } sfx(win ? 'win' : 'lose'); if (B.arena) { B.arena.cheer = 5; B.arena.conf = 6; } if (opt0.tour) setTimeout(() => tourResult(win), 700); else if (opt0.watch) setTimeout(() => { if (B) showModal(`<h3>경기 종료</h3><div class="sub">${$('bTitle').textContent}</div><div class="card"><div class="row"><div class="info"><small style="color:var(--text)">${opt0.names[win ? 0 : 1]}의 승리 · 경기 시간 ${Math.round(B.t)}초</small></div></div></div><div class="mbtns"><button class="btn primary" data-act="closeBattle">나가기</button></div>`); }, 900); return; } B.over = true; S.stats.battles++; S.food = Math.max(0, S.food - 1.5); B.opt.won = win; B.opt.endPos = B.units.filter(u => u.ref && u.hp > 0).map(u => [u.ref.id, { x: u.x, y: u.y, a: u.a }]);
   const opt = B.opt;
   for (const bu of B.units) if (bu.ref) { bu.ref.hp = Math.max(0, Math.round(bu.hp)); bu.ref.ko = bu.hp <= 0; }
   const lines = []; let lvUp = false, gotItem = false;
@@ -1389,7 +1394,7 @@ function endBattle(win) {
 function loseCargo(frac) { let lost = 0; for (const g of Object.keys(S.cargo)) { const k = Math.floor(S.cargo[g] * frac); S.cargo[g] -= k; lost += k; if (!S.cargo[g]) delete S.cargo[g]; } return lost; }
 function closeBattle() {
   if (!B) return;
-  const opt = B.opt; B = null; SND.mood = 'town'; SND.step = 0; closeModal();
+  const opt = B.opt; B = null; SND.mood = 'town'; SND.step = 0; closeModal(); $('battle').classList.remove('arena', 'watch'); $('bRetreat').textContent = '후퇴';
   afterBattle(opt);
 }
 function updCapture() { $('bCapture').textContent = `포획 ${S.darts}`; }
@@ -2449,10 +2454,24 @@ const PDEF = {   // key: [maker, collision radius, fallback colour]
     b_hire: [() => { const c = new THREE.Mesh(new THREE.ConeGeometry(26, 26, 8), lam(0x8a2e24)); c.position.y = 27; const g = grp(cyl(25, 25, 14, 8, 0xc8b890, 0, 7, 0), c, boxM(9, 12, 1.6, 0x2a1c14, 0, 6, 24.4), boxM(1.6, 40, 1.6, 0x4a3a2a, -30, 20, 6), boxM(11, 8, 0.8, 0xe3a843, -24, 35, 6), boxM(1.6, 40, 1.6, 0x4a3a2a, 30, 20, 6), boxM(11, 8, 0.8, 0xe3a843, 36, 35, 6), boxM(16, 1.4, 1.4, 0x4a3422, 30, 9, 18), boxM(1.4, 10, 1.4, 0x4a3422, 23, 5, 18), boxM(1.4, 10, 1.4, 0x4a3422, 37, 5, 18)); for (const x of [25, 30, 35]) g.add(rot(boxM(0.9, 15, 0.9, 0xc8c8c0, x, 9, 19), 0.25, 0, 0)); return g; }, 24, '#8a2e24'],
     b_board: [() => { const g = grp(boxM(2, 24, 2, 0x4a3422, -12, 12, 0), boxM(2, 24, 2, 0x4a3422, 12, 12, 0), boxM(28, 15, 1.4, 0x7a5a34, 0, 14, 0), boxM(31, 2, 6, 0x3a2a1c, 0, 23.5, 0)); [[-8, 17, 0xf0e8d0], [0, 13, 0xe8d8a0], [7, 17, 0xf0e8d0], [-5, 10, 0xd8c890], [9, 11, 0xf0e8d0]].forEach(([x, y, c]) => g.add(boxM(5, 5, 0.6, c, x, y, 1))); g.add(boxM(1.4, 1.4, 0.8, 0xc0302a, 7, 19, 1.4)); return g; }, 8, '#7a5a34'],
     b_cart: [() => { const g = grp(boxM(34, 3, 17, 0x6a4a2a, 0, 8, 0), boxM(34, 6, 1.6, 0x5a3e24, 0, 12, 8), boxM(34, 6, 1.6, 0x5a3e24, 0, 12, -8), boxM(1.6, 18, 1.6, 0x4a3422, -15, 18, -7), boxM(1.6, 18, 1.6, 0x4a3422, 15, 18, -7), boxM(1.6, 14, 1.6, 0x4a3422, -15, 16, 7), boxM(1.6, 14, 1.6, 0x4a3422, 15, 16, 7), rot(boxM(38, 1.6, 20, 0x2e7a86, 0, 25.5, 0), 0.2, 0, 0), boxM(14, 1.6, 1.6, 0x4a3422, 23, 7, 0)); for (const [x, z] of [[-11, 9.6], [11, 9.6], [-11, -9.6], [11, -9.6]]) g.add(rot(cyl(5.5, 5.5, 1.6, 8, 0x3a2a1c, x, 5.5, z), Math.PI / 2, 0, 0)); [[0x6ab04a, -10], [0xd04a3a, -3], [0xe8d8a0, 4], [0x3a6ab0, 11]].forEach(([c, x]) => g.add(boxM(5, 5, 5, c, x, 12, 1))); return g; }, 14, '#2e7a86'],
-    b_arena: [() => { const g = grp(cyl(50, 52, 6, 20, 0x8f866f, 0, 3, 0), cyl(48, 49, 30, 20, 0xcbbf9f, 0, 21, 0), cyl(50, 48, 4, 20, 0xb0a583, 0, 38, 0), cyl(39, 39, 1.2, 20, 0xd9bf82, 0, 40.2, 0), cyl(41, 41, 1, 20, 0x6a5f4a, 0, 39.8, 0));
-      for (let k = 0; k < 20; k++) { const a = k / 20 * 6.283, c = Math.cos(a), sn = Math.sin(a); const ar = boxM(6.5, 13, 2, 0x2e261c, c * 48.6, 14, sn * 48.6); ar.rotation.y = -a + 1.571; g.add(ar); const ar2 = boxM(5, 8, 2, 0x3a3024, c * 48.4, 30, sn * 48.4); ar2.rotation.y = -a + 1.571; g.add(ar2); g.add(boxM(3.4, 5, 3.4, 0xb8ad8c, c * 48, 42.5, sn * 48)); }
-      for (let k = 0; k < 4; k++) { const a = k / 4 * 6.283 + 0.785; g.add(boxM(1.4, 20, 1.4, 0x4a3a2a, Math.cos(a) * 47, 50, Math.sin(a) * 47), boxM(1, 7, 9, k % 2 ? 0xc0382a : 0xe3a843, Math.cos(a) * 47, 56, Math.sin(a) * 47 + 5)); }
-      g.add(boxM(16, 20, 4, 0x1c1610, 0, 10, 50), boxM(20, 3, 6, 0xe3a843, 0, 22, 51)); return g; }, 46, '#cbbf9f'],
+    b_arena: [() => { const g = new THREE.Group(), N = 28, R = 56, seg = 2 * Math.PI * R / N + 0.6, ring = (r0, r1, y, col) => { const m = new THREE.Mesh(new THREE.RingGeometry(r0, r1, N), lam(col, { side: THREE.DoubleSide })); m.rotation.x = -Math.PI / 2; m.position.y = y; return m; };
+      const at = (m, a, r, y) => { m.position.set(Math.cos(a) * r, y, Math.sin(a) * r); m.rotation.y = -a + Math.PI / 2; g.add(m); return m; };
+      g.add(cyl(R + 3, R + 5, 4, N, 0x7d745e, 0, 2, 0));                                                           // plinth
+      for (let k = 0; k < N; k++) { const a = (k + 0.5) / N * 6.2832, broke = [17, 18, 19, 20].indexOf(k), H = broke < 0 ? 46 : [34, 20, 14, 30][broke], tone = k % 2 ? 0xcbbf9f : 0xc2b594;
+        at(boxM(seg, H, 7, tone), a, R, 4 + H / 2);                                                                // the wall, one bay at a time (four bays have fallen in)
+        at(boxM(2.2, H, 8.4, 0xddd2b4), a - 3.1416 / N, R + 0.4, 4 + H / 2);                                       // pilaster between bays
+        if (H > 16) { at(boxM(seg * 0.56, 12, 7.6, 0x241c14), a, R + 0.3, 11); at(boxM(seg * 0.56, 2, 8, 0xb0a583), a, R + 0.4, 17.6); }   // ground arcade
+        if (H > 30) { at(boxM(seg * 0.5, 10, 7.6, 0x2c2218), a, R + 0.3, 27); at(boxM(seg * 0.5, 2, 8, 0xb0a583), a, R + 0.4, 32.6); }       // second arcade
+        if (H > 42) { at(boxM(seg * 0.28, 5, 7.6, 0x3a2e22), a, R + 0.3, 42); at(boxM(seg + 0.4, 2.4, 9, 0xe0d6ba), a, R + 0.2, 51); }      // attic windows and cornice
+        else at(boxM(seg * 0.7, 3, 6, 0x9a8f76), a + 0.05, R - 0.5, 5 + H);                                        // rubble on the broken top
+        if (H > 20) at(boxM(seg + 0.4, 1.6, 8.6, 0xa89c7e), a, R + 0.3, 22.4); }
+      [[R - 4, R - 10, 45, 0xbdb296], [R - 10, R - 16, 38, 0x8f8570], [R - 16, R - 22, 31, 0xbdb296], [R - 22, R - 28, 24, 0x8f8570]].forEach(([o, n, y, c]) => { g.add(ring(n, o, y, c)); const rs = new THREE.Mesh(new THREE.CylinderGeometry(n, n, 7, N, 1, true), lam(0x5e5546, { side: THREE.DoubleSide })); rs.position.y = y - 3.5; g.add(rs); });   // the risers are open tubes, so the bowl stays hollow   // four tiers of seats stepping down to the sand
+      g.add(cyl(R - 28, R - 28, 1, N, 0xdcc284, 0, 17, 0), cyl(R - 34, R - 34, 0.6, N, 0xead49a, 0, 17.6, 0), cyl(7, 7, 0.5, 12, 0xb89a5c, 0, 18, 0));     // the sand
+      for (let k = 0; k < N; k += 2) { const a = k / N * 6.2832, c2 = [0xc0382a, 0x3a6ab0, 0xe3a843, 0x5a9a4a][k / 2 % 4]; for (const [rr, y] of [[R - 7, 46.5], [R - 13, 39.5], [R - 19, 32.5], [R - 25, 25.5]]) { at(boxM(2.4, 2.6, 2, c2), a + 0.07, rr, y); at(boxM(2.4, 2.6, 2, [0xd8cdb9, 0x8a5ab0, 0xb0603a][k % 3]), a + 0.19, rr, y); } }   // a few spectators in the seats
+      g.add(boxM(24, 34, 12, 0xd6caa8, 0, 21, R + 5), boxM(13, 22, 13, 0x15100b, 0, 15, R + 5.4), boxM(28, 4, 14, 0xe0d6ba, 0, 40, R + 5), boxM(10, 5, 1.4, 0xe3a843, 0, 33, R + 11.2));   // the gatehouse
+      for (const sx of [-1, 1]) { g.add(boxM(4, 38, 4, 0xe0d6ba, sx * 12, 23, R + 10), boxM(1.6, 16, 1.6, 0x4a3a2a, sx * 16, 50, R + 4), boxM(1, 9, 8, sx > 0 ? 0xc0382a : 0x3a6ab0, sx * 16, 52, R + 9)); const fl = new THREE.Mesh(new THREE.BoxGeometry(2.4, 3, 2.4), new THREE.MeshBasicMaterial({ color: srgb(0xffb040) })); fl.position.set(sx * 19, 15, R + 12); g.add(fl, boxM(1.4, 12, 1.4, 0x3a2a1c, sx * 19, 7, R + 12)); }
+      for (let k = 0; k < 5; k++) { const a = k / 5 * 6.2832 + 0.4; if (Math.sin(a) > 0.8) continue; g.add(boxM(1.4, 18, 1.4, 0x4a3a2a, Math.cos(a) * R, 60, Math.sin(a) * R), boxM(1, 8, 9, k % 2 ? 0xc0382a : 0xe3a843, Math.cos(a) * R, 64, Math.sin(a) * R + 5)); }
+      return g; }, 54, '#cbbf9f'],
     b_trial: [() => { const g = grp(cyl(13, 16, 70, 8, 0x6e6a72, 0, 35, 0), cyl(16, 13, 6, 8, 0x58545c, 0, 73, 0), boxM(8, 13, 1.6, 0x1c1620, 0, 6.5, 15.4), boxM(4, 6, 1.4, 0x9a6ae0, 0, 34, 14.2), boxM(4, 6, 1.4, 0x9a6ae0, 0, 54, 13.6), cyl(18, 19, 3, 8, 0x55515a, 0, 1.5, 0)); for (let k = 0; k < 8; k++) { const a = k / 8 * 6.283; g.add(boxM(5, 6, 5, 0x58545c, Math.cos(a) * 14, 79, Math.sin(a) * 14)); } const orb = new THREE.Mesh(new THREE.IcosahedronGeometry(6, 1), new THREE.MeshBasicMaterial({ color: srgb(0xb48cff) })); orb.position.y = 88; g.add(orb); return g; }, 17, '#6e6a72'],
     well: [() => grp(cyl(9, 9, 7, 8, 0x8a8a84, 0, 3.5, 0), cyl(7, 7, 1, 8, 0x24444e, 0, 6.6, 0), boxM(1.6, 18, 1.6, 0x4a3422, -8, 9, 0), boxM(1.6, 18, 1.6, 0x4a3422, 8, 9, 0), roof(18, 12, 6, 0x7a4a2a, 17), boxM(3, 4, 3, 0x6a4a2a, 0, 10, 0)), 10, '#8a8a84'],
     barrel: [() => grp(cyl(4.4, 4, 9, 8, 0x7a5a34, 0, 4.5, 0), cyl(4.6, 4.6, 1, 8, 0x3a3a3c, 0, 6.5, 0), cyl(4.4, 4.4, 1, 8, 0x3a3a3c, 0, 2.5, 0)), 4, '#7a5a34'],
@@ -2503,7 +2522,7 @@ const ZPROPS = {
   swamp: 'grassG grassG grassG grassG grassG plant plant plant bushG willow willow willow willowD willowD3 treeS ruinS1 ruinS2 car1 car2 rockM rockM2 stump log lamp lily lily'.split(' '),
 };
 // Every settlement is built from its own recipe: a street plan, a floor, a kind of wall, a centrepiece, its own houses, and the services dealt out to different plots.
-const SPOT = { market: ['시장', 'b_market', 46], shop: ['공방', 'b_forge', 54, 'smoke'], bank: ['전장·창고', 'b_bank', 52], inn: ['여관', 'b_inn', 62, 'smoke'], hire: ['고용소', 'b_hire', 50], quest: ['의뢰', 'b_board', 40], hunt: ['사냥 안내', 'tower', 66], store: ['잡화점', 'b_cart', 40], trial: ['시련의 탑', 'b_trial', 104, 'orb'], arena: ['투기장', 'b_arena', 70] };
+const SPOT = { market: ['시장', 'b_market', 46], shop: ['공방', 'b_forge', 54, 'smoke'], bank: ['전장·창고', 'b_bank', 52], inn: ['여관', 'b_inn', 62, 'smoke'], hire: ['고용소', 'b_hire', 50], quest: ['의뢰', 'b_board', 40], hunt: ['사냥 안내', 'tower', 66], store: ['잡화점', 'b_cart', 40], trial: ['시련의 탑', 'b_trial', 104, 'orb'], arena: ['투기장', 'b_arena', 86] };
 const KEEPER = { market: 'porter', shop: 'mechanic', bank: 'shield', inn: 'medic', hire: 'gladiator', quest: 'hunter', hunt: 'scout', store: 'tamer', trial: 'shaman', arena: 'gladiator' };
 const THEMES = {
   plain: { shape: 'ring', floor: 'cobble', wall: 'wood', center: 'fountain', houses: ['house1', 'house2'], extra: ['tree1', 'birch', 'bench', 'barrel', 'crate', 'wheat', 'bush'] },
@@ -2611,7 +2630,7 @@ function initWorld() {
   // other caravans walking the roads, and people going about their day in each settlement
   NPC_NAMES.forEach((name, i) => { const [a, b] = ROADS[i % 3], t = R(), A = TOWNS[a], Bt = TOWNS[b], types = [pick(['hunter', 'spear', 'sniper', 'medic', 'venomer']), pick(['hunter', 'spear', 'mechanic']), pick(['trike', 'para', 'apato', 'stego'])].slice(i % 2 ? 0 : 1);
     W.npcs.push({ name, a, b, dir: i % 2 ? 1 : -1, t, wait: 0, mem: [{ type: 'leader' }, ...types.map(type => ({ type }))].map((m, k) => ({ ...m, x: A.x + (Bt.x - A.x) * t, y: A.y + (Bt.y - A.y) * t + k * 14, a: 0, moving: false, ph: R() * 9 })) }); });
-  for (const z of ZKEYS) { const T = TOWNS[z]; for (const [k, n, dx, dy] of TD[z].spots) W.folk.push({ z, type: KEEPER[k], x: T.x + dx + (k === 'trial' || k === 'hunt' ? 22 : k === 'arena' ? 30 : 0), y: T.y + dy + (k === 'arena' ? 58 : 30), a: Math.PI / 2, still: true, moving: false, ph: 0, wait: 0 }); TD[z].gates.forEach(([gx, gy], q) => { if (q % 2 === 0) W.folk.push({ z, type: q % 4 ? 'spear' : 'shield', x: T.x + gx * 0.9 + (gx ? 0 : 0), y: T.y + gy * 0.9, a: Math.atan2(gy, gx), still: true, moving: false, ph: 0, wait: 0 }); }); }
+  for (const z of ZKEYS) { const T = TOWNS[z]; for (const [k, n, dx, dy] of TD[z].spots) W.folk.push({ z, type: KEEPER[k], x: T.x + dx + (k === 'trial' || k === 'hunt' ? 22 : k === 'arena' ? 34 : 0), y: T.y + dy + (k === 'arena' ? 76 : 30), a: Math.PI / 2, still: true, moving: false, ph: 0, wait: 0 }); TD[z].gates.forEach(([gx, gy], q) => { if (q % 2 === 0) W.folk.push({ z, type: q % 4 ? 'spear' : 'shield', x: T.x + gx * 0.9 + (gx ? 0 : 0), y: T.y + gy * 0.9, a: Math.atan2(gy, gx), still: true, moving: false, ph: 0, wait: 0 }); }); }
   for (const z of ZKEYS) for (let i = 0; i < 18; i++) { const T = TOWNS[z]; W.folk.push({ z, type: pick(['hunter', 'spear', 'medic', 'mechanic', 'venomer', 'sniper']), x: T.x + rand(-240, 240), y: T.y + rand(-240, 240), a: rand(0, 6.28), tx: T.x, ty: T.y, wait: rand(0, 6), ph: rand(0, 9), moving: false }); }
   syncCrew();
 }
@@ -2865,7 +2884,7 @@ function tourMatch() {
   const T = S.tour; if (!T || B || !W.crew.length) return; if (T.third) { T.br = 34; delete T.third; } const g = T.g, round = T.br ? TOUR_FIN - 1 : T.r, theirs = tourTeam(g, round), L = W.lead, name = pick(TOUR_NAMES);
   const mons = theirs.map((u, i) => ({ f: { type: u.type, lv: u.lv }, x: L.x + (i - 2) * 30, y: L.y - 170, a: Math.PI / 2, len: 30 }));
   showWorld(); L.tx = null; W.target = null; W.dest = null; sfx('horn');
-  startBattle({ kind: 'pvp', zone: S.zone, tier: 0, foes: mons.map(m => m.f), mons, boss: null, packs: [], pvp: theirs, tour: 1, title: `${TOUR[g][0]} 등급 대회 · ${tourStage(T)} · ${name}` });
+  startBattle({ kind: 'pvp', zone: S.zone, tier: 0, foes: mons.map(m => m.f), mons, boss: null, packs: [], pvp: theirs, tour: 1, names: [S.name ? S.name + ' 상단' : '내 상단', name], title: `${TOUR[g][0]} 등급 대회 · ${tourStage(T)} · ${name}` });
 }
 function tourResult(win) {   // seven places are paid: the semi-final losers play for third, the quarter-final losers play on for fifth to eighth
   const T = S.tour; if (!T) { closeBattle(); return; } const g = T.g; let head, body, next = false, prize = 0;
@@ -2922,25 +2941,68 @@ function drawGround(c, ox, oy, w, h) {
   for (let cy = y0; cy <= y1; cy++) for (let cx = x0; cx <= x1; cx++) c.drawImage(chunk(cx, cy), cx * CH - ox, cy * CH - oy);
   if (!SYNC_GEN) for (let cy = y0 - 1; cy <= y1 + 1; cy++) for (let cx = x0 - 1; cx <= x1 + 1; cx++) if ((cx < x0 || cx > x1 || cy < y0 || cy > y1) && cx >= 0 && cy >= 0 && cx * CH < WW && cy * CH < WH) chunk(cx, cy, true);   // paint the tiles just off-screen ahead of time
 }
-const ARENA_RX = 215, ARENA_RY = 150, CROWD_COL = ['#c0382a', '#3a6ab0', '#e3a843', '#5a9a4a', '#8a5ab0', '#d8cdb9', '#b0603a', '#4a8a9a'];
-function drawArena(c, ox, oy, front) {   // the colosseum floor and its stands; the crowd bobs, and jumps when someone falls
-  const A = B.arena, cx = Math.round(A.x - ox), cy = Math.round(A.y - oy), T = performance.now() / 1000, hype = A.cheer > 0 ? 3 : 1;
-  if (!front) {
-    pxEllipse(c, cx, cy, ARENA_RX + 150, ARENA_RY + 125, '#2a2118'); pxEllipse(c, cx, cy, ARENA_RX + 62, ARENA_RY + 52, '#5a5044'); pxEllipse(c, cx, cy, ARENA_RX + 46, ARENA_RY + 39, '#6a5f50'); pxEllipse(c, cx, cy, ARENA_RX + 30, ARENA_RY + 26, '#7a6e5c');
-    pxEllipse(c, cx, cy, ARENA_RX + 12, ARENA_RY + 10, '#a89a7c'); pxEllipse(c, cx, cy, ARENA_RX + 6, ARENA_RY + 5, '#4a3f30'); pxEllipse(c, cx, cy, ARENA_RX, ARENA_RY, '#c9ad76'); pxEllipse(c, cx, cy - 3, ARENA_RX - 14, ARENA_RY - 12, '#d2b780');
-    for (let q = 0; q < 70; q++) { const a = q * 2.399, r = Math.sqrt((q * 37 % 100) / 100); c.fillStyle = q % 3 ? 'rgba(120,95,55,.35)' : 'rgba(255,240,200,.3)'; c.fillRect(cx + Math.round(Math.cos(a) * r * (ARENA_RX - 12)), cy + Math.round(Math.sin(a) * r * (ARENA_RY - 10)), 2, 1); }
-    c.fillStyle = 'rgba(120,95,55,.4)'; c.fillRect(cx - 60, cy, 120, 1);
-  }
-  for (let t = 0; t < 3; t++) { const n = 58 + t * 10; for (let k = 0; k < n; k++) { const a = k / n * 6.2832 + t * 0.05, sn = Math.sin(a); if ((sn > 0.2) !== front) continue;
-      const x = cx + Math.round(Math.cos(a) * (ARENA_RX + 21 + t * 16)), y = cy + Math.round(sn * (ARENA_RY + 18 + t * 13)), hsh = (k * 7 + t * 13) % 8, bob = Math.round(Math.abs(Math.sin(T * (4 + hype) + k * 1.7 + t * 2.1)) * hype);
-      c.fillStyle = CROWD_COL[hsh]; c.fillRect(x - 2, y - 5 - bob, 4, 5); c.fillStyle = hsh % 2 ? '#d9a47c' : '#b9845c'; c.fillRect(x - 1, y - 8 - bob, 3, 3); if (hype > 1 && (k + t) % 3 === 0) { c.fillStyle = CROWD_COL[hsh]; c.fillRect(x - 3, y - 9 - bob, 1, 4); c.fillRect(x + 2, y - 9 - bob, 1, 4); } } }
-  if (front) { c.fillStyle = '#a89a7c'; for (let k = -3; k <= 3; k++) c.fillRect(cx + k * 62 - 1, cy + ARENA_RY + 2, 3, 9); }
+// The inside of the colosseum. The stone bowl is painted once (six tiers stepping up and away, a podium wall with arches, two gates, a
+// canopied box, raked sand with the arena mark); the crowd, the torches and the banners are drawn live so they move.
+const ARENA_RX = 215, ARENA_RY = 150, ARENA_T = [[146, 52], [124, 45], [102, 38], [80, 31], [58, 24], [36, 17]], ARENA_K = 0.84, ARENA_PAD = 190;
+const CROWD_A = ['#c0382a', '#d8604a', '#a02a20', '#e3a843', '#d8cdb9'], CROWD_B = ['#3a6ab0', '#5a8ad0', '#2a4a8a', '#8fd0e0', '#d8cdb9'], CROWD_N = ['#5a9a4a', '#8a5ab0', '#b0603a', '#7a7468', '#d8cdb9', '#4a8a9a'];
+let ARENA_CV = null;
+function arenaLayer() {
+  if (ARENA_CV) return ARENA_CV; const W0 = (ARENA_RX + ARENA_PAD) * 2, H0 = (ARENA_RY + ARENA_PAD) * 2, cv = document.createElement('canvas'); cv.width = W0; cv.height = H0; const c = cv.getContext('2d'), cx = W0 / 2, cy = H0 / 2 + 20, E = (rx, ry, col, dy = 0) => pxEllipse(c, cx, cy + dy, Math.round(rx), Math.round(ry), col);
+  const rx = o => ARENA_RX + o, ry = o => ARENA_RY + o * ARENA_K, R = seeded(4711);
+  E(rx(184), ry(184), '#120d09', -30); E(rx(172), ry(172), '#1c150e', -52);
+  E(rx(166), ry(166), '#6f6654', -46); E(rx(166), ry(166), '#b9ae90', -56); E(rx(160), ry(160), '#d6caa8', -58); E(rx(154), ry(154), '#9a8f76', -58);                 // the outer wall's top
+  for (let k = 0; k < 64; k++) { const a = k / 64 * 6.2832, x = cx + Math.cos(a) * rx(163), y = cy - 58 + Math.sin(a) * ry(163); c.fillStyle = k % 2 ? '#e0d6ba' : '#8f866f'; c.fillRect(Math.round(x) - 3, Math.round(y) - 4, 6, 4); }
+  ARENA_T.forEach(([o, h], i) => { const lite = i % 2 ? '#a89d84' : '#9c917a', nx = ARENA_T[i + 1];
+    E(rx(o), ry(o), '#4a4236', -h + 4); E(rx(o), ry(o), lite, -h); E(rx(o) - 2, ry(o) - 2, i % 2 ? '#b4a98e' : '#a89d84', -h - 1);          // tread, with its dark front edge showing on the near side
+    E(rx(nx ? nx[0] : 14), ry(nx ? nx[0] : 14), '#5e5546', -h); });                                                                           // riser down to the next tier, seen on the far side
+  E(rx(14), ry(14), '#3e3528', -10); E(rx(14), ry(14), '#cbbf9f', -17); E(rx(8), ry(8), '#8a7f68', -17);                                      // the podium: a wall round the sand
+  E(ARENA_RX + 2, ARENA_RY + 2, '#6a5f4c', -6); E(ARENA_RX, ARENA_RY, '#ad9160');                                                           // wall face on the far side, then the sand
+  for (let k = 0; k < 40; k++) { const a = Math.PI + (k + 0.5) / 40 * Math.PI, x = Math.round(cx + Math.cos(a) * (ARENA_RX - 1)), y = Math.round(cy + Math.sin(a) * (ARENA_RY - 1)); if (Math.sin(a) > -0.25) continue; c.fillStyle = '#2a2118'; c.fillRect(x - 3, y - 13, 6, 9); c.fillRect(x - 2, y - 15, 4, 2); c.fillStyle = '#b9ae90'; c.fillRect(x - 4, y - 4, 8, 1); }   // arches along the far wall
+  E(ARENA_RX - 3, ARENA_RY - 3, '#bfa26c', 2); E(ARENA_RX - 6, ARENA_RY - 8, '#cdb27c', 8); E(ARENA_RX - 22, ARENA_RY - 20, '#d6bc86', 10);       // sand, darker under the far wall, lighter where the sun reaches
+  for (let q = 0; q < 900; q++) { const a = R() * 6.2832, r = Math.sqrt(R()), x = cx + Math.cos(a) * r * (ARENA_RX - 8), y = cy + 4 + Math.sin(a) * r * (ARENA_RY - 10); c.fillStyle = q % 4 === 0 ? 'rgba(255,244,210,.34)' : q % 4 === 1 ? 'rgba(96,74,40,.3)' : 'rgba(140,112,66,.26)'; c.fillRect(Math.round(x), Math.round(y), q % 7 === 0 ? 3 : 2, 1); }
+  for (const [er, al] of [[0.78, 0.2], [0.5, 0.16]]) for (let k = 0; k < 220; k++) { if (k % 5 > 2) continue; const a = k / 220 * 6.2832; c.fillStyle = `rgba(120,94,52,${al})`; c.fillRect(Math.round(cx + Math.cos(a) * ARENA_RX * er), Math.round(cy + 6 + Math.sin(a) * ARENA_RY * er), 2, 1); }   // rake rings
+  for (let k = 0; k < 120; k++) { const a = k / 120 * 6.2832; c.fillStyle = 'rgba(110,84,44,.55)'; c.fillRect(Math.round(cx + Math.cos(a) * 46), Math.round(cy + 6 + Math.sin(a) * 32), 2, 2); c.fillRect(Math.round(cx + Math.cos(a) * 36), Math.round(cy + 6 + Math.sin(a) * 25), 1, 1); }                              // the mark in the middle
+  c.fillStyle = 'rgba(110,84,44,.5)'; for (const [x, y, w2, h2] of [[-3, -14, 6, 30], [-16, -3, 32, 6], [-10, -10, 4, 4], [6, -10, 4, 4], [-10, 8, 4, 4], [6, 8, 4, 4]]) c.fillRect(cx + x, cy + 6 + y, w2, h2);
+  for (const sx of [-1, 1]) { c.fillStyle = 'rgba(255,250,235,.5)'; for (let q = -5; q <= 5; q++) c.fillRect(cx + sx * 28 - 1 + (q % 2), cy + 6 + q * 9, 2, 5); }                                                // chalk lines where the two sides form up
+  for (let q = 0; q < 26; q++) { const a = R() * 6.2832, r = 0.25 + R() * 0.6, x = Math.round(cx + Math.cos(a) * r * ARENA_RX), y = Math.round(cy + 6 + Math.sin(a) * r * ARENA_RY); c.fillStyle = 'rgba(90,60,34,.3)'; c.fillRect(x, y, 5 + (q % 4), 2); c.fillRect(x + 1, y + 2, 3, 1); }   // scuffs and old stains
+  for (let k = 0; k < 16; k++) { const a = (k + 0.5) / 16 * 6.2832; ARENA_T.forEach(([o, h], i) => { const o2 = ARENA_T[i + 1] ? ARENA_T[i + 1][0] : 14; for (let q = 0; q < 5; q++) { const oo = o2 + (o - o2) * q / 5, x = Math.round(cx + Math.cos(a) * rx(oo)), y = Math.round(cy - h + Math.sin(a) * ry(oo)); c.fillStyle = q % 2 ? '#d6caa8' : '#7d745e'; c.fillRect(x - 2, y, 4, 2); } }); }   // sixteen stairways up through the seats
+  for (const sx of [-1, 1]) { const x = Math.round(cx + sx * (ARENA_RX + 4)), y = cy - 4; c.fillStyle = '#cbbf9f'; c.fillRect(x - 15, y - 34, 30, 40); c.fillStyle = '#e0d6ba'; c.fillRect(x - 17, y - 38, 34, 5); c.fillStyle = '#15100b'; c.fillRect(x - 10, y - 26, 20, 32); c.fillRect(x - 8, y - 29, 16, 3); c.fillStyle = '#6a6258'; for (let q = -8; q <= 8; q += 4) c.fillRect(x + q, y - 26, 1, 32); c.fillRect(x - 10, y - 14, 20, 1); c.fillRect(x - 10, y - 2, 20, 1); c.fillStyle = sx < 0 ? '#c0382a' : '#3a6ab0'; c.fillRect(x - 6, y - 37, 12, 3); }   // the two gates, one for each side
+  { const x = cx, y = Math.round(cy - 24 - ry(58)); c.fillStyle = '#5e5546'; c.fillRect(x - 40, y - 2, 80, 22); c.fillStyle = '#cbbf9f'; c.fillRect(x - 42, y + 16, 84, 5); c.fillStyle = '#3a2e22'; c.fillRect(x - 36, y + 2, 72, 14); c.fillStyle = '#e0d6ba'; for (const q of [-40, -14, 12, 38]) c.fillRect(x + q - 1, y - 14, 3, 34);
+    c.fillStyle = '#a02a20'; c.fillRect(x - 46, y - 20, 92, 9); c.fillStyle = '#c0382a'; c.fillRect(x - 46, y - 20, 92, 4); c.fillStyle = '#e3a843'; c.fillRect(x - 46, y - 12, 92, 2); for (let q = -44; q < 46; q += 8) c.fillRect(x + q, y - 10, 4, 3); c.fillStyle = '#e3a843'; c.fillRect(x - 5, y + 4, 10, 9); c.fillStyle = '#8a5a1e'; c.fillRect(x - 3, y + 6, 6, 5); }   // the canopied box above the far wall
+  return ARENA_CV = cv;
+}
+function drawArena(c, ox, oy, front) {
+  if (front) return; const A = B.arena, cx = Math.round(A.x - ox), cy = Math.round(A.y - oy), T = performance.now() / 1000, hype = A.cheer > 0, cv = arenaLayer(), vw = VO.w, vh = VO.h;
+  c.fillStyle = '#120d09'; c.fillRect(0, 0, vw, vh); c.drawImage(cv, cx - cv.width / 2, cy - cv.height / 2 - 20);
+  const rx = o => ARENA_RX + o, ry = o => ARENA_RY + o * ARENA_K, wave = (T * 1.1) % 6.2832;
+  ARENA_T.forEach(([o, h], i) => { const o2 = ARENA_T[i + 1] ? ARENA_T[i + 1][0] : 14, om = (o + o2) / 2, n = Math.floor((rx(om) + ry(om)) * 3.1416 / 9);
+    for (let k = 0; k < n; k++) { const a = (k + (i % 2) * 0.5) / n * 6.2832, x = cx + Math.round(Math.cos(a) * rx(om)), y = cy - h + Math.round(Math.sin(a) * ry(om)); if (x < -6 || x > vw + 6 || y < -4 || y > vh + 14) continue;
+      const hs = (k * 7919 + i * 104729) % 97; if (hs < 9) continue; if (Math.abs((a * 16 / 6.2832 + 0.5) % 1 - 0.5) < 0.07) continue;                                                                   // empty seats, and the stairways stay clear
+      const side = Math.cos(a), pal = hs % 3 === 0 ? CROWD_N : side < 0 ? CROWD_A : CROWD_B, col = pal[hs % pal.length]; let dw = a - wave; dw = Math.atan2(Math.sin(dw), Math.cos(dw));
+      const up = hype ? Math.round(Math.abs(Math.sin(T * 9 + hs)) * 4) : Math.abs(dw) < 0.35 ? Math.round((1 - Math.abs(dw) / 0.35) * 3) : (hs + Math.floor(T * 1.3)) % 23 === 0 ? 1 : 0, yy = y - up;
+      c.fillStyle = col; c.fillRect(x - 2, yy - 5, 4, 5); c.fillStyle = hs % 2 ? '#d9a47c' : '#b9845c'; c.fillRect(x - 1, yy - 8, 3, 3); c.fillStyle = ['#2a1c12', '#5a3a1c', '#1c1c1c', '#8a6a3a', '#c8c0b0'][hs % 5]; c.fillRect(x - 1, yy - 9, 3, 1);
+      if (up > 1) { c.fillStyle = col; c.fillRect(x - 3, yy - 9, 1, 4); c.fillRect(x + 2, yy - 9, 1, 4); } else if (hs % 11 === 0) { c.fillStyle = side < 0 ? '#ff6a4a' : '#6ab0ff'; c.fillRect(x + 2, yy - 10, 3, 2); c.fillStyle = '#3a2a1c'; c.fillRect(x + 2, yy - 10, 1, 6); } } });   // a little flag for the keenest
+  for (let k = 0; k < 14; k++) { const a = (k + 0.5) / 14 * 6.2832, x = cx + Math.round(Math.cos(a) * rx(10)), y = cy - 17 + Math.round(Math.sin(a) * ry(10)); if (x < -20 || x > vw + 20 || y < -20 || y > vh + 20) continue; const f = Math.sin(T * 11 + k * 2.3), g2 = c.createRadialGradient(x, y - 9, 1, x, y - 9, 26); g2.addColorStop(0, `rgba(255,190,90,${0.3 + 0.08 * f})`); g2.addColorStop(1, 'rgba(255,190,90,0)'); c.fillStyle = g2; c.fillRect(x - 26, y - 35, 52, 52);
+    c.fillStyle = '#3a2a1c'; c.fillRect(x - 1, y - 7, 2, 8); c.fillStyle = '#ff9a30'; c.fillRect(x - 2, y - 11 - (f > 0 ? 1 : 0), 4, 4 + (f > 0 ? 1 : 0)); c.fillStyle = '#ffe9a0'; c.fillRect(x - 1, y - 10, 2, 2); }                                                              // torches round the podium
+  for (let k = 0; k < 12; k++) { const a = (k + 0.5) / 12 * 6.2832, x = cx + Math.round(Math.cos(a) * rx(162)), y = cy - 58 + Math.round(Math.sin(a) * ry(162)); if (x < -30 || x > vw + 30 || y < -10 || y > vh + 40) continue; c.fillStyle = '#3a2a1c'; c.fillRect(x, y - 30, 2, 30); const col = k % 3 === 0 ? '#e3a843' : Math.cos(a) < 0 ? '#c0382a' : '#3a6ab0';
+    for (let q = 0; q < 5; q++) { c.fillStyle = q % 2 ? col : shade(col, -0.18); c.fillRect(x + 2 + q * 3, y - 30 + Math.round(Math.sin(T * 5 + k + q * 0.9) * 1.6), 3, 11 - q); } }                                                                                               // banners on the rim, pulling in the wind
+  if (A.conf > 0) { A.conf -= 0.016; for (let q = 0; q < 46; q++) { const ph = q * 12.9898, fx2 = cx + Math.round(Math.sin(ph) * ARENA_RX * 0.95 + Math.sin(T * 2 + q) * 8), fy = cy - 150 + Math.round(((T * 60 + q * 37) % 300)); c.fillStyle = ['#e3a843', '#c0382a', '#3a6ab0', '#fff3d6', '#5a9a4a'][q % 5]; c.fillRect(fx2, fy, 2, q % 2 ? 3 : 2); } }   // confetti for the winner
+}
+function drawScoreboard(c, cw) {   // who is fighting, who is still standing and how long is left
+  const N = B.opt.names || ['내 상단', '상대 상단'], side = sd => B.units.filter(u => u.side === sd && u.ref && !u.turret), w = Math.min(cw - 24, 350), x0 = Math.round((cw - w) / 2), y0 = 6, h = 46, left = Math.max(0, PVP_TIME - B.t), rage = B.t > PVP_RAGE && !B.over;
+  c.save(); c.fillStyle = 'rgba(20,14,9,.86)'; c.strokeStyle = '#c9a04a'; c.lineWidth = 1.5; c.beginPath(); c.roundRect ? c.roundRect(x0, y0, w, h, 9) : c.rect(x0, y0, w, h); c.fill(); c.stroke();
+  c.textBaseline = 'middle'; c.font = '700 12px "Noto Sans KR", sans-serif';
+  [0, 1].forEach(sd => { const us = side(sd), hp = us.reduce((a, u) => a + Math.max(0, u.hp) / u.max, 0) / Math.max(1, us.length), col = sd ? '#5a8ad0' : '#d8604a', bx = sd ? x0 + w / 2 + 28 : x0 + 8, bw = w / 2 - 36;
+    c.textAlign = sd ? 'right' : 'left'; c.fillStyle = '#fff3d6'; c.fillText(N[sd].length > 9 ? N[sd].slice(0, 9) + '…' : N[sd], sd ? x0 + w - 9 : x0 + 9, y0 + 12);
+    c.fillStyle = 'rgba(0,0,0,.55)'; c.fillRect(bx, y0 + 22, bw, 7); c.fillStyle = col; c.fillRect(sd ? bx + bw * (1 - hp) : bx, y0 + 22, bw * hp, 7);
+    us.forEach((u, q) => { c.fillStyle = u.hp > 0 ? col : '#3a3028'; c.beginPath(); c.arc(sd ? x0 + w - 13 - q * 12 : x0 + 13 + q * 12, y0 + 37, 4, 0, 7); c.fill(); if (u.hp > 0) { c.strokeStyle = '#fff3d6'; c.lineWidth = 1; c.stroke(); } }); });
+  c.textAlign = 'center'; c.font = '400 17px "Black Han Sans", sans-serif'; c.fillStyle = rage ? (Math.floor(performance.now() / 300) % 2 ? '#ff6a4a' : '#ffd24a') : '#ffe9a0'; c.fillText(`${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}`, x0 + w / 2, y0 + 17);
+  c.font = '700 10px "Noto Sans KR", sans-serif'; c.fillStyle = rage ? '#ff6a4a' : '#a89a86'; c.fillText(rage ? '격화!' : 'VS', x0 + w / 2, y0 + 35); c.restore();
 }
 function drawScene(c, ox, oy, w, h, ents) {
   drawGround(c, ox, oy, w, h);
   const AR = B && B.arena, list = AR ? (ents || []).filter(e => e.bt) : ents || []; if (AR) drawArena(c, ox, oy, false);
-  for (let cy = Math.floor((oy - 40) / CELL); cy <= Math.floor((oy + h + 190) / CELL); cy++) for (let cx = Math.floor((ox - 80) / CELL); cx <= Math.floor((ox + w + 80) / CELL); cx++) for (const p of cellProps(cx, cy)) { if (p.loot && W && W.looted[p.loot] > W.t) continue; if (AR && d2(p.x, p.y, AR.x, AR.y) < 330 * 330) continue; list.push({ y: p.y, p }); }
-  if (AR) list.push({ y: AR.y + ARENA_RY + 8, arenaFront: 1 });
+  for (let cy = Math.floor((oy - 40) / CELL); cy <= Math.floor((oy + h + 190) / CELL); cy++) for (let cx = Math.floor((ox - 80) / CELL); cx <= Math.floor((ox + w + 80) / CELL); cx++) for (const p of cellProps(cx, cy)) { if (p.loot && W && W.looted[p.loot] > W.t) continue; if (AR) continue; list.push({ y: p.y, p }); }
   list.sort((a, b) => a.y - b.y);
   const T = performance.now() / 1000;
   for (const e of list) {
@@ -3028,7 +3090,7 @@ function renderWorld(dt) {
       const s = toScreen(W.lead.tx, 0, W.lead.ty); if (s.x < 0 || s.x > cw || s.y < 0 || s.y > ch) { const a = Math.atan2(s.y - ch / 2, s.x - cw / 2), ex = clamp(cw / 2 + Math.cos(a) * cw, 20, cw - 20), ey = clamp(ch / 2 + Math.sin(a) * ch, 40, ch - 20); c.save(); c.translate(ex, ey); c.rotate(a); c.fillStyle = '#8fcf6a'; c.beginPath(); c.moveTo(12, 0); c.lineTo(-7, -8); c.lineTo(-3, 0); c.lineTo(-7, 8); c.closePath(); c.fill(); c.restore(); if (W.dest) tag(`${W.dest.label} ${Math.round(Math.hypot(W.lead.tx - W.lead.x, W.lead.ty - W.lead.y) / 10)}m`, clamp(ex, 70, cw - 70), ey + (ey < ch / 2 ? 34 : -14), '#8fcf6a'); }
     }
     drawWeather(c, cw, ch); drawPX(c); drawMini(c, cw);
-  } else { renderOverlay(true); drawWeather(bc, cw, ch); drawOrders(bc); updSel(); if (((W.t * 4) | 0) !== W.stripT) { W.stripT = (W.t * 4) | 0; updStrip(); $('bPot').style.setProperty('--cd', Math.max(0, Math.min(100, ((W.potCd || 0) - W.t) / 15 * 100)) + '%'); } }
+  } else { renderOverlay(true); if (B.arena) drawScoreboard(bc, cw); else drawWeather(bc, cw, ch); drawOrders(bc); updSel(); if (((W.t * 4) | 0) !== W.stripT) { W.stripT = (W.t * 4) | 0; updStrip(); $('bPot').style.setProperty('--cd', Math.max(0, Math.min(100, ((W.potCd || 0) - W.t) / 15 * 100)) + '%'); } }
   updSkbar(dt);
 }
 function drawWeather(c, cw, ch) {   // each land has its own air: ash, rain, sand, snow, embers, fireflies
@@ -3158,7 +3220,7 @@ function drawOrders(c) {
   const d = B.drag; if (d && d.moved) { const a = toScreen(d.u.x, 0, d.u.y), b = toScreen(d.x, 0, d.y); c.strokeStyle = '#8fcf6a'; c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.stroke(); c.fillStyle = 'rgba(143,207,106,.3)'; c.beginPath(); c.ellipse(b.x, b.y, d.u.size * PSZ * 0.8, d.u.size * PSZ * 0.45, 0, 0, 7); c.fill(); c.stroke(); }
 }
 $('bCapture').onclick = () => B && !B.over && tryCapture();
-$('bRetreat').onclick = () => { if (!B || B.over) return; B.opt.retreat = true; B.loot = {}; endBattle(false); };
+$('bRetreat').onclick = () => { if (B && B.opt.watch) { closeBattle(); return; } if (!B || B.over) return; B.opt.retreat = true; B.loot = {}; endBattle(false); };
 const ZOOMS = [[1, '보통'], [1.3, '크게'], [1.9, '아주 크게']];
 $('bZoom').onclick = () => { const i = (ZOOMS.findIndex(z => z[0] === bZoom) + 1) % ZOOMS.length; bZoom = ZOOMS[i][0]; };
 $('bSpeed').onclick = () => { bSpeed = bSpeed % 3 + 1; $('bSpeed').textContent = '×' + bSpeed; };
@@ -3910,7 +3972,7 @@ requestAnimationFrame(frame);
 <button id="upd" hidden>새 패치가 있어요 · 눌러서 적용</button>
 <script>
 (function () {
-  var VER = "20261127-022007";
+  var VER = "20261127-022526";
   if (!/^https?:$/.test(location.protocol)) return;
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
   var btn = document.getElementById('upd');
