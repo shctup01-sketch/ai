@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}
 #upd{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:999;padding:11px 18px;border-radius:14px;border:2px solid #f3c79a;background:#d4763c;color:#1c120a;font:700 14px system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.5)}</style>
-<script>window.__VER="20261128-092150"</script>
+<script>window.__VER="20261128-093324"</script>
 </head>
 <body>
 <title>공룡 상단 픽셀</title>
@@ -1795,20 +1795,20 @@ const lam = (col, extra = {}) => new THREE.MeshLambertMaterial(Object.assign({ c
 const HUMAN3 = { leader: [0x7a6448, 0x3a2e22], hunter: [0x56633a, 0x3a3020], spear: [0x6c5c4a, 0x3a3026], scout: [0x3e5236, 0x2a2a24], shield: [0x5a6470, 0x30343a], gladiator: [0x8a3a2a, 0x3a2a20], crossbow: [0x6a6a66, 0x2e2e2c], gunner: [0x3a4a6a, 0x2a2420], bomber: [0x3a3a38, 0x4a3a26], tamer: [0x8a6a3a, 0x4a3422], cook: [0xe8e4da, 0x4a4038], smith: [0x5a4634, 0x2e2620], shaman: [0x5a3a7a, 0x2a2030], sniper: [0x444a44, 0x2a2e2a],
                  porter: [0x8a7a5a, 0x4a4030], mechanic: [0xc06a20, 0x34405a], medic: [0xe2ddd0, 0x6a6a70], venomer: [0x3e4a34, 0x24281c] };
 const KK = {}, KK_LEAD = {   // body, what to hide, the weapon in each hand, the colour wash, and the four clips: idle, walk, attack, death
-  gunner:   { body: 'KK_Ranger', hide: /Quiver|Cape/, rifle: 1, tint: 0xd6c8ac, clips: ['Idle_A', 'Walking_A', 'Ranged_2H_Shoot', 'Death_A'] },
+  gunner:   { body: 'KK_Ranger', hide: /Quiver|Cape/, rifle: 1, aim: Math.PI / 2, tint: 0xd6c8ac, clips: ['Idle_A', 'Walking_A', 'Ranged_2H_Shoot', 'Death_A'] },
   warrior:  { body: 'KK_Barbarian', r: 'KK_w_axe_1handed', l: 'KK_w_shield_round_barbarian', tint: 0xdccab0, clips: ['Idle_A', 'Walking_A', 'Melee_1H_Attack_Chop', 'Death_A'] },
   archer:   { body: 'KK_Ranger', l: 'KK_w_bow_withString', tint: 0xd2c6aa, clips: ['Idle_A', 'Walking_A', 'Ranged_Bow_Release', 'Death_A'] },
   tamer:    { body: 'KK_Rogue_Hooded', r: 'KK_w_dagger', whip: 1, tint: 0xdcc6a2, clips: ['Idle_A', 'Walking_A', 'Melee_1H_Attack_Stab', 'Death_A'] },
-  merchant: { body: 'KK_Rogue', r: 'KK_w_crossbow_1handed', pack: 1, tint: 0xe2d2b2, clips: ['Idle_A', 'Walking_A', 'Ranged_1H_Shoot', 'Death_A'] } };
+  merchant: { body: 'KK_Rogue', r: 'KK_w_crossbow_1handed', aim: Math.PI / 2, pack: 1, tint: 0xe2d2b2, clips: ['Idle_A', 'Walking_A', 'Ranged_1H_Shoot', 'Death_A'] } };
 const KK_FILES = [...new Set(Object.values(KK_LEAD).flatMap(c => [c.body, c.r, c.l].filter(Boolean))), 'KK_Anims'];
-let LEADER_CLS = 'gunner';
+let LEADER_CLS = 'gunner', KK_FACE = 0;   // KayKit bodies face +z like the game's own models
 function makeKK(cls, tier = 0, set = null) {
   const C = KK_LEAD[cls], G = C && KK[C.body], AN = KK.KK_Anims; if (!G || !AN) return null;
   const inst = THREE.SkeletonUtils.clone(G.scene), g = new THREE.Group(), s = new THREE.Group(); g.add(s); s.add(inst);
   const wash = srgb(C.tint), c1 = set && set.S && (set.m & 2) ? srgb(set.S.c1) : null;
   const mat = (o, skin, emis) => { const m = new THREE.MeshLambertMaterial({ map: o.map || null, color: o.map ? wash.clone() : (o.color ? o.color.clone() : wash.clone()), skinning: skin }); if (c1 && skin) m.color.lerp(c1, 0.38); if (emis) { m.emissive = srgb(emis); m.emissiveIntensity = 0.55; } return m; };
   inst.traverse(m => { if (!m.isMesh) return; if (C.hide && C.hide.test(m.name)) { m.visible = false; return; } m.material = Array.isArray(m.material) ? m.material.map(o => mat(o, !!m.isSkinnedMesh)) : mat(m.material, !!m.isSkinnedMesh); });
-  const box0 = new THREE.Box3().setFromObject(inst), H0 = box0.max.y - box0.min.y, k = 21 / H0; inst.scale.setScalar(k); inst.position.y = -box0.min.y * k; inst.rotation.y = Math.PI;   // KayKit faces the other way from the game's models
+  const box0 = new THREE.Box3().setFromObject(inst), H0 = box0.max.y - box0.min.y, k = 21 / H0; inst.scale.setScalar(k); inst.position.y = -box0.min.y * k;
   g.updateMatrixWorld(true);
   const bone = n => inst.getObjectByName(n.replace('.', '')), glowC = set && set.S && (set.m & 1) ? set.S.c2 : null;
   const hand = (side, f) => { const b = bone('handslot.' + side); if (!b || !KK[f]) return; const w = KK[f].scene.clone(); w.traverse(m => { if (m.isMesh) m.material = mat(m.material, false, glowC); }); b.add(w); };
@@ -1817,9 +1817,10 @@ function makeKK(cls, tier = 0, set = null) {
     bx(0.09, 0.09, 1.25, 0x34343a, 0, 0.06, 0.62); bx(0.16, 0.2, 0.55, 0x4a3a2a, 0, 0, 0.05); bx(0.14, 0.26, 0.34, 0x6a4a2a, 0, -0.05, -0.36); bx(0.06, 0.16, 0.08, 0x2a2a2e, 0, -0.14, 0.12); bx(0.1, 0.06, 0.18, 0x8a8a90, 0, 0.16, 0.1); b.add(r); } }
   // ornaments are built where the bones stand in the idle pose (the clips turn the rig round from its rest pose), then fastened to them so they follow every move
   const mixer = new THREE.AnimationMixer(inst), acts = {}; ['idle', 'walk', 'attack', 'death'].forEach((nm, q) => { const clip = AN.animations.find(a => a.name === C.clips[q]); if (clip) acts[nm] = mixer.clipAction(clip); });
-  if (acts.idle) { acts.idle.play(); mixer.setTime(0); } g.updateMatrixWorld(true);
+  inst.rotation.y = KK_FACE; if (acts.idle) { acts.idle.play(); mixer.setTime(0); } g.updateMatrixWorld(true);
+
   const P = n => { const b = bone(n); if (!b) return null; const v = new THREE.Vector3(); b.getWorldPosition(v); return v; }, top = (box0.max.y - box0.min.y) * k, head = P('head') || new THREE.Vector3(0, top * 0.55, 0), chest = P('chest') || new THREE.Vector3(0, top * 0.4, 0);
-  const toe = P('toes.l'), foot = P('foot.l'), fz = toe && foot && Math.abs(toe.z - foot.z) > 0.01 ? Math.sign(toe.z - foot.z) : 1;   // which way the body faces in the idle pose
+  const toe = P('toes.l'), foot = P('foot.l'), fz = 1;   // which way the body faces in the idle pose
   const hH = Math.max(4, top - head.y), hW = hH * 0.95, back = -fz * hW * 0.42, gold = lam(0xe3a843), glow = c => lam(c, { emissive: srgb(c), emissiveIntensity: 0.8 });
   const put = (bn, geo, m, x, y, z, rx = 0, rz = 0) => { const msh = new THREE.Mesh(geo, typeof m === 'number' ? lam(m) : m); msh.position.set(x, y, z); msh.rotation.x = rx; msh.rotation.z = rz; s.add(msh); const b = bone(bn); if (b) b.attach(msh); return msh; }, B3 = (w, h, d) => new THREE.BoxGeometry(w, h, d);
   if (C.pack) { put('chest', B3(hW * 0.7, hH * 0.8, hW * 0.4), 0x7a5a34, 0, chest.y + 0.4, back - fz * 1); put('chest', B3(hW * 0.74, 0.6, hW * 0.44), 0x4a3422, 0, chest.y + 1.8, back - fz * 1); }
@@ -1846,7 +1847,7 @@ function makeKK(cls, tier = 0, set = null) {
     else if (o === 'spikes') for (let q = -2; q <= 2; q++) put('chest', new THREE.ConeGeometry(hW * 0.07, hH * (0.5 - Math.abs(q) * 0.08), 4), q % 2 ? gl : base, q * hW * 0.18, chest.y + 1.5 - Math.abs(q) * 0.4, back - fz * 0.6, -0.6);
     else if (o === 'orbs') for (let q = 0; q < 3; q++) { const a = q * 2.094; put('chest', new THREE.SphereGeometry(hW * 0.1, 7, 5), gl, Math.cos(a) * hW * 0.85, chest.y + 2 + q * 1.2, Math.sin(a) * hW * 0.85); } }
   mixer.stopAllAction();
-  return { root: g, spin: s, mixer, acts, cur: null, kk: true, human: true };
+  return { root: g, spin: s, mixer, acts, cur: null, kk: true, human: true, inst, aim: C.aim || 0 };   // aim: the shooting clips hold the gun out to the side, so the body turns to point it forward
 }
 function makeHuman3(type, tier = 0, set = null) {
   if (type === 'leader' && KK.KK_Anims) { const kk = makeKK(LEADER_CLS, tier, set); if (kk) return kk; }
@@ -2391,6 +2392,7 @@ function* unitSpriteGen(type, len, tier, key) {
   Object.assign(spr, bakeSetup(fw, fh, kind === 'dino' ? len * 0.2 : kind === 'human' ? 13 * hd : 9, kind === 'human' ? 0.6 : PITCH)); if (kind === 'human') obj.root.scale.setScalar(1.3 * hd);
   for (const [name, n] of ANIMS[kind]) {
     const cv = document.createElement('canvas'); cv.width = fw * n; cv.height = fh * 5; const g = cv.getContext('2d');
+    if (obj.kk) obj.inst.rotation.y = KK_FACE + (name === 'attack' ? obj.aim : 0);
     let clip = null; if (kind === 'dino' || obj.kk) { obj.mixer.stopAllAction(); const a = obj.acts[name] || obj.acts.idle; if (a) { a.reset(); a.setLoop(THREE.LoopRepeat); a.play(); clip = a.getClip(); } }
     for (let f = 0; f < n; f++) {
       if ((kind === 'dino' || obj.kk) && clip) obj.mixer.setTime(name === 'death' ? clip.duration * Math.min(0.995, (f + 1) / n) : clip.duration * (f / n));
@@ -4052,7 +4054,7 @@ requestAnimationFrame(frame);
 <button id="upd" hidden>새 패치가 있어요 · 눌러서 적용</button>
 <script>
 (function () {
-  var VER = "20261128-092150";
+  var VER = "20261128-093324";
   if (!/^https?:$/.test(location.protocol)) return;
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
   var btn = document.getElementById('upd');
