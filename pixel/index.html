@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}
 #upd{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:999;padding:11px 18px;border-radius:14px;border:2px solid #f3c79a;background:#d4763c;color:#1c120a;font:700 14px system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.5)}</style>
-<script>window.__VER="20261128-113821"</script>
+<script>window.__VER="20261128-114105"</script>
 </head>
 <body>
 <title>공룡 상단 픽셀</title>
@@ -138,6 +138,7 @@ h2 small { font-family: var(--f-body); font-size: 11px; color: var(--muted); mar
 @keyframes pop { from { transform: scale(.92); opacity: 0; } to { transform: none; opacity: 1; } }
 #toast { position: absolute; left: 50%; top: 56px; transform: translate(-50%, -6px); background: rgba(28,23,17,.95); border: 1px solid var(--line); padding: 7px 14px; border-radius: 16px; font-size: 12px; opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; z-index: 50; max-width: calc(100% - 24px); text-align: center; }
 #toast.show { opacity: 1; transform: translate(-50%, 0); }
+body:has(#modal:not([hidden])) #toast { top: 6px !important; bottom: auto !important; flex-direction: column !important; z-index: 120; }
 #toast.warn { border-color: var(--bad); } #toast.good { border-color: var(--amber); }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 /* interface polish */
@@ -259,7 +260,7 @@ h2 { margin-top: 2px; } h2 small { display: block; margin: 3px 0 0; line-height:
 #tmenu [data-m=cash] { border-color: #58c8ff; color: #dff4ff; } #tmenu [data-m=cash]::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238fe4ff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 4h12l4 6-10 11L2 10zM2 10h20M9 4l-2 6 5 11 5-11-2-6'/%3E%3C/svg%3E"); }
 .gem { color: #8fe4ff; font-weight: 700; }
 #raidBar { position: absolute; left: 50%; top: 6px; transform: translateX(-50%); width: min(340px, calc(100% - 24px)); z-index: 3; pointer-events: none; padding: 6px 10px 7px; border-radius: 8px; background: linear-gradient(#3a1d14ee, #1d0f0aee); border: 1px solid #c9583a; box-shadow: 0 0 0 1px #000, 0 4px 12px rgba(0,0,0,.6); color: #f6e6c8; }
-#battle.inb #raidBar { top: 150px; }
+#battle.inb #raidBar { top: auto; bottom: 132px; }
 .rbTop { display: flex; justify-content: space-between; align-items: baseline; font-size: 12.5px; } .rbTop b { font-family: var(--f-display); font-weight: 400; color: #ffcf8a; }
 .rbT { font: 700 15px var(--f-body); color: #fff; } .rbT.hot { color: #ff6a4a; animation: attGlow 0.5s infinite alternate; }
 .rbHp { position: relative; height: 12px; margin: 4px 0 3px; border-radius: 3px; background: #2a0d08; border: 1px solid #000; overflow: visible; } .rbHp i { display: block; height: 100%; border-radius: 2px; background: linear-gradient(#ff8a5a, #c8321e 60%, #8a1a10); transition: width .25s; }
@@ -3064,7 +3065,9 @@ function startRaid(paid) {
   if (B || !W.crew.length) return; const R = raidNow();
   if (R.n >= 2) return; if (R.n === 1) { if (!paid || S.gems < RAID_GEMS) return; S.gems -= RAID_GEMS; }
   R.n++; S.stats.raids = (S.stats.raids || 0) + 1;
-  const k = raidBoss(), lv = raidLv(), L = W.lead, cx = L.x, cy = L.y - 150, BO = BOSSES[k];
+  const L = W.lead, G = (GROUNDS[S.zone] || GROUNDS.plain)[2];   // the giant is met out in the open, away from walls and fountains
+  if (G) { L.x = G[0]; L.y = G[1] + 110; L.tx = null; S.pos = { x: L.x, y: L.y }; syncCrew(); W.crew.forEach((c, i) => { c.x = L.x + ((i % 4) - 1.5) * 28; c.y = L.y + 26 + Math.floor(i / 4) * 24; c.a = -Math.PI / 2; }); W.cam.x = L.x; W.cam.y = L.y - 70; }
+  const k = raidBoss(), lv = raidLv(), cx = L.x, cy = L.y - 160, BO = BOSSES[k];
   const foes = [{ type: BO.base, lv, boss: k }], mons = [{ f: foes[0], x: cx, y: cy, a: Math.PI / 2, len: Math.round((UNITS[BO.base].size || 11) * 2.4 * BO.size * 1.25) }];
   const keep = S.units.map(u => [u, u.hp, u.ko]);
   showWorld(); L.tx = null; W.target = null; W.dest = null; sfx('roar');
@@ -4333,7 +4336,7 @@ requestAnimationFrame(frame);
 <button id="upd" hidden>새 패치가 있어요 · 눌러서 적용</button>
 <script>
 (function () {
-  var VER = "20261128-113821";
+  var VER = "20261128-114105";
   if (!/^https?:$/.test(location.protocol)) return;
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
   var btn = document.getElementById('upd');
