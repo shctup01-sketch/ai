@@ -1337,7 +1337,7 @@ function endBattle(win) {
     gainCxp(B.xp / 6 + B.captured.length * 15);
     if (opt.kind === 'hunt') S.cleared[opt.zone] = Math.max(S.cleared[opt.zone] || 0, opt.tier + 1);
     if (opt.trial) { S.tower = Math.max(S.tower || 0, opt.trial); const prize = 60 * opt.trial + (opt.trial % 10 === 0 ? 800 * opt.trial / 10 : 0); S.money += prize; lines.push(`<b style="color:var(--amber)">시련의 탑 ${opt.trial}층 돌파!</b> 상금 ${fmt(prize)} 크레딧`);
-      if (opt.trialBoss) { S.tokens[opt.trialBoss] = (S.tokens[opt.trialBoss] || 0) + 1; S.pots += 3; lines.push(`10층 보상: ${TOKEN_N[opt.trialBoss]}, 회복약 3개`); } gotItem = true; }
+      if (opt.trialBoss) { S.tokens[opt.trialBoss] = (S.tokens[opt.trialBoss] || 0) + 1; S.pots += 3; S.eggBag.egg = (S.eggBag.egg || 0) + 1; lines.push(`10층 보상: ${TOKEN_N[opt.trialBoss]}, <b style="color:#ffb347">공룡 알 1개</b>, 회복약 3개`); } gotItem = true; }
     if (opt.boss) S.bossKills[opt.boss] = 1;
     { const pg = rollPromo(opt.foes); for (const [k, n] of Object.entries(pg)) { lines.push(`<b style="color:${k.startsWith('hero-') ? '#ffb347' : RAR[Math.min(4, +k.split(':')[1] + 1)].c}">${promoName(k)}</b> ${n}개를 얻었어요${k.startsWith('hero-') ? ' · 영웅 전용 재료!' : ''}`); if (k.startsWith('hero-')) { flash(0.5, '255,190,90'); sfx('win'); } gotItem = true; } }
     if (opt.boss) { S.tokens[opt.boss] = (S.tokens[opt.boss] || 0) + 1; lines.push(`<b style="color:var(--amber)">${TOKEN_N[opt.boss]}</b>를 얻었어요 · 특수 전직에 써요`); gotItem = true; }
