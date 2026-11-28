@@ -6,7 +6,7 @@ const CACHE = 'dino-pixel-assets-v1';
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', e => e.waitUntil(
   caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())));
-const isAsset = u => u.pathname.includes('/models/') || u.hostname === 'cdn.jsdelivr.net' || /\.(png|webmanifest)$/.test(u.pathname);
+const isAsset = u => u.pathname.includes('/models/') || u.hostname === 'cdn.jsdelivr.net' || /\.(png|webp|webmanifest)$/.test(u.pathname);
 self.addEventListener('fetch', e => {
   const req = e.request; if (req.method !== 'GET') return;
   const url = new URL(req.url);

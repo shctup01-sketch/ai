@@ -239,6 +239,24 @@ h2 { margin-top: 2px; } h2 small { display: block; margin: 3px 0 0; line-height:
 #runner { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 10.5px; line-height: 1.35; padding: 4px 8px; border-radius: 9px; background: rgba(14,26,34,.86); border: 1px solid #58c8ff; color: #dff4ff; max-width: 100%; pointer-events: none; } #runner b { color: #8fe4ff; }
 #tmenu [data-m=cash] { border-color: #58c8ff; color: #dff4ff; } #tmenu [data-m=cash]::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238fe4ff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 4h12l4 6-10 11L2 10zM2 10h20M9 4l-2 6 5 11 5-11-2-6'/%3E%3C/svg%3E"); }
 .gem { color: #8fe4ff; font-weight: 700; }
+#raidBar { position: absolute; left: 50%; top: 6px; transform: translateX(-50%); width: min(340px, calc(100% - 24px)); z-index: 3; pointer-events: none; padding: 6px 10px 7px; border-radius: 8px; background: linear-gradient(#3a1d14ee, #1d0f0aee); border: 1px solid #c9583a; box-shadow: 0 0 0 1px #000, 0 4px 12px rgba(0,0,0,.6); color: #f6e6c8; }
+#battle.inb #raidBar { top: 150px; }
+.rbTop { display: flex; justify-content: space-between; align-items: baseline; font-size: 12.5px; } .rbTop b { font-family: var(--f-display); font-weight: 400; color: #ffcf8a; }
+.rbT { font: 700 15px var(--f-body); color: #fff; } .rbT.hot { color: #ff6a4a; animation: attGlow 0.5s infinite alternate; }
+.rbHp { position: relative; height: 12px; margin: 4px 0 3px; border-radius: 3px; background: #2a0d08; border: 1px solid #000; overflow: visible; } .rbHp i { display: block; height: 100%; border-radius: 2px; background: linear-gradient(#ff8a5a, #c8321e 60%, #8a1a10); transition: width .25s; }
+.rbHp em { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: #ffe6a8aa; font: normal 700 8.5px/1 var(--f-body); color: #ffe6a8; } .rbHp em.on { background: #7ee07a; }
+.rbHp em { text-indent: 4px; line-height: 20px; white-space: nowrap; }
+.rbSub { font-size: 11px; color: #e8d2b0; } .rbSub b { color: #fff; }
+.g0 { color: #b8a890 !important; } .g1 { color: #8fbf6a !important; } .g2 { color: #79b4e4 !important; } .g3 { color: #c58be6 !important; } .g4 { color: #ffd27a !important; }
+.raidRes { display: flex; align-items: center; gap: 14px; margin: 4px 0 10px; padding: 10px 14px; border-radius: 10px; background: linear-gradient(#3a1d14, #1d0f0a); border: 1px solid #c9583a; }
+.raidRes .rg { font: 400 54px/1 var(--f-display); text-shadow: 0 0 14px currentColor, 0 3px 0 #000; min-width: 64px; text-align: center; } .raidRes .info { display: flex; flex-direction: column; gap: 3px; } .raidRes b { font-size: 16px; }
+.raidcard { border-color: #c9583a !important; } .raidart { width: 96px; height: 77px; object-fit: cover; border-radius: 8px; border: 1px solid #c9583a; flex: none; }
+.raidcut { display: flex; gap: 4px; } .raidcut span { flex: 1; text-align: center; font-size: 10.5px; padding: 3px 0; border-radius: 6px; background: #1d150e; border: 1px solid #4a3828; } .raidcut b { display: block; font: 400 16px/1.1 var(--f-display); }
+.raidweek { display: flex; gap: 3px; margin: 6px 0 4px; } .raidweek span { flex: 1; min-width: 0; text-align: center; font-size: 9.5px; color: var(--muted); padding: 3px 1px; border-radius: 6px; background: #1d150e; border: 1px solid #3a2c1e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .raidweek span.on { color: #2a1606; background: linear-gradient(#ffe08a, #d8922a); border-color: #fff0b8; } .raidweek b { display: block; font-size: 11px; }
+.guide { gap: 0 !important; padding-block: 4px !important; } .guide details { border-bottom: 1px solid #4a3828; } .guide details:last-child { border-bottom: 0; }
+.guide summary { list-style: none; cursor: pointer; padding: 11px 22px 11px 2px; font-weight: 700; font-size: 13.5px; color: #f3e3bf; position: relative; } .guide summary::-webkit-details-marker { display: none; }
+.guide summary::after { content: '+'; position: absolute; right: 4px; top: 8px; font: 700 18px/1 var(--f-body); color: var(--amber); } .guide details[open] summary::after { content: '−'; }
+.guide p { margin: 0 2px 12px; font-size: 12.5px; line-height: 1.6; color: #d9c8a8; }
 .attg { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
 .att { position: relative; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 4px 1px 3px; border-radius: 7px; background: linear-gradient(#3a2b1d, #261b12); border: 1px solid #5a4330; min-width: 0; }
 .att em { font-style: normal; font-size: 9.5px; color: var(--muted); line-height: 1; }
@@ -479,7 +497,7 @@ canvas.bigart { width: min(100%, 300px); height: auto; aspect-ratio: 5 / 4; alig
   </div>
   <div id="battle" hidden>
     <div class="bhead"><b id="bTitle"></b><small id="bInfo"></small></div>
-    <div class="bfield"><canvas id="b3d"></canvas><canvas id="bcv"></canvas><div id="bTip">적을 눌러 집중 공격 · 대원을 끌어 자리 배치</div><div id="hudL"><div class="lfrow"><button id="lf" data-act="unit"><canvas width="96" height="84"></canvas><span class="lfb"><b id="lfName"></b><i class="hp"><u id="lfHp"></u><em id="lfHpT"></em></i><i class="xp"><u id="lfXp"></u></i></span></button><button id="stripT" aria-label="대원 보기"></button></div><div id="pstrip"></div><button id="goal" hidden></button><div id="runner" hidden></div><div id="feed"></div></div><div id="bossIn" hidden></div><button id="tmT" aria-label="메뉴">메뉴</button><div id="tmenu"><button data-m="crew">대원</button><button data-m="bag">가방</button><button data-m="skill">스킬</button><button data-m="map">지도</button><button data-m="cash">상점</button><button data-m="arena">투기장</button></div><div id="cxp"><u></u></div><div id="joy"><i></i></div><div id="skbar" hidden></div><div id="bSel" hidden><span id="bSelName"></span><span class="bar"><i id="bSelHp"></i></span></div></div>
+    <div class="bfield"><canvas id="b3d"></canvas><canvas id="bcv"></canvas><div id="raidBar" hidden></div><div id="bTip">적을 눌러 집중 공격 · 대원을 끌어 자리 배치</div><div id="hudL"><div class="lfrow"><button id="lf" data-act="unit"><canvas width="96" height="84"></canvas><span class="lfb"><b id="lfName"></b><i class="hp"><u id="lfHp"></u><em id="lfHpT"></em></i><i class="xp"><u id="lfXp"></u></i></span></button><button id="stripT" aria-label="대원 보기"></button></div><div id="pstrip"></div><button id="goal" hidden></button><div id="runner" hidden></div><div id="feed"></div></div><div id="bossIn" hidden></div><button id="tmT" aria-label="메뉴">메뉴</button><div id="tmenu"><button data-m="crew">대원</button><button data-m="bag">가방</button><button data-m="skill">스킬</button><button data-m="map">지도</button><button data-m="cash">상점</button><button data-m="arena">투기장</button></div><div id="cxp"><u></u></div><div id="joy"><i></i></div><div id="skbar" hidden></div><div id="bSel" hidden><span id="bSelName"></span><span class="bar"><i id="bSelHp"></i></span></div></div>
     <div class="bfoot" id="ffoot" hidden><button class="btn" id="fLeave">상단</button><button class="btn" id="fZoom">지도</button><button class="btn" id="fPot">물약</button><button class="btn" id="autoBtn">자동</button><button class="btn primary" id="fNearest">사냥</button></div>
     <div class="bfoot" id="bfoot"><button class="btn" id="bRetreat">후퇴</button><button class="btn primary" id="bCapture">포획</button><button class="btn" id="bPot">회복약</button><button class="btn" id="bZoom" hidden>크게</button><button class="btn" id="bSpeed">×1</button></div>
   </div>
@@ -1233,6 +1251,7 @@ function bStep(dt) {
   for (const f of B.fx) f.t -= dt; B.fx = B.fx.filter(f => f.t > 0);
   for (const n of B.nums) { n.t -= dt; n.y -= dt * 22; } B.nums = B.nums.filter(n => n.t > 0);
   if (B.focus && B.focus.hp <= 0) B.focus = null;
+  if (B.opt.raid) { updRaidBar(); if (B.t >= RAID_T || !alive(1).length || !alive(0).filter(u => !u.turret).length) { endBattle(true); return; } }
   if (B.opt.pvp && B.t >= PVP_TIME && alive(0).length && alive(1).length) { const hp = sd => alive(sd).filter(u => !u.turret).reduce((a, u) => a + u.hp / u.max, 0); endBattle(hp(0) >= hp(1)); return; }   // time is up: the side with more life left takes it
   if (!alive(1).length) endBattle(true);
   else if (!alive(0).filter(u => !u.turret).length) endBattle(false);
@@ -1364,6 +1383,7 @@ function lvUps(u, lines) {
 }
 function endBattle(win) {
   if (B.over) return;
+  if (B.opt.raid) { raidEnd(); return; }
   if (B.opt.pvp) { const opt0 = B.opt; B.over = true; B.opt.won = win; B.opt.pvpEnd = { t: B.t, mine: alive(0).filter(u => u.ref).length, theirs: alive(1).length }; for (const bu of B.units) if (bu.ref && bu.side === 0 && !B.opt.watch) { bu.ref.hp = maxHp(bu.ref); bu.ref.ko = false; } sfx(win ? 'win' : 'lose'); if (B.arena) { B.arena.cheer = 5; B.arena.conf = 6; } if (opt0.tour) setTimeout(() => tourResult(win), 700); else if (opt0.watch) setTimeout(() => { if (B) showModal(`<h3>경기 종료</h3><div class="sub">${$('bTitle').textContent}</div><div class="card"><div class="row"><div class="info"><small style="color:var(--text)">${opt0.names[win ? 0 : 1]}의 승리 · 경기 시간 ${Math.round(B.t)}초</small></div></div></div><div class="mbtns"><button class="btn primary" data-act="closeBattle">나가기</button></div>`); }, 900); return; } B.over = true; S.stats.battles++; S.food = Math.max(0, S.food - 1.5); B.opt.won = win; B.opt.endPos = B.units.filter(u => u.ref && u.hp > 0).map(u => [u.ref.id, { x: u.x, y: u.y, a: u.a }]);
   const opt = B.opt;
   if (opt.trial) S.stats.trials = (S.stats.trials || 0) + 1;
@@ -1413,7 +1433,7 @@ function endBattle(win) {
 function loseCargo(frac) { let lost = 0; for (const g of Object.keys(S.cargo)) { const k = Math.floor(S.cargo[g] * frac); S.cargo[g] -= k; lost += k; if (!S.cargo[g]) delete S.cargo[g]; } return lost; }
 function closeBattle() {
   if (!B) return;
-  const opt = B.opt; B = null; SND.mood = 'town'; SND.step = 0; closeModal(); $('battle').classList.remove('arena', 'watch'); $('bRetreat').textContent = '후퇴';
+  const opt = B.opt; B = null; $('raidBar').hidden = true; SND.mood = 'town'; SND.step = 0; closeModal(); $('battle').classList.remove('arena', 'watch'); $('bRetreat').textContent = '후퇴';
   afterBattle(opt);
 }
 function updCapture() { $('bCapture').textContent = `포획 ${S.darts}`; }
@@ -3007,13 +3027,83 @@ function attClaim() { S.att = S.att || { n: 0, last: '' }; if (!attReady()) retu
 function dailyHtml() {
   const A = S.att || { n: 0 }, cyc = A.n % 28, today = attReady(), at = today ? cyc : (cyc + 27) % 28, D = dmNow(), allGot = DM.every(m => D.got[m[0]]);
   const cells = ATT.map((r, i) => { const done = i < cyc || (!today && i === at && A.n > 0), now = today && i === cyc; return `<div class="att${done ? ' done' : ''}${now ? ' now' : ''}${r.k === 'egg' ? ' big' : ''}"><em>${i + 1}일</em>${rwIc(r)}<small>${r.k === 'money' ? fmt(rwVal(r)) : '×' + rwVal(r)}</small></div>`; }).join('');
-  return `<h2>출석부<small>하루에 한 번 접속하면 다음 칸 보상을 받아요 · 빠진 날이 있어도 이어서 받아요 · 7일째마다 공룡 알</small></h2>
+  return `${raidHtml()}<h2>출석부<small>하루에 한 번 접속하면 다음 칸 보상을 받아요 · 빠진 날이 있어도 이어서 받아요 · 7일째마다 공룡 알</small></h2>
     <div class="card"><div class="attg">${cells}</div><div class="row"><div class="info"><b>${today ? `오늘의 출석 보상 · ${cyc + 1}일째` : '오늘 출석 완료'}</b><small>${today ? rwText(ATT[cyc]) : `내일 보상: ${rwText(ATT[(cyc) % 28])} · 누적 출석 ${A.n}일`}</small></div><button class="btn small ${today ? 'primary' : ''}" data-act="attGet" ${today ? '' : 'disabled'}>${today ? '받기' : '완료'}</button></div></div>
     <h2>오늘의 임무<small>자정에 새로 시작해요 · 다섯 개를 모두 받으면 보너스 상자를 열어요</small></h2>
     <div class="card">${DM.map(m => { const v = dmProg(m), got = D.got[m[0]], ok = !got && v >= m[2]; return `<div class="row">${rwIc(m[3])}<div class="info"><b>${m[1]}</b><div class="bar"><i style="width:${v / m[2] * 100}%;background:${got ? 'var(--good)' : 'var(--amber)'}"></i></div><small>${v}/${m[2]} · 보상 ${rwText(m[3])}</small></div><button class="btn small ${ok ? 'primary' : ''}" data-act="dmGet" data-k="${m[0]}" ${ok ? '' : 'disabled'}>${got ? '완료' : '받기'}</button></div>`; }).join('')}
       <div class="row dmbonus${D.bonus ? ' done' : ''}"><i class="rwi chest"></i><div class="info"><b>보너스 상자</b><small>${DM_BONUS.map(rwText).join(' · ')} · 임무 ${DM.filter(m => D.got[m[0]]).length}/${DM.length}</small></div><button class="btn small ${allGot && !D.bonus ? 'primary' : ''}" data-act="dmBonus" ${allGot && !D.bonus ? '' : 'disabled'}>${D.bonus ? '완료' : '열기'}</button></div></div>`;
 }
-const OFF_MAX = 8 * 60, OFF_MIN = 10; let offDone = false;
+
+/* daily raid: one giant of the day, sixty seconds, graded by how much of its life the party takes */
+const RAID_T = 60, RAID_HP = 2.4, RAID_ATK = 0.4, RAID_GR = ['D', 'C', 'B', 'A', 'S'], RAID_CUT = [0, 0.1, 0.25, 0.45, 0.7], RAID_GEMS = 30;
+const RAID_DAYS = ['일', '월', '화', '수', '목', '금', '토'];
+const raidBoss = (d = new Date()) => Object.keys(BOSSES)[(typeof window.__raidDay === 'number' ? window.__raidDay : d.getDay()) % Object.keys(BOSSES).length];
+const raidLv = () => { const ls = party().map(u => u.lv).sort((a, b) => b - a).slice(0, 5); return Math.max(5, Math.round(ls.reduce((a, b) => a + b, 0) / Math.max(1, ls.length))); };
+function raidNow() { const d = dayKey(); S.raid = S.raid || { best: {} }; if (S.raid.d !== d) { S.raid.d = d; S.raid.n = 0; } return S.raid; }
+const raidGrade = pct => RAID_CUT.reduce((g, c, i) => pct >= c ? i : g, 0);
+function startRaid(paid) {
+  if (B || !W.crew.length) return; const R = raidNow();
+  if (R.n >= 2) return; if (R.n === 1) { if (!paid || S.gems < RAID_GEMS) return; S.gems -= RAID_GEMS; }
+  R.n++; S.stats.raids = (S.stats.raids || 0) + 1;
+  const k = raidBoss(), lv = raidLv(), L = W.lead, cx = L.x, cy = L.y - 150, BO = BOSSES[k];
+  const foes = [{ type: BO.base, lv, boss: k }], mons = [{ f: foes[0], x: cx, y: cy, a: Math.PI / 2, len: Math.round((UNITS[BO.base].size || 11) * 2.4 * BO.size * 1.25) }];
+  const keep = S.units.map(u => [u, u.hp, u.ko]);
+  showWorld(); L.tx = null; W.target = null; W.dest = null; sfx('roar');
+  startBattle({ kind: 'raid', raid: k, zone: S.zone, tier: 3, foes, mons, boss: k, packs: [{ z: S.zone, g: 3, cx, cy, mons, temp: true }], keep });
+  const bo = B.units.find(u => u.side === 1); const nh = UNITS.trex.hp * BOSSES.origin.hp / (UNITS[BO.base].hp * BO.hp), na = UNITS.trex.atk * BOSSES.origin.atk / (UNITS[BO.base].atk * BO.atk); bo.max *= RAID_HP * nh; bo.hp = bo.max; bo.atk *= RAID_ATK * na; bo.def *= UNITS.trex.def / Math.max(1, UNITS[BO.base].def);   // every day's giant is as tough as the others, whatever it is built from
+  bo.size *= 1.25; bo.raid = true;
+  $('bTitle').textContent = `오늘의 토벌 · ${BO.n}`; $('bInfo').innerHTML = ''; $('raidBar').hidden = false; updRaidBar();
+}
+function updRaidBar() {
+  if (!B || !B.opt.raid) return; const bo = B.units.find(u => u.raid); if (!bo) return;
+  const pct = clamp(1 - Math.max(0, bo.hp) / bo.max, 0, 1), g = raidGrade(pct), left = Math.max(0, Math.ceil(RAID_T - B.t)), key = Math.round(pct * 1000) + ':' + left;
+  if ($('raidBar').dataset.k === key) return; $('raidBar').dataset.k = key;
+  $('raidBar').innerHTML = `<div class="rbTop"><b>${BOSSES[B.opt.raid].n}</b><span class="rbT${left <= 10 ? ' hot' : ''}">${left}초</span></div><div class="rbHp"><i style="width:${(1 - pct) * 100}%"></i>${RAID_CUT.slice(1).map((c, i) => `<em style="left:${(1 - c) * 100}%" class="${pct >= c ? 'on' : ''}">${RAID_GR[i + 1]}</em>`).join('')}</div><div class="rbSub">입힌 피해 <b>${(pct * 100).toFixed(1)}%</b> · 지금 등급 <b class="g${g}">${RAID_GR[g]}</b></div>`;
+}
+function raidEnd() {
+  const opt = B.opt, bo = B.units.find(u => u.raid), pct = clamp(1 - Math.max(0, bo ? bo.hp : 0) / (bo ? bo.max : 1), 0, 1), kill = !bo || bo.hp <= 0, g = kill ? 4 : raidGrade(pct), lv = opt.foes[0].lv;
+  B.over = true; opt.won = true; B.loot = {}; B.money = 0; B.xp = 0;
+  for (const [u, hp, ko] of opt.keep) { u.hp = hp; u.ko = ko; }
+  opt.endPos = B.units.filter(u => u.ref && u.side === 0).map(u => [u.ref.id, { x: u.x, y: u.y, a: u.a }]);
+  const R = raidNow(), best = R.best[opt.raid] || 0, lines = [];
+  if (pct > best) R.best[opt.raid] = pct;
+  const mul = [0.35, 0.6, 1, 1.5, 2.2][g] * (kill ? 1.3 : 1), money = Math.round((1500 + 260 * lv) * mul / 10) * 10;
+  S.money += money; S.stats.earned += money; lines.push(`<b style="color:var(--amber)">크레딧 +${fmt(money)}</b>`);
+  { const cx = Math.round(xpKill(lv) * 12 * mul); gainCxp(cx); lines.push(`상단 경험치 +${fmt(cx)}`); }
+  { const n = [0, 1, 1, 2, 3][g] + (kill ? 1 : 0), got = {}; for (let i = 0; i < n; i++) { const c = party().filter(u => !isHero(u) && (u.tier || 0) < 4 && u.lv >= 10), u = c.length ? pick(c) : null; if (!u) break; const k = promoKey(u, u.tier || 0); S.promo[k] = (S.promo[k] || 0) + 1; got[k] = (got[k] || 0) + 1; }
+    for (const [k, c] of Object.entries(got)) lines.push(`<b style="color:${RAR[Math.min(4, +k.split(':')[1] + 1)].c}">${promoName(k)}</b> ${c}개`); }
+  { const ch = kill ? 0.5 : g === 4 ? 0.25 : g === 3 ? 0.1 : 0; if (lv >= 40 && Math.random() < ch) { if (addCargo('estone', 1)) lines.push('<b style="color:#ffb347">강화석</b> 1개'); else { S.money += 8000; lines.push('강화석을 얻었지만 가방이 꽉 차 8,000 크레딧에 처분했어요'); } } }
+  { const ch = kill ? 0.15 : g === 4 ? 0.05 : 0; if (lv >= 50 && Math.random() < ch) { if (addCargo('relic', 1)) lines.push('<b style="color:#ffb347">태고의 정수</b> 1개!'); else { S.money += 25000; lines.push('태고의 정수를 얻었지만 가방이 꽉 차 25,000 크레딧에 처분했어요'); } } }
+  sfx(g >= 3 ? 'win' : 'coin'); flash(g >= 3 ? 0.5 : 0.25, g >= 4 ? '#ffd27a' : undefined); $('raidBar').hidden = true;
+  setTimeout(() => { if (!B) return; showModal(`<h3>${kill ? '토벌 성공!' : '토벌 종료'}</h3><div class="sub">${BOSSES[opt.raid].n} · Lv${lv} · ${opt.retreat ? '중간에 물러났어요' : kill ? `${Math.round(B.t)}초 만에 쓰러뜨렸어요` : alive(0).filter(u => u.ref).length ? '시간이 다 됐어요' : '상단이 모두 쓰러졌어요'}</div>
+    <div class="raidRes"><div class="rg g${g}">${kill ? 'S+' : RAID_GR[g]}</div><div class="info"><b>입힌 피해 ${(pct * 100).toFixed(1)}%</b><small>${pct > best ? (best ? `최고 기록 갱신! (이전 ${(best * 100).toFixed(1)}%)` : '첫 기록이에요') : `최고 기록 ${(best * 100).toFixed(1)}%`}</small><small>다음 등급까지 ${g < 4 ? ((RAID_CUT[g + 1] - pct) * 100).toFixed(1) + '%' : '-'}</small></div></div>
+    <div class="card">${lines.map(l => `<div class="row"><div class="info"><small style="color:var(--text)">${l}</small></div></div>`).join('')}</div><div class="sub">대원들의 체력은 토벌 전 그대로예요 · 토벌에서는 쓰러져도 손해가 없어요</div>
+    <div class="mbtns"><button class="btn primary" data-act="closeBattle">확인</button></div>`); }, 900);
+  save();
+}
+function raidHtml() {
+  const R = raidNow(), k = raidBoss(), BO = BOSSES[k], lv = raidLv(), left = 2 - R.n, today = new Date().getDay(), ks = Object.keys(BOSSES), best = R.best[k] || 0;
+  return `<h2>오늘의 토벌<small>요일마다 다른 거수가 나와요 · 60초 동안 입힌 피해로 등급을 매겨요 · 하루 1번 무료, 1번 더는 보석 ${RAID_GEMS}개</small></h2>
+    <div class="card raidcard"><div class="row">${ARTIMG['boss:' + k] ? `<img class="raidart" src="${artSrc('boss:' + k)}" alt="">` : `<canvas data-u="${BO.base}" data-art="1" width="96" height="84" style="width:84px;height:74px"></canvas>`}<div class="info"><b style="color:var(--amber)">${BO.n}</b><small>Lv${lv} (출전 대원 상위 5명 평균) · 제한 시간 ${RAID_T}초</small><small>최고 기록 ${(best * 100).toFixed(1)}% · ${RAID_GR[raidGrade(best)]}등급</small></div></div>
+      <div class="raidcut">${RAID_GR.map((g, i) => `<span class="g${i}"><b>${g}</b>${Math.round(RAID_CUT[i] * 100)}%~</span>`).join('')}</div>
+      <div class="row"><div class="info"><small>보상: 크레딧, 상단 경험치, 대원의 전직 재료 · A 이상은 강화석 (Lv40+), S는 태고의 정수도 (Lv50+) · 쓰러뜨리면 더 많이</small></div></div>
+      <div class="row" style="justify-content:flex-end;gap:6px">${left === 2 ? `<button class="btn primary" data-act="raid">도전하기 (오늘 1/1)</button>` : left === 1 ? `<button class="btn ${S.gems >= RAID_GEMS ? 'primary' : ''}" data-act="raid" data-paid="1" ${S.gems >= RAID_GEMS ? '' : 'disabled'}>한 번 더 · 보석 ${RAID_GEMS}개</button>` : '<button class="btn" disabled>오늘은 끝났어요</button>'}</div></div>
+    <div class="raidweek">${ks.map((b, i) => `<span class="${i === today ? 'on' : ''}"><b>${RAID_DAYS[i]}</b>${BOSSES[b].n.split(' ').slice(-1)[0]}</span>`).join('')}</div>`;
+}
+const OFF_MAX = 8 * 60, OFF_MIN = 10;
+const GUIDE = [
+  ['처음 시작하면', '정착지 가까운 사냥터에서 작은 공룡부터 잡아요. 왼쪽 위 노란 목표를 누르면 다음에 할 일로 바로 데려다줘요. 전리품은 시장에서 팔고, 모은 돈으로 고용소에서 동료를 구하세요. 대장 레벨이 오르면 능력치 포인트가 생겨요 (상단 → 대원).'],
+  ['사냥과 자동 사냥', '오른쪽 아래 사냥 버튼은 가장 가까운 무리를 찾아가요. 자동을 켜면 그 자리를 중심으로 계속 사냥하고, 우두머리도 잡아요. 같은 땅이라도 안쪽 사냥터일수록 경험치와 전리품이 좋아요 (단계마다 +25%). 체력이 낮으면 알아서 쉬거나 회복약을 마셔요.'],
+  ['무게와 가방', '가방은 칸 수와 무게 두 가지로 차요. 짐꾼과 짐마차가 무게 한도를 늘리고, 잠긴 칸은 눌러서 크레딧으로 열 수 있어요 (열수록 비싸져요). 전직 재료는 창고에 둬도 전직에 쓸 수 있어요.'],
+  ['전직', `레벨 ${PROMO.map(q => q.lv).join(' · ')}에 전직(공룡은 진화)할 수 있어요. 각 단계마다 그 대원의 재료가 ${PROMO_N}개 필요해요. 재료는 사냥에서 드물게 나오고, 우두머리는 8배 더 잘 줘요. 전직할수록 겉모습이 화려해지고 기술이 강해져요.`],
+  ['희귀 영웅과 전용 장비', `희귀 영웅은 고용소에서 큰돈으로 데려와요. 영웅마다 겉모습과 고유 기술이 달라요. 레벨 ${HSET_LV}부터 공방에서 전용 장비(무기·갑옷·징표)를 만들 수 있어요. 깊은 땅 잡동사니, 태고의 정수, 큰돈이 들어요. 전용 장비는 강화석으로 +10까지 강화하고, +3부터는 실패하면 사라질 수 있어요.`],
+  ['공룡 알', `알은 시련의 탑 10층마다 1개씩, 그리고 전투에서 아주 드물게 나와요 (우두머리가 조금 더 잘 줘요). 부화장에 맡기면 ${EGG_T / 60}분 뒤 깨어나요. 처음엔 새끼였다가 진화할수록 성체 모습이 돼요.`],
+  ['시련의 탑', '정착지의 탑에서 한 층씩 올라요. 층마다 상금이 있고, 10층마다 우두머리가 나와요. 우두머리를 이기면 증표, 공룡 알, 회복약을 줘요. 실패해도 다시 도전할 수 있어요.'],
+  ['일일 콘텐츠', `상단 → 일일에서 출석 보상, 오늘의 임무 다섯 개, 오늘의 토벌을 해요. 토벌은 요일마다 다른 거수와 ${RAID_T}초 동안 싸워 입힌 피해로 D~S 등급을 받아요. 토벌에서는 쓰러져도 손해가 없어요. 게임을 꺼 둔 동안에도 최대 ${OFF_MAX / 60}시간까지 조금씩 사냥해 둬요.`],
+  ['투기장과 토너먼트', '콜로세움에서 등급별 32강 토너먼트에 나가요. 참가비는 등급이 높을수록 비싸고, 모인 참가비의 20%는 세금으로 빠지고 나머지는 1~7위가 나눠 가져요. 5대5 대전에서는 받는 피해와 회복이 줄고, 40초가 지나면 점점 아파져요. 남의 경기도 관중석에서 볼 수 있어요.'],
+  ['저장과 이동', '게임은 몇 초마다 자동으로 저장돼요. 다른 기기로 옮기려면 설정 → 저장 코드를 쓰세요. 앱 데이터를 지우면 진행이 사라지니 가끔 저장 코드를 복사해 두세요.'],
+];
+ let offDone = false;
 function offlineGain(mins) {   // the caravan keeps hunting slowly while the game is closed: roughly a tenth of what steady auto-hunting earns, up to eight hours
   const ours = party(); if (!ours.length) return null;
   const L = ours.reduce((a, u) => a + u.lv, 0) / ours.length, kills = mins * 0.8;
@@ -3806,7 +3896,8 @@ function renderParty() {
     ${partySec === 'bag' ? bagHtml() : ''}
     ${partySec === 'daily' ? dailyHtml() : ''}
     ${partySec === 'opt' ? `<h2>설정<small>이 기기에서만 적용돼요</small></h2><div class="card"><div class="row"><div class="info"><b>소리</b><small>배경 음악과 효과음 · 누를 때마다 바뀌어요</small></div><button class="btn small ${S.snd ? 'primary' : ''}" data-act="snd">${['소리 끔', '효과음만', '소리 켬'][S.snd]}</button></div>${[['vib', '진동', '치명타, 큰 기술, 승리 때 폰이 짧게 떨려요 (지원하는 기기만)', 0], ['noShake', '화면 흔들림', '큰 기술을 맞을 때 화면이 흔들려요', 1], ['noNum', '피해 숫자', '전투 중 피해와 회복 숫자를 띄워요', 1], ['eco', '절전 모드', '화면을 초당 30번만 그려 배터리를 아껴요 · 움직임이 조금 덜 부드러워져요', 0]].map(([k, n, d, inv]) => { const on = inv ? !(S.opt || {})[k] : !!(S.opt || {})[k]; return `<div class="row"><div class="info"><b>${n}</b><small>${d}</small></div><button class="btn small ${on ? 'primary' : ''}" data-act="opt" data-k="${k}">${on ? '켜짐' : '꺼짐'}</button></div>`; }).join('')}</div>
-      <h2>계정</h2><div class="card"><div class="row"><div class="info"><b>저장 코드</b><small>다른 기기로 옮기거나 백업할 때 써요</small></div><button class="btn small" data-act="saveCode">열기</button></div><div class="row"><div class="info"><b>쿠폰</b><small>받은 쿠폰 코드를 넣어요</small></div><button class="btn small" data-act="coupon">입력</button></div><div class="row"><div class="info"><b>새 게임</b><small>지금 진행을 지우고 처음부터 시작해요</small></div><button class="btn small" data-act="newGame">새 게임</button></div></div>` : ''}
+      <h2>계정</h2><div class="card"><div class="row"><div class="info"><b>저장 코드</b><small>다른 기기로 옮기거나 백업할 때 써요</small></div><button class="btn small" data-act="saveCode">열기</button></div><div class="row"><div class="info"><b>쿠폰</b><small>받은 쿠폰 코드를 넣어요</small></div><button class="btn small" data-act="coupon">입력</button></div><div class="row"><div class="info"><b>새 게임</b><small>지금 진행을 지우고 처음부터 시작해요</small></div><button class="btn small" data-act="newGame">새 게임</button></div></div>
+      <h2>도움말<small>궁금한 항목을 눌러 펼쳐 보세요</small></h2><div class="card guide">${GUIDE.map(([t, d]) => `<details><summary>${t}</summary><p>${d}</p></details>`).join('')}</div>` : ''}
     ${partySec === 'ach' ? `<h2>업적<small>단계를 채우면 상금을 받아요</small></h2><div class="card">${ACH.map(([k, n, fn, th, unit], i) => { const t = S.ach[k] || 0, v = fn(), done = t >= 5, ok = !done && v >= th[t];
       return `<div class="row"><span class="num${done ? ' done' : ''}">${done ? '★' : t + 1}</span><div class="info"><b>${n}</b>${done ? '<small>모든 단계를 마쳤어요</small>' : `<div class="bar"><i style="width:${Math.min(100, v / th[t] * 100)}%;background:var(--amber)"></i></div><small>${fmt(Math.min(v, th[t]))}/${fmt(th[t])} ${unit} · 상금 ${fmt(achPrize(i, t))}</small>`}</div><button class="btn small ${ok ? 'primary' : ''}" data-act="ach" data-k="${k}" ${ok ? '' : 'disabled'}>${done ? '완료' : '받기'}</button></div>`; }).join('')}</div>` : ''}
     ${partySec === 'rank' ? (() => { const me = partyPower(), list = [...RANKS.map(r => [r[0], r[1], 0]), ['내 상단', me, 1]].sort((a, b) => b[1] - a[1]), up = list[list.findIndex(r => r[2]) - 1];
@@ -3965,6 +4056,7 @@ document.body.addEventListener('click', e => {
   else if (act === 'hatch') { const e = S.eggs[+b.dataset.i]; if (!e || e.t > 0) return; S.eggs.splice(+b.dataset.i, 1); const r = hatchEgg(e); sfx(r.grade >= 2 ? 'win' : 'capture'); flash(r.grade >= 3 ? 0.8 : 0.4, r.grade >= 3 ? '255,200,90' : '255,240,210'); toast(`알에서 ${RAR[r.grade].n} 등급 ${UNITS[r.u.type].n}이(가) 태어났어요!${r.inP ? '' : ' (공룡 자리가 꽉 차 대기)'}`, 'good'); syncCrew(); save(); renderAll(); unitModal(r.u.id); return; }
   else if (act === 'coupon') { showModal(`<h3>쿠폰</h3><div class="sub">받은 쿠폰 코드를 입력하세요 · 대소문자와 띄어쓰기는 상관없어요</div><div class="card"><div class="row"><input id="couponIn" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="예: HERO-SET-2026" style="flex:1;min-width:0;height:44px;padding:0 12px;border-radius:8px;border:1px solid var(--gold);background:#17110b;color:#fff3d6;font:700 15px var(--f-body);letter-spacing:.04em"></div></div><div class="mbtns"><button class="btn" data-act="closeModal">닫기</button><button class="btn primary" data-act="couponGo">받기</button></div>`); setTimeout(() => { const el = $('couponIn'); if (el) el.focus(); }, 60); return; }
   else if (act === 'closeModal') { closeModal(); return; }
+  else if (act === 'raid') { if (B) return; startRaid(!!b.dataset.paid); return; }
   else if (act === 'offGet') { closeModal(); setTimeout(attPopup, 250); return; }
   else if (act === 'attGet') { const r = attClaim(); if (!r) return; sfx('win'); flash(0.35, '#ffd27a'); toast(`출석 보상 · ${rwText(r)}`, 'good'); renderHeader(); if (b.dataset.pop) { closeModal(); return; } }
   else if (act === 'dmGet') { const m = DM.find(q => q[0] === b.dataset.k), D = dmNow(); if (!m || D.got[m[0]] || dmProg(m) < m[2]) return; D.got[m[0]] = 1; grant(m[3]); sfx('coin'); toast(`임무 완료 · ${rwText(m[3])}`, 'good'); }
