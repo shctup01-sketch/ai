@@ -1,0 +1,49 @@
+name: Deploy game
+
+# Publishes the pixel game to the gh-pages branch, which GitHub Pages serves.
+# Every push that touches the game goes live a minute or two later.
+on:
+  push:
+    branches: [main, ccr-7c6b1095-v7y1gf]
+    paths: ['pixel/**', 'dino/models/**', '.github/workflows/deploy-game.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: deploy-game
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Assemble site
+        run: |
+          sh pixel/build.sh
+          mkdir -p site/models
+          cp pixel/index.html pixel/version.json pixel/sw.js pixel/manifest.webmanifest pixel/privacy.html pixel/terms.html pixel/*.png site/
+          cp dino/models/*.b64.txt dino/models/props.json dino/models/LICENSE-*.txt site/models/
+          cp -r pixel/art site/art
+          touch site/.nojekyll
+      - name: Publish to gh-pages
+        run: |
+          cd site
+          git init -q -b gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Deploy ${GITHUB_SHA}"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" gh-pages
+      # Also publish through the Pages deploy action, so the site goes live
+      # whichever source is picked in the repository's Pages settings.
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+        continue-on-error: true
+      - uses: actions/deploy-pages@v4
+        continue-on-error: true

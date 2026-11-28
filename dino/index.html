@@ -1,0 +1,1798 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#1c1711">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>공룡 상단</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;600&display=swap">
+<style>
+/* Layout: caravan ledger — header with money/cargo, three tabs (town, caravan, map), full-screen battle overlay.
+   Single post-apocalyptic look: dust, rust and ash. */
+:root {
+  --bg: #1c1711; --panel: #26201a; --panel-2: #312921; --line: #463a2d;
+  --text: #ece3d4; --muted: #a89a86; --rust: #d0743a; --amber: #e3a843; --good: #8fbf6a; --bad: #d4573c; --steel: #8fa3b0;
+  --f-display: "Black Han Sans", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --f-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html { height: 100%; box-sizing: border-box; background: var(--bg); }
+body { height: 100%; margin: 0; background: var(--bg); color: var(--text); font-family: var(--f-body); font-size: 13px; overflow: hidden; user-select: none; -webkit-user-select: none; }
+button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; touch-action: manipulation; }
+button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+button[disabled] { opacity: .4; pointer-events: none; }
+#app { height: 100%; max-width: 620px; margin: 0 auto; display: flex; flex-direction: column; position: relative; }
+header { padding-block: 8px; padding-left: max(14px, env(safe-area-inset-left, 0px)); padding-right: max(14px, env(safe-area-inset-right, 0px)); display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--line); background: linear-gradient(#2a221a, var(--bg)); }
+.brand { flex: 1; min-width: 0; }
+.brand h1 { font-family: var(--f-display); font-weight: 400; font-size: 21px; margin: 0; letter-spacing: .02em; color: var(--rust); }
+.brand small { display: block; color: var(--muted); font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.res { display: flex; gap: 5px; }
+.rc { display: flex; flex-direction: column; align-items: flex-end; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 2px 7px; min-width: 52px; }
+.rc em { font-style: normal; font-size: 9px; color: var(--muted); }
+.rc b { font-size: 13px; font-variant-numeric: tabular-nums; }
+.rc.money b { color: var(--amber); }
+main { flex: 1; min-height: 0; position: relative; }
+.view { position: absolute; inset: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-block: 12px 20px; padding-left: max(14px, env(safe-area-inset-left, 0px)); padding-right: max(14px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 12px; }
+h2 { font-family: var(--f-display); font-weight: 400; font-size: 17px; margin: 0; letter-spacing: .02em; }
+h2 small { font-family: var(--f-body); font-size: 11px; color: var(--muted); margin-left: 6px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 11px; display: flex; flex-direction: column; gap: 9px; }
+.row { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.row + .row { border-top: 1px dashed var(--line); padding-top: 9px; }
+.row .info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.row .info b { font-weight: 600; font-size: 13px; }
+.row .info small { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.row canvas { flex: none; width: 52px; height: 40px; }
+.btn { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 11px; font-weight: 600; font-size: 12px; flex: none; }
+.btn:active { transform: translateY(1px); }
+.btn.primary { background: var(--rust); color: #1c120a; border-color: #8f4a1e; }
+.btn.big { width: 100%; padding: 13px; font-family: var(--f-display); font-weight: 400; font-size: 17px; }
+.btn.small { padding: 6px 8px; font-size: 11px; }
+.up { color: var(--good); } .down { color: var(--bad); }
+.zonehead { position: relative; border-radius: 12px; overflow: hidden; min-height: 116px; display: flex; align-items: flex-end; border: 1px solid var(--line); }
+.zonehead canvas, .zonehead img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.zonehead { min-height: 170px; }
+.zonehead .zt { position: relative; padding: 12px; background: linear-gradient(transparent, rgba(20,15,10,.92)); width: 100%; }
+.zonehead .zt b { font-family: var(--f-display); font-weight: 400; font-size: 22px; display: block; }
+.zonehead .zt small { color: #d8cdb9; font-size: 11px; }
+.danger { color: var(--bad); letter-spacing: 1px; }
+.hunts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.hunts .btn { display: flex; flex-direction: column; gap: 2px; align-items: center; padding: 9px 4px; }
+.hunts .btn small { font-weight: 400; font-size: 10px; color: var(--muted); }
+.hunts .btn.boss { border-color: var(--bad); }
+.bar { height: 5px; background: #3a2e22; border-radius: 3px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--good); }
+.tag { font-size: 10px; padding: 1px 6px; border-radius: 5px; background: var(--panel-2); border: 1px solid var(--line); color: var(--muted); }
+.tag.on { background: var(--rust); color: #1c120a; border-color: var(--rust); }
+#mapHost { width: 100%; aspect-ratio: 1 / 1.08; border-radius: 12px; border: 1px solid var(--line); overflow: hidden; background: #2a231b; }
+#map3d { width: 100%; height: 100%; display: block; }
+#mapcv { width: 100%; aspect-ratio: 360 / 300; max-width: 100%; border-radius: 12px; border: 1px solid var(--line); display: block; }
+.travel { display: flex; flex-direction: column; gap: 6px; }
+.travel .bar { height: 8px; } .travel .bar i { background: var(--amber); }
+#tabs { display: flex; background: var(--panel); border-top: 1px solid var(--line); padding: 5px max(8px, env(safe-area-inset-right, 0px)) 6px max(8px, env(safe-area-inset-left, 0px)); gap: 4px; }
+#tabs button { flex: 1; border-radius: 8px; padding: 8px 2px; font-family: var(--f-display); font-size: 15px; color: var(--muted); }
+#tabs button.on { background: var(--panel-2); color: var(--text); box-shadow: inset 0 -2px 0 var(--rust); }
+#battle { position: absolute; inset: 0; z-index: 20; background: #120e0a; display: flex; flex-direction: column; }
+.bhead { display: flex; align-items: center; gap: 8px; padding: 7px max(12px, env(safe-area-inset-right, 0px)) 7px max(12px, env(safe-area-inset-left, 0px)); }
+.bhead b { font-family: var(--f-display); font-weight: 400; font-size: 16px; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bhead small { color: var(--muted); font-size: 11px; }
+.bfield { flex: 1; min-height: 0; position: relative; }
+#bcv, #b3d { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+.dexg { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.dexc { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 4px 3px 6px; text-align: center; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.dexc canvas { width: 100%; height: 44px; }
+.dexc b { font-size: 10px; font-weight: 600; overflow-wrap: anywhere; line-height: 1.25; }
+.dexc small { font-size: 9px; color: var(--muted); }
+.dexc.unk canvas { filter: brightness(0) opacity(.45); }
+.dexc.own { border-color: var(--amber); }
+.chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; position: sticky; top: -12px; z-index: 5; background: var(--bg); padding: 8px 0; margin: -4px 0; }
+.chips::-webkit-scrollbar { display: none; }
+.chip { flex: none; height: 36px; padding: 0 14px; border-radius: 18px; background: var(--panel); border: 1px solid var(--line); font-weight: 600; font-size: 13px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
+.chip.on { background: var(--rust); border-color: var(--rust); color: #1c120a; }
+.chip i { font-style: normal; min-width: 18px; height: 18px; border-radius: 9px; background: var(--bad); color: #fff; font-size: 11px; display: grid; place-items: center; padding: 0 5px; }
+.chip.on i { background: #1c120a; color: var(--amber); }
+.num { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-family: var(--f-display); font-size: 15px; background: var(--panel-2); border: 1px solid var(--line); color: var(--muted); }
+.num.done { border-color: var(--good); color: var(--good); } .num.boss { border-color: var(--bad); color: var(--bad); }
+.cargobar { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.cargobar span { flex: none; } .cargobar .bar { flex: 1; height: 7px; }
+#loading { display: flex; flex-direction: column; gap: 8px; align-items: center; justify-content: center; min-height: 60%; color: var(--muted); }
+#bTip { animation: tipfade 6s forwards; position: absolute; left: 50%; top: 8px; transform: translateX(-50%); font-size: 11px; color: #d8cdb9; background: rgba(18,14,10,.7); padding: 3px 9px; border-radius: 10px; pointer-events: none; white-space: nowrap; }
+#bSel { position: absolute; left: 8px; right: 8px; bottom: 8px; background: rgba(18,14,10,.86); border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; font-size: 12px; display: flex; gap: 8px; align-items: center; pointer-events: none; }
+#bSel .bar { flex: 1; } #bSel .bar i { background: var(--bad); }
+.bfoot { display: flex; gap: 6px; padding: 7px max(12px, env(safe-area-inset-right, 0px)) 9px max(12px, env(safe-area-inset-left, 0px)); }
+.bfoot .btn { flex: 1; padding: 11px 4px; font-size: 13px; }
+#modal { position: absolute; inset: 0; z-index: 40; background: rgba(8,6,4,.72); display: grid; place-items: center; padding: 20px max(16px, env(safe-area-inset-right, 0px)) 20px max(16px, env(safe-area-inset-left, 0px)); }
+.mcard { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px 16px; width: 100%; max-width: 360px; max-height: 100%; overflow-y: auto; display: flex; flex-direction: column; gap: 11px; animation: pop .22s ease-out; }
+.mcard h3 { font-family: var(--f-display); font-weight: 400; font-size: 24px; margin: 0; text-align: center; }
+.mcard .sub { text-align: center; color: var(--muted); font-size: 12px; margin-top: -5px; line-height: 1.5; }
+.mbtns { display: flex; gap: 8px; } .mbtns .btn { flex: 1; padding: 11px; }
+@keyframes tipfade { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes pop { from { transform: scale(.92); opacity: 0; } to { transform: none; opacity: 1; } }
+#toast { position: absolute; left: 50%; top: 56px; transform: translate(-50%, -6px); background: rgba(28,23,17,.95); border: 1px solid var(--line); padding: 7px 14px; border-radius: 16px; font-size: 12px; opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; z-index: 50; max-width: calc(100% - 24px); text-align: center; }
+#toast.show { opacity: 1; transform: translate(-50%, 0); }
+#toast.warn { border-color: var(--bad); } #toast.good { border-color: var(--amber); }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+/* interface polish */
+.view > * { flex-shrink: 0; }
+h2 { margin-top: 2px; } h2 small { display: block; margin: 3px 0 0; line-height: 1.45; }
+.card { border-radius: 14px; padding: 12px 13px; gap: 11px; background: linear-gradient(#2a231c, #241e18); }
+.row + .row { padding-top: 11px; }
+.row .info b { font-size: 14px; } .row .info small { font-size: 11.5px; line-height: 1.45; }
+.row canvas { width: 58px; height: 46px; border-radius: 10px; background: #1a1510; border: 1px solid var(--line); }
+.btn { min-height: 40px; border-radius: 10px; padding: 8px 13px; font-size: 13px; }
+.btn.small { min-height: 36px; padding: 6px 11px; font-size: 12.5px; }
+.btn.primary { box-shadow: inset 0 -2px 0 rgba(0,0,0,.25); }
+.tag { border-radius: 6px; padding: 2px 7px; }
+.zonehead { min-height: 150px; border-radius: 14px; } .zonehead .zt { padding: 14px; } .zonehead .zt b { font-size: 24px; }
+.rc { border-radius: 9px; padding: 4px 9px; min-width: 58px; } .rc b { font-size: 14px; } .rc em { font-size: 10px; }
+#tabs { padding-top: 6px; }
+#tabs button { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 13px; padding: 6px 2px 5px; }
+#tabs svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+#tabs button.on { color: var(--rust); background: none; box-shadow: none; }
+/* sheets slide up from the bottom, within thumb reach */
+#modal { place-items: end center; padding: 0; }
+.mcard { max-width: 620px; border-radius: 20px 20px 0 0; border-bottom: 0; max-height: 88%; padding: 10px 16px calc(18px + env(safe-area-inset-bottom, 0px)); animation: sheet .24s ease-out; }
+.mcard::before { content: ""; width: 44px; height: 4px; border-radius: 2px; background: var(--line); margin: 0 auto 6px; flex: none; }
+@keyframes sheet { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+#toast { top: 62px; border-radius: 12px; padding: 9px 14px; font-size: 13px; box-shadow: 0 6px 20px rgba(0,0,0,.4); }
+.bfoot .btn { min-height: 46px; } #bCapture { flex: 1.6; font-size: 14px; }
+.dexg { gap: 8px; } .dexc { border-radius: 10px; }
+</style>
+
+<div id="app">
+  <header>
+    <div class="brand"><h1>공룡 상단</h1><small id="sub"></small></div>
+    <div class="res">
+      <span class="rc money"><em>크레딧</em><b id="rMoney">0</b></span>
+      <span class="rc"><em>짐칸</em><b id="rCargo">0/0</b></span>
+      <span class="rc"><em>날짜</em><b id="rDay">1</b></span>
+    </div>
+  </header>
+  <main>
+    <section class="view" id="v-town"></section>
+    <section class="view" id="v-party" hidden></section>
+    <section class="view" id="v-map" hidden></section>
+  </main>
+  <nav id="tabs">
+    <button data-v="town" class="on"><svg viewBox="0 0 24 24"><path d="M3 20h18M5 20V10l7-6 7 6v10M10 20v-6h4v6"/></svg>정착지</button>
+    <button data-v="party"><svg viewBox="0 0 24 24"><circle cx="8" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M2 20c0-4 3-6 6-6s6 2 6 6M14 20c0-3 1.5-5 4-5s4 2 4 5"/></svg>상단</button>
+    <button data-v="map"><svg viewBox="0 0 24 24"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></svg>지도</button>
+  </nav>
+  <div id="battle" hidden>
+    <div class="bhead"><b id="bTitle"></b><small id="bInfo"></small></div>
+    <div class="bfield"><canvas id="b3d"></canvas><canvas id="bcv"></canvas><div id="bTip">적을 눌러 집중 공격 · 체력 30% 이하면 포획</div><div id="bSel" hidden><span id="bSelName"></span><span class="bar"><i id="bSelHp"></i></span></div></div>
+    <div class="bfoot" id="ffoot" hidden><button class="btn" id="fLeave">정착지로</button><button class="btn" id="fZoom">크게</button><button class="btn primary" id="fNearest">가까운 무리로</button></div>
+    <div class="bfoot" id="bfoot"><button class="btn" id="bRetreat">후퇴</button><button class="btn primary" id="bCapture">포획</button><button class="btn" id="bZoom">크게</button><button class="btn" id="bSpeed">×1</button></div>
+  </div>
+  <div id="toast"></div>
+  <div id="modal" hidden><div class="mcard" id="mcard"></div></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/fflate.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FBXLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/SkeletonUtils.js"></script>
+<script>
+(() => {
+'use strict';
+const $ = id => document.getElementById(id);
+const rand = (a, b) => a + Math.random() * (b - a);
+const pick = a => a[Math.random() * a.length | 0];
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const d2 = (ax, ay, bx, by) => { const dx = ax - bx, dy = ay - by; return dx * dx + dy * dy; };
+const fmt = n => Math.floor(n).toLocaleString('ko-KR');
+
+/* ================================================================
+   WORLD DATA — three zones instead of nations; no elements
+   ================================================================ */
+const GOODS = {
+  grain: { n: '곡물', base: 9 }, meat: { n: '고기', base: 14 }, hide: { n: '가죽', base: 20 }, bone: { n: '뼈', base: 12 },
+  water: { n: '깨끗한 물', base: 16 }, ammo: { n: '탄약', base: 28 }, parts: { n: '기계 부품', base: 42 },
+  herb: { n: '약초', base: 24 }, venom: { n: '독샘', base: 50 },
+  // made in workshops, never sold by markets
+  jerky: { n: '육포', base: 36, made: true, zp: { plain: 0.9, city: 1.4, swamp: 1.25 } },
+  armor: { n: '가죽 갑옷', base: 125, made: true, zp: { plain: 0.9, city: 1.3, swamp: 1.3 } },
+  weapon: { n: '강철 무기', base: 165, made: true, zp: { plain: 1.3, city: 0.9, swamp: 1.35 } },
+  medicine: { n: '치료약', base: 96, made: true, zp: { plain: 1.3, city: 1.4, swamp: 0.9 } },
+};
+const ZONES = {
+  plain: { n: '잿빛 평원', lv: 1, danger: 1, ground: 'plain', mx: 0.24, my: 0.72,
+    ds: '재가 날리는 마른 초원. 초식 공룡 떼가 지나가고, 살아남은 농부들이 곡물을 키워요.',
+    recruit: ['hunter', 'spear'], tame: ['trike', 'para', 'apato'], rare: ['trikeIron', 'trikeRed', 'paraGold'], wild: ['para', 'para', 'trike', 'para', 'trike', 'apato'], boss: 'trikeKing',
+    loot: { meat: 3, hide: 2, bone: 1 }, price: { grain: .55, hide: .8, meat: .85, bone: .9, water: 1.05, ammo: 1.45, parts: 1.35, herb: 1.35, venom: 1.4 } },
+  city: { n: '무너진 도시', lv: 5, danger: 2, ground: 'city', mx: 0.74, my: 0.42,
+    ds: '공룡에게 짓밟힌 옛 도시. 폐허에서 부품과 탄약을 캐지만 먹을 것과 물이 귀해요. 랩터 무리가 골목을 지배해요.',
+    recruit: ['sniper', 'mechanic'], tame: ['raptor', 'compy'], rare: ['raptorShadow', 'stegoRust'], wild: ['compy', 'compy', 'raptor', 'raptor'], boss: 'oneEye',
+    loot: { parts: 2, ammo: 1, meat: 1, hide: 1 }, price: { parts: .55, ammo: .65, meat: 1.5, grain: 1.45, water: 1.6, herb: 1.2, hide: 1.1, bone: 1.15, venom: 1.25 } },
+  swamp: { n: '썩은 늪지', lv: 9, danger: 3, ground: 'swamp', mx: 0.3, my: 0.24,
+    ds: '독이 고인 늪. 약초와 독샘이 나지만 거대 악어와 산성 침을 뱉는 공룡이 숨어 있어요.',
+    recruit: ['medic', 'venomer'], tame: ['dilo', 'stego'], rare: ['raptorVenom', 'apatoMoss', 'trexYoung'], wild: ['dilo', 'dilo', 'stego', 'compy'], boss: 'swampKing',
+    loot: { herb: 2, venom: 1, meat: 2, hide: 1 }, price: { herb: .55, venom: .6, water: .85, parts: 1.6, ammo: 1.35, grain: 1.25, meat: 1.1, hide: 1.2, bone: 1.1 } },
+};
+// Workshops: each settlement turns raw goods into products over time, even while the caravan is away.
+const RECIPES = {
+  jerky:    { zone: 'plain', n: '육포 만들기', in: { meat: 2, grain: 1 }, out: 'jerky', qty: 2, t: 18, fee: 4 },
+  armor:    { zone: 'plain', n: '가죽 갑옷 짓기', in: { hide: 4 }, out: 'armor', qty: 1, t: 40, fee: 12 },
+  ammo:     { zone: 'city', n: '탄약 재생', in: { parts: 1, bone: 1 }, out: 'ammo', qty: 3, t: 22, fee: 6 },
+  weapon:   { zone: 'city', n: '강철 무기 벼리기', in: { parts: 2, bone: 2 }, out: 'weapon', qty: 1, t: 45, fee: 15 },
+  medicine: { zone: 'swamp', n: '치료약 달이기', in: { herb: 2, water: 1 }, out: 'medicine', qty: 1, t: 28, fee: 8 },
+  dart:     { zone: 'swamp', n: '마취 다트 만들기', in: { venom: 1, bone: 1 }, out: 'dart', qty: 2, t: 20, fee: 5 },
+};
+const SKILLS = {
+  trade: { n: '거래달인', ds: lv => `살 때 -${lv * 3}%, 팔 때 +${lv * 3}%` },
+  speed: { n: '질주', ds: lv => `이동 시간 -${lv * 8}%` },
+  loot:  { n: '수집숙련', ds: lv => `사냥 전리품 +${lv * 15}%` },
+  tame:  { n: '조련술', ds: lv => `포획 확률 +${lv * 5}%p` },
+  craft: { n: '생산숙련', ds: lv => `공방 작업 시간 -${lv * 12}%` },
+};
+const SKILL_MAX = 5;
+const sk = k => (S.skills && S.skills[k]) || 0;
+const cxpNeed = lv => Math.round(120 * Math.pow(lv, 1.5));
+const partyCap = () => Math.min(12, 5 + S.clv);
+const TIER_HUMAN = ['', '숙련 ', '정예 '], TIER_DINO = ['', '성체 ', '우두머리 '];
+const PROMO = [{ lv: 10, clv: 3, cost: 400 }, { lv: 20, clv: 6, cost: 1500 }];
+const gearMul = u => {
+  const t = 1 + 0.3 * (u.tier || 0), b = { atk: 0, hp: 0, def: 0 };
+  for (const it of Object.values(u.eq || {})) if (it) { const s = itemStat(it); for (const k in s) b[k] += s[k]; }
+  return { hp: t * (1 + 0.1 * (u.ga || 0)) * (1 + b.hp), atk: t * (1 + 0.15 * (u.gw || 0)) * (1 + b.atk), def: (1 + 0.25 * (u.ga || 0)) * (1 + b.def) };
+};
+function gainCxp(n) {
+  S.cxp += Math.round(n);
+  while (S.cxp >= cxpNeed(S.clv)) { S.cxp -= cxpNeed(S.clv); S.clv++; S.sp++; toast(`상단 레벨 ${S.clv}! 스킬 포인트 +1${partyCap() > Math.min(12, 4 + S.clv) ? ` · 상단 인원 ${partyCap()}명` : ''}`, 'good'); sfx('capture'); }
+}
+// Five hunting grounds per zone, each deeper one opens after winning the one before.
+const HUNT_NAMES = {
+  plain: ['마른 강바닥', '버려진 농장', '무너진 풍차 언덕', '공룡 뼈 무덤', '우두머리의 둥지'],
+  city: ['주차장 폐허', '무너진 백화점', '지하철 입구', '고층 빌딩 숲', '외눈 랩터의 영역'],
+  swamp: ['잠긴 주택가', '썩은 수로', '안개 낀 늪', '폭군의 사냥길', '폭군의 둥지'],
+};
+const HUNTS = [
+  { lv: [0, 1], n: [2, 2], rare: 0.08, drop: 0.14 },
+  { lv: [2, 3], n: [3, 3], rare: 0.2, drop: 0.2 },
+  { lv: [3, 5], n: [3, 4], rare: 0.3, drop: 0.27 },
+  { lv: [5, 6], n: [4, 5], rare: 0.45, drop: 0.36 },
+  { boss: true, lv: [6, 6], drop: 1 },
+];
+// Loot: equipment drops with five rarities. Anyone in the caravan, human or dinosaur, can wear it.
+const RAR = [{ n: '일반', c: '#d8cdb9', m: 1, w: 60 }, { n: '고급', c: '#8fbf6a', m: 1.6, w: 26 }, { n: '희귀', c: '#79b4e4', m: 2.4, w: 10 }, { n: '영웅', c: '#c58be6', m: 3.4, w: 3.2 }, { n: '전설', c: '#f0b94a', m: 5, w: 0.8 }];
+const SLOTS = { weapon: '무기', armor: '방어구', charm: '장신구' };
+const ITEM_NAMES = {
+  weapon: ['뼈 창날', '랩터 발톱 단검', '녹슨 마체테', '개조 소총 부품', '폭군의 이빨 검'],
+  armor: ['누더기 가죽 조끼', '폐타이어 갑옷', '골판 방패', '스테고 골판 갑주', '폭군 가죽 망토'],
+  charm: ['공룡 이빨 목걸이', '깃털 부적', '낡은 나침반', '호박 속 모기', '티라노 발톱 장식'],
+};
+const BAG_MAX = 40;
+function itemStat(it) { const m = RAR[it.r].m * (1 + it.lv * 0.03); return it.slot === 'weapon' ? { atk: 0.06 * m } : it.slot === 'armor' ? { hp: 0.05 * m, def: 0.08 * m } : { atk: 0.03 * m, hp: 0.03 * m }; }
+const itemPrice = it => Math.round(18 * RAR[it.r].m * RAR[it.r].m * (1 + it.lv * 0.1));
+const itemText = it => { const s = itemStat(it), parts = []; if (s.atk) parts.push(`공격 +${Math.round(s.atk * 100)}%`); if (s.hp) parts.push(`체력 +${Math.round(s.hp * 100)}%`); if (s.def) parts.push(`방어 +${Math.round(s.def * 100)}%`); return parts.join(' · '); };
+const itemName = it => `<span style="color:${RAR[it.r].c}">[${RAR[it.r].n}] ${it.n}</span>`;
+function rollItem(lv, luck, minR = 0) {
+  const w = RAR.map((R, i) => i < minR ? 0 : R.w * Math.pow(1 + luck, i)); let r = Math.random() * w.reduce((a, b) => a + b, 0), ri = minR;
+  for (let i = 0; i < w.length; i++) { r -= w[i]; if (r <= 0) { ri = i; break; } }
+  const slot = pick(Object.keys(SLOTS));
+  return { id: S.itemSeq = (S.itemSeq || 0) + 1, slot, r: ri, lv, n: ITEM_NAMES[slot][ri] };
+}
+const ROUTES = { 'plain|city': { t: 26, danger: 1.3 }, 'city|swamp': { t: 32, danger: 2.3 }, 'plain|swamp': { t: 38, danger: 2.7 } };
+const routeOf = (a, b) => ROUTES[a + '|' + b] || ROUTES[b + '|' + a];
+// Units: people for hire and dinosaurs to tame. carry = cargo slots the unit adds.
+const UNITS = {
+  leader:  { n: '상단 대장', cls: 'human', role: '원거리', hp: 130, atk: 14, def: 6, spd: 40, range: 120, as: 1.0, carry: 10, gun: true, ds: '상단을 이끄는 당신. 소총을 써요.' },
+  hunter:  { n: '사냥꾼', cls: 'human', role: '원거리', hp: 80, atk: 11, def: 3, spd: 42, range: 125, as: 1.1, carry: 3, cost: 120, bow: true, ds: '활로 멀리서 꾸준히 공격해요.' },
+  spear:   { n: '창잡이', cls: 'human', role: '탱커', hp: 160, atk: 9, def: 11, spd: 36, range: 20, as: 0.9, carry: 3, cost: 150, taunt: true, ds: '앞줄에서 적을 붙잡아 둬요.' },
+  sniper:  { n: '저격수', cls: 'human', role: '원거리', hp: 70, atk: 34, def: 2, spd: 34, range: 210, as: 0.42, carry: 2, cost: 340, gun: true, ds: '아주 멀리서 강한 한 발을 쏴요.' },
+  mechanic:{ n: '정비공', cls: 'human', role: '지원', hp: 100, atk: 8, def: 6, spd: 36, range: 100, as: 1, carry: 4, cost: 300, turret: true, ds: '전투가 시작되면 자동 포탑을 설치해요.' },
+  medic:   { n: '의무병', cls: 'human', role: '회복', hp: 90, atk: 5, def: 4, spd: 38, range: 110, as: 1, carry: 3, cost: 320, heal: 14, ds: '가장 다친 동료를 치료해요.' },
+  venomer: { n: '독침술사', cls: 'human', role: '약화', hp: 85, atk: 7, def: 3, spd: 40, range: 115, as: 0.9, carry: 3, cost: 360, shred: 4, ds: '독침으로 적의 장갑을 녹여 모두의 피해를 늘려요.' },
+  trike:   { n: '트리케라톱스', cls: 'dino', role: '탱커', hp: 440, atk: 22, def: 16, spd: 27, range: 24, as: 0.7, carry: 40, size: 30, taunt: true, ds: '짐을 40칸 지는 단단한 방패. 상단의 기둥이에요.' },
+  para:    { n: '파라사우롤로푸스', cls: 'dino', role: '기절', hp: 230, atk: 16, def: 9, spd: 46, range: 20, as: 0.8, carry: 10, size: 22, stun: 1.2, ds: '볏을 울려 내는 굉음으로 적을 기절시켜요. 큰 적에게는 안 통해요.' },
+  apato:   { n: '아파토사우루스', cls: 'dino', role: '짐꾼', hp: 700, atk: 14, def: 12, spd: 20, range: 26, as: 0.5, carry: 120, size: 42, taunt: true, ds: '걸어 다니는 창고. 짐을 120칸이나 져요. 느리지만 단단해요.' },
+  raptor:  { n: '벨로키랍토르', cls: 'dino', role: '돌격', hp: 140, atk: 16, def: 4, spd: 72, range: 15, as: 1.6, carry: 4, size: 17, pack: true, ds: '빠른 사냥꾼. 같은 랩터가 가까이 있으면 더 강해져요.' },
+  compy:   { n: '콤프소그나투스', cls: 'dino', role: '떼', hp: 50, atk: 7, def: 1, spd: 66, range: 11, as: 1.9, carry: 1, size: 10, ds: '작지만 빠르고 많아요.' },
+  dilo:    { n: '딜로포사우루스', cls: 'dino', role: '약화', hp: 190, atk: 12, def: 5, spd: 46, range: 75, as: 0.9, carry: 6, size: 21, shred: 6, acid: true, ds: '산성 침으로 적의 장갑을 녹여요.' },
+  stego:   { n: '스테고사우루스', cls: 'dino', role: '파괴', hp: 420, atk: 34, def: 15, spd: 24, range: 24, as: 0.6, carry: 20, size: 34, ds: '가시 꼬리를 휘둘러 큰 피해를 줘요.' },
+  trex:    { n: '티라노사우루스', cls: 'dino', role: '포식자', hp: 620, atk: 40, def: 14, spd: 40, range: 26, as: 0.7, carry: 30, size: 40, ds: '늪을 지배하는 폭군. 아직 길들인 사람이 없어요.' },
+  trikeIron:    { n: '철갑 트리케라톱스', cls: 'dino', role: '탱커', rare: true, hp: 540, atk: 20, def: 26, spd: 24, range: 24, as: 0.7, carry: 45, size: 33, taunt: true, ds: '희귀종. 쇳빛 피부가 유난히 두꺼워 웬만한 공격은 튕겨 내요.' },
+  trikeRed:     { n: '붉은뿔 트리케라톱스', cls: 'dino', role: '돌격', rare: true, hp: 400, atk: 36, def: 12, spd: 38, range: 24, as: 0.8, carry: 30, size: 29, ds: '희귀종. 성질이 사나워 방패보다 창에 가까워요.' },
+  paraGold:     { n: '황금볏 파라사우롤로푸스', cls: 'dino', role: '회복', rare: true, hp: 260, atk: 12, def: 9, spd: 46, range: 90, as: 0.8, carry: 10, size: 22, heal: 16, ds: '희귀종. 낮은 울음소리가 무리를 진정시켜 다친 동료를 회복시켜요.' },
+  apatoMoss:    { n: '이끼등 아파토사우루스', cls: 'dino', role: '짐꾼', rare: true, hp: 760, atk: 14, def: 13, spd: 20, range: 26, as: 0.5, carry: 110, size: 42, taunt: true, regen: 10, ds: '희귀종. 등에 이끼가 자라요. 싸우는 중에도 상처가 스스로 아물어요.' },
+  raptorShadow: { n: '그림자 랩터', cls: 'dino', role: '암살', rare: true, hp: 150, atk: 18, def: 4, spd: 84, range: 15, as: 1.7, carry: 4, size: 17, pack: true, crit: 0.32, ds: '희귀종. 폐허의 어둠에 숨어 급소를 노려요. 치명타가 자주 터져요.' },
+  raptorVenom:  { n: '독니 랩터', cls: 'dino', role: '약화', rare: true, hp: 150, atk: 15, def: 4, spd: 72, range: 15, as: 1.6, carry: 4, size: 17, pack: true, shred: 3, ds: '희귀종. 물린 자리가 썩어 들어가 장갑이 약해져요.' },
+  stegoRust:    { n: '녹슨등 스테고사우루스', cls: 'dino', role: '가시', rare: true, hp: 460, atk: 28, def: 17, spd: 24, range: 24, as: 0.6, carry: 20, size: 34, taunt: true, thorns: 0.35, ds: '희귀종. 고철 더미에서 자라 골판이 쇠처럼 날카로워요. 물어뜯는 적이 다쳐요.' },
+  trexYoung:    { n: '어린 티라노사우루스', cls: 'dino', role: '포식자', rare: true, hp: 380, atk: 32, def: 10, spd: 52, range: 22, as: 0.9, carry: 15, size: 28, ds: '희귀종. 어미를 잃은 어린 폭군. 길들일 수 있는 유일한 티라노예요.' },
+};
+const BOSSES = {
+  trikeKing: { base: 'trike', n: '늙은 우두머리 트리케라톱스', hp: 4.5, atk: 1.6, size: 1.35 },
+  oneEye:    { base: 'raptor', n: '외눈 랩터', hp: 5, atk: 2.1, size: 1.35 },
+  swampKing: { base: 'trex', n: '늪의 폭군 티라노사우루스', hp: 2.6, atk: 1.3, size: 1.25 },
+};
+const lvMul = lv => 1 + 0.12 * (lv - 1);
+const xpNeed = lv => Math.round(22 * Math.pow(lv, 1.45));
+const STUN_HP_LIMIT = 700;   // like monster grades: big creatures shrug off stuns
+const DAY_LEN = 90;
+
+/* ================================================================
+   STATE
+   ================================================================ */
+const SAVE = 'dino-caravan-v1';
+let S;
+function freshState() {
+  const s = { money: 300, t: 0, day: 1, zone: 'plain', travel: null, cargo: {}, darts: 3, idSeq: 1, units: [], drift: {}, press: {}, stats: { battles: 0, captures: 0, trades: 0, earned: 0 }, snd: 2, dex: {}, clv: 1, cxp: 0, sp: 0, skills: {}, jobs: {}, out: {}, quests: {}, qday: 0, items: [], cleared: {}, itemSeq: 0 };
+  for (const z of Object.keys(ZONES)) { s.drift[z] = {}; s.press[z] = {}; for (const g of Object.keys(GOODS)) { s.drift[z][g] = 1; s.press[z][g] = 1; } }
+  S = s;
+  addUnit('leader', 1, true); addUnit('hunter', 1, true); addUnit('spear', 1, true);
+  const t = addUnit('trike', 2, true); t.name = '돌덩이';
+  return s;
+}
+function addUnit(type, lv, inParty) {
+  const u = { id: S.idSeq++, type, lv, xp: 0, hp: 0, ko: false, inParty: !!inParty };
+  u.hp = maxHp(u); S.units.push(u); if (UNITS[type].cls === 'dino') S.dex[type] = 2; return u;
+}
+const maxHp = u => Math.round(UNITS[u.type].hp * lvMul(u.lv) * gearMul(u).hp);
+const party = () => S.units.filter(u => u.inParty);
+const capacity = () => party().reduce((s, u) => s + UNITS[u.type].carry, 0);
+const cargoUsed = () => Object.values(S.cargo).reduce((a, b) => a + b, 0);
+function load() { try { const r = localStorage.getItem(SAVE); return r ? JSON.parse(r) : null; } catch (e) { return null; } }
+function save() { try { localStorage.setItem(SAVE, JSON.stringify(S)); } catch (e) { /* storage unavailable */ } }
+
+/* market: zone price × daily drift × buying/selling pressure */
+const zp = (z, g) => ZONES[z].price[g] ?? (GOODS[g].zp ? GOODS[g].zp[z] : 1);
+const rawPrice = (z, g) => GOODS[g].base * zp(z, g) * S.drift[z][g] * S.press[z][g];
+const price = (z, g) => Math.max(1, Math.round(rawPrice(z, g) * (1 - 0.03 * sk('trade'))));
+const sellPrice = (z, g) => Math.max(1, Math.round(rawPrice(z, g) * 0.9 * (1 + 0.03 * sk('trade'))));
+function ensureQuests() {
+  if (S.qday === S.day && Object.keys(S.quests).length) return;
+  S.qday = S.day;
+  for (const z of Object.keys(ZONES)) {
+    const keep = (S.quests[z] || []).filter(q => q.prog > 0 && !q.done), list = [...keep];
+    const wanted = Object.keys(GOODS).filter(g => zp(z, g) >= 1.2);
+    while (list.length < 3) {
+      if (list.filter(q => q.type === 'hunt').length < 1) { const n = 2 + (Math.random() * 3 | 0); list.push({ id: Math.random(), type: 'hunt', n, prog: 0, money: 40 * n * ZONES[z].danger, xp: 25 * n }); }
+      else { const g = pick(wanted), n = GOODS[g].made ? 2 + (Math.random() * 3 | 0) : 6 + (Math.random() * 10 | 0); if (list.some(q => q.g === g)) continue; list.push({ id: Math.random(), type: 'deliver', g, n, prog: 0, money: Math.round(GOODS[g].base * zp(z, g) * n * 1.7), xp: Math.round(GOODS[g].base * n / 8) + 15 }); }
+    }
+    S.quests[z] = list;
+  }
+}
+function newDay() {
+  S.day++; ensureQuests();
+  for (const z of Object.keys(ZONES)) for (const g of Object.keys(GOODS)) S.drift[z][g] = clamp(S.drift[z][g] * rand(0.88, 1.14) + (1 - S.drift[z][g]) * 0.25, 0.6, 1.6);
+  // a market event now and then shakes one price hard
+  if (Math.random() < 0.5) {
+    const z = pick(Object.keys(ZONES)), g = pick(Object.keys(GOODS)), up = Math.random() < 0.5;
+    S.drift[z][g] = up ? rand(1.5, 1.9) : rand(0.45, 0.6);
+    const why = up ? pick(['랩터 떼가 창고를 습격해', '가뭄이 들어', '수송대가 끊겨']) : pick(['대형 상단이 물건을 풀어', '풍년이 들어', '버려진 창고가 발견되어']);
+    toast(`[${S.day}일차 소식] ${ZONES[z].n}: ${why} ${GOODS[g].n} 값이 ${up ? '치솟았어요' : '폭락했어요'}`, up ? 'good' : '');
+  }
+}
+function tick(dt) {
+  S.t += dt;
+  if (S.t >= S.day * DAY_LEN) newDay();
+  for (const z of Object.keys(ZONES)) for (const g of Object.keys(GOODS)) S.press[z][g] += (1 - S.press[z][g]) * Math.min(1, dt * 0.02);
+  if (S.travel && !B) travelStep(dt);
+  for (const [z, j] of Object.entries(S.jobs)) {   // workshops keep working wherever the caravan is
+    if (!j) continue; const R = RECIPES[j.r]; j.t += dt;
+    const per = R.t * (1 - 0.12 * sk('craft'));
+    while (j.t >= per && j.left > 0) { j.t -= per; j.left--; S.out[z] = S.out[z] || {}; S.out[z][R.out] = (S.out[z][R.out] || 0) + R.qty; }
+    if (j.left <= 0) { S.jobs[z] = null; toast(`${ZONES[z].n} 공방: ${R.n} 완료 · 찾으러 가세요`, 'good'); if (view === 'town') renderTown(); }
+  }
+  if (!B) for (const u of S.units) {
+    const mh = maxHp(u); if (u.hp >= mh) continue;
+    u.hp = Math.min(mh, u.hp + mh * (S.travel || F ? 0.003 : 0.01) * dt);
+    if (u.ko && u.hp >= mh * 0.3) { u.ko = false; if (view === 'town') toast(`${unitName(u)}가 기운을 차렸어요`); }
+  }
+}
+
+/* ================================================================
+   TRAVEL
+   ================================================================ */
+function startTravel(to) {
+  if (S.travel || to === S.zone) return;
+  if (party().some(u => u.ko && u.type === 'leader')) { toast('대장이 쓰러져 있어요. 여관에서 회복한 뒤 떠나세요', 'warn'); return; }
+  if (cargoUsed() > capacity()) { toast('짐이 짐칸보다 많아요. 짐을 팔거나 짐 공룡을 데려가세요', 'warn'); return; }
+  const R = routeOf(S.zone, to), events = [];
+  const ambushes = Math.random() < Math.min(0.9, 0.35 * R.danger) ? 1 + (Math.random() < R.danger * 0.15 ? 1 : 0) : 0;
+  for (let i = 0; i < ambushes; i++) events.push({ at: rand(0.2, 0.85), kind: 'ambush' });
+  if (Math.random() < 0.45) events.push({ at: rand(0.15, 0.9), kind: 'find' });
+  events.sort((a, b) => a.at - b.at);
+  S.travel = { from: S.zone, to, p: 0, total: R.t * (1 - 0.08 * sk('speed')), events };
+  sfx('march'); toast(`${ZONES[to].n}(으)로 출발했어요`); setView('map');
+}
+function travelStep(dt) {
+  const T = S.travel; T.p += dt / T.total;
+  const ev = T.events[0];
+  if (ev && T.p >= ev.at) {
+    T.events.shift();
+    if (ev.kind === 'ambush') {
+      const zone = Math.random() < 0.6 ? T.to : T.from, Z = ZONES[zone], R = routeOf(T.from, T.to);
+      toast('습격! 야생 공룡이 상단을 덮쳐요', 'warn'); sfx('roar');
+      const n = 2 + (R.danger > 2 ? 1 : 0) + (Math.random() < 0.4 ? 1 : 0);
+      setTimeout(() => startBattle({ kind: 'ambush', zone, foes: addRare(Array.from({ length: n }, () => ({ type: pick(Z.wild), lv: Math.max(1, Math.round((ZONES[T.from].lv + Z.lv) / 2 + rand(-1, 1))) })), zone, 0.12) }), 600);
+    } else {
+      const r = Math.random();
+      if (r < 0.35) { const k = Math.round(rand(2, 5)); addCargo('parts', k); toast(`버려진 트럭을 뒤져 기계 부품 ${k}개를 찾았어요`, 'good'); }
+      else if (r < 0.65) { const k = Math.round(rand(3, 6)); addCargo('water', k); toast(`깨끗한 샘을 찾아 물 ${k}통을 채웠어요`, 'good'); }
+      else if (r < 0.85) { T.p = Math.min(0.97, T.p + 0.2); toast('떠돌이 생존자가 지름길을 알려 줬어요'); }
+      else { const m = Math.round(rand(30, 90)); S.money += m; toast(`쓰러진 상인의 금고에서 ${m} 크레딧을 찾았어요`, 'good'); }
+    }
+  }
+  if (T.p >= 1 && !T.events.length) {
+    S.zone = T.to; S.travel = null; toast(`${ZONES[S.zone].n}에 도착했어요`, 'good'); sfx('arrive');
+    setView('town');
+  }
+}
+function addCargo(g, k) { const room = Math.max(0, capacity() - cargoUsed()); k = Math.min(k, room); if (k > 0) S.cargo[g] = (S.cargo[g] || 0) + k; return k; }
+
+/* ================================================================
+   BATTLE — real-time, up to 12 on our side, formation start, auto with focus fire
+   ================================================================ */
+const BW = 360, BH = 600, BSIZE = [BW, BH];
+let B = null, bSpeed = 1, bZoom = 1.3;
+function unitStats(type, lv, boss) {
+  const D = UNITS[type], m = lvMul(lv), bm = boss ? BOSSES[boss] : null;
+  return { hp: D.hp * m * (bm ? bm.hp : 1), atk: D.atk * m * (bm ? bm.atk : 1), def: D.def * (1 + 0.05 * (lv - 1)), size: (D.size || 11) * (bm ? bm.size : 1) };
+}
+function startBattle(opt) {
+  const Z = ZONES[opt.zone];
+  B = { opt, t: 0, units: [], fx: [], nums: [], over: false, focus: null, sel: null, loot: {}, xp: 0, captured: [], idSeq: 1, ground: groundTex(Z.ground) };
+  // our formation: tanks and melee in front, ranged behind, leader at the back centre
+  const ours = party().filter(u => !u.ko);
+  const front = ours.filter(u => ['탱커', '돌격', '파괴', '기절', '떼'].includes(UNITS[u.type].role) && u.type !== 'leader');
+  const back = ours.filter(u => !front.includes(u));
+  const place = (list, y) => list.forEach((u, i) => { const x = BW / 2 + (i - (list.length - 1) / 2) * Math.min(52, (BW - 60) / Math.max(1, list.length)); spawn(0, u.type, u.lv, x, y + (i % 2) * 14, u); });
+  place(front, 420); place(back.sort((a, b) => (a.type === 'leader') - (b.type === 'leader')), 500);
+  for (const u of B.units.filter(u => u.side === 0 && UNITS[u.type].turret)) spawnTurret(u);
+  opt.foes.forEach((f, i) => spawn(1, f.type, f.lv, BW / 2 + (i - (opt.foes.length - 1) / 2) * 62 + rand(-10, 10), rand(70, 150), null, f.boss));
+  $('bTitle').textContent = opt.kind === 'ambush' ? '습격!' : opt.boss ? `우두머리 사냥 · ${BOSSES[opt.boss].n}` : opt.kind === 'hunt' ? `${Z.n} · ${HUNT_NAMES[opt.zone][opt.tier]}` : `${Z.n} 사냥터`;
+  $('bInfo').textContent = `적 ${opt.foes.length} · 아군 ${ours.length}`;
+  for (const f of opt.foes) { S.dex[f.type] = Math.max(S.dex[f.type] || 0, 1); if (UNITS[f.type].rare && !f.boss) setTimeout(() => toast(`희귀종 발견: ${UNITS[f.type].n}!`, 'good'), 900); }
+  $('battle').hidden = false; $('bfoot').hidden = false; $('ffoot').hidden = true; $('bTip').textContent = '적을 눌러 집중 공격 · 체력 30% 이하면 포획'; resizeBattle(); updCapture();
+  if (USE3D) setupBattle3D();
+  SND.mood = 'battle'; SND.step = 0; sfx('drums'); PX.length = 0; flash(0.7);
+}
+function spawn(side, type, lv, x, y, ref, boss) {
+  const D = UNITS[type], st = unitStats(type, lv, boss);
+  if (ref) { const gm = gearMul(ref); st.hp *= gm.hp; st.atk *= gm.atk; st.def *= gm.def; st.size *= 1 + 0.07 * (ref.tier || 0); }
+  const u = { id: B.idSeq++, side, type, lv, ref, boss, x, y, a: side ? Math.PI / 2 : -Math.PI / 2, hp: ref ? Math.min(ref.hp, st.hp) : st.hp, max: st.hp, atk: st.atk, def: st.def, size: st.size,
+              range: D.range, as: D.as, spd: D.spd, cd: rand(0, 0.6), stun: 0, shred: 0, shredT: 0, leg: rand(0, 6), moving: false, hitT: 0 };
+  B.units.push(u); return u;
+}
+function spawnTurret(owner) {
+  const u = { id: B.idSeq++, side: 0, type: 'turret', lv: owner.lv, x: owner.x + 22, y: owner.y - 30, a: -Math.PI / 2, hp: 70 * lvMul(owner.lv), max: 70 * lvMul(owner.lv), atk: 9 * lvMul(owner.lv), def: 8, size: 10,
+              range: 140, as: 2.2, spd: 0, cd: 0, stun: 0, shred: 0, shredT: 0, leg: 0, turret: true };
+  B.units.push(u);
+}
+const alive = side => B.units.filter(u => u.side === side && u.hp > 0);
+function bStep(dt) {
+  B.t += dt;
+  const us = B.units;
+  for (const u of us) {
+    if (u.hp <= 0) continue;
+    u.hitT = Math.max(0, u.hitT - dt); u.atkT = Math.max(0, (u.atkT || 0) - dt);
+    if (u.shredT > 0) { u.shredT -= dt; if (u.shredT <= 0) u.shred = 0; }
+    if (UNITS[u.type] && UNITS[u.type].regen) u.hp = Math.min(u.max, u.hp + UNITS[u.type].regen * lvMul(u.lv) * dt);
+    if (u.stun > 0) { u.stun -= dt; u.moving = false; continue; }
+    const D = UNITS[u.type] || {};
+    // medics heal instead of attacking when someone is hurt
+    if (D.heal) {
+      const hurt = alive(u.side).filter(o => o !== u && o.hp < o.max * 0.85).sort((a, b) => a.hp / a.max - b.hp / b.max)[0];
+      if (hurt) { moveToward(u, hurt, D.range * 0.8, dt); u.cd -= dt; if (u.cd <= 0 && d2(u.x, u.y, hurt.x, hurt.y) < (D.range + 10) ** 2) { u.cd = 1 / u.as; const h = D.heal * lvMul(u.lv); hurt.hp = Math.min(hurt.max, hurt.hp + h); B.fx.push({ t: 0.5, kind: 'heal', x: hurt.x, y: hurt.y }); burst(hurt.x, hurt.y, 4, 6, '#8fd36a', { spd: 14, up: 55, g: 0, life: 0.7 }); sfx('heal', 150); num(hurt, '+' + Math.round(h), '#8fbf6a'); } continue; }
+    }
+    const tgt = chooseTarget(u);
+    if (!tgt) { u.moving = false; continue; }
+    u.target = tgt;
+    const reach = u.range + (u.size + tgt.size) * 0.45;
+    const dd = d2(u.x, u.y, tgt.x, tgt.y);
+    if (dd > reach * reach) { if (u.spd) moveToward(u, tgt, reach * 0.9, dt); }
+    else {
+      u.moving = false; u.a = Math.atan2(tgt.y - u.y, tgt.x - u.x);
+      u.cd -= dt;
+      if (u.cd <= 0) { u.cd = 1 / u.as * rand(0.9, 1.1); attack(u, tgt); }
+    }
+  }
+  // keep bodies from stacking
+  for (let i = 0; i < us.length; i++) for (let j = i + 1; j < us.length; j++) {
+    const a = us[i], b = us[j]; if (a.hp <= 0 || b.hp <= 0) continue;
+    const dx = b.x - a.x, dy = b.y - a.y, min = (a.size + b.size) * 0.5, dd = dx * dx + dy * dy;
+    if (dd < min * min && dd > 0.01) { const d = Math.sqrt(dd), p = (min - d) * 0.5, wa = a.spd ? 1 : 0, wb = b.spd ? 1 : 0; a.x -= dx / d * p * wa; a.y -= dy / d * p * wa; b.x += dx / d * p * wb; b.y += dy / d * p * wb; }
+  }
+  for (const u of us) { u.x = clamp(u.x, 10, BW - 10); u.y = clamp(u.y, 10, BH - 10); }
+  for (const f of B.fx) f.t -= dt; B.fx = B.fx.filter(f => f.t > 0);
+  for (const n of B.nums) { n.t -= dt; n.y -= dt * 22; } B.nums = B.nums.filter(n => n.t > 0);
+  if (B.focus && B.focus.hp <= 0) B.focus = null;
+  if (!alive(1).length) endBattle(true);
+  else if (!alive(0).filter(u => !u.turret).length) endBattle(false);
+}
+function chooseTarget(u) {
+  const foes = alive(1 - u.side); if (!foes.length) return null;
+  if (u.side === 0 && B.focus && B.focus.hp > 0) return B.focus;
+  if (u.side === 1) {   // enemies are drawn to taunting tanks nearby
+    const tank = foes.filter(f => UNITS[f.type] && UNITS[f.type].taunt && d2(f.x, f.y, u.x, u.y) < 160 * 160).sort((a, b) => d2(a.x, a.y, u.x, u.y) - d2(b.x, b.y, u.x, u.y))[0];
+    if (tank) return tank;
+  }
+  if (u.target && u.target.hp > 0 && Math.random() > 0.01) return u.target;
+  return foes.sort((a, b) => d2(a.x, a.y, u.x, u.y) - d2(b.x, b.y, u.x, u.y))[0];
+}
+function moveToward(u, t, stopAt, dt) {
+  const d = Math.sqrt(d2(u.x, u.y, t.x, t.y)); if (d <= stopAt) { u.moving = false; return; }
+  u.a = Math.atan2(t.y - u.y, t.x - u.x); u.x += Math.cos(u.a) * u.spd * dt; u.y += Math.sin(u.a) * u.spd * dt; u.leg += u.spd * dt * 0.12; u.moving = true;
+}
+function attack(u, t) {
+  const D = UNITS[u.type] || {};
+  u.atkT = 0.5;
+  const acc = 85 + u.lv * 2, eva = (UNITS[t.type] ? UNITS[t.type].spd : 0) * 0.25;
+  if (Math.random() > acc / (acc + eva)) { num(t, '빗나감', '#a89a86'); sfx('miss', 120); return; }
+  let atk = u.atk;
+  if (D.pack) atk *= 1 + 0.15 * Math.min(3, alive(u.side).filter(o => o !== u && o.type === u.type && d2(o.x, o.y, u.x, u.y) < 90 * 90).length);
+  const def = Math.max(0, t.def - t.shred * 2.5);
+  let dmg = atk * rand(0.85, 1.15) * 40 / (40 + def), crit = Math.random() < (D.crit || 0.08);
+  if (crit) dmg *= 1.8;
+  const ranged = u.range > 40;
+  B.fx.push({ t: ranged ? 0.25 : 0.15, kind: D.acid ? 'acid' : u.turret || D.gun ? 'bullet' : D.bow ? 'arrow' : ranged ? 'dart' : 'bite', x: u.x, y: u.y, x2: t.x, y2: t.y });
+  const TD = UNITS[t.type];
+  if (TD && TD.thorns && u.range <= 40 && !u.turret) { const back = dmg * TD.thorns; u.hp -= back; num(u, Math.round(back), '#c0601c'); if (u.hp <= 0) onKill(t, u); }
+  { const gun = u.turret || D.gun, big = t.size > 25;
+    if (gun) burst(u.x, u.y, 12, 3, '#ffe9a0', { spd: 25, life: 0.12, up: 10, r: 2.6 });
+    burst(t.x, t.y, big ? 16 : 9, crit ? 9 : 4, D.acid ? '#c0e040' : gun ? '#ffd870' : '#e0452e', { spd: crit ? 70 : 45, life: 0.4, r: crit ? 2.8 : 2 });
+    if (crit) { ringFx(t.x, t.y, '#ffd870', 20, 0.3); SHAKE = Math.max(SHAKE, u.side === 0 ? 0.35 : 0.5); sfx('crit', 90); }
+    else if (u.side === 1 && u.boss) SHAKE = Math.max(SHAKE, 0.45); }
+  t.hp -= dmg; t.hitT = 0.15; num(t, Math.round(dmg) + (crit ? '!' : ''), crit ? '#e3a843' : t.side ? '#ece3d4' : '#d4573c');
+  if (D.shred) { t.shred = Math.min(5, t.shred + 1); t.shredT = 5; }
+  if (D.stun && t.max <= STUN_HP_LIMIT && !t.boss) { t.stun = D.stun; B.fx.push({ t: 0.6, kind: 'stun', x: t.x, y: t.y }); sfx('stun', 200); ringFx(t.x, t.y, '#f8e88a', 18, 0.4); }
+  sfx(u.turret || D.gun ? 'shot' : D.bow ? 'bow' : ranged ? 'spit' : 'bite', 70);
+  if (t.hp <= 0) onKill(u, t);
+}
+/* ---------------- Effects: world-space particles drawn on the overlay, screen flash and camera shake ---------------- */
+const PX = []; let FLASH = 0, FLASHC = '255,240,210', SHAKE = 0;
+function burst(x, y, h, n, col, o = {}) {
+  if (PX.length > 260) return;
+  for (let i = 0; i < n; i++) { const a = rand(0, 6.283), sp = rand(0.3, 1) * (o.spd || 40), life = rand(0.6, 1) * (o.life || 0.45); PX.push({ x, y, h, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vh: rand(0.2, 1) * (o.up ?? 40), g: o.g ?? 120, t: life, life, col, r: rand(0.6, 1) * (o.r || 2.2), ring: 0 }); }
+}
+function ringFx(x, y, col, size = 22, life = 0.45) { PX.push({ x, y, h: 1, vx: 0, vy: 0, vh: 0, g: 0, t: life, life, col, r: size, ring: 1 }); }
+function flash(a = 0.5, col = '255,240,210') { FLASH = a; FLASHC = col; }
+function updPX(dt) {
+  for (const p of PX) { p.t -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.h += p.vh * dt; p.vh -= p.g * dt; if (p.h < 0) { p.h = 0; p.vh = 0; p.vx *= 0.6; p.vy *= 0.6; } }
+  for (let i = PX.length - 1; i >= 0; i--) if (PX[i].t <= 0) PX.splice(i, 1);
+  FLASH = Math.max(0, FLASH - dt * 1.8); SHAKE = Math.max(0, SHAKE - dt * 3);
+}
+function drawPX(c) {
+  for (const p of PX) {
+    const s = toScreen(p.x, p.h, p.y); if (!s.vis) continue; const k = p.t / p.life;
+    c.globalAlpha = Math.min(1, k * 1.6);
+    if (p.ring) { c.strokeStyle = p.col; c.lineWidth = 2.5 * k + 0.5; c.beginPath(); c.ellipse(s.x, s.y, p.r * (1.3 - k), p.r * (1.3 - k) * 0.55, 0, 0, 7); c.stroke(); }
+    else { c.fillStyle = p.col; c.beginPath(); c.arc(s.x, s.y, p.r * (0.5 + k * 0.5), 0, 7); c.fill(); }
+  }
+  c.globalAlpha = 1;
+  if (FLASH > 0.01) { c.fillStyle = `rgba(${FLASHC},${FLASH})`; c.fillRect(0, 0, bcv.width, bcv.height); }
+}
+function shakeCam(cam) { if (SHAKE > 0.01) { cam.position.x += (Math.random() - 0.5) * SHAKE * 9; cam.position.y += (Math.random() - 0.5) * SHAKE * 6; } }
+function num(t, s, col) { B.nums.push({ x: t.x + rand(-6, 6), y: t.y - t.size * 0.6, y0: t.y, s, col, t: 0.8 }); }
+function onKill(u, t) {
+  t.hp = 0; sfx(t.size > 25 ? 'crunchBig' : 'crunch', 60);
+  { const big = t.size > 25; burst(t.x, t.y, 2, big ? 22 : 12, '#c9b48a', { spd: big ? 75 : 50, up: 30, life: 0.8, r: big ? 4.5 : 3.2, g: 60 }); ringFx(t.x, t.y, 'rgba(210,190,150,.9)', big ? 46 : 26, 0.55);
+    if (t.side === 1 && UNITS[t.type] && UNITS[t.type].cls === 'dino') sfx(big ? 'cryBig' : 'cry', 250);
+    if (t.boss) { SHAKE = 1; flash(0.55); } else if (big) SHAKE = Math.max(SHAKE, 0.6);
+    if (t.side === 0) { flash(0.25, '212,87,60'); sfx('down', 300); } }
+  if (t.side === 1) {
+    B.xp += 12 * t.lv * (t.boss ? 6 : 1);
+    if (B.opt.kind !== 'escort') for (const [g, k] of Object.entries(ZONES[B.opt.zone].loot)) { const n = Math.max(0, Math.round(k * (t.size / 20) * rand(0.6, 1.3) * (1 + 0.15 * sk('loot'))) * (t.boss ? 3 : 1)); if (n) B.loot[g] = (B.loot[g] || 0) + n; }
+    { const TL = TYPE_LOOT[MODEL_FILES[t.type]] || {}, own = t.type === 'compy' ? { meat: 1 } : t.type === 'dilo' ? { venom: 1, meat: 1 } : TL; for (const [g, k] of Object.entries(own)) if (Math.random() < 0.6) B.loot[g] = (B.loot[g] || 0) + k; }
+    if (t.type === 'dilo' || t.type === 'sarco') B.loot.venom = (B.loot.venom || 0) + (t.type === 'dilo' ? 1 : 0);
+  } else if (t.ref) { t.ref.hp = 0; t.ref.ko = true; toast(`${unitName(t.ref)}가 쓰러졌어요`, 'warn'); }
+  if (B.sel === t) B.sel = null;
+}
+function tryCapture() {
+  let t = B.sel;
+  if (!t || t.side !== 1 || t.hp <= 0) {   // one tap: pick the weakest dinosaur that can be captured right now
+    t = B.units.filter(u => u.side === 1 && u.hp > 0 && !u.boss && u.hp <= u.max * 0.3).sort((a, b) => a.hp / a.max - b.hp / b.max)[0];
+    if (!t) { toast('체력이 30% 이하인 공룡이 없어요. 조금 더 깎아 주세요'); return; }
+    B.sel = t;
+  }
+  if (t.boss) { toast('우두머리는 포획할 수 없어요'); return; }
+  if (!UNITS[t.type] || UNITS[t.type].cls !== 'dino') return;
+  if (t.hp > t.max * 0.3) { toast('체력을 30% 이하로 깎아야 마취가 통해요'); return; }
+  if (S.darts <= 0) { toast('마취 다트가 없어요. 정착지 상점에서 사세요', 'warn'); return; }
+  S.darts--; sfx('dart');
+  const leader = party().find(u => u.type === 'leader');
+  const chance = clamp(0.55 + (1 - t.hp / (t.max * 0.3)) * 0.4 - Math.max(0, t.lv - leader.lv) * 0.04 - (UNITS[t.type].rare ? 0.15 : 0) + 0.05 * sk('tame'), 0.15, 0.95);
+  B.fx.push({ t: 0.3, kind: 'dart', x: BW / 2, y: BH - 40, x2: t.x, y2: t.y });
+  setTimeout(() => {
+    if (!B || t.hp <= 0) return;
+    if (Math.random() < chance) {
+      t.hp = 0; B.captured.push({ type: t.type, lv: t.lv }); B.xp += 15 * t.lv; B.sel = null; sfx('capture'); for (let k = 0; k < 3; k++) ringFx(t.x, t.y, '#90d0f0', 20 + k * 14, 0.5 + k * 0.15); burst(t.x, t.y, 10, 16, '#bfe6ff', { spd: 55, up: 70, life: 0.9 });
+      toast(`포획 성공! ${UNITS[t.type].n} Lv${t.lv}`, 'good');
+    } else { t.atk *= 1.1; toast(`포획 실패 (성공 확률 ${Math.round(chance * 100)}%) · 공룡이 성났어요`, 'warn'); sfx('roar'); }
+    updCapture();
+  }, 320);
+}
+function endBattle(win) {
+  if (B.over) return; B.over = true; S.stats.battles++; B.opt.won = win;
+  const opt = B.opt;
+  for (const bu of B.units) if (bu.ref) { bu.ref.hp = Math.max(0, Math.round(bu.hp)); bu.ref.ko = bu.hp <= 0; }
+  const lines = []; let lvUp = false, gotItem = false;
+  if (win) {
+    gainCxp(B.xp / 6 + B.captured.length * 15);
+    if (opt.kind === 'hunt') S.cleared[opt.zone] = Math.max(S.cleared[opt.zone] || 0, opt.tier + 1);
+    {   // loot roll: deeper grounds, rare dinosaurs and bosses drop better gear
+      const H0 = opt.kind === 'hunt' ? HUNTS[opt.tier] : { drop: 0.1 }, Hb = opt.boss ? H0 : H0.boss ? HUNTS[3] : H0, H = { boss: !!opt.boss, drop: Hb.drop + Math.max(0, opt.foes.length - 3) * 0.04 }, rares = opt.foes.filter(f => UNITS[f.type].rare && !f.boss).length;
+      const lv = Math.max(...opt.foes.map(f => f.lv)), luck = (opt.tier || 0) * 0.35 + rares * 0.3;
+      const drops = []; if (Math.random() < H.drop + rares * 0.15) drops.push(rollItem(lv, luck, H.boss ? 2 : 0)); if (H.boss && Math.random() < 0.5) drops.push(rollItem(lv, luck, 1));
+      for (const it of drops) { if (S.items.length >= BAG_MAX) { const pr = itemPrice(it); S.money += pr; lines.push(`가방이 가득 차서 ${itemName(it)}을(를) ${pr} 크레딧에 팔았어요`); } else { S.items.push(it); lines.push(`<b style="color:var(--amber)">득템!</b> ${itemName(it)} <span style="color:var(--muted)">${SLOTS[it.slot]} · ${itemText(it)}</span>`); gotItem = true; } }
+    }
+    if (opt.kind === 'hunt') for (const q of S.quests[opt.zone] || []) if (q.type === 'hunt' && !q.done && q.prog < q.n) q.prog++;
+    const ours = party();
+    const share = Math.round(B.xp / Math.max(1, Math.sqrt(ours.length)));
+    for (const u of ours) {
+      u.xp += u.ko ? Math.round(share * 0.3) : share;
+      while (u.xp >= xpNeed(u.lv) && u.lv < 40) { u.xp -= xpNeed(u.lv); u.lv++; u.hp = Math.min(maxHp(u), u.hp + Math.round(maxHp(u) * 0.3)); lines.push(`${unitName(u)} Lv${u.lv} 달성`); lvUp = true; }
+    }
+    for (const [g, k] of Object.entries(B.loot)) { const got = addCargo(g, k); lines.unshift(`${GOODS[g].n} +${got}${got < k ? ` (짐칸 부족으로 ${k - got}개 버림)` : ''}`); }
+    for (const c of B.captured) { const inP = party().length < partyCap(); const u = addUnit(c.type, c.lv, inP); u.hp = Math.round(maxHp(u) * 0.4); lines.push(`${UNITS[c.type].n} Lv${c.lv}이(가) 상단에 합류했어요${inP ? '' : ' (대기)'}`); S.stats.captures++; }
+    lines.splice(Object.keys(B.loot).length, 0, `경험치 +${share} (참전 대원 모두)`);
+  } else {
+    if (opt.kind === 'ambush') { const lost = loseCargo(0.35); lines.push(lost ? `짐 ${lost}개를 잃었어요` : '잃은 짐은 없어요'); }
+    lines.push('쓰러진 대원은 여관에서 회복할 수 있어요');
+  }
+  sfx(win ? 'win' : 'lose'); if (win) flash(0.35);
+  setTimeout(() => {
+    if (gotItem) sfx('loot'); else if (lvUp) sfx('levelup');
+    showModal(`<h3>${win ? '승리' : opt.retreat ? '후퇴' : '패배'}</h3><div class="sub">${$('bTitle').textContent}</div>
+      <div class="card">${lines.map(l => `<div class="row"><div class="info"><small style="color:var(--text)">${l}</small></div></div>`).join('') || '<div class="row"><div class="info"><small>얻은 것이 없어요</small></div></div>'}</div>
+      <div class="mbtns"><button class="btn primary" data-act="closeBattle">확인</button></div>`);
+  }, 700);
+  save();
+}
+function loseCargo(frac) { let lost = 0; for (const g of Object.keys(S.cargo)) { const k = Math.floor(S.cargo[g] * frac); S.cargo[g] -= k; lost += k; if (!S.cargo[g]) delete S.cargo[g]; } return lost; }
+function closeBattle() {
+  const opt = B.opt; B = null; SND.mood = 'town'; SND.step = 0; closeModal();
+  if (F && opt.field) { afterFieldBattle(opt); return; }
+  $('battle').hidden = true; renderAll();
+}
+function updCapture() { $('bCapture').textContent = `포획 · 다트 ${S.darts}`; }
+
+/* ================================================================
+   DRAWING — top-down creatures with a light from the upper left
+   ================================================================ */
+function glossy(g, x, y, rx, ry, base, dark, light, rot = 0, spec = 0.2) {
+  const gr = g.createRadialGradient(x - rx * 0.35, y - ry * 0.4, Math.min(rx, ry) * 0.1, x, y, Math.max(rx, ry) * 1.05);
+  gr.addColorStop(0, light); gr.addColorStop(0.5, base); gr.addColorStop(1, dark);
+  g.fillStyle = gr; g.beginPath(); g.ellipse(x, y, rx, ry, rot, 0, 7); g.fill();
+  if (spec) { g.fillStyle = `rgba(255,248,236,${spec})`; g.beginPath(); g.ellipse(x - rx * 0.3, y - ry * 0.4, rx * 0.3, ry * 0.15, rot, 0, 7); g.fill(); }
+}
+const shade = (h, t) => { const n = parseInt(h.slice(1), 16), c = [n >> 16, n >> 8 & 255, n & 255].map(v => Math.round(t < 0 ? v * (1 + t) : v + (255 - v) * t)); return `rgb(${c})`; };
+const DINO_LOOK = {
+  trike:  { col: '#7d6c4c', stripe: '#5a4a32', quad: true,  body: [0.34, 0.2], head: [0.13, 0.11], neck: 0.36, tail: 0.42 },
+  pachy:  { col: '#8a6a48', stripe: '#6a4a30', quad: false, body: [0.26, 0.14], head: [0.1, 0.09], neck: 0.32, tail: 0.5 },
+  raptor: { col: '#9a7a4c', stripe: '#4a3a22', quad: false, body: [0.22, 0.1], head: [0.1, 0.06], neck: 0.32, tail: 0.6 },
+  compy:  { col: '#7a8a4c', stripe: '#4a5a2a', quad: false, body: [0.22, 0.11], head: [0.09, 0.06], neck: 0.32, tail: 0.6 },
+  dilo:   { col: '#6c7a40', stripe: '#3a4a22', quad: false, body: [0.25, 0.12], head: [0.11, 0.07], neck: 0.36, tail: 0.55 },
+  sarco:  { col: '#4c4c34', stripe: '#33331f', quad: true,  body: [0.3, 0.14], head: [0.2, 0.06], neck: 0.36, tail: 0.5 },
+};
+function drawDino(c, type, x, y, a, L, ph, o = {}) {
+  type = ({ para: 'pachy', stego: 'sarco', apato: 'trike', trex: 'raptor', trikeIron: 'trike', trikeRed: 'trike', paraGold: 'pachy', apatoMoss: 'trike', raptorShadow: 'raptor', raptorVenom: 'raptor', stegoRust: 'sarco', trexYoung: 'raptor' })[type] || type;
+  const K = DINO_LOOK[type], base = o.tint || K.col, dk = shade(base, -0.45), lt = shade(base, 0.35);
+  c.save(); c.translate(x + L * 0.06, y + L * 0.09); c.rotate(a);
+  c.fillStyle = 'rgba(8,5,2,.3)'; c.beginPath(); c.ellipse(-L * 0.05, 0, L * 0.5, L * (K.body[1] + 0.08), 0, 0, 7); c.fill(); c.restore();
+  c.save(); c.translate(x, y); c.rotate(a); c.lineCap = 'round'; c.lineJoin = 'round';
+  const sw = o.still ? 0 : Math.sin(ph * 2) * 0.18;
+  // tail: tapering, swaying
+  const tl = L * K.tail, bx = -L * K.body[0] * 0.9;
+  c.fillStyle = base; c.beginPath(); c.moveTo(bx + L * 0.05, -L * K.body[1] * 0.6);
+  c.quadraticCurveTo(bx - tl * 0.5, Math.sin(sw) * tl * 0.3, bx - tl, Math.sin(sw * 1.6) * tl * 0.45);
+  c.quadraticCurveTo(bx - tl * 0.5, Math.sin(sw) * tl * 0.3 + L * 0.02, bx + L * 0.05, L * K.body[1] * 0.6); c.fill();
+  // legs
+  c.fillStyle = dk;
+  const step = o.still ? 0 : Math.sin(ph * 4) * L * 0.06;
+  const legs = K.quad ? [[L * 0.2, 1], [-L * 0.2, -1]] : [[-L * 0.05, 1]];
+  for (const [lx, phs] of legs) for (const sd of [-1, 1]) { const s = step * phs * sd; c.beginPath(); c.ellipse(lx + s, sd * L * (K.body[1] + 0.03), L * (K.quad ? 0.07 : 0.09), L * 0.045, 0, 0, 7); c.fill(); }
+  if (!K.quad) for (const sd of [-1, 1]) { c.strokeStyle = dk; c.lineWidth = L * 0.025; c.beginPath(); c.moveTo(L * 0.14, sd * L * 0.06); c.lineTo(L * 0.22, sd * L * 0.1); c.stroke(); }
+  // body with back stripes
+  glossy(c, 0, 0, L * K.body[0], L * K.body[1], base, dk, lt, 0, 0.15);
+  c.save(); c.beginPath(); c.ellipse(0, 0, L * K.body[0], L * K.body[1], 0, 0, 7); c.clip();
+  c.fillStyle = K.stripe; c.globalAlpha = 0.35;
+  for (let k = 0; k < 14; k++) { const sx = Math.sin(k * 7.7) * L * K.body[0] * 0.8, sy = Math.cos(k * 3.3) * L * K.body[1] * 0.7; c.beginPath(); c.ellipse(sx, sy, L * 0.03, L * 0.02, k, 0, 7); c.fill(); }
+  if (type === 'raptor' || type === 'compy') { c.strokeStyle = K.stripe; c.globalAlpha = 0.5; c.lineWidth = L * 0.012; for (let k = -2; k <= 2; k++) { c.beginPath(); c.moveTo(k * L * 0.06, -L * K.body[1]); c.lineTo(k * L * 0.06 - L * 0.02, -L * K.body[1] * 0.2); c.moveTo(k * L * 0.06, L * K.body[1]); c.lineTo(k * L * 0.06 - L * 0.02, L * K.body[1] * 0.2); c.stroke(); } }
+  c.globalAlpha = 1;
+  c.strokeStyle = shade(base, -0.35); c.lineWidth = L * 0.03; c.beginPath(); c.moveTo(-L * K.body[0], 0); c.lineTo(L * K.body[0] * 0.9, 0); c.stroke();
+  c.restore();
+  if (type === 'sarco') { c.fillStyle = shade(base, -0.3); for (let k = -4; k <= 4; k++) for (const sd of [-1, 1]) c.fillRect(k * L * 0.06 - L * 0.015, sd * L * 0.04 - L * 0.012, L * 0.03, L * 0.024); }
+  if (type === 'raptor') { c.strokeStyle = 'rgba(60,40,20,.6)'; c.lineWidth = L * 0.012; for (let k = 0; k < 6; k++) { c.beginPath(); c.moveTo(bx - tl * (0.5 + k * 0.08), -L * 0.03); c.lineTo(bx - tl * (0.55 + k * 0.08), -L * 0.08); c.stroke(); } }
+  // neck and head
+  const nx = L * K.body[0] * 0.8, hx = L * K.neck + (type === 'sarco' ? L * 0.08 : 0), look = o.still ? 0 : Math.sin(ph * 1.3) * 0.12;
+  c.save(); c.rotate(look);
+  c.fillStyle = base; c.beginPath(); c.moveTo(nx - L * 0.02, -L * K.body[1] * 0.55); c.lineTo(hx - L * K.head[0] * 0.5, -L * K.head[1] * 0.7); c.lineTo(hx - L * K.head[0] * 0.5, L * K.head[1] * 0.7); c.lineTo(nx - L * 0.02, L * K.body[1] * 0.55); c.fill();
+  if (type === 'trike') {   // bony frill and three horns
+    glossy(c, hx - L * 0.11, 0, L * 0.08, L * 0.2, shade(base, 0.1), dk, lt, 0, 0.15);
+    c.strokeStyle = shade(base, -0.3); c.lineWidth = L * 0.012; c.beginPath(); c.ellipse(hx - L * 0.11, 0, L * 0.07, L * 0.18, 0, -1.4, 1.4); c.stroke();
+  }
+  glossy(c, hx, 0, L * K.head[0], L * K.head[1], base, dk, lt, 0, 0.2);
+  if (type === 'trike') { c.fillStyle = '#e8dcc0'; for (const sd of [-1, 1]) { c.beginPath(); c.moveTo(hx, sd * L * 0.05); c.lineTo(hx + L * 0.2, sd * L * 0.08); c.lineTo(hx + L * 0.02, sd * L * 0.08); c.fill(); } c.beginPath(); c.moveTo(hx + L * 0.1, -L * 0.02); c.lineTo(hx + L * 0.17, 0); c.lineTo(hx + L * 0.1, L * 0.02); c.fill(); }
+  if (type === 'pachy') glossy(c, hx - L * 0.01, 0, L * 0.08, L * 0.075, '#c8b090', '#6a5030', '#fff4dc', 0, 0.35);
+  if (type === 'dilo') { c.strokeStyle = '#d8a830'; c.lineWidth = L * 0.025; for (const sd of [-1, 1]) { c.beginPath(); c.moveTo(hx - L * 0.08, sd * L * 0.025); c.quadraticCurveTo(hx, sd * L * 0.06, hx + L * 0.06, sd * L * 0.02); c.stroke(); } }
+  c.fillStyle = '#120a04'; for (const sd of [-1, 1]) { c.beginPath(); c.arc(hx + L * K.head[0] * 0.15, sd * L * K.head[1] * 0.6, L * 0.014, 0, 7); c.fill(); }
+  if (o.bite) { c.strokeStyle = '#efe6d6'; c.lineWidth = L * 0.01; c.beginPath(); c.moveTo(hx + L * K.head[0] * 0.6, -L * 0.015); c.lineTo(hx + L * K.head[0] * 1.05, 0); c.lineTo(hx + L * K.head[0] * 0.6, L * 0.015); c.stroke(); }
+  c.restore();
+  if (o.hit) { c.fillStyle = 'rgba(255,90,60,.35)'; c.beginPath(); c.ellipse(0, 0, L * K.body[0], L * K.body[1], 0, 0, 7); c.fill(); }
+  c.restore();
+}
+const HUMAN_LOOK = {
+  leader:   { col: '#6a5a44', hood: '#3a2e22', scarf: '#b03a24' }, hunter: { col: '#5a6040', hood: '#3c4028' }, spear: { col: '#6c5c4a', hood: '#7a7a72' },
+  sniper:   { col: '#4a4e52', hood: '#2e3236' }, mechanic: { col: '#7a5a30', hood: '#c8a040' }, medic: { col: '#d8d0c0', hood: '#e8e4da', cross: true }, venomer: { col: '#4e5a3a', hood: '#2e3a22' },
+};
+function drawHuman(c, type, x, y, a, L, ph, o = {}) {
+  const K = HUMAN_LOOK[type];
+  c.save(); c.translate(x + 2, y + 3); c.fillStyle = 'rgba(8,5,2,.3)'; c.beginPath(); c.ellipse(0, 0, L * 0.38, L * 0.3, a, 0, 7); c.fill(); c.restore();
+  c.save(); c.translate(x, y); c.rotate(a); c.lineCap = 'round';
+  const st = o.still ? 0 : Math.sin(ph * 5) * L * 0.12;
+  c.fillStyle = '#2a2018'; for (const sd of [-1, 1]) { c.beginPath(); c.ellipse(st * sd, sd * L * 0.12, L * 0.12, L * 0.07, 0, 0, 7); c.fill(); }
+  c.fillStyle = '#4a3a28'; c.fillRect(-L * 0.32, -L * 0.16, L * 0.16, L * 0.32);   // backpack
+  glossy(c, 0, 0, L * 0.2, L * 0.3, K.col, shade(K.col, -0.5), shade(K.col, 0.4), 0, 0.12);
+  if (K.cross) { c.fillStyle = '#c03028'; c.fillRect(-L * 0.12, -L * 0.03, L * 0.12, L * 0.06); c.fillRect(-L * 0.09, -L * 0.06, L * 0.06, L * 0.12); }
+  if (K.scarf) { c.strokeStyle = K.scarf; c.lineWidth = L * 0.07; c.beginPath(); c.moveTo(-L * 0.05, -L * 0.18); c.quadraticCurveTo(-L * 0.25, -L * 0.1, -L * 0.42, -L * 0.18 + Math.sin(ph * 3) * L * 0.05); c.stroke(); }
+  c.strokeStyle = '#2a2218'; c.lineWidth = L * 0.06;
+  if (type === 'spear') { c.beginPath(); c.moveTo(-L * 0.2, L * 0.18); c.lineTo(L * 0.75, L * 0.18); c.stroke(); c.fillStyle = '#b8b0a0'; c.beginPath(); c.moveTo(L * 0.75, L * 0.13); c.lineTo(L * 0.92, L * 0.18); c.lineTo(L * 0.75, L * 0.23); c.fill(); }
+  else if (type === 'hunter') { c.strokeStyle = '#6a4a28'; c.lineWidth = L * 0.04; c.beginPath(); c.arc(L * 0.22, 0, L * 0.3, -1.2, 1.2); c.stroke(); c.strokeStyle = 'rgba(230,220,200,.6)'; c.lineWidth = L * 0.01; c.beginPath(); c.moveTo(L * 0.33, -L * 0.28); c.lineTo(L * 0.33, L * 0.28); c.stroke(); }
+  else if (type === 'mechanic') { c.beginPath(); c.moveTo(L * 0.1, L * 0.2); c.lineTo(L * 0.45, L * 0.25); c.stroke(); }
+  else if (type === 'venomer') { c.strokeStyle = '#7a6a40'; c.lineWidth = L * 0.035; c.beginPath(); c.moveTo(L * 0.1, 0); c.lineTo(L * 0.6, 0); c.stroke(); }
+  else if (type === 'medic') { c.fillStyle = '#e8e4da'; c.fillRect(L * 0.1, L * 0.12, L * 0.16, L * 0.12); }
+  else { c.beginPath(); c.moveTo(L * 0.05, L * 0.1); c.lineTo(type === 'sniper' ? L * 0.95 : L * 0.62, L * 0.06); c.stroke(); }
+  glossy(c, L * 0.04, 0, L * 0.14, L * 0.14, K.hood, shade(K.hood, -0.5), shade(K.hood, 0.4), 0, 0.2);
+  c.restore();
+}
+function drawTurret(c, u) {
+  c.save(); c.translate(u.x, u.y); c.strokeStyle = '#3a3a38'; c.lineWidth = 2;
+  for (let k = 0; k < 3; k++) { const t = k * 2.1; c.beginPath(); c.moveTo(0, 0); c.lineTo(Math.cos(t) * 9, Math.sin(t) * 9); c.stroke(); }
+  c.rotate(u.a); glossy(c, 0, 0, 6, 5, '#6a6a62', '#2a2a28', '#c0c0b8', 0, 0.3);
+  c.lineWidth = 2.4; c.beginPath(); c.moveTo(2, 0); c.lineTo(14, 0); c.stroke(); c.restore();
+}
+function drawUnit(c, u, L, ph, o) {
+  if (u.turret) return drawTurret(c, u);
+  if (UNITS[u.type].cls === 'dino') drawDino(c, u.type, u.x, u.y, u.a, L, ph, o);
+  else drawHuman(c, u.type, u.x, u.y, u.a, L, ph, o);
+}
+function portrait(cv, type, tint) {
+  const g = cv.getContext('2d'), w = cv.width, h = cv.height; g.clearRect(0, 0, w, h);
+  const P = PORTRAIT[type];
+  if (P && P.complete && P.naturalWidth) { const gr = g.createRadialGradient(w / 2, h * 0.55, 0, w / 2, h * 0.55, h * 0.7); gr.addColorStop(0, 'rgba(210,190,150,.32)'); gr.addColorStop(1, 'rgba(210,190,150,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h); g.drawImage(P, 0, 0, w, h); return; }
+  const gr = g.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, h * 0.6); gr.addColorStop(0, 'rgba(210,190,150,.35)'); gr.addColorStop(1, 'rgba(210,190,150,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
+  if (UNITS[type].cls === 'dino') drawDino(g, type, w * 0.55, h * 0.52, -0.2, Math.min(w * 0.6, h * 1.1), 0.6, { still: true, tint });
+  else drawHuman(g, type, w * 0.5, h * 0.5, -0.4, h * 0.7, 0, { still: true });
+}
+const TEX = {};
+function groundTex(kind) {
+  if (TEX[kind]) return TEX[kind];
+  const s = 2, cv = document.createElement('canvas'); cv.width = BW * s; cv.height = BH * s;
+  const g = cv.getContext('2d'); g.scale(s, s);
+  const blobs = (n, r0, r1, cols) => { for (let i = 0; i < n; i++) { g.fillStyle = pick(cols); g.beginPath(); g.ellipse(rand(0, BW), rand(0, BH), rand(r0, r1), rand(r0, r1) * 0.7, rand(0, 3), 0, 7); g.fill(); } };
+  if (kind === 'plain') {
+    g.fillStyle = '#7d6c4c'; g.fillRect(0, 0, BW, BH);
+    blobs(500, 8, 40, ['rgba(60,48,30,.18)', 'rgba(150,130,90,.16)', 'rgba(110,95,60,.2)']);
+    blobs(5000, 0.3, 1, ['rgba(30,22,14,.5)', 'rgba(190,170,130,.4)', 'rgba(120,110,80,.5)']);
+    for (let i = 0; i < 260; i++) { const x = rand(0, BW), y = rand(0, BH); for (let k = 0; k < 6; k++) { g.strokeStyle = pick(['#a89a5a', '#8a7c44', '#b8a868', '#6a6a3a']); g.lineWidth = 0.8; const t = rand(0, 6.28), l = rand(4, 10); g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(t) * l, y + Math.sin(t) * l); g.stroke(); } }
+    for (let i = 0; i < 2; i++) { const x = rand(30, BW - 30), y = rand(180, 360), a = rand(0, 6.28); g.save(); g.translate(x, y); g.rotate(a); g.strokeStyle = 'rgba(214,204,182,.55)'; g.lineWidth = 1.6; g.beginPath(); g.moveTo(-18, 0); g.lineTo(18, 0); g.stroke(); for (let k = -3; k <= 3; k++) { g.beginPath(); g.moveTo(k * 4, 0); g.quadraticCurveTo(k * 4 + 3, 6, k * 4 + 1, 11); g.stroke(); } g.restore(); }
+  } else if (kind === 'city') {
+    g.fillStyle = '#55585a'; g.fillRect(0, 0, BW, BH);
+    blobs(400, 10, 50, ['rgba(30,30,30,.18)', 'rgba(120,120,115,.12)', 'rgba(90,70,50,.15)']);
+    blobs(6000, 0.3, 1, ['rgba(20,20,20,.5)', 'rgba(170,170,165,.35)']);
+    g.strokeStyle = 'rgba(220,200,120,.4)'; g.lineWidth = 3; g.setLineDash([22, 18]); g.beginPath(); g.moveTo(BW / 2, 0); g.lineTo(BW / 2, BH); g.stroke(); g.setLineDash([]);
+    for (let i = 0; i < 40; i++) { let x = rand(0, BW), y = rand(0, BH); g.strokeStyle = 'rgba(15,15,15,.6)'; g.lineWidth = 0.8; g.beginPath(); g.moveTo(x, y); for (let k = 0; k < 6; k++) { x += rand(-14, 14); y += rand(-14, 14); g.lineTo(x, y); } g.stroke(); }
+    for (let i = 0; i < 9; i++) { const x = rand(10, BW - 50), y = rand(170, 380), w = rand(20, 46), h = rand(12, 26), a = rand(-0.4, 0.4); g.save(); g.translate(x, y); g.rotate(a); g.fillStyle = 'rgba(0,0,0,.3)'; g.fillRect(3, 4, w, h); g.fillStyle = pick(['#8a8a84', '#7a7670', '#9a968e']); g.fillRect(0, 0, w, h); g.strokeStyle = '#5a4030'; g.lineWidth = 1; g.beginPath(); g.moveTo(w * 0.2, 0); g.lineTo(w * 0.3, -6); g.moveTo(w * 0.7, h); g.lineTo(w * 0.8, h + 5); g.stroke(); g.restore(); }
+    for (let i = 0; i < 2; i++) { const x = rand(20, BW - 90), y = rand(200, 330); g.save(); g.translate(x, y); g.rotate(rand(-0.5, 0.5)); g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(4, 5, 70, 32); g.fillStyle = '#7a4a2a'; g.fillRect(0, 0, 70, 32); g.fillStyle = '#3a2a20'; g.fillRect(12, 5, 18, 22); g.fillRect(40, 5, 18, 22); g.restore(); }
+    blobs(120, 2, 6, ['rgba(90,110,50,.5)', 'rgba(70,90,40,.5)']);
+  } else {
+    g.fillStyle = '#4a4a30'; g.fillRect(0, 0, BW, BH);
+    blobs(500, 8, 40, ['rgba(30,34,18,.25)', 'rgba(100,96,60,.18)']);
+    for (let i = 0; i < 14; i++) { const x = rand(0, BW), y = rand(150, 400), rx = rand(20, 60), ry = rx * rand(0.4, 0.7); const gr = g.createRadialGradient(x, y, 0, x, y, rx); gr.addColorStop(0, '#2a3a2e'); gr.addColorStop(0.85, '#344430'); gr.addColorStop(1, 'rgba(52,68,48,0)'); g.fillStyle = gr; g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, 7); g.fill(); g.fillStyle = 'rgba(200,220,200,.12)'; g.beginPath(); g.ellipse(x - rx * 0.3, y - ry * 0.3, rx * 0.3, ry * 0.12, 0, 0, 7); g.fill(); for (let k = 0; k < 3; k++) { g.fillStyle = '#5a7a3a'; g.beginPath(); g.arc(x + rand(-rx, rx) * 0.6, y + rand(-ry, ry) * 0.6, rand(2, 4), 0.3, 6); g.fill(); } }
+    blobs(5000, 0.3, 1, ['rgba(20,20,10,.5)', 'rgba(140,140,90,.35)']);
+    for (let i = 0; i < 200; i++) { const x = rand(0, BW), y = rand(0, BH); g.strokeStyle = pick(['#6a7a3a', '#8a8a4a', '#4a5a2a']); g.lineWidth = 1; for (let k = 0; k < 4; k++) { g.beginPath(); g.moveTo(x, y); g.lineTo(x + rand(-3, 3), y - rand(6, 14)); g.stroke(); } }
+  }
+  const v = g.createRadialGradient(BW / 2, BH / 2, BW * 0.3, BW / 2, BH / 2, BH * 0.75); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,.45)'); g.fillStyle = v; g.fillRect(0, 0, BW, BH);
+  TEX[kind] = cv; return cv;
+}
+
+/* ================================================================
+   3D — low-poly CC0 dinosaurs (Quaternius) rendered with three.js.
+   The battle simulation stays 2D (x, y on the field); here x→X, y→Z.
+   ================================================================ */
+const MODEL_FILES = { trike: 'Triceratops', para: 'Parasaurolophus', raptor: 'Velociraptor', compy: 'Velociraptor', dilo: 'Trex', stego: 'Stegosaurus', apato: 'Apatosaurus', trex: 'Trex',
+  trikeIron: 'Triceratops', trikeRed: 'Triceratops', paraGold: 'Parasaurolophus', apatoMoss: 'Apatosaurus', raptorShadow: 'Velociraptor', raptorVenom: 'Velociraptor', stegoRust: 'Stegosaurus', trexYoung: 'Trex' };
+const MODEL_TINT = { compy: [0x8a9a50, 0.5], dilo: [0x9aa040, 0.4], trikeIron: [0x7a8694, 0.6], trikeRed: [0xb04428, 0.5], paraGold: [0xe0b030, 0.55], apatoMoss: [0x5a8a40, 0.5],
+  raptorShadow: [0x141c30, 0.7], raptorVenom: [0x8a3a9a, 0.5], stegoRust: [0xc0601c, 0.55], trexYoung: [0xd0c8b0, 0.45] };
+const MODELS = {}, PORTRAIT = {}, PROPS = {}, ZONESHOT = {};
+let G3 = null;
+const has3D = (() => { try { const c = document.createElement('canvas'); return !!(window.THREE && THREE.FBXLoader && THREE.SkeletonUtils && (c.getContext('webgl') || c.getContext('experimental-webgl'))); } catch (e) { return false; } })();
+function lambertize(o) {
+  o.traverse(c => {
+    if (!c.isMesh) return;
+    c.castShadow = true;
+    const conv = m => new THREE.MeshLambertMaterial({ color: m.color ? m.color.clone().multiplyScalar(1.5) : new THREE.Color(0x888888), skinning: !!c.isSkinnedMesh, flatShading: true, name: m.name });
+    c.material = Array.isArray(c.material) ? c.material.map(conv) : conv(c.material);
+  });
+}
+function loadModels(onProgress) {
+  return new Promise(res => {
+    if (!has3D) return res(false);
+    const files = [...new Set(Object.values(MODEL_FILES))]; let n = 0, ok = true;
+    const L = new THREE.FBXLoader();
+    const total = files.length + 1;
+    const fin = () => { onProgress(++n, total); if (n === total) res(ok); };
+    // scenery props (trees, rocks, wrecked cars): one JSON of base64 FBX files; optional, the game works without them
+    fetch('models/props.json').then(r => r.json()).then(js => {
+      for (const [name, b64] of Object.entries(js)) {
+        try {
+          const bin = atob(b64), buf = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+          const o = L.parse(buf.buffer, 'models/'); lambertize(o);
+          const box = new THREE.Box3().setFromObject(o), sz = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
+          o.position.x -= c.x; o.position.z -= c.z; o.position.y -= box.min.y;
+          const holder = new THREE.Group(); holder.add(o); holder.scale.setScalar(1 / Math.max(0.001, sz.y));
+          PROPS[name] = { obj: holder, aspect: Math.max(sz.x, sz.z) / sz.y };
+        } catch (e) { /* skip a prop that fails to parse */ }
+      }
+    }).catch(() => {}).then(fin);
+    // models ship as base64 text (the host serves text, not .fbx), decoded back to the binary FBX here
+    const loadOne = f => fetch('models/' + f + '.b64.txt').then(r => { if (!r.ok) throw new Error(r.status); return r.text(); }).then(t => {
+      const bin = atob(t.trim()), buf = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+      return L.parse(buf.buffer, 'models/');
+    });
+    files.forEach(f => loadOne(f).then(o => {
+      lambertize(o);
+      const clips = {}; for (const a of o.animations) clips[a.name.split('_').pop().toLowerCase()] = a;
+      const sz = new THREE.Box3().setFromObject(o).getSize(new THREE.Vector3());
+      MODELS[f] = { obj: o, clips, len: Math.max(sz.x, sz.z) };
+      fin();
+    }).catch(() => { ok = false; fin(); }));
+  });
+}
+const srgb = c => new THREE.Color(c).convertSRGBToLinear();
+const lam = (col, extra = {}) => new THREE.MeshLambertMaterial(Object.assign({ color: srgb(col), flatShading: true }, extra));
+// people for hire, built from simple low-poly shapes to match the dinosaurs
+const HUMAN3 = { leader: [0x7a6448, 0x3a2e22], hunter: [0x56633a, 0x3a3020], spear: [0x6c5c4a, 0x3a3026], sniper: [0x444a44, 0x2a2e2a],
+                 mechanic: [0xc06a20, 0x34405a], medic: [0xe2ddd0, 0x6a6a70], venomer: [0x3e4a34, 0x24281c] };
+function makeHuman3(type) {
+  const [body, pants] = HUMAN3[type], g = new THREE.Group(), s = new THREE.Group(); g.add(s);
+  const M = (geo, col, x, y, z, parent = s) => { const m = new THREE.Mesh(geo, typeof col === 'number' ? lam(col) : col); m.position.set(x, y, z); m.castShadow = true; parent.add(m); return m; };
+  const B = (w, h, d) => new THREE.BoxGeometry(w, h, d), skin = lam(0xd9a47c), legs = [];
+  for (const sd of [-1, 1]) { const geo = B(2.5, 7, 2.7); geo.translate(0, -3.5, 0); const l = M(geo, pants, sd * 1.7, 7, 0); M(B(2.7, 1.6, 3.6), 0x241a12, 0, -6.4, 0.5, l); legs.push(l); }
+  M(B(6.6, 7.4, 3.8), body, 0, 10.7, 0); M(B(6.8, 1, 4), 0x2a2018, 0, 7.6, 0);
+  M(B(4.8, 5.4, 2.6), 0x4a3a28, 0, 11.4, -3.1);   // backpack
+  const head = M(new THREE.IcosahedronGeometry(2.5, 1), skin, 0, 16.9, 0);
+  // arms: the right one reaches forward to hold the weapon, the left one hangs or carries
+  const armGeo = () => { const a = B(1.9, 6.6, 1.9); a.translate(0, -3.3, 0); return a; };
+  const la = M(armGeo(), body, -4.2, 14, 0), ra = M(armGeo(), body, 4.2, 14, 0); la.rotation.x = -0.35; ra.rotation.x = -1.15;
+  M(B(1.7, 1.7, 1.7), skin, 0, -6.6, 0, la); M(B(1.7, 1.7, 1.7), skin, 0, -6.6, 0, ra);
+  const arm = new THREE.Group(); arm.position.set(4.2, 11.2, 5.6); s.add(arm);
+  const W = (geo, col, x, y, z, rx = 0) => { const m = M(geo, col, x, y, z, arm); m.rotation.x = rx; return m; };
+  const cyl = (r0, r1, h, n = 6) => new THREE.CylinderGeometry(r0, r1, h, n);
+  if (type === 'leader') {
+    M(cyl(4.4, 4.4, 0.5, 10), 0x5a4028, 0, 18.6, 0); M(cyl(2.3, 2.7, 2.6, 8), 0x5a4028, 0, 19.9, 0); M(cyl(2.75, 2.75, 0.6, 8), 0x2a1c10, 0, 19, 0);
+    M(B(6.2, 1.5, 4.4), 0xb03a24, 0, 14.6, 0.2); M(B(1.6, 5, 0.6), 0xb03a24, -1.6, 12.2, -2.1);
+    W(B(1.1, 1.5, 13), 0x2a2218, 0, 0, 3); W(B(1.3, 2.6, 4), 0x5a3a20, 0, -0.6, -4);
+  } else if (type === 'hunter') {
+    const hood = M(new THREE.ConeGeometry(3.3, 4.6, 6), 0x48552e, 0, 18.6, -0.3); hood.rotation.x = -0.15; M(B(6.8, 9, 0.8), 0x48552e, 0, 10.4, -4.5);
+    M(cyl(1, 1, 6, 6), 0x6a4a28, -2.4, 13, -4.4).rotation.z = 0.4;   // quiver
+    const bow = W(new THREE.TorusGeometry(6.4, 0.42, 4, 12, Math.PI), 0x7a5430, 0, 0, 2); bow.rotation.set(0, Math.PI / 2, Math.PI / 2);
+    W(B(0.12, 12.8, 0.12), 0xe8e0d0, 0, 0, 2);
+  } else if (type === 'spear') {
+    M(new THREE.SphereGeometry(2.9, 7, 4, 0, 6.3, 0, 1.7), 0x8a8a86, 0, 17.2, 0); M(B(6.9, 3.2, 4.1), 0x7a7a74, 0, 12.4, 0);
+    const sh = M(cyl(4.6, 4.6, 0.9, 8), 0x6a5236, -5.4, 10.6, 2.4); sh.rotation.x = Math.PI / 2; M(new THREE.SphereGeometry(1.2, 6, 4), 0x9a9a94, -5.4, 10.6, 3.1);
+    W(cyl(0.42, 0.42, 30, 5), 0x6a4a28, 0, 0, 8, Math.PI / 2); W(new THREE.ConeGeometry(1.1, 4.2, 4), 0xc8c0b0, 0, 0, 24.5, Math.PI / 2);
+  } else if (type === 'sniper') {
+    M(B(5, 1.6, 5.4), 0x2e342e, 0, 19, 0.3); M(B(4.6, 0.5, 2.4), 0x2e342e, 0, 18.4, 3.4); M(B(7.4, 10, 1), 0x363c30, 0, 9.8, -4.6);
+    W(B(1, 1.3, 24), 0x1e1e1c, 0, 0, 7); W(cyl(0.7, 0.7, 5, 6), 0x1e1e1c, 0, 1.4, 4, Math.PI / 2); W(B(1.2, 2.8, 4.4), 0x4a3422, 0, -0.7, -5.5);
+  } else if (type === 'mechanic') {
+    M(new THREE.SphereGeometry(2.9, 8, 4, 0, 6.3, 0, 1.6), 0xe0b020, 0, 17.3, 0); M(cyl(3.3, 3.3, 0.4, 10), 0xe0b020, 0, 17.6, 0.6);
+    M(B(4.2, 1.1, 0.8), 0x2a2a2a, 0, 17, 2.4); M(B(6.9, 2, 4.1), 0x34405a, 0, 8.8, 0);
+    W(B(0.9, 0.9, 9), 0x9a9a96, 0, 0, 2); W(B(2.6, 0.9, 2), 0x9a9a96, 0, 0, 7);
+    M(B(4.4, 3, 3.4), 0xa02a20, -5, 6.6, 1);   // toolbox
+  } else if (type === 'medic') {
+    M(B(5, 1.7, 5), 0xf0ece0, 0, 19, 0); M(B(1.6, 0.5, 0.6), 0xc03028, 0, 19.2, 2.6); M(B(0.6, 1.5, 0.6), 0xc03028, 0, 19.2, 2.6);
+    M(B(5, 5.6, 0.5), 0xf0ece0, 0, 11.4, -4.5); M(B(3, 1, 0.5), 0xc03028, 0, 11.4, -4.8); M(B(1, 3, 0.5), 0xc03028, 0, 11.4, -4.8);
+    W(B(4.4, 3.4, 3), 0xf0ece0, 0, -1.5, 0); W(B(1.8, 0.7, 0.4), 0xc03028, 0, -1.5, 1.6); W(B(0.7, 1.8, 0.4), 0xc03028, 0, -1.5, 1.6);
+  } else {
+    const hood = M(new THREE.ConeGeometry(3.4, 5, 6), 0x2c3624, 0, 18.7, -0.3); hood.rotation.x = -0.15; M(B(3.4, 2.4, 1.4), 0x1e1e1c, 0, 16.2, 2.2); M(cyl(0.8, 0.8, 1.2, 6), 0x7a7a74, 0, 15.8, 3.2).rotation.x = Math.PI / 2;
+    M(cyl(1.5, 1.5, 6, 8), 0x7ab030, 2, 11.6, -4.9); M(cyl(1.5, 1.5, 6, 8), 0x5a9024, -2, 11.6, -4.9);
+    W(cyl(0.5, 0.5, 15, 6), 0x8a7a4a, 0, 0, 5, Math.PI / 2);
+  }
+  return { root: g, spin: s, legs, arm, human: true };
+}
+function makeTurret3() {
+  const g = new THREE.Group(), m = lam(0x5a5a54);
+  for (let k = 0; k < 3; k++) { const l = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 10, 4), m); const t = k * 2.1; l.position.set(Math.cos(t) * 3, 4, Math.sin(t) * 3); l.rotation.set(Math.sin(t) * 0.5, 0, -Math.cos(t) * 0.5); g.add(l); }
+  const head = new THREE.Group(); head.position.y = 9; g.add(head);
+  const box = new THREE.Mesh(new THREE.BoxGeometry(5, 4, 6), lam(0x6a6a62)); box.castShadow = true; head.add(box);
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 10, 6), lam(0x2a2a28)); barrel.rotation.x = Math.PI / 2; barrel.position.z = 6; head.add(barrel);
+  return { root: g, spin: head, turret: true };
+}
+function makeDino3(type, len) {
+  const M = MODELS[MODEL_FILES[type]], inst = THREE.SkeletonUtils.clone(M.obj);
+  if (MODEL_TINT[type]) { const [col, t] = MODEL_TINT[type], tc = srgb(col); inst.traverse(c => { if (c.isMesh) { const tint = m => { const k = m.clone(); k.color.lerp(tc, t); return k; }; c.material = Array.isArray(c.material) ? c.material.map(tint) : tint(c.material); } }); }
+  inst.scale.setScalar(len / M.len);
+  const g = new THREE.Group(), s = new THREE.Group(); s.add(inst); g.add(s);
+  const mixer = new THREE.AnimationMixer(inst), acts = {};
+  for (const [k, clip] of Object.entries(M.clips)) acts[k] = mixer.clipAction(clip);
+  return { root: g, spin: s, mixer, acts, cur: null };
+}
+function playAnim(r, name, once) {
+  if (!r.acts) return;
+  const a = r.acts[name] || r.acts.idle; if (!a || r.cur === a) return;
+  a.reset(); a.setLoop(once ? THREE.LoopOnce : THREE.LoopRepeat); a.clampWhenFinished = !!once; a.play();
+  if (r.cur) r.cur.crossFadeTo(a, 0.18, false);
+  r.cur = a;
+}
+const ZONE3 = {
+  plain: { ground: [0x8a7650, 0x6e5c3c, 0xa08a5c], fog: 0xc0a070, sky: 0xd0a868 },
+  city:  { ground: [0x56585a, 0x44464a, 0x5e6a52], fog: 0x9a9a88, sky: 0xa8a890 },
+  swamp: { ground: [0x4e5634, 0x3c4426, 0x606a40], fog: 0x6a7a5a, sky: 0x7a8a68 },
+};
+const RUIN_TEX = {};
+function ruinTex(style) {   // one wall tile = 2 windows x 2 floors: stained concrete or brick, broken and boarded windows
+  if (RUIN_TEX[style]) return RUIN_TEX[style];
+  const cv = document.createElement('canvas'); cv.width = cv.height = 128; const g = cv.getContext('2d');
+  const base = { concrete: '#8f8f88', brick: '#8a5a44', pale: '#b0a890', glass: '#3a5a66' }[style];
+  g.fillStyle = base; g.fillRect(0, 0, 128, 128);
+  for (let i = 0; i < 500; i++) { g.fillStyle = Math.random() < 0.5 ? 'rgba(0,0,0,.08)' : 'rgba(255,255,255,.06)'; g.fillRect(Math.random() * 128, Math.random() * 128, 1 + Math.random() * 3, 1 + Math.random() * 2); }
+  if (style === 'brick') { g.strokeStyle = 'rgba(40,20,14,.35)'; g.lineWidth = 1; for (let y = 0; y < 128; y += 8) { g.beginPath(); g.moveTo(0, y); g.lineTo(128, y); g.stroke(); for (let x = (y / 8 % 2) * 8; x < 128; x += 16) { g.beginPath(); g.moveTo(x, y); g.lineTo(x, y + 8); g.stroke(); } } }
+  if (style === 'glass') {   // curtain wall: a grid of panes, some shattered, some still catching the sky
+    for (let py = 0; py < 4; py++) for (let px = 0; px < 4; px++) { const r = Math.random(), x = px * 32, y = py * 32; g.fillStyle = r < 0.22 ? '#0e1214' : r < 0.5 ? '#4f7480' : r < 0.6 ? '#86a8b0' : '#3a5a66'; g.fillRect(x + 1, y + 1, 30, 30); if (r > 0.9) { g.fillStyle = 'rgba(60,90,40,.6)'; g.fillRect(x + 4, y + 1, 8, 20 + Math.random() * 10); } }
+    g.strokeStyle = '#9aa0a0'; g.lineWidth = 2; for (let k = 0; k <= 128; k += 32) { g.beginPath(); g.moveTo(k, 0); g.lineTo(k, 128); g.moveTo(0, k); g.lineTo(128, k); g.stroke(); }
+  } else for (let fy = 0; fy < 2; fy++) for (let fx = 0; fx < 2; fx++) {
+    const x = fx * 64 + 16, y = fy * 64 + 14, r = Math.random();
+    g.fillStyle = '#14120f'; g.fillRect(x, y, 32, 36);
+    if (r < 0.3) { g.fillStyle = '#5a4630'; g.fillRect(x, y + 8, 32, 6); g.fillRect(x, y + 22, 32, 6); }           // boarded up
+    else if (r < 0.55) { g.fillStyle = 'rgba(150,180,190,.35)'; g.beginPath(); g.moveTo(x, y); g.lineTo(x + 20, y); g.lineTo(x + 8, y + 22); g.lineTo(x, y + 14); g.fill(); }   // shard of glass
+    g.fillStyle = 'rgba(20,16,12,.35)'; g.fillRect(x - 1, y + 36, 34, 14);                                          // rain stain under the sill
+    g.fillStyle = 'rgba(60,90,40,.55)'; for (let k = 0; k < 5; k++) g.fillRect(x + Math.random() * 30, y + 34 + Math.random() * 4, 3, 4 + Math.random() * 12);   // moss dripping from the sill
+  }
+  g.strokeStyle = 'rgba(15,12,10,.6)'; g.lineWidth = 1; for (let i = 0; i < 3; i++) { let x = Math.random() * 128, y = Math.random() * 128; g.beginPath(); g.moveTo(x, y); for (let k = 0; k < 6; k++) { x += Math.random() * 20 - 10; y += Math.random() * 16; g.lineTo(x, y); } g.stroke(); }
+  const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.encoding = THREE.sRGBEncoding; t.magFilter = THREE.NearestFilter;
+  return RUIN_TEX[style] = t;
+}
+function makeRuin(R, w, floors, d, o = {}) {
+  const rr = (a, b) => a + R() * (b - a), g = new THREE.Group(), h = floors * 13, style = o.style || ['concrete', 'concrete', 'brick', 'pale'][(R() * 4) | 0];
+  const side = rep => { const t = ruinTex(style).clone(); t.needsUpdate = true; t.repeat.set(Math.max(1, Math.round(rep / 26)), Math.max(1, floors / 2)); return new THREE.MeshLambertMaterial({ map: t }); };
+  const roof = lam(0x55554e), sx = side(d), sz = side(w);
+  const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), [sx, sx, roof, roof, sz, sz]); body.position.y = h / 2; body.castShadow = body.receiveShadow = true; g.add(body);
+  // the top floor has partly collapsed: jagged wall stubs and bent rebar
+  const wallM = lam({ concrete: 0x86867e, brick: 0x7e5240, pale: 0xa49c86, glass: 0x5a6a70 }[style]);
+  for (let i = 0; i < 3 + floors; i++) { const ww = rr(4, w * 0.45), hh = rr(3, 12), onX = R() < 0.5, m = new THREE.Mesh(new THREE.BoxGeometry(onX ? ww : 2.2, hh, onX ? 2.2 : Math.min(ww, d * 0.8)), wallM); m.position.set(onX ? rr(-w / 2 + ww / 2, w / 2 - ww / 2) : (R() < 0.5 ? -1 : 1) * (w / 2 - 1.1), h + hh / 2, onX ? (R() < 0.5 ? -1 : 1) * (d / 2 - 1.1) : rr(-d / 4, d / 4)); m.castShadow = true; g.add(m); }
+  for (let i = 0; i < 4; i++) { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, rr(6, 13), 4), lam(0x6a3a22)); m.position.set(rr(-w / 2, w / 2), h + 5, rr(-d / 2, d / 2)); m.rotation.set(rr(-0.5, 0.5), 0, rr(-0.5, 0.5)); g.add(m); }
+  // nature taking it back: vines down the walls, moss and bushes on the roof, sometimes a tree growing through
+  const veg = o.veg ?? 1, greens = [0x4a7a34, 0x5a8a3a, 0x3e6a2c, 0x6a9442];
+  for (let i = 0; i < Math.round((4 + floors * 2) * veg); i++) {
+    const len = rr(h * 0.15, h * 0.85), vw = rr(2.5, 8), f = (R() * 4) | 0, m = new THREE.Mesh(new THREE.BoxGeometry(f < 2 ? vw : 0.7, len, f < 2 ? 0.7 : vw), lam(greens[(R() * 4) | 0]));
+    m.position.set(f < 2 ? rr(-w / 2 + vw, w / 2 - vw) : (f === 2 ? -1 : 1) * (w / 2 + 0.35), h - len / 2 + 1, f < 2 ? (f ? -1 : 1) * (d / 2 + 0.35) : rr(-d / 2 + vw, d / 2 - vw)); g.add(m);
+  }
+  for (let i = 0; i < Math.round(3 * veg); i++) { const m = new THREE.Mesh(new THREE.IcosahedronGeometry(rr(3, 7), 0), lam(greens[(R() * 4) | 0])); m.scale.y = 0.45; m.position.set(rr(-w / 2.5, w / 2.5), h + 1.5, rr(-d / 2.5, d / 2.5)); m.castShadow = true; g.add(m); }
+  if (veg > 0.5 && R() < 0.6 && PROPS.CommonTree_1) { const P = PROPS[R() < 0.5 ? 'CommonTree_1' : 'BirchTree_1'] || PROPS.CommonTree_1, t = P.obj.clone(true); t.scale.multiplyScalar(rr(24, 44)); t.position.set(rr(-w / 4, w / 4), h - 2, rr(-d / 4, d / 4)); t.traverse(c => { if (c.isMesh) c.castShadow = true; }); g.add(t); }
+  return g;
+}
+function seeded(seed) { let s = seed >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }
+function buildWorld(scene, kind, seed = 7, dims) {
+  const [BW, BH] = dims || BSIZE;   // the roaming field is larger than a battle arena
+  const Z = ZONE3[kind], R = seeded(seed), rr = (a, b) => a + R() * (b - a);
+  scene.background = srgb(Z.sky); scene.fog = new THREE.Fog(srgb(Z.fog), 380, 950);
+  scene.add(new THREE.HemisphereLight(0xfff2dc, 0x4a3a28, 0.75));
+  const sun = new THREE.DirectionalLight(0xfff0d8, 0.95); sun.position.set(-160, 340, 140); sun.castShadow = true;
+  Object.assign(sun.shadow.camera, { left: -420, right: 420, top: 420, bottom: -420, near: 10, far: 1000 }); sun.shadow.mapSize.set(1024, 1024); sun.shadow.bias = -0.002;
+  sun.target.position.set(BW / 2, 0, BH / 2); scene.add(sun, sun.target);
+  // rolling ground with vertex colour noise
+  const geo = new THREE.PlaneGeometry(BW + 900, BH + 900, 90, 110); geo.rotateX(-Math.PI / 2); geo.translate(BW / 2, 0, BH / 2);
+  const pos = geo.attributes.position, cols = [], c0 = srgb(Z.ground[0]), c1 = srgb(Z.ground[1]), c2 = srgb(Z.ground[2]);
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), z = pos.getZ(i), n = Math.sin(x * 0.021 + seed) * Math.cos(z * 0.017) + Math.sin((x + z) * 0.043) * 0.5 + (R() - 0.5) * 0.5;
+    const inField = x > -20 && x < BW + 20 && z > -20 && z < BH + 20;
+    pos.setY(i, inField ? n * 1.2 : n * 6 + 4);
+    const c = c0.clone().lerp(n > 0 ? c2 : c1, Math.min(1, Math.abs(n) * 0.6)); cols.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3)); geo.computeVertexNormals();
+  const ground = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true })); ground.receiveShadow = true; scene.add(ground);
+  const inField = (x, z) => x > 20 && x < BW - 20 && z > 30 && z < BH - 30;
+  const edge = () => { let x, z, k = 0; do { x = rr(-320, BW + 320); z = rr(-320, BH + 320); } while (inField(x, z) && k++ < 30); return [x, z]; };
+  const any = () => [rr(-250, BW + 250), rr(-250, BH + 250)];
+  const place = (m, x, z, ry = rr(0, 6.28)) => { m.position.set(x, 0, z); m.rotation.y = ry; m.traverse(c => { if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; } }); scene.add(m); return m; };
+  const prop = (names, h, tint, t = 0.5) => {
+    const P = PROPS[names[(R() * names.length) | 0]]; if (!P) return null;
+    const o = P.obj.clone(true); o.scale.multiplyScalar(h);
+    if (tint !== undefined) { const tc = srgb(tint); o.traverse(c => { if (c.isMesh) { const f = m => { const k = m.clone(); k.color.lerp(tc, t); return k; }; c.material = Array.isArray(c.material) ? c.material.map(f) : f(c.material); } }); }
+    return o;
+  };
+  const scatter = (n, names, h0, h1, where, tint, t) => { for (let i = 0; i < n; i++) { const o = prop(names, rr(h0, h1), tint, t); if (o) place(o, ...where()); } };
+  const boxRubble = () => { const g = new THREE.Group(), w = rr(14, 40), h = rr(6, 26), d = rr(10, 30), m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), lam(R() < 0.5 ? 0x8a8a84 : 0x9a968e)); m.position.y = h / 2 - 2; m.rotation.z = rr(-0.25, 0.25); g.add(m); for (let k = 0; k < 3; k++) { const rb = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, rr(8, 16), 4), lam(0x6a3a22)); rb.position.set(rr(-w / 2, w / 2), h, rr(-d / 2, d / 2)); rb.rotation.set(rr(-0.6, 0.6), 0, rr(-0.6, 0.6)); g.add(rb); } return g; };
+  // small ground detail inside the battlefield itself so the arena isn't bare
+  const fieldPt = () => [rr(8, BW - 8), rr(8, BH - 8)];
+  if (kind === 'plain') { scatter(45, ['Grass', 'Grass_2', 'Grass_Short'], 5, 10, fieldPt, 0xb8a860, 0.75); scatter(12, ['Rock_1', 'Rock_3'], 2, 5, fieldPt, 0x9a8c74, 0.4); }
+  else if (kind === 'city') { scatter(28, ['Grass_Short'], 4, 8, fieldPt, 0x6a8a40, 0.4); scatter(18, ['Rock_1', 'Rock_5'], 2, 5, fieldPt, 0x8a8a86, 0.7); }
+  else { scatter(45, ['Grass', 'Grass_2'], 6, 12, fieldPt, 0x6a7a3a, 0.5); scatter(10, ['Plant_1'], 5, 9, fieldPt, 0x4a6a34, 0.4); scatter(8, ['Rock_Moss_2'], 2, 5, fieldPt); }
+  // tall ruins stay north of the field and at its sides so they never block the camera
+  const tall = () => { let x, z, k = 0; do { [x, z] = edge(); } while (z > BH * 0.62 && k++ < 40); return [x, z]; };
+  const ruinAt = (w, floors, d, where, o) => { const g = makeRuin(R, w, floors, d, o), [x, z] = where(); place(g, x, z, rr(-0.5, 0.5) + ((R() * 4) | 0) * Math.PI / 2); return g; };
+  const trees = ['CommonTree_1', 'CommonTree_3', 'BirchTree_1'], dead = ['CommonTree_Dead_1', 'CommonTree_Dead_3', 'BirchTree_Dead_2'];
+  const lamp = () => { const g = new THREE.Group(), m = lam(0x4a4a48), p = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.9, 44, 6), m); p.position.y = 22; g.add(p); const a = new THREE.Mesh(new THREE.BoxGeometry(12, 1, 1), m); a.position.set(5, 43, 0); g.add(a); const v = new THREE.Mesh(new THREE.BoxGeometry(1.2, 14, 1.2), lam(0x4a7a34)); v.position.set(0.8, 30, 0); g.add(v); g.rotation.z = rr(-0.25, 0.25); return g; };
+  const billboard = () => { const g = new THREE.Group(), m = lam(0x4a4a48); for (const sx of [-12, 12]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 40, 5), m); p.position.set(sx, 20, 0); g.add(p); } const b = new THREE.Mesh(new THREE.BoxGeometry(36, 16, 1), lam(0xa89878)); b.position.y = 34; b.rotation.z = rr(-0.12, 0.12); g.add(b); const tear = new THREE.Mesh(new THREE.BoxGeometry(12, 9, 1.2), lam(0x6a5a44)); tear.position.set(rr(-8, 8), 34, 0); g.add(tear); const v = new THREE.Mesh(new THREE.BoxGeometry(9, 12, 1.4), lam(0x4a7a34)); v.position.set(-12, 30, 0); g.add(v); return g; };
+  const road = (wd, col) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(wd, BH + 900), lam(col)); m.rotation.x = -Math.PI / 2; m.position.set(BW / 2, 1.5, BH / 2); m.receiveShadow = true; scene.add(m); for (let z = -400; z < BH + 400; z += 34) { const d = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 15), lam(0xc8b468, { transparent: true, opacity: 0.45 })); d.rotation.x = -Math.PI / 2; d.position.set(BW / 2, 1.8, z); scene.add(d); } scatter(60, ['Grass_Short', 'Grass'], 4, 9, () => [BW / 2 + (R() < 0.5 ? -1 : 1) * rr(wd / 2 - 6, wd / 2 + 8), rr(-300, BH + 300)], 0x6a8a40, 0.4); };
+  const wrecks = (n, where, sink = 0) => { for (let i = 0; i < n; i++) { const o = prop(['NormalCar1', 'SUV', 'Taxi'], rr(15, 18), 0x8a4a28, 0.55); if (!o) continue; const [x, z] = where(); place(o, x, z); o.position.y = -sink * rr(2, 7); o.rotation.z = rr(-0.15, 0.15) - sink * rr(0, 0.3); const gsz = prop(['Grass', 'Bush_1'], rr(8, 13), 0x5a8a3a, 0.3); if (gsz) place(gsz, x + rr(-8, 8), z + rr(-6, 6)); } };
+  if (kind === 'plain') {
+    // an abandoned farm district: low ruins, a silo, a cracked country road, dry grass with young trees pushing through
+    road(34, 0x4a4640);
+    for (let i = 0; i < 9; i++) ruinAt(rr(34, 60), 1 + ((R() * 2) | 0), rr(26, 40), tall, { veg: 0.8, style: R() < 0.5 ? 'brick' : 'pale' });
+    for (let i = 0; i < 3; i++) { const g = new THREE.Group(), hh = rr(50, 80), c = new THREE.Mesh(new THREE.CylinderGeometry(13, 13, hh, 10), lam(0x8a7a6a)); c.position.y = hh / 2; g.add(c); const cap = new THREE.Mesh(new THREE.ConeGeometry(14, 10, 10), lam(0x7a4a2a)); cap.position.y = hh + 4; cap.rotation.z = 0.25; g.add(cap); for (let k = 0; k < 5; k++) { const v = new THREE.Mesh(new THREE.BoxGeometry(4, rr(14, hh * 0.7), 0.8), lam(0x4a7a34)); const t = rr(0, 6.28); v.position.set(Math.cos(t) * 13.2, hh * 0.45, Math.sin(t) * 13.2); v.rotation.y = -t + Math.PI / 2; g.add(v); } place(g, ...tall()); }
+    wrecks(6, edge);
+    scatter(16, dead, 60, 100, edge, 0x6a5a48, 0.45); scatter(12, trees, 50, 85, tall, 0x8a8a40, 0.35);
+    scatter(40, ['Rock_1', 'Rock_3', 'Rock_5'], 6, 22, edge, 0x9a8c74, 0.4);
+    scatter(110, ['Grass', 'Grass_2', 'Grass_Short'], 6, 13, any, 0xb8a860, 0.7);
+    scatter(50, ['Wheat'], 12, 18, edge, 0xc8b060, 0.4); scatter(20, ['Bush_1'], 10, 18, edge, 0x7a8a48, 0.5);
+    for (let i = 0; i < 6; i++) place(billboard(), ...tall());
+    for (let i = 0; i < 2; i++) { const g = new THREE.Group(); for (let k = 0; k < 7; k++) { const rib = new THREE.Mesh(new THREE.TorusGeometry(9, 0.8, 4, 8, Math.PI), lam(0xe0d6c0)); rib.position.set(k * 4.5, 0, 0); rib.rotation.y = Math.PI / 2; g.add(rib); } place(g, ...edge()); }
+  } else if (kind === 'city') {
+    // downtown, decades later: gutted towers wrapped in vines, trees through the asphalt, rusting traffic
+    road(70, 0x3c3c3e);
+    for (let i = 0; i < 24; i++) ruinAt(rr(38, 70), 3 + ((R() * 7) | 0), rr(34, 60), tall, { veg: 1.2, style: ['glass', 'glass', 'concrete', 'pale'][(R() * 4) | 0] });
+    for (let i = 0; i < 10; i++) ruinAt(rr(24, 44), 1, rr(20, 30), edge, { veg: 1 });
+    for (let i = 0; i < 16; i++) place(boxRubble(), ...edge());
+    wrecks(12, edge);
+    for (let i = 0; i < 3; i++) { const o = prop(['NormalCar1', 'Taxi', 'SUV'], 16, 0x7a4426, 0.6); if (o) place(o, BW / 2 + rr(-26, 26), [-60, BH + 40, -160][i], rr(-0.3, 0.3)); }
+    scatter(26, trees, 55, 100, tall); scatter(10, trees, 40, 60, edge); scatter(8, dead, 50, 90, edge, 0x4a4a48, 0.6);
+    scatter(40, ['Bush_1', 'Plant_1'], 9, 17, edge, 0x4a7a34, 0.3);
+    scatter(100, ['Grass_Short', 'Grass'], 5, 11, any, 0x5a8a3a, 0.4);
+    for (let i = 0; i < 12; i++) place(lamp(), BW / 2 + (i % 2 ? 44 : -44), -330 + i * 95, i % 2 ? Math.PI : 0);
+    for (let i = 0; i < 5; i++) place(billboard(), ...tall());
+  } else {
+    // a drowned suburb: leaning houses and half-sunk cars in black water, willows and moss over everything
+    const pools = [];
+    for (let i = 0; i < 26; i++) { const r = rr(24, 70), m = new THREE.Mesh(new THREE.CircleGeometry(r, 14), lam(0x24383a, { transparent: true, opacity: 0.88 })); m.rotation.x = -Math.PI / 2; m.scale.y = rr(0.5, 0.9); const [x, z] = edge(); m.position.set(x, 1.6, z); m.receiveShadow = true; scene.add(m); pools.push([x, z, r]); }
+    for (const [x, z, r] of pools) for (let k = 0; k < 3; k++) { const o = prop(['Lilypad'], rr(1.2, 2)); if (o) { place(o, x + rr(-r, r) * 0.5, z + rr(-r, r) * 0.3); o.position.y = 1.8; } }
+    for (let i = 0; i < 14; i++) { const g = ruinAt(rr(30, 54), 1 + ((R() * 3) | 0), rr(26, 40), tall, { veg: 1.6 }); g.position.y = -rr(3, 12); g.rotation.z = rr(-0.16, 0.16); g.rotation.x = rr(-0.08, 0.08); }
+    wrecks(9, () => { const p = pools[(R() * pools.length) | 0]; return [p[0] + rr(-10, 10), p[1] + rr(-8, 8)]; }, 1);
+    scatter(24, ['Willow_Dead_1', 'Willow_Dead_3', 'Willow_2', 'Willow_2'], 70, 120, edge, 0x4a5a38, 0.3);
+    scatter(8, trees, 50, 80, tall, 0x3e5a30, 0.4);
+    scatter(30, ['Rock_Moss_2', 'Rock_Moss_5'], 6, 22, edge); scatter(14, ['TreeStump_Moss', 'WoodLog_Moss'], 8, 13, edge);
+    scatter(120, ['Grass', 'Grass_2'], 8, 16, any, 0x6a7a3a, 0.5); scatter(44, ['Plant_1', 'Bush_1'], 8, 15, edge, 0x4a6a34, 0.4);
+    for (let i = 0; i < 6; i++) place(lamp(), ...edge());
+  }
+}
+function ensureG3() {
+  if (G3) return G3;
+  const canvas = $('b3d'), renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  renderer.outputEncoding = THREE.sRGBEncoding; renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap;
+  G3 = { renderer, camera: new THREE.PerspectiveCamera(38, 1, 1, 3000), scene: null, clock: new THREE.Clock(), look: new THREE.Vector3(BW / 2, 0, BH / 2), dist: 520 };
+  return G3;
+}
+function setupBattle3D() {
+  const g = ensureG3();
+  if (g.scene) g.scene.traverse(o => { if (o.isMesh && !o.isSkinnedMesh && o.geometry) o.geometry.dispose(); });
+  g.scene = new THREE.Scene(); buildWorld(g.scene, ZONES[B.opt.zone].ground, (Math.random() * 1e6) | 0);
+  const ringGeo = new THREE.RingGeometry(0.9, 1, 32); ringGeo.rotateX(-Math.PI / 2);
+  for (const u of B.units) addUnit3(u, ringGeo);
+  B.ringGeo = ringGeo; g.look.set(BW / 2, 0, BH * 0.55); g.dist = 520;
+}
+function addUnit3(u, ringGeo) {
+  const D = UNITS[u.type] || {}, len = u.size * 2.4;
+  u.r3 = u.turret ? makeTurret3() : D.cls === 'dino' ? makeDino3(u.type, len) : makeHuman3(u.type);
+  if (u.r3.human) u.r3.root.scale.setScalar(u.size / 11);
+  const ring = new THREE.Mesh(ringGeo || B.ringGeo, new THREE.MeshBasicMaterial({ color: srgb(u.side ? 0xd4573c : 0xe3a843), transparent: true, opacity: 0.75 }));
+  ring.scale.setScalar(u.size * 0.85); ring.position.y = 0.8; u.r3.root.add(ring); u.r3.ring = ring;
+  if (u.boss) { const aura = new THREE.Mesh(B.ringGeo || ringGeo, new THREE.MeshBasicMaterial({ color: 0xa02018, transparent: true, opacity: 0.7 })); aura.scale.setScalar(u.size * 1.15); aura.position.y = 0.6; u.r3.root.add(aura); }
+  playAnim(u.r3, 'idle');
+  G3.scene.add(u.r3.root);
+}
+function render3D(dt) {
+  const g = G3, cv = $('b3d'), w = cv.clientWidth, h = cv.clientHeight;
+  const pr = Math.min(dpr, 2); if (cv.width !== Math.round(w * pr) || cv.height !== Math.round(h * pr)) { g.renderer.setPixelRatio(pr); g.renderer.setSize(w, h, false); }
+  g.camera.aspect = w / h; g.camera.updateProjectionMatrix();
+  for (const u of B.units) {
+    const r = u.r3; if (!r) { addUnit3(u); continue; }
+    r.root.position.set(u.x, 0, u.y);
+    r.spin.rotation.y = Math.PI / 2 - u.a;
+    const sel = u === B.sel || u === B.focus; r.ring.material.color.copy(srgb(sel ? 0xffe070 : u.side ? 0xd4573c : 0xe3a843)); r.ring.visible = u.hp > 0;
+    if (r.human) {   // stride and recoil for hand-built people
+      const t = (u.leg || 0) * 3; r.legs.forEach((l, i) => l.rotation.x = u.moving && u.hp > 0 ? Math.sin(t + i * Math.PI) * 0.6 : 0);
+      r.arm.position.z = 5.6 - (u.atkT > 0 ? Math.sin(u.atkT * 20) * 1.4 : 0);
+      if (u.hp <= 0) { r.spin.rotation.z = Math.min(Math.PI / 2, (r.spin.rotation.z || 0) + dt * 4); r.spin.position.y = 2; }
+    } else if (r.turret) { if (u.hp <= 0) r.spin.rotation.z = 0.6; }
+    else {
+      if (u.hp <= 0) playAnim(r, 'death', true);
+      else if (u.atkT > 0) playAnim(r, 'attack', true);
+      else if (u.moving) playAnim(r, u.spd > 50 ? 'run' : 'walk');
+      else playAnim(r, 'idle');
+      r.mixer.timeScale = u.stun > 0 ? 0.15 : 1;
+      r.mixer.update(dt);
+    }
+    if (u.hitT > 0 && r.spin) r.spin.position.x = Math.sin(B.t * 90) * 0.8; else if (r.spin && !r.human) r.spin.position.x = 0;
+  }
+  // camera frames the fight from a high three-quarter angle, like a classic isometric view
+  const live = B.units.filter(u => u.hp > 0);
+  if (live.length) {
+    let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+    for (const u of live) { x0 = Math.min(x0, u.x); x1 = Math.max(x1, u.x); z0 = Math.min(z0, u.y); z1 = Math.max(z1, u.y); }
+    const spread = Math.max(x1 - x0, (z1 - z0) * (w / h)), want = clamp(spread * 1.25 / (w / h < 0.8 ? 0.62 : 1), 200, 620) / bZoom;
+    g.look.lerp(new THREE.Vector3((x0 + x1) / 2, 0, (z0 + z1) / 2 + 10), 0.05); g.dist += (want - g.dist) * 0.04;
+  }
+  g.camera.position.set(g.look.x - g.dist * 0.08, g.dist * 0.82, g.look.z + g.dist * 0.6); g.camera.lookAt(g.look); shakeCam(g.camera); updPX(dt);
+  g.renderer.render(g.scene, g.camera);
+}
+const _v3 = typeof THREE !== 'undefined' ? new THREE.Vector3() : null;
+function toScreen(x, h, y) { _v3.set(x, h, y).project(G3.camera); const cv = $('b3d'); return { x: (_v3.x * 0.5 + 0.5) * cv.clientWidth, y: (-_v3.y * 0.5 + 0.5) * cv.clientHeight, vis: _v3.z < 1 }; }
+// overlay: health bars, damage numbers and projectiles drawn in screen space on top of the 3D view
+function renderOverlay() {
+  const c = bc, w = bcv.width, h = bcv.height;
+  c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, w, h); c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const unitH = u => u.turret ? 14 : UNITS[u.type].cls === 'dino' ? u.size * 1.5 : u.size * 1.9;
+  for (const u of B.units) {
+    if (u.hp <= 0) continue;
+    const p = toScreen(u.x, unitH(u), u.y); if (!p.vis) continue;
+    const bw = Math.max(22, u.size * 1.6), by = p.y - 8;
+    c.fillStyle = 'rgba(0,0,0,.6)'; c.fillRect(p.x - bw / 2, by, bw, 3.4);
+    c.fillStyle = u.side ? '#e0573c' : '#8fcf6a'; c.fillRect(p.x - bw / 2, by, bw * Math.max(0, u.hp / u.max), 3.4);
+    if (u.shred) { c.fillStyle = '#c8e040'; for (let k = 0; k < u.shred; k++) c.fillRect(p.x - bw / 2 + k * 4, by - 4.5, 3, 2.6); }
+    if (u.stun > 0) { c.fillStyle = '#f8e88a'; for (let k = 0; k < 3; k++) { const t = B.t * 5 + k * 2.1; c.beginPath(); c.arc(p.x + Math.cos(t) * 9, by - 8 + Math.sin(t) * 2.5, 2, 0, 7); c.fill(); } }
+  }
+  for (const f of B.fx) {
+    const pr = 1 - f.t / 0.3, a = toScreen(f.x, 10, f.y), b = f.x2 !== undefined ? toScreen(f.x2, 10, f.y2) : a;
+    if (f.kind === 'bullet') { c.strokeStyle = `rgba(255,236,170,${f.t * 4})`; c.lineWidth = 1.4; c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.stroke(); }
+    else if (f.kind === 'arrow' || f.kind === 'dart') { const t = clamp(pr, 0, 1), x = a.x + (b.x - a.x) * t, y = a.y + (b.y - a.y) * t; c.strokeStyle = f.kind === 'dart' ? '#90d0f0' : '#e8d8b0'; c.lineWidth = 1.8; c.beginPath(); c.moveTo(x, y); c.lineTo(x - (b.x - a.x) * 0.08, y - (b.y - a.y) * 0.08); c.stroke(); }
+    else if (f.kind === 'acid') { const t = clamp(pr, 0, 1); c.fillStyle = '#c0e040'; c.beginPath(); c.arc(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t - Math.sin(t * Math.PI) * 14, 3, 0, 7); c.fill(); }
+    else if (f.kind === 'heal') { c.strokeStyle = `rgba(143,211,106,${f.t * 2})`; c.lineWidth = 2; c.beginPath(); c.arc(a.x, a.y - 6, 18 - f.t * 12, 0, 7); c.stroke(); }
+    else if (f.kind === 'bite') { c.strokeStyle = `rgba(255,240,220,${f.t * 5})`; c.lineWidth = 2; c.beginPath(); c.arc(b.x, b.y - 6, 8, 0.5, 2.6); c.stroke(); c.beginPath(); c.arc(b.x, b.y - 6, 8, 3.6, 5.8); c.stroke(); }
+  }
+  c.font = '700 13px "IBM Plex Sans KR", sans-serif'; c.textAlign = 'center';
+  drawPX(c);
+  for (const n of B.nums) { const p = toScreen(n.x, 22 + (0.8 - n.t) * 30, n.y0 ?? n.y); c.globalAlpha = Math.min(1, n.t * 2); c.fillStyle = 'rgba(0,0,0,.7)'; c.fillText(n.s, p.x + 1, p.y + 1); c.fillStyle = n.col; c.fillText(n.s, p.x, p.y); c.globalAlpha = 1; }
+}
+function pick3D(px, py) {
+  let best = null, bd = 40 * 40;
+  for (const u of B.units) { if (u.hp <= 0) continue; const p = toScreen(u.x, u.size * 0.8, u.y), d = d2(px, py, p.x, p.y); if (d < bd) { bd = d; best = u; } }
+  return best;
+}
+/* ---------------- Roaming hunting field: walk the ground, see the herds, touch one to fight ----------------
+   Wild dinosaurs never attack first. Touching a herd starts the battle, and herds standing close by join in,
+   so pulling a crowded spot is riskier and pays more. After the fight you are back where you stood. */
+const FW = 640, FH = 860, FDIM = [FW, FH];
+const TYPE_LOOT = { Triceratops: { hide: 2, bone: 1 }, Parasaurolophus: { meat: 2 }, Velociraptor: { bone: 1, hide: 1 }, Trex: { meat: 3, bone: 2 }, Stegosaurus: { bone: 2, hide: 1 }, Apatosaurus: { meat: 4 } };
+let F = null;
+function makePack(z, tier, boss) {
+  const Z = ZONES[z], H = HUNTS[tier].boss ? HUNTS[3] : HUNTS[tier];
+  let foes;
+  if (boss) foes = huntFoes(z, 4);
+  else { const n = Math.max(1, H.n[0] - 1 + Math.round(Math.random() * (H.n[1] - H.n[0] + 0.6))); foes = addRare(Array.from({ length: n }, () => ({ type: pick(Z.wild), lv: Z.lv + H.lv[0] + Math.round(rand(0, H.lv[1] - H.lv[0])) })), z, H.rare * 0.5); }
+  let cx, cy, k = 0; do { cx = rand(60, FW - 60); cy = boss ? rand(60, 160) : rand(60, FH - 200); } while (k++ < 30 && F && F.packs.some(p => d2(p.cx, p.cy, cx, cy) < 110 * 110));
+  const pack = { id: Math.random(), boss: !!boss, cx, cy, mons: [] };
+  foes.forEach((f, i) => { const bm = f.boss ? BOSSES[f.boss].size : 1, m = { f, x: cx + rand(-22, 22), y: cy + rand(-22, 22), a: rand(0, 6.28), tx: cx, ty: cy, wait: rand(0, 4), r3: makeDino3(f.type, (UNITS[f.type].size || 11) * 2.4 * bm) }; m.r3.root.position.set(m.x, 0, m.y); playAnim(m.r3, 'idle'); pack.mons.push(m); });
+  return pack;
+}
+function enterField(z, tier) {
+  const g = ensureG3(), scene = new THREE.Scene();
+  buildWorld(scene, ZONES[z].ground, (Math.random() * 1e6) | 0, FDIM);
+  F = { zone: z, tier, scene, packs: [], respawn: [], target: null, lead: { x: FW / 2, y: FH - 50, a: -Math.PI / 2, tx: null, ty: null, moving: false }, crew: [], cam: new THREE.Vector3(FW / 2, 0, FH - 80), bossT: 0 };
+  const marker = new THREE.Mesh(new THREE.RingGeometry(5, 7, 24), new THREE.MeshBasicMaterial({ color: srgb(0xe3a843), transparent: true, opacity: 0.8 })); marker.rotation.x = -Math.PI / 2; marker.position.y = 1.2; marker.visible = false; scene.add(marker); F.marker = marker;
+  // the whole caravan walks in single file behind the leader
+  const P = party().filter(u => !u.ko).sort((a, b) => (b.type === 'leader') - (a.type === 'leader')).slice(0, 7);
+  P.forEach((u, i) => { const D = UNITS[u.type], r3 = D.cls === 'dino' ? makeDino3(u.type, D.size * 2.4 * (1 + 0.07 * (u.tier || 0))) : makeHuman3(u.type); const c = { u, r3, x: FW / 2, y: FH - 50 + i * 16, a: -Math.PI / 2, moving: false, gap: 12 + (D.size || 11) * 0.9 }; r3.root.position.set(c.x, 0, c.y); scene.add(r3.root); F.crew.push(c); });
+  const n = HUNTS[tier].boss ? 5 : 7;
+  for (let i = 0; i < n; i++) { const p = makePack(z, tier, false); F.packs.push(p); p.mons.forEach(m => scene.add(m.r3.root)); }
+  if (HUNTS[tier].boss) { const p = makePack(z, tier, true); F.packs.push(p); p.mons.forEach(m => scene.add(m.r3.root)); sfx('roar'); }
+  showField();
+  toast(`${HUNT_NAMES[z][tier]} · 땅을 눌러 걷고, 공룡 무리를 눌러 사냥해요`);
+}
+function showField() {
+  $('battle').hidden = false; $('bfoot').hidden = true; $('ffoot').hidden = false; $('bSel').hidden = true;
+  $('bTitle').textContent = `${ZONES[F.zone].n} · ${HUNT_NAMES[F.zone][F.tier]}`;
+  $('bTip').textContent = '땅을 눌러 이동 · 공룡 무리를 눌러 사냥'; $('bTip').style.animation = 'none';
+  resizeBattle();
+}
+function leaveField() { F = null; $('battle').hidden = true; save(); renderAll(); }
+const _ray = typeof THREE !== 'undefined' ? new THREE.Raycaster() : null;
+function fieldTap(px, py) {
+  const cv = $('b3d'), L = F.lead;
+  // a tap on (or near) a herd targets it; anywhere else is a walk order
+  let best = null, bd = 46 * 46;
+  for (const p of F.packs) for (const m of p.mons) { const s = toScreen(m.x, 8, m.y), d = d2(px, py, s.x, s.y); if (d < bd) { bd = d; best = p; } }
+  if (best) { F.target = best; sfx('tap'); return; }
+  _ray.setFromCamera({ x: px / cv.clientWidth * 2 - 1, y: -(py / cv.clientHeight) * 2 + 1 }, G3.camera);
+  const o = _ray.ray.origin, d = _ray.ray.direction; if (d.y >= -0.01) return;
+  const t = -o.y / d.y; F.target = null; L.tx = clamp(o.x + d.x * t, 8, FW - 8); L.ty = clamp(o.z + d.z * t, 8, FH - 8); ringFx(L.tx, L.ty, '#e3a843', 16, 0.4); sfx('tap');
+}
+function engage(pack) {
+  // herds standing close to the one you touched come running: up to 8 dinosaurs in one fight
+  const joined = [pack], foes = pack.mons.map(m => m.f);
+  for (const p of [...F.packs].sort((a, b) => d2(a.cx, a.cy, pack.cx, pack.cy) - d2(b.cx, b.cy, pack.cx, pack.cy))) {
+    if (p === pack || p.boss !== pack.boss && pack.boss) continue;
+    if (d2(p.cx, p.cy, pack.cx, pack.cy) < 150 * 150 && foes.length + p.mons.length <= 8) { joined.push(p); foes.push(...p.mons.map(m => m.f)); }
+  }
+  const boss = foes.find(f => f.boss);
+  F.target = null; F.lead.tx = null; F.engaged = joined;
+  if (joined.length > 1) toast(`주변 무리 ${joined.length - 1}떼가 싸움에 끼어들었어요 · 적 ${foes.length}마리`, 'warn');
+  sfx(boss ? 'roar' : 'horn');
+  startBattle({ kind: 'hunt', zone: F.zone, tier: F.tier, foes, boss: boss ? boss.boss : null, field: true });
+}
+function afterFieldBattle(opt) {
+  if (opt.won) for (const p of F.engaged || []) { p.mons.forEach(m => F.scene.remove(m.r3.root)); F.packs = F.packs.filter(x => x !== p); F.respawn.push({ t: p.boss ? 150 : rand(35, 60), boss: p.boss }); }
+  F.engaged = null;
+  if (!party().some(u => !u.ko)) { toast('상단이 모두 쓰러져 정착지로 실려 왔어요', 'warn'); leaveField(); return; }
+  // members who fell stay behind the line; the survivors keep walking
+  F.crew = F.crew.filter(c => { if (c.u.ko) { F.scene.remove(c.r3.root); return false; } return true; });
+  showField(); renderHeader(); save();
+}
+function renderField(dt) {
+  const g = G3, cv = $('b3d'), w = cv.clientWidth, h = cv.clientHeight, L = F.lead; if (!w || !h) return;
+  const pr = Math.min(dpr, 2); if (cv.width !== Math.round(w * pr) || cv.height !== Math.round(h * pr)) { g.renderer.setPixelRatio(pr); g.renderer.setSize(w, h, false); }
+  g.camera.aspect = w / h; g.camera.updateProjectionMatrix();
+  // leader walks to the tapped spot or toward the chosen herd
+  if (F.target) { if (!F.packs.includes(F.target)) F.target = null; else { const m = F.target.mons[0]; L.tx = m.x; L.ty = m.y; } }
+  L.moving = false;
+  if (L.tx !== null) {
+    const d = Math.hypot(L.tx - L.x, L.ty - L.y), stop = F.target ? 26 : 3;
+    if (d > stop) { L.a = Math.atan2(L.ty - L.y, L.tx - L.x); const sp = 62 * dt; L.x += Math.cos(L.a) * sp; L.y += Math.sin(L.a) * sp; L.moving = true; }
+    else if (F.target) { engage(F.target); return; } else L.tx = null;
+  }
+  F.marker.visible = L.tx !== null && !F.target; if (F.marker.visible) F.marker.position.set(L.tx, 1.2, L.ty);
+  let px = L.x, py = L.y;
+  F.crew.forEach((c, i) => {
+    if (i === 0) { c.x = L.x; c.y = L.y; c.a = L.a; c.moving = L.moving; }
+    else { const d = Math.hypot(px - c.x, py - c.y); c.moving = d > c.gap; if (c.moving) { c.a = Math.atan2(py - c.y, px - c.x); const sp = Math.min(d - c.gap, 70 * dt); c.x += Math.cos(c.a) * sp; c.y += Math.sin(c.a) * sp; } }
+    px = c.x; py = c.y;
+    c.r3.root.position.set(c.x, 0, c.y); c.r3.spin.rotation.y = Math.PI / 2 - c.a;
+    if (c.r3.human) c.r3.legs.forEach((l, k) => l.rotation.x = c.moving ? Math.sin(performance.now() / 95 + k * Math.PI) * 0.6 : 0);
+    else { playAnim(c.r3, c.moving ? 'walk' : 'idle'); c.r3.mixer.update(dt); }
+  });
+  // herds graze and wander around their home spot
+  for (const p of F.packs) for (const m of p.mons) {
+    m.wait -= dt;
+    if (m.wait <= 0) { m.tx = p.cx + rand(-38, 38); m.ty = p.cy + rand(-38, 38); m.wait = rand(4, 9); }
+    const d = Math.hypot(m.tx - m.x, m.ty - m.y), mv = d > 3;
+    if (mv) { m.a = Math.atan2(m.ty - m.y, m.tx - m.x); const sp = UNITS[m.f.type].spd * 0.3 * dt; m.x += Math.cos(m.a) * sp; m.y += Math.sin(m.a) * sp; }
+    m.r3.root.position.set(m.x, 0, m.y); m.r3.spin.rotation.y = Math.PI / 2 - m.a; playAnim(m.r3, mv ? 'walk' : 'idle'); m.r3.mixer.update(dt);
+  }
+  for (const r of F.respawn) r.t -= dt;
+  for (const r of F.respawn.filter(r => r.t <= 0)) { const p = makePack(F.zone, F.tier, r.boss); F.packs.push(p); p.mons.forEach(m => F.scene.add(m.r3.root)); if (r.boss) { toast(`${BOSSES[ZONES[F.zone].boss].n}가 다시 나타났어요`, 'warn'); sfx('roar'); } }
+  F.respawn = F.respawn.filter(r => r.t > 0);
+  const dist = 470 / bZoom;
+  F.cam.lerp(new THREE.Vector3(L.x, 0, L.y - 20), 0.08);
+  g.camera.position.set(F.cam.x - dist * 0.08, dist * 0.82, F.cam.z + dist * 0.6); g.camera.lookAt(F.cam); shakeCam(g.camera); updPX(dt);
+  if (L.moving) { F.stepT = (F.stepT || 0) - dt; if (F.stepT <= 0) { F.stepT = 0.3; sfx('step'); const c = F.crew[F.crew.length - 1] || L; burst(c.x, c.y, 1, 3, 'rgba(200,180,140,.8)', { spd: 12, up: 16, g: 30, life: 0.6, r: 3 }); } }
+  F.callT = (F.callT ?? 5) - dt; if (F.callT <= 0) { F.callT = rand(6, 13); sfx(Math.random() < 0.3 ? 'callBig' : 'call'); }
+  g.renderer.render(F.scene, g.camera);
+  // labels over each herd
+  const c = bc; c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, bcv.width, bcv.height); c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  c.textAlign = 'center';
+  for (const p of F.packs) {
+    const m = p.mons[0], s = toScreen(m.x, UNITS[m.f.type].size * 2.2 * (m.f.boss ? 1.3 : 1), m.y);
+    if (!s.vis || s.x < 0 || s.x > w || s.y < 30 || s.y > h) {   // off screen: an arrow on the edge shows which way the herd is
+      const s0 = toScreen(p.cx, 0, p.cy), a = Math.atan2((s.vis ? s.y : -s0.y) - h / 2, (s.vis ? s.x : -s0.x) - w / 2), ex = clamp(w / 2 + Math.cos(a) * w, 22, w - 22), ey = clamp(h / 2 + Math.sin(a) * h, 64, h - 22);
+      c.save(); c.translate(ex, ey); c.rotate(a); c.fillStyle = m.f.boss ? '#ff8a6a' : p === F.target ? '#e3a843' : 'rgba(236,227,212,.8)'; c.beginPath(); c.moveTo(11, 0); c.lineTo(-7, -8); c.lineTo(-3, 0); c.lineTo(-7, 8); c.closePath(); c.fill(); c.restore();
+      continue;
+    }
+    const rare = p.mons.some(x => UNITS[x.f.type].rare && !x.f.boss), name = m.f.boss ? BOSSES[m.f.boss].n : UNITS[m.f.type].n, txt = `${name} Lv${m.f.lv}${p.mons.length > 1 ? ' ×' + p.mons.length : ''}`;
+    c.font = '700 12px "IBM Plex Sans KR", sans-serif'; const tw = c.measureText(txt).width + 14;
+    c.fillStyle = p === F.target ? 'rgba(227,168,67,.95)' : 'rgba(18,14,10,.78)'; c.beginPath(); c.roundRect ? c.roundRect(s.x - tw / 2, s.y - 22, tw, 19, 9) : c.rect(s.x - tw / 2, s.y - 22, tw, 19); c.fill();
+    c.fillStyle = p === F.target ? '#1c120a' : m.f.boss ? '#ff8a6a' : rare ? '#f0b94a' : '#ece3d4'; c.fillText(txt, s.x, s.y - 8);
+  }
+  drawPX(c);
+}
+$('fLeave').onclick = () => F && !B && leaveField();
+$('fZoom').onclick = () => $('bZoom').click();
+$('fNearest').onclick = () => { if (!F || B || !F.packs.length) return; const L = F.lead; F.target = [...F.packs].filter(p => !p.boss || F.packs.length === 1).sort((a, b) => d2(a.cx, a.cy, L.x, L.y) - d2(b.cx, b.cy, L.x, L.y))[0] || F.packs[0]; sfx('tap'); };
+/* ---------------- 3D world map: three biomes, settlements, roads, and the caravan walking between them ---------------- */
+const MW = 1000, MH = 840;
+let M3 = null;
+const zoneAt = z => ({ x: ZONES[z].mx * MW, z: ZONES[z].my * MH });
+function routePoint(a, b, t) { const A = zoneAt(a), Bp = zoneAt(b), cx = (A.x + Bp.x) / 2 + 45, cz = (A.z + Bp.z) / 2 - 30, k = 1 - t; return { x: k * k * A.x + 2 * k * t * cx + t * t * Bp.x, z: k * k * A.z + 2 * k * t * cz + t * t * Bp.z }; }
+function labelSprite(text, sub) {
+  const cv = document.createElement('canvas'); cv.width = 512; cv.height = 160; const g = cv.getContext('2d');
+  g.font = '400 64px "Black Han Sans", sans-serif'; g.textAlign = 'center'; g.lineWidth = 12; g.strokeStyle = 'rgba(20,14,8,.9)'; g.strokeText(text, 256, 72); g.fillStyle = '#f4ead8'; g.fillText(text, 256, 72);
+  g.font = '600 34px "IBM Plex Sans KR", sans-serif'; g.lineWidth = 8; g.strokeText(sub, 256, 128); g.fillStyle = '#e3a843'; g.fillText(sub, 256, 128);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), transparent: true, depthTest: false })); sp.scale.set(290, 91, 1); sp.renderOrder = 10; return sp;
+}
+function initMap3D() {
+  const canvas = document.createElement('canvas'); canvas.id = 'map3d';
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true }); renderer.outputEncoding = THREE.sRGBEncoding; renderer.shadowMap.enabled = true;
+  const scene = new THREE.Scene(), R = seeded(4242), rr = (a, b) => a + R() * (b - a);
+  scene.background = srgb(0x2a231b); scene.fog = new THREE.Fog(srgb(0x2a231b), 900, 2100);
+  scene.add(new THREE.HemisphereLight(0xfff2dc, 0x4a3a28, 0.8));
+  const sun = new THREE.DirectionalLight(0xfff0d8, 0.9); sun.position.set(200, 700, 800); sun.castShadow = true; Object.assign(sun.shadow.camera, { left: -700, right: 700, top: 700, bottom: -700, near: 10, far: 2400 }); sun.shadow.mapSize.set(2048, 2048); sun.target.position.set(MW / 2, 0, MH / 2); scene.add(sun, sun.target);
+  const zs = Object.keys(ZONES), cols = { plain: srgb(0x9a8458), city: srgb(0x6a6c70), swamp: srgb(0x566a3a) }, waste = srgb(0x4e4232);
+  const biome = (x, z) => { let best = null, bd = 1e9; for (const k of zs) { const P = zoneAt(k), d = Math.hypot(x - P.x, z - P.z); if (d < bd) { bd = d; best = k; } } return [best, bd]; };
+  const geo = new THREE.PlaneGeometry(MW + 1400, MH + 1400, 120, 110); geo.rotateX(-Math.PI / 2); geo.translate(MW / 2, 0, MH / 2);
+  const pos = geo.attributes.position, ca = [];
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), z = pos.getZ(i), [k, d] = biome(x, z), n = Math.sin(x * 0.013) * Math.cos(z * 0.011) + Math.sin((x + z) * 0.031) * 0.5 + (R() - 0.5) * 0.4;
+    const out = Math.max(0, Math.min(1, (d - 190) / 160)); pos.setY(i, n * 5 + out * (12 + n * 16));
+    const c = cols[ZONES[k].ground].clone().lerp(waste, out).multiplyScalar(0.88 + n * 0.1); ca.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(ca, 3)); geo.computeVertexNormals();
+  const ground = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true })); ground.receiveShadow = true; scene.add(ground);
+  const put = (o, x, z, h) => { if (!o) return; o.position.set(x, 3, z); o.rotation.y = rr(0, 6.28); o.traverse(c => { if (c.isMesh) c.castShadow = true; }); scene.add(o); };
+  const prop = (names, h, tint, t = 0.5) => { const P = PROPS[names[(R() * names.length) | 0]]; if (!P) return null; const o = P.obj.clone(true); o.scale.multiplyScalar(h); if (tint !== undefined) { const tc = srgb(tint); o.traverse(c => { if (c.isMesh) { const f = m => { const k = m.clone(); k.color.lerp(tc, t); return k; }; c.material = Array.isArray(c.material) ? c.material.map(f) : f(c.material); } }); } return o; };
+  const around = (P, r0, r1) => { const t = rr(0, 6.28), r = rr(r0, r1); return [P.x + Math.cos(t) * r, P.z + Math.sin(t) * r * 0.85]; };
+  for (const k of zs) {
+    const P = zoneAt(k), kind = ZONES[k].ground;
+    // settlement: palisade ring, tents, a watch fire and a flag
+    for (let i = 0; i < 16; i++) { const t = i / 16 * 6.28; if (i === 4) continue; const m = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 2, 15, 5), lam(0x5a4028)); m.position.set(P.x + Math.cos(t) * 30, 9, P.z + Math.sin(t) * 26); m.castShadow = true; scene.add(m); }
+    for (let i = 0; i < 4; i++) { const m = new THREE.Mesh(new THREE.ConeGeometry(9, 13, 5), lam([0xb09060, 0x8a7a5a, 0xa08458, 0x7a6a4a][i])); m.position.set(P.x + [-12, 10, -3, 13][i], 9, P.z + [-8, -10, 9, 8][i]); m.castShadow = true; scene.add(m); }
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 34, 5), lam(0x3a2e22)); pole.position.set(P.x, 19, P.z - 2); scene.add(pole);
+    const flag = new THREE.Mesh(new THREE.BoxGeometry(12, 7, 0.6), lam({ plain: 0xd0743a, city: 0x8fa3b0, swamp: 0x8fbf6a }[k])); flag.position.set(P.x + 6.5, 32, P.z - 2); scene.add(flag);
+    const lab = labelSprite(ZONES[k].n, `위험 ${'★'.repeat(ZONES[k].danger + 1)}`); lab.position.set(P.x, 78, P.z); scene.add(lab);
+    if (kind === 'plain') { for (let i = 0; i < 26; i++) put(prop(['CommonTree_Dead_1', 'CommonTree_Dead_3', 'BirchTree_Dead_2'], rr(30, 55), 0x6a5a48, 0.45), ...around(P, 55, 220)); for (let i = 0; i < 30; i++) put(prop(['Rock_1', 'Rock_3', 'Rock_5'], rr(5, 16), 0x9a8c74, 0.4), ...around(P, 45, 230)); for (let i = 0; i < 50; i++) put(prop(['Wheat', 'Grass'], rr(7, 11), 0xc8b060, 0.5), ...around(P, 40, 120)); for (let i = 0; i < 7; i++) { const [x, z] = around(P, 70, 200), m = makeRuin(R, rr(18, 28), 1, rr(14, 20), { veg: 0.8, style: 'brick' }); m.position.set(x, 3, z); m.rotation.y = rr(0, 3); scene.add(m); } }
+    else if (kind === 'city') { for (let i = 0; i < 46; i++) { const [x, z] = around(P, 50, 210), w = rr(12, 30), h = rr(14, 70), m = makeRuin(R, w, Math.max(1, Math.round(h / 13)), rr(12, 28), { veg: 1.2 }); m.position.set(x, 3, z); m.rotation.set(rr(-0.06, 0.06), rr(0, 3), rr(-0.08, 0.08)); scene.add(m); } for (let i = 0; i < 16; i++) put(prop(['CommonTree_1', 'CommonTree_3', 'BirchTree_1'], rr(24, 40)), ...around(P, 45, 200)); for (let i = 0; i < 12; i++) put(prop(['NormalCar1', 'SUV', 'Taxi'], 8, 0x8a4a28, 0.55), ...around(P, 40, 170)); }
+    else { for (let i = 0; i < 14; i++) { const [x, z] = around(P, 40, 210), r = rr(18, 44), m = new THREE.Mesh(new THREE.CircleGeometry(r, 12), lam(0x24383a, { transparent: true, opacity: 0.9 })); m.rotation.x = -Math.PI / 2; m.scale.y = 0.7; m.position.set(x, 6, z); scene.add(m); } for (let i = 0; i < 30; i++) put(prop(['Willow_Dead_1', 'Willow_Dead_3', 'Willow_2'], rr(34, 60), 0x4a5a38, 0.35), ...around(P, 50, 220)); for (let i = 0; i < 24; i++) put(prop(['Rock_Moss_2', 'Rock_Moss_5'], rr(5, 14)), ...around(P, 45, 220)); for (let i = 0; i < 8; i++) { const [x, z] = around(P, 60, 200), m = makeRuin(R, rr(18, 30), 1 + ((R() * 2) | 0), rr(14, 22), { veg: 1.6 }); m.position.set(x, -3, z); m.rotation.set(rr(-0.1, 0.1), rr(0, 3), rr(-0.16, 0.16)); scene.add(m); } }
+  }
+  // roads: worn dashes along each route, red on the dangerous ones
+  for (const key of Object.keys(ROUTES)) { const [a, b] = key.split('|'), mat = lam(ROUTES[key].danger > 2 ? 0xc0523a : 0xd8b46a); for (let i = 3; i < 58; i++) { const p = routePoint(a, b, i / 60), q = routePoint(a, b, (i + 0.5) / 60), m = new THREE.Mesh(new THREE.BoxGeometry(7, 0.8, 4), mat); m.position.set(p.x, 7.5, p.z); m.rotation.y = -Math.atan2(q.z - p.z, q.x - p.x); scene.add(m); } }
+  // a few wild herds roaming for flavour
+  const herd = []; for (const [t, k] of [['para', 'plain'], ['raptor', 'city'], ['stego', 'swamp'], ['apato', 'plain']]) { const d = makeDino3(t, UNITS[t].size * 1.1), P = zoneAt(k), [x, z] = around(P, 90, 170); d.root.position.set(x, 5, z); d.c = { x, z, a: rr(0, 6.28) }; playAnim(d, 'walk'); scene.add(d.root); herd.push(d); }
+  M3 = { canvas, renderer, scene, camera: new THREE.PerspectiveCamera(40, 1, 1, 4000), herd, caravan: null, sig: '', look: new THREE.Vector3(MW / 2, 0, MH / 2), dist: 1000 };
+}
+function renderMap3D(dt) {
+  const m = M3, cv = m.canvas, w = cv.clientWidth, h = cv.clientHeight; if (!w || !h) return;
+  const pr = Math.min(dpr, 2); if (cv.width !== Math.round(w * pr) || cv.height !== Math.round(h * pr)) { m.renderer.setPixelRatio(pr); m.renderer.setSize(w, h, false); }
+  m.camera.aspect = w / h; m.camera.updateProjectionMatrix();
+  const P = party().slice(0, 6), sig = P.map(u => u.type + (u.tier || 0)).join(',');
+  if (sig !== m.sig) {   // the caravan on the map is the real party, in marching order
+    if (m.caravan) m.scene.remove(m.caravan.g);
+    const g = new THREE.Group(), list = [];
+    P.forEach((u, i) => { const D = UNITS[u.type], r = D.cls === 'dino' ? makeDino3(u.type, Math.min(34, D.size * 0.9)) : makeHuman3(u.type); if (r.human) r.root.scale.setScalar(0.9); r.root.position.set(-i * 17 + 20, 0, (i % 2 ? 7 : -7)); r.spin.rotation.y = Math.PI / 2; g.add(r.root); list.push(r); });
+    m.scene.add(g); m.caravan = { g, list }; m.sig = sig;
+  }
+  const T = S.travel, c = m.caravan;
+  let at, ang = 0;
+  if (T) { at = routePoint(T.from, T.to, Math.min(1, T.p)); const nx = routePoint(T.from, T.to, Math.min(1, T.p + 0.02)); ang = Math.atan2(nx.z - at.z, nx.x - at.x); }
+  else { const Z = zoneAt(S.zone); at = { x: Z.x + 44, z: Z.z + 34 }; ang = -0.4; }
+  c.g.position.set(at.x, 7, at.z); c.g.rotation.y = -ang;
+  for (const r of c.list) { if (r.human) r.legs.forEach((l, i) => l.rotation.x = T ? Math.sin(performance.now() / 110 + i * Math.PI) * 0.6 : 0); else { playAnim(r, T ? 'walk' : 'idle'); r.mixer.update(dt); } }
+  for (const d of m.herd) { d.c.a += dt * 0.15; d.root.position.set(d.c.x + Math.cos(d.c.a) * 30, 5, d.c.z + Math.sin(d.c.a) * 22); d.spin.rotation.y = -d.c.a; d.mixer.update(dt * 0.7); }
+  const want = T ? 200 : 1080, tgt = T ? new THREE.Vector3(at.x, 0, at.z) : new THREE.Vector3(MW / 2, 0, MH / 2 - 20);
+  m.look.lerp(tgt, 0.06); m.dist += (want - m.dist) * 0.05;
+  m.camera.position.set(m.look.x, m.dist * 0.78, m.look.z + m.dist * 0.72); m.camera.lookAt(m.look);
+  m.renderer.render(m.scene, m.camera);
+}
+// one shared offscreen renderer turns each model into a card portrait
+function makePortraits() {
+  if (!has3D) return;
+  const cv = document.createElement('canvas'); cv.width = 260; cv.height = 200;
+  const r = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: true, preserveDrawingBuffer: true }); r.outputEncoding = THREE.sRGBEncoding;
+  const cam = new THREE.PerspectiveCamera(30, 1.3, 1, 2000);
+  for (const type of Object.keys(UNITS)) {
+    const sc = new THREE.Scene(); sc.add(new THREE.HemisphereLight(0xfff2dc, 0x5a4a38, 0.9)); const sun = new THREE.DirectionalLight(0xffffff, 0.9); sun.position.set(-60, 120, 100); sc.add(sun);
+    const D = UNITS[type], obj = D.cls === 'dino' ? makeDino3(type, 60) : makeHuman3(type);
+    if (obj.acts) { playAnim(obj, 'idle'); obj.mixer.update(0.6); }
+    obj.spin.rotation.y = D.cls === 'dino' ? Math.PI / 2 + 0.6 : 0.6;
+    sc.add(obj.root);
+    const box = new THREE.Box3().setFromObject(obj.root), ctr = box.getCenter(new THREE.Vector3()), sz = box.getSize(new THREE.Vector3()), rad = Math.max(sz.x, sz.y, sz.z);
+    cam.position.set(ctr.x - rad * 0.35, ctr.y + rad * 0.55, ctr.z + rad * 1.55); cam.lookAt(ctr);
+    r.setClearColor(0x000000, 0); r.render(sc, cam);
+    const img = new Image(); img.src = cv.toDataURL('image/png'); PORTRAIT[type] = img;
+  }
+  try {
+    r.setSize(720, 320, false); r.shadowMap.enabled = true; const zc = new THREE.PerspectiveCamera(34, 720 / 320, 1, 3000);
+    for (const z of Object.keys(ZONES)) {
+      const sc = new THREE.Scene(); buildWorld(sc, ZONES[z].ground, 11);
+      ZONES[z].tame.forEach((t, i) => { const d = makeDino3(t, UNITS[t].size * 2.4); playAnim(d, 'idle'); d.mixer.update(0.4 + i); d.root.position.set(BW / 2 - 70 + i * 75, 0, BH / 2 - 10 + (i % 2) * 40); d.spin.rotation.y = 0.9 - i * 0.5; sc.add(d.root); });
+      zc.position.set(BW / 2 - 60, 70, BH / 2 + 260); zc.lookAt(BW / 2, 22, BH / 2);
+      r.render(sc, zc); ZONESHOT[z] = cv.toDataURL('image/jpeg', 0.85);
+    }
+  } catch (e) { /* header falls back to the flat texture */ }
+  r.dispose();
+}
+
+/* ================================================================
+   BATTLE RENDER + INPUT
+   ================================================================ */
+const bcv = $('bcv'), bc = bcv.getContext('2d');
+let dpr = 1, bView = { s: 1, ox: 0, oy: 0 };
+function resizeBattle() { dpr = Math.min(2.5, window.devicePixelRatio || 1); bcv.width = Math.round(bcv.clientWidth * dpr); bcv.height = Math.round(bcv.clientHeight * dpr); }
+let USE3D = false;
+function renderBattle(dt) {
+  if (USE3D && G3 && G3.scene) { render3D(dt || 0.016); renderOverlay(); updSel(); return; }
+  const c = bc, w = bcv.width, h = bcv.height;
+  c.setTransform(1, 0, 0, 1, 0, 0); c.fillStyle = '#120e0a'; c.fillRect(0, 0, w, h);
+  const live = B.units.filter(u => u.hp > 0);
+  let x0 = Math.min(...live.map(u => u.x)) - 70, x1 = Math.max(...live.map(u => u.x)) + 70, y0 = Math.min(...live.map(u => u.y)) - 70, y1 = Math.max(...live.map(u => u.y)) + 70;
+  const fit = Math.min(w / BW, h / BH), want = clamp(Math.min(w / (x1 - x0), h / (y1 - y0)), fit, fit * 2.2);
+  const cam = B.cam || (B.cam = { s: want, x: (x0 + x1) / 2, y: (y0 + y1) / 2 });
+  cam.s += (want - cam.s) * 0.04; cam.x += ((x0 + x1) / 2 - cam.x) * 0.05; cam.y += ((y0 + y1) / 2 - cam.y) * 0.05;
+  const s = cam.s, hw = w / s / 2, hh = h / s / 2;
+  cam.x = clamp(cam.x, Math.min(hw, BW / 2), Math.max(BW - hw, BW / 2)); cam.y = clamp(cam.y, Math.min(hh, BH / 2), Math.max(BH - hh, BH / 2));
+  const ox = w / 2 - cam.x * s, oy = h / 2 - cam.y * s;
+  bView = { s: s / dpr, ox: ox / dpr, oy: oy / dpr };
+  c.setTransform(s, 0, 0, s, ox, oy);
+  c.drawImage(B.ground, 0, 0, BW, BH);
+  const list = [...B.units].sort((a, b) => a.y - b.y);
+  for (const u of list) if (u.hp <= 0 && !u.turret) { c.globalAlpha = 0.5; drawUnit(c, u, u.size * 2.2, 0, { still: true, tint: '#4a4030' }); c.globalAlpha = 1; }
+  for (const u of list) {
+    if (u.hp <= 0) continue;
+    c.strokeStyle = u.side ? 'rgba(212,87,60,.6)' : 'rgba(227,168,67,.55)'; c.lineWidth = 1.2;
+    c.beginPath(); c.ellipse(u.x, u.y + u.size * 0.15, u.size * 0.75, u.size * 0.45, 0, 0, 7); c.stroke();
+    if (u === B.sel || u === B.focus) { c.strokeStyle = '#e3a843'; c.setLineDash([3, 3]); c.lineWidth = 1.4; c.beginPath(); c.arc(u.x, u.y, u.size * 1.1 + 4, 0, 7); c.stroke(); c.setLineDash([]); }
+    if (u.boss) { c.fillStyle = 'rgba(160,30,20,.18)'; c.beginPath(); c.arc(u.x, u.y, u.size * 1.4, 0, 7); c.fill(); }
+    drawUnit(c, u, u.size * 2.2, u.leg + B.t * (u.moving ? 0 : 0.3), { still: !u.moving && !u.turret, hit: u.hitT > 0, bite: u.cd > 1 / u.as - 0.2 });
+    const bw = Math.max(16, u.size * 1.4), by = u.y - u.size * 1.1 - 6;
+    c.fillStyle = 'rgba(0,0,0,.55)'; c.fillRect(u.x - bw / 2, by, bw, 2.6);
+    c.fillStyle = u.side ? '#d4573c' : '#8fbf6a'; c.fillRect(u.x - bw / 2, by, bw * Math.max(0, u.hp / u.max), 2.6);
+    if (u.shred) { c.fillStyle = '#b8d040'; for (let k = 0; k < u.shred; k++) c.fillRect(u.x - bw / 2 + k * 3.2, by - 3.4, 2.4, 2); }
+    if (u.stun > 0) { c.fillStyle = '#f0e080'; for (let k = 0; k < 3; k++) { const t = B.t * 5 + k * 2.1; c.beginPath(); c.arc(u.x + Math.cos(t) * u.size * 0.6, u.y - u.size * 0.8 + Math.sin(t) * 2, 1.6, 0, 7); c.fill(); } }
+  }
+  for (const f of B.fx) {
+    const p = 1 - f.t / 0.3;
+    if (f.kind === 'bullet') { c.strokeStyle = `rgba(255,230,160,${f.t * 4})`; c.lineWidth = 1; c.beginPath(); c.moveTo(f.x, f.y); c.lineTo(f.x2, f.y2); c.stroke(); }
+    else if (f.kind === 'arrow' || f.kind === 'dart') { const t = clamp(p, 0, 1), x = f.x + (f.x2 - f.x) * t, y = f.y + (f.y2 - f.y) * t; c.strokeStyle = f.kind === 'dart' ? '#80c0e0' : '#d8c8a0'; c.lineWidth = 1.2; c.beginPath(); c.moveTo(x, y); c.lineTo(x - (f.x2 - f.x) * 0.06, y - (f.y2 - f.y) * 0.06); c.stroke(); }
+    else if (f.kind === 'acid') { const t = clamp(p, 0, 1); c.fillStyle = '#b8d040'; c.beginPath(); c.arc(f.x + (f.x2 - f.x) * t, f.y + (f.y2 - f.y) * t, 2.2, 0, 7); c.fill(); }
+    else if (f.kind === 'heal') { c.strokeStyle = `rgba(143,191,106,${f.t * 2})`; c.lineWidth = 1.5; c.beginPath(); c.arc(f.x, f.y, 14 - f.t * 10, 0, 7); c.stroke(); }
+    else if (f.kind === 'bite') { c.strokeStyle = `rgba(255,240,220,${f.t * 5})`; c.lineWidth = 1.4; c.beginPath(); c.arc(f.x2, f.y2, 6, 0.5, 2.6); c.stroke(); c.beginPath(); c.arc(f.x2, f.y2, 6, 3.6, 5.8); c.stroke(); }
+  }
+  c.font = '700 9px "IBM Plex Sans KR", sans-serif'; c.textAlign = 'center';
+  for (const n of B.nums) { c.fillStyle = 'rgba(0,0,0,.6)'; c.fillText(n.s, n.x + 0.6, n.y + 0.6); c.fillStyle = n.col; c.globalAlpha = Math.min(1, n.t * 2); c.fillText(n.s, n.x, n.y); c.globalAlpha = 1; }
+  updSel();
+}
+function updSel() {
+  const S0 = B.sel; $('bSel').hidden = !S0 || S0.hp <= 0;
+  if (S0 && S0.hp > 0) {
+    const D = UNITS[S0.type];
+    $('bSelName').textContent = `${S0.boss ? BOSSES[S0.boss].n : S0.turret ? '포탑' : D.n}${D && D.rare && !S0.boss ? ' ★희귀' : ''} Lv${S0.lv}${S0.side && D && D.cls === 'dino' && !S0.boss ? (S0.hp <= S0.max * 0.3 ? ' · 포획 가능!' : ' · 30% 이하로') : ''}`;
+    $('bSelHp').style.width = (S0.hp / S0.max * 100) + '%';
+  }
+}
+const bPtr = new Map(); let bPinch = null;
+bcv.addEventListener('pointermove', e => { if (!bPtr.has(e.pointerId)) return; bPtr.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (bPtr.size === 2 && bPinch) { const [a, b] = [...bPtr.values()]; bZoom = clamp(bPinch.z * Math.hypot(a.x - b.x, a.y - b.y) / bPinch.d, 0.8, 3); $('bZoom').textContent = '직접'; } });
+const bUp = e => { bPtr.delete(e.pointerId); if (bPtr.size < 2) bPinch = null; };
+bcv.addEventListener('pointerup', bUp); bcv.addEventListener('pointercancel', bUp);
+bcv.addEventListener('pointerdown', e => {
+  bPtr.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (bPtr.size === 2) { const [a, b] = [...bPtr.values()]; bPinch = { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, z: bZoom }; return; }
+  if (F && !B) { const r = bcv.getBoundingClientRect(); fieldTap(e.clientX - r.left, e.clientY - r.top); return; }
+  if (!B || B.over) return;
+  const r = bcv.getBoundingClientRect(), x = (e.clientX - r.left - bView.ox) / bView.s, y = (e.clientY - r.top - bView.oy) / bView.s;
+  if (USE3D && G3 && G3.scene) { B.sel = pick3D(e.clientX - r.left, e.clientY - r.top); if (B.sel && B.sel.side === 1) { B.focus = B.sel; sfx('tap'); } return; }
+  let best = null, bd = 900;
+  for (const u of B.units) { if (u.hp <= 0) continue; const d = d2(x, y, u.x, u.y); if (d < Math.max(bd, (u.size + 8) ** 2) && d < bd + (u.size + 8) ** 2) { if (!best || d < bd) { best = u; bd = d; } } }
+  B.sel = best;
+  if (best && best.side === 1) { B.focus = best; sfx('tap'); }
+});
+$('bCapture').onclick = () => B && !B.over && tryCapture();
+$('bRetreat').onclick = () => { if (!B || B.over) return; B.opt.retreat = true; B.loot = {}; endBattle(false); };
+const ZOOMS = [[1, '보통'], [1.3, '크게'], [1.9, '아주 크게']];
+$('bZoom').onclick = () => { const i = (ZOOMS.findIndex(z => z[0] === bZoom) + 1) % ZOOMS.length; bZoom = ZOOMS[i][0]; $('bZoom').textContent = $('fZoom').textContent = ZOOMS[i][1]; };
+$('bSpeed').onclick = () => { bSpeed = bSpeed === 1 ? 2 : 1; $('bSpeed').textContent = '×' + bSpeed; };
+
+/* ================================================================
+   SOUND — synthesized
+   ================================================================ */
+const SND = { ctx: null, mood: 'town', next: 0, step: 0, last: {} };
+const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
+function sndInit() {
+  if (SND.ctx) { if (SND.ctx.state === 'suspended') SND.ctx.resume(); return; }
+  try {
+    const C = new (window.AudioContext || window.webkitAudioContext)(); SND.ctx = C;
+    SND.master = C.createGain(); SND.master.connect(C.destination);
+    SND.music = C.createGain(); SND.music.connect(SND.master); SND.fx = C.createGain(); SND.fx.connect(SND.master); SND.amb = C.createGain(); SND.amb.connect(SND.master);
+    const len = C.sampleRate * 2, buf = C.createBuffer(1, len, C.sampleRate), d = buf.getChannelData(0); for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1; SND.noise = buf;
+    const w = C.createBufferSource(); w.buffer = buf; w.loop = true; const f = C.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 380; const wg = C.createGain(); wg.gain.value = 0.05; w.connect(f).connect(wg).connect(SND.amb); w.start();
+    const lfo = C.createOscillator(); lfo.frequency.value = 0.05; const lg = C.createGain(); lg.gain.value = 200; lfo.connect(lg).connect(f.frequency); lfo.start();
+    applySnd(); setInterval(sndTick, 100);
+  } catch (e) { SND.ctx = null; }
+}
+function applySnd() { if (!SND.ctx) return; const t = SND.ctx.currentTime, m = S.snd; SND.music.gain.setTargetAtTime(m === 2 ? 0.5 : 0, t, 0.3); SND.fx.gain.setTargetAtTime(m ? 0.8 : 0, t, 0.05); SND.amb.gain.setTargetAtTime(m === 2 ? 1 : 0, t, 0.3); }
+function tone(f, dur, o = {}) { const C = SND.ctx; if (!C) return; const t = C.currentTime + (o.at || 0), osc = C.createOscillator(), g = C.createGain(); osc.type = o.type || 'sine'; osc.frequency.setValueAtTime(f, t); if (o.slide) osc.frequency.exponentialRampToValueAtTime(Math.max(20, f * o.slide), t + dur); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(o.vol || 0.1, t + (o.attack || 0.005)); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); osc.connect(g).connect(o.dest || SND.fx); osc.start(t); osc.stop(t + dur + 0.05); }
+function noiseHit(dur, o = {}) { const C = SND.ctx; if (!C) return; const t = C.currentTime + (o.at || 0), src = C.createBufferSource(), f = C.createBiquadFilter(), g = C.createGain(); src.buffer = SND.noise; f.type = o.type || 'bandpass'; f.frequency.value = o.freq || 2000; f.Q.value = o.q || 1; if (o.sweep) f.frequency.exponentialRampToValueAtTime(o.sweep, t + dur); g.gain.setValueAtTime(o.vol || 0.2, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); src.connect(f).connect(g).connect(o.dest || SND.fx); src.start(t, Math.random()); src.stop(t + dur + 0.05); }
+const SFX = {
+  tap: () => tone(800, 0.05, { type: 'triangle', vol: 0.04 }),
+  step: () => noiseHit(0.07, { freq: 240, type: 'lowpass', vol: 0.16 }),
+  miss: () => noiseHit(0.13, { freq: 2200, sweep: 700, q: 4, vol: 0.07 }),
+  crit: () => { noiseHit(0.16, { freq: 3200, q: 1.2, vol: 0.3 }); tone(220, 0.18, { type: 'square', vol: 0.07, slide: 0.4 }); },
+  stun: () => [1400, 1750, 1400].forEach((f, i) => tone(f, 0.09, { type: 'sine', vol: 0.05, at: i * 0.07 })),
+  heal: () => [660, 880, 1320].forEach((f, i) => tone(f, 0.22, { type: 'sine', vol: 0.05, at: i * 0.06 })),
+  cry: () => { tone(620, 0.32, { type: 'sawtooth', vol: 0.07, slide: 0.45, attack: 0.02 }); noiseHit(0.25, { freq: 1500, q: 2, vol: 0.08 }); },
+  cryBig: () => { tone(150, 0.8, { type: 'sawtooth', vol: 0.13, slide: 0.45, attack: 0.05 }); tone(158, 0.8, { type: 'sawtooth', vol: 0.09, slide: 0.42, attack: 0.05 }); noiseHit(0.7, { freq: 420, type: 'lowpass', vol: 0.22 }); },
+  down: () => [330, 262, 196].forEach((f, i) => tone(f, 0.25, { type: 'triangle', vol: 0.08, at: i * 0.1 })),
+  call: () => { const f = rand(700, 1100); tone(f, 0.18, { type: 'triangle', vol: 0.025, slide: 1.25 }); tone(f * 1.1, 0.2, { type: 'triangle', vol: 0.02, slide: 0.8, at: 0.22 }); },
+  callBig: () => { tone(110, 1.4, { type: 'sawtooth', vol: 0.03, slide: 1.4, attack: 0.4 }); noiseHit(1.2, { freq: 300, type: 'lowpass', vol: 0.05 }); },
+  horn: () => { tone(196, 0.5, { type: 'sawtooth', vol: 0.07, attack: 0.06 }); tone(294, 0.6, { type: 'sawtooth', vol: 0.06, attack: 0.06, at: 0.18 }); },
+  levelup: () => [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, 0.28, { type: 'square', vol: 0.045, at: i * 0.08 })),
+  loot: () => [988, 1319, 1976].forEach((f, i) => tone(f, 0.18, { type: 'triangle', vol: 0.07, at: i * 0.06 })),
+  open: () => noiseHit(0.08, { freq: 1200, sweep: 2600, q: 2, vol: 0.05 }),
+  deny: () => { tone(180, 0.1, { type: 'square', vol: 0.05 }); tone(150, 0.14, { type: 'square', vol: 0.05, at: 0.1 }); },
+  coin: () => { tone(1320, 0.06, { type: 'square', vol: 0.035 }); tone(1760, 0.1, { type: 'square', vol: 0.035, at: 0.05 }); },
+  shot: () => { noiseHit(0.09, { freq: 1600, q: 0.6, vol: 0.32 }); tone(120, 0.08, { type: 'square', vol: 0.05, slide: 0.5 }); },
+  bow: () => noiseHit(0.12, { freq: 900, sweep: 3000, q: 2, vol: 0.12 }),
+  spit: () => noiseHit(0.15, { freq: 600, sweep: 200, q: 3, vol: 0.15 }),
+  bite: () => noiseHit(0.06, { freq: 2600, q: 2, vol: 0.14 }),
+  crunch: () => { noiseHit(0.14, { freq: 1100, q: 0.7, vol: 0.3 }); tone(140, 0.12, { type: 'square', vol: 0.05, slide: 0.5 }); },
+  crunchBig: () => { noiseHit(0.35, { freq: 500, q: 0.6, vol: 0.45 }); tone(80, 0.4, { type: 'sawtooth', vol: 0.1, slide: 0.4 }); },
+  roar: () => { tone(95, 1.1, { type: 'sawtooth', vol: 0.13, slide: 1.7, attack: 0.15 }); tone(101, 1.1, { type: 'sawtooth', vol: 0.1, slide: 1.6, attack: 0.15 }); noiseHit(0.9, { freq: 350, vol: 0.25, type: 'lowpass' }); },
+  drums: () => [0, 0.22, 0.44, 0.55].forEach(at => noiseHit(0.22, { freq: 130, type: 'lowpass', vol: 0.55, at })),
+  dart: () => noiseHit(0.1, { freq: 4000, q: 3, vol: 0.1 }),
+  capture: () => [523, 784, 1047, 1568].forEach((f, i) => tone(f, 0.3, { type: 'triangle', vol: 0.09, at: i * 0.07 })),
+  win: () => [392, 523, 659, 784].forEach((f, i) => tone(f, 0.45, { type: 'triangle', vol: 0.09, at: i * 0.12 })),
+  lose: () => [392, 330, 294, 247].forEach((f, i) => tone(f, 0.5, { type: 'triangle', vol: 0.08, at: i * 0.15 })),
+  march: () => [0, 0.3, 0.6].forEach(at => noiseHit(0.15, { freq: 200, type: 'lowpass', vol: 0.35, at })),
+  arrive: () => [523, 659, 784].forEach((f, i) => tone(f, 0.4, { vol: 0.07, at: i * 0.1 })),
+};
+function sfx(n, throttle = 0) { if (!SND.ctx || !S.snd) return; const now = performance.now(); if (throttle && now - (SND.last[n] || 0) < throttle) return; SND.last[n] = now; try { SFX[n](); } catch (e) { /* ignore */ } }
+// wasteland score: low drones and a slow pentatonic guitar-like pluck in town; pounding drums in battle
+function sndTick() {
+  const C = SND.ctx; if (!C || S.snd < 2) return;
+  const battle = SND.mood === 'battle', beat = 60 / (battle ? 120 : 70) / 2;
+  if (SND.next < C.currentTime) SND.next = C.currentTime + 0.05;
+  while (SND.next < C.currentTime + 0.35) {
+    const st = SND.step++, at = SND.next - C.currentTime, root = [40, 43, 38, 40][Math.floor(st / 16) % 4];
+    if (st % 16 === 0) [0, 7, 12].forEach(iv => tone(mtof(root + iv), beat * 16, { type: 'sawtooth', vol: battle ? 0.012 : 0.016, at, attack: 1, dest: SND.music }));
+    if (!battle && st % 2 === 0 && Math.random() < 0.4) tone(mtof(root + 24 + [0, 3, 5, 7, 10][Math.random() * 5 | 0]), beat * 4, { type: 'triangle', vol: 0.03, at, dest: SND.music });
+    if (battle) {
+      if (st % 4 === 0 || st % 16 === 10) noiseHit(0.2, { freq: 100, type: 'lowpass', vol: 0.55, at, dest: SND.music });
+      if (st % 8 === 4) noiseHit(0.14, { freq: 1800, q: 0.7, vol: 0.16, at, dest: SND.music });
+      tone(mtof(root + [0, 0, 12, 0, 3, 0, 7, 10][st % 8]), beat * 0.9, { type: 'square', vol: 0.016, at, dest: SND.music });
+    }
+    SND.next += beat;
+  }
+}
+
+/* ================================================================
+   UI
+   ================================================================ */
+let view = 'town', toastT;
+function toast(m, k) { const t = $('toast'); t.textContent = m; t.className = 'show ' + (k || ''); clearTimeout(toastT); toastT = setTimeout(() => t.className = '', 2600); }
+function showModal(h) { $('mcard').innerHTML = h; $('modal').hidden = false; $('mcard').querySelectorAll('canvas[data-u]').forEach(cv => portrait(cv, cv.dataset.u)); }
+function closeModal() { $('modal').hidden = true; }
+const tierName = u => (UNITS[u.type].cls === 'dino' ? TIER_DINO : TIER_HUMAN)[u.tier || 0] + UNITS[u.type].n;
+const unitName = u => u.name ? `${u.name}(${tierName(u)})` : tierName(u);
+const stars = n => '★'.repeat(n) + '☆'.repeat(5 - n);
+let townSec = 'hunt', partySec = 'crew';
+const chips = (list, cur, act) => `<div class="chips">${list.map(([k, n, badge]) => `<button class="chip${k === cur ? ' on' : ''}" data-act="${act}" data-k="${k}">${n}${badge ? `<i>${badge}</i>` : ''}</button>`).join('')}</div>`;
+function zoneHead(z) {
+  const Z = ZONES[z];
+  return `<div class="zonehead">${ZONESHOT[z] ? `<img src="${ZONESHOT[z]}" alt="">` : `<canvas data-ground="${Z.ground}" width="360" height="160"></canvas>`}<div class="zt"><b>${Z.n}</b><small><span class="danger">${stars(Z.danger + 1)}</span> 위험도 · 야생 Lv${Z.lv}~${Z.lv + 6}</small><br><small>${Z.ds}</small></div></div>`;
+}
+function renderTown() {
+  const z = S.zone, Z = ZONES[z], el = $('v-town');
+  if (S.travel) { el.innerHTML = `<div class="card"><div class="row"><div class="info"><b>이동 중</b><small>${ZONES[S.travel.from].n} → ${ZONES[S.travel.to].n} · 지도 탭에서 볼 수 있어요</small></div></div></div>`; return; }
+  const used = cargoUsed(), cap = capacity();
+  const others = Object.keys(ZONES).filter(o => o !== z);
+  const goods = Object.keys(GOODS).filter(g => !GOODS[g].made || S.cargo[g]).map(g => {
+    const G = GOODS[g], p = price(z, g), sp = sellPrice(z, g), rel = rawPrice(z, g) / G.base, have = S.cargo[g] || 0;
+    const cls = rel < 0.85 ? 'up' : rel > 1.2 ? 'down' : '';
+    const best = others.map(o => [o, sellPrice(o, g)]).sort((a, b) => b[1] - a[1])[0];
+    const tip = best[1] > p ? `<span class="up">${ZONES[best[0]].n}에 팔면 개당 +${best[1] - p}</span>` : best[1] > sp ? `${ZONES[best[0]].n}에서 ${best[1]}` : '여기가 가장 비싸요';
+    return `<div class="row"><div class="info"><b>${G.n} <span class="${cls}" style="font-weight:400;font-size:11px">${G.made ? '가공품' : rel < 0.85 ? '싸요' : rel > 1.2 ? '비싸요' : ''}</span></b><small>${G.made ? '' : `살 때 ${p} · `}팔 때 ${sp} · 보유 ${have}</small><small>${tip}</small></div>
+      ${G.made ? '' : `<button class="btn small" data-act="buy" data-g="${g}" data-n="1" ${S.money < p || used >= cap ? 'disabled' : ''}>1개</button>
+      <button class="btn small" data-act="buy" data-g="${g}" data-n="max" ${S.money < p || used >= cap ? 'disabled' : ''}>가득</button>`}
+      <button class="btn small primary" data-act="sell" data-g="${g}" ${have ? '' : 'disabled'}>모두 팔기</button></div>`;
+  }).join('');
+  const quests = (S.quests[z] || []).map((q, i) => {
+    const have = q.type === 'deliver' ? Math.min(q.n, S.cargo[q.g] || 0) : q.prog, ok = have >= q.n;
+    return `<div class="row"><div class="info"><b>${q.type === 'deliver' ? `${GOODS[q.g].n} ${q.n}개 납품` : `이 구역 사냥터에서 ${q.n}번 승리`}</b><div class="bar"><i style="width:${Math.min(100, have / q.n * 100)}%"></i></div><small>${have}/${q.n} · 보상 ${q.money} 크레딧 · 상단 경험치 ${q.xp}</small></div>
+      <button class="btn small ${ok ? 'primary' : ''}" data-act="quest" data-i="${i}" ${ok ? '' : 'disabled'}>${q.type === 'deliver' ? '납품' : '보고'}</button></div>`;
+  }).join('');
+  const job = S.jobs[z], outs = Object.entries(S.out[z] || {}).filter(([, k]) => k > 0);
+  const maxCraft = R => Math.min(20, ...Object.entries(R.in).map(([g, k]) => Math.floor((S.cargo[g] || 0) / k)), Math.floor(S.money / R.fee));
+  const shop = Object.entries(RECIPES).filter(([, R]) => R.zone === z).map(([id, R]) => {
+    const mx = maxCraft(R), outN = R.out === 'dart' ? '마취 다트' : GOODS[R.out].n;
+    return `<div class="row"><div class="info"><b>${R.n}</b><small>${Object.entries(R.in).map(([g, k]) => `${GOODS[g].n} ${k}`).join(' + ')} → ${outN} ${R.qty}개 · 1회 ${Math.round(R.t * (1 - 0.12 * sk('craft')))}초 · 품삯 ${R.fee}</small></div>
+      <button class="btn small" data-act="craft" data-r="${id}" data-n="1" ${job || mx < 1 ? 'disabled' : ''}>1회</button><button class="btn small primary" data-act="craft" data-r="${id}" data-n="${mx}" ${job || mx < 2 ? 'disabled' : ''}>${mx > 1 ? mx + '회' : '최대'}</button></div>`;
+  }).join('');
+  const jobRow = job ? `<div class="row"><div class="info"><b>작업 중: ${RECIPES[job.r].n}</b><div class="bar"><i style="width:${(1 - job.left / job.total) * 100}%;background:var(--amber)"></i></div><small>${job.total - job.left}/${job.total}회 완료 · 다른 구역에 다녀와도 계속 만들어요</small></div></div>` : '';
+  const outRow = outs.length ? `<div class="row"><div class="info"><b>완성품</b><small>${outs.map(([g, k]) => `${g === 'dart' ? '마취 다트' : GOODS[g].n} ${k}개`).join(' · ')}</small></div><button class="btn small primary" data-act="collect">찾기</button></div>` : '';
+  const recruit = Z.recruit.map(t => { const D = UNITS[t]; return `<div class="row"><canvas data-u="${t}" width="104" height="80"></canvas><div class="info"><b>${D.n} <span class="tag">${D.role}</span></b><small>${D.ds}</small><small>체력 ${D.hp} · 공격 ${D.atk} · 짐 ${D.carry}칸</small></div><button class="btn small primary" data-act="hire" data-t="${t}" ${S.money < D.cost ? 'disabled' : ''}>${D.cost}</button></div>`; }).join('');
+  const tame = Z.tame.map(t => `${UNITS[t].n}(${UNITS[t].role})`).join(', ') + ` · 희귀종: ${Z.rare.map(t => S.dex[t] ? UNITS[t].n : '???').join(', ')} (깊은 곳에서 가끔 나와요)`;
+  const hurt = S.units.filter(u => u.hp < maxHp(u) || u.ko), healCost = Math.round(S.units.reduce((s, u) => s + (maxHp(u) - u.hp), 0) * 0.12) + (hurt.length ? 5 : 0);
+  const qReady = (S.quests[z] || []).filter(q => (q.type === 'deliver' ? (S.cargo[q.g] || 0) : q.prog) >= q.n).length;
+  const secs = [['hunt', '사냥터'], ['market', '시장'], ['quest', '의뢰', qReady], ['shop', '공방', outs.length ? '!' : 0], ['hire', '고용'], ['inn', '여관', hurt.length && townSec !== 'inn' ? '!' : 0]];
+  el.innerHTML = `${zoneHead(z)}${chips(secs, townSec, 'tsec')}
+    ${townSec === 'hunt' ? `<h2>사냥터<small>여기서 길들일 수 있는 공룡: ${tame}</small></h2>
+    <div class="card">${HUNTS.map((H, i) => { const open = i <= (S.cleared[z] || 0), done = i < (S.cleared[z] || 0);
+      return `<div class="row"><span class="num${done ? ' done' : ''}${H.boss ? ' boss' : ''}">${H.boss ? '★' : i + 1}</span><div class="info"><b>${HUNT_NAMES[z][i]} ${done ? '<span class="tag">정복</span>' : ''}${H.boss ? ' <span class="tag" style="color:var(--bad)">우두머리</span>' : ''}</b><small>${H.boss ? `${BOSSES[Z.boss].n} Lv${Z.lv + 6} · 희귀 이상 장비 확정` : `Lv${Z.lv + H.lv[0]}~${Z.lv + H.lv[1]} · ${H.n[0] === H.n[1] ? H.n[0] : H.n[0] + '~' + H.n[1]}마리 · 희귀종 ${Math.round(H.rare * 100)}% · 장비 ${Math.round(H.drop * 100)}%`}</small></div>
+        <button class="btn small ${open ? 'primary' : ''}" data-act="hunt" data-tier="${i}" ${open ? '' : 'disabled'}>${open ? '사냥' : '잠김'}</button></div>`; }).join('')}</div>` : ''}
+    ${townSec === 'market' ? `<h2>시장<small>사면 값이 오르고, 팔면 떨어져요 · 매일 시세가 바뀌어요</small></h2>
+    <div class="cargobar"><span>짐칸 ${used}/${cap}</span><div class="bar"><i style="width:${Math.min(100, used / Math.max(1, cap) * 100)}%;background:${used >= cap ? 'var(--bad)' : 'var(--amber)'}"></i></div></div><div class="card">${goods}</div>` : ''}
+    ${townSec === 'quest' ? `<h2>의뢰 게시판<small>매일 새 의뢰가 올라와요</small></h2>
+    <div class="card">${quests}</div>` : ''}
+    ${townSec === 'shop' ? `<h2>공방<small>재료를 맡기면 시간이 지나 가공품이 돼요 · 장비와 비싼 교역품을 만들어요</small></h2>
+    <div class="card">${jobRow}${outRow}${shop}</div>` : ''}
+    ${townSec === 'hire' ? `<h2>고용소<small>이 구역에서만 구할 수 있는 대원</small></h2>
+    <div class="card">${recruit}</div>` : ''}
+    ${townSec === 'inn' ? `<h2>여관과 상점</h2>
+    <div class="card">
+      <div class="row"><div class="info"><b>여관에서 쉬기</b><small>${hurt.length ? `다친 대원 ${hurt.length}명 모두 바로 회복 · 정착지에 있으면 저절로 천천히 회복돼요` : '모두 건강해요'}</small></div><button class="btn small primary" data-act="heal" data-cost="${healCost}" ${!hurt.length || S.money < healCost ? 'disabled' : ''}>${healCost}</button></div>
+      ${hurt.length && S.money < healCost ? `<div class="row"><div class="info"><b>구호소 (무료)</b><small>돈이 모자랄 때 · 모두 체력 절반으로 일으켜요</small></div><button class="btn small" data-act="aid">쉬기</button></div>` : ''}
+      <div class="row"><div class="info"><b>마취 다트</b><small>공룡 포획에 써요 · 보유 ${S.darts}개</small></div><button class="btn small" data-act="dart" data-n="1" ${S.money < 35 ? 'disabled' : ''}>35</button><button class="btn small" data-act="dart" data-n="5" ${S.money < 165 ? 'disabled' : ''}>5개 165</button></div>
+    </div>` : ''}`;
+  el.querySelectorAll('canvas[data-u]').forEach(cv => portrait(cv, cv.dataset.u));
+  el.querySelectorAll('canvas[data-ground]').forEach(cv => { const g = cv.getContext('2d'); g.drawImage(groundTex(cv.dataset.ground), 0, 200, BW, 160, 0, 0, 360, 160); });
+}
+function renderParty() {
+  const el = $('v-party'), P = party();
+  const row = u => { const D = UNITS[u.type], mh = maxHp(u);
+    return `<div class="row"><canvas data-u="${u.type}" width="104" height="80"></canvas><div class="info"><b>${unitName(u)} Lv${u.lv} <span class="tag">${D.role}</span>${u.ko ? ' <span class="tag" style="color:var(--bad)">쓰러짐</span>' : ''}</b>
+      <div class="bar"><i style="width:${u.hp / mh * 100}%;${u.ko ? 'background:var(--bad)' : ''}"></i></div><small>체력 ${u.hp}/${mh} · 공격 ${Math.round(D.atk * lvMul(u.lv) * gearMul(u).atk)} · 무기 ${u.gw || 0} · 방어구 ${u.ga || 0} · 짐 ${D.carry}칸 · 경험치 ${u.xp}/${xpNeed(u.lv)}</small></div>
+      <button class="btn small" data-act="unit" data-id="${u.id}">관리</button>
+      ${u.type === 'leader' ? '<span class="tag on">대장</span>' : `<button class="btn small ${u.inParty ? '' : 'primary'}" data-act="toggle" data-id="${u.id}">${u.inParty ? '대기' : '참전'}</button>`}</div>`; };
+  const reserve = S.units.filter(u => !u.inParty);
+  const psecs = [['crew', '대원'], ['bag', '가방', S.items.length], ['dex', '도감'], ['skill', '스킬', S.sp], ['cargo', '짐']];
+  el.innerHTML = `<div class="card"><div class="row"><div class="info"><b>상단 Lv${S.clv} · ${P.length}/${partyCap()}명</b><div class="bar"><i style="width:${S.cxp / cxpNeed(S.clv) * 100}%;background:var(--amber)"></i></div><small>상단 경험치 ${S.cxp}/${cxpNeed(S.clv)} · 장사, 사냥, 의뢰로 올라요 · 레벨마다 인원 +1(최대 12)</small><small>짐칸 ${cargoUsed()}/${capacity()} · 전투 ${S.stats.battles} · 포획 ${S.stats.captures}</small></div><button class="btn small" data-act="snd">${['소리 끔', '효과음만', '소리 켬'][S.snd]}</button></div></div>${chips(psecs, partySec, 'psec')}
+    ${partySec === 'crew' ? `<h2>출전 대원<small>앞줄: 탱커·근접 / 뒷줄: 원거리·지원</small></h2><div class="card">${P.map(row).join('')}</div>
+    <h2>대기 대원<small>정착지 우리에서 쉬어요</small></h2><div class="card">${reserve.length ? reserve.map(row).join('') : '<div class="row"><div class="info"><small>없어요. 사냥터에서 공룡을 포획하거나 고용소에서 대원을 구하세요</small></div></div>'}</div>` : ''}
+    ${partySec === 'bag' ? `<h2>가방<small>장비 ${S.items.length}/${BAG_MAX} · 대원의 관리 버튼에서 착용해요</small></h2><div class="card">${S.items.length ? [...S.items].sort((a, b) => b.r - a.r || b.lv - a.lv).map(it => `<div class="row"><div class="info"><b>${itemName(it)}</b><small>${SLOTS[it.slot]} · Lv${it.lv} · ${itemText(it)}</small></div><button class="btn small" data-act="sellItem" data-it="${it.id}">${itemPrice(it)}에 팔기</button></div>`).join('') : '<div class="row"><div class="info"><small>아직 얻은 장비가 없어요. 사냥에서 이기면 가끔 떨어져요</small></div></div>'}</div>` : ''}
+    ${partySec === 'dex' ? `<h2>공룡 도감<small>${Object.keys(UNITS).filter(t => UNITS[t].cls === 'dino').filter(t => S.dex[t] === 2).length} / ${Object.keys(UNITS).filter(t => UNITS[t].cls === 'dino').length}종 포획</small></h2><div class="dexg">${Object.keys(UNITS).filter(t => UNITS[t].cls === 'dino').map(t => { const st = S.dex[t] || 0, D = UNITS[t]; return `<div class="dexc${st ? '' : ' unk'}${st === 2 ? ' own' : ''}"><canvas data-u="${t}" width="104" height="80"></canvas><b>${st ? D.n : '???'}</b><small>${st === 2 ? (D.rare ? '★희귀 · ' : '') + D.role : st ? '미포획' : (D.rare ? '희귀종' : '미발견')}</small></div>`; }).join('')}</div>` : ''}
+    ${partySec === 'skill' ? `<h2>상단 스킬<small>남은 포인트 ${S.sp}</small></h2><div class="card">${Object.entries(SKILLS).map(([k, K]) => { const lv = sk(k); return `<div class="row"><div class="info"><b>${K.n} Lv${lv}</b><small>${lv ? K.ds(lv) : '아직 배우지 않았어요'}${lv < SKILL_MAX ? ` → ${K.ds(lv + 1)}` : ''}</small></div><button class="btn small primary" data-act="skill" data-k="${k}" ${S.sp < 1 || lv >= SKILL_MAX ? 'disabled' : ''}>${lv >= SKILL_MAX ? '최고' : '배우기'}</button></div>`; }).join('')}</div>` : ''}
+    ${partySec === 'cargo' ? `<h2>짐</h2><div class="card">${Object.keys(S.cargo).length ? Object.entries(S.cargo).map(([g, k]) => `<div class="row"><div class="info"><b>${GOODS[g].n} ${k}개</b><small>이 정착지에서 팔면 개당 ${S.travel ? '-' : sellPrice(S.zone, g)}</small></div></div>`).join('') : '<div class="row"><div class="info"><small>짐칸이 비었어요</small></div></div>'}</div>` : ''}`;
+  el.querySelectorAll('canvas[data-u]').forEach(cv => portrait(cv, cv.dataset.u));
+}
+function itemModal(uid, slot) {
+  const u = S.units.find(x => x.id === uid), cur = (u.eq || {})[slot];
+  const list = S.items.filter(x => x.slot === slot).sort((a, b) => RAR[b.r].m * (1 + b.lv * 0.03) - RAR[a.r].m * (1 + a.lv * 0.03));
+  showModal(`<h3>${SLOTS[slot]} 고르기</h3><div class="sub">${unitName(u)} · 지금: ${cur ? itemName(cur) + ' ' + itemText(cur) : '없음'}</div>
+    <div class="card">${cur ? `<div class="row"><div class="info"><b>${itemName(cur)}</b><small>착용 중 · ${itemText(cur)}</small></div><button class="btn small" data-act="unequip" data-id="${uid}" data-slot="${slot}">해제</button></div>` : ''}
+    ${list.map(it => `<div class="row"><div class="info"><b>${itemName(it)}</b><small>Lv${it.lv} · ${itemText(it)}</small></div><button class="btn small primary" data-act="equip" data-id="${uid}" data-it="${it.id}">착용</button></div>`).join('') || '<div class="row"><div class="info"><small>가방에 맞는 장비가 없어요. 사냥터 깊은 곳일수록 좋은 장비가 나와요</small></div></div>'}</div>
+    <div class="mbtns"><button class="btn" data-act="unit" data-id="${uid}">돌아가기</button></div>`);
+}
+function unitModal(id) {
+  const u = S.units.find(x => x.id === id); if (!u) return;
+  const D = UNITS[u.type], dino = D.cls === 'dino', gm = gearMul(u), tier = u.tier || 0, P = PROMO[tier];
+  const gearRow = (key, item, label, eff) => { const lv = u[key] || 0, need = lv + 1, have = S.cargo[item] || 0;
+    return `<div class="row"><div class="info"><b>${label} ${lv}/3단계</b><small>${eff}${lv < 3 ? ` · 다음 단계: ${GOODS[item].n} ${need}개 (보유 ${have})` : ''}</small></div><button class="btn small primary" data-act="gear" data-id="${u.id}" data-k="${key}" ${lv >= 3 || have < need ? 'disabled' : ''}>${lv >= 3 ? '최고' : '강화'}</button></div>`; };
+  const names = dino ? TIER_DINO : TIER_HUMAN;
+  showModal(`<canvas data-u="${u.type}" width="260" height="200" style="width:156px;height:120px;align-self:center"></canvas><h3>${unitName(u)}</h3><div class="sub">Lv${u.lv} · ${D.role} · ${D.ds}</div>
+    <div class="card"><div class="row"><div class="info"><small style="color:var(--text)">체력 ${maxHp(u)} · 공격 ${Math.round(D.atk * lvMul(u.lv) * gm.atk)} · 방어 ${Math.round(D.def * (1 + 0.05 * (u.lv - 1)) * gm.def)} · 짐 ${D.carry}칸</small></div></div>
+    ${gearRow('gw', 'weapon', dino ? '발톱 덮개 단련' : '무기 단련', '공방 제작품으로 강화 · 단계마다 공격 +15%')}
+    ${gearRow('ga', 'armor', dino ? '갑주 보강' : '방어구 보강', '공방 제작품으로 강화 · 단계마다 방어 +25%, 체력 +10%')}
+    ${Object.entries(SLOTS).map(([sl, sn]) => { const it = (u.eq || {})[sl], n = S.items.filter(x => x.slot === sl).length; return `<div class="row"><div class="info"><b>착용 ${sn}: ${it ? itemName(it) : '<span style="color:var(--muted)">비어 있음</span>'}</b><small>${it ? itemText(it) + ` · Lv${it.lv}` : '사냥터에서 얻은 장비를 착용해요'} · 가방에 ${n}개</small></div><button class="btn small" data-act="pickItem" data-id="${u.id}" data-slot="${sl}" ${n || it ? '' : 'disabled'}>교체</button></div>`; }).join('')}
+    <div class="row"><div class="info"><b>${dino ? '성장' : '전직'}: ${tier >= 2 ? '최고 단계' : names[tier + 1] + D.n}</b><small>${tier >= 2 ? '더 오를 단계가 없어요' : `체력과 공격 +30% · 조건: Lv${P.lv}, 상단 Lv${P.clv}, ${P.cost} 크레딧`}</small></div><button class="btn small primary" data-act="promote" data-id="${u.id}" ${tier >= 2 || u.lv < P.lv || S.clv < P.clv || S.money < P.cost ? 'disabled' : ''}>${tier >= 2 ? '완료' : dino ? '성장' : '전직'}</button></div></div>
+    <div class="sub" style="margin:0">강철 무기는 무너진 도시 공방, 가죽 갑옷은 잿빛 평원 공방에서 만들어요</div>
+    <div class="mbtns"><button class="btn" data-act="close">닫기</button></div>`);
+}
+function renderMap() {
+  const el = $('v-map');
+  const T = S.travel;
+  const dests = Object.keys(ZONES).filter(z => z !== S.zone).map(z => { const R = routeOf(S.zone, z); return `<div class="row"><div class="info"><b>${ZONES[z].n}</b><small>이동 ${R.t}초 · 길의 위험 <span class="danger">${stars(Math.round(R.danger + 1))}</span> · 야생 Lv${ZONES[z].lv}~</small></div><button class="btn small primary" data-act="go" data-z="${z}" ${T ? 'disabled' : ''}>출발</button></div>`; }).join('');
+  el.innerHTML = `${USE3D ? '<div id="mapHost"></div>' : '<canvas id="mapcv" width="720" height="600"></canvas>'}
+    ${T ? `<div class="card travel"><b>${ZONES[T.from].n} → ${ZONES[T.to].n}</b><div class="bar"><i id="tBar" style="width:${T.p * 100}%"></i></div><small class="muted" style="color:var(--muted)">가는 길에 습격이나 뜻밖의 발견이 있을 수 있어요</small></div>` : `<h2>어디로 갈까요<small>지금 ${ZONES[S.zone].n}</small></h2><div class="card">${dests}</div>`}`;
+  if (USE3D) { try { if (!M3) initMap3D(); $('mapHost').appendChild(M3.canvas); } catch (e) { USE3D = USE3D && !!G3; $('mapHost').outerHTML = '<canvas id="mapcv" width="720" height="600"></canvas>'; drawMap(); } }
+  else drawMap();
+}
+function drawMap() {
+  const cv = $('mapcv'); if (!cv) return;
+  const g = cv.getContext('2d'), w = cv.width, h = cv.height;
+  g.fillStyle = '#2a231b'; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 900; i++) { g.fillStyle = pick(['rgba(70,58,40,.4)', 'rgba(40,32,24,.5)', 'rgba(110,96,70,.2)']); g.beginPath(); g.arc((i * 97.13) % w, (i * 57.31) % h, (i % 5) + 2, 0, 7); g.fill(); }
+  const P = z => ({ x: ZONES[z].mx * w, y: ZONES[z].my * h });
+  const looks = { plain: ['#8a7650', '#6a5a3c'], city: ['#6e7276', '#4a4c50'], swamp: ['#5a6a3a', '#3a4a26'] };
+  for (const z of Object.keys(ZONES)) { const p = P(z), gr = g.createRadialGradient(p.x, p.y, 0, p.x, p.y, w * 0.24); gr.addColorStop(0, looks[z][0]); gr.addColorStop(1, 'rgba(42,35,27,0)'); g.fillStyle = gr; g.beginPath(); g.arc(p.x, p.y, w * 0.24, 0, 7); g.fill(); }
+  // ruins in the city, reeds in the swamp, grass on the plain
+  const C = P('city'); for (let i = 0; i < 14; i++) { g.fillStyle = pick(['#55585c', '#3e4044', '#6a6e72']); const x = C.x + rand(-80, 80), y = C.y + rand(-60, 60), bw = rand(10, 24); g.fillRect(x, y, bw, rand(10, 30)); }
+  const Sw = P('swamp'); for (let i = 0; i < 8; i++) { g.fillStyle = 'rgba(40,60,50,.7)'; g.beginPath(); g.ellipse(Sw.x + rand(-80, 80), Sw.y + rand(-50, 50), rand(14, 30), rand(6, 12), 0, 0, 7); g.fill(); }
+  const Pl = P('plain'); g.strokeStyle = '#a89a5a'; for (let i = 0; i < 60; i++) { const x = Pl.x + rand(-100, 100), y = Pl.y + rand(-60, 60); g.beginPath(); g.moveTo(x, y); g.lineTo(x + 2, y - 6); g.stroke(); }
+  g.setLineDash([10, 8]); g.lineWidth = 3;
+  for (const k of Object.keys(ROUTES)) { const [a, b] = k.split('|'), A = P(a), Bp = P(b); g.strokeStyle = ROUTES[k].danger > 2 ? 'rgba(212,87,60,.7)' : 'rgba(227,168,67,.6)'; g.beginPath(); g.moveTo(A.x, A.y); g.quadraticCurveTo((A.x + Bp.x) / 2 + 30, (A.y + Bp.y) / 2 - 20, Bp.x, Bp.y); g.stroke(); }
+  g.setLineDash([]);
+  for (const z of Object.keys(ZONES)) {
+    const p = P(z); g.fillStyle = z === S.zone && !S.travel ? '#d0743a' : '#ece3d4'; g.strokeStyle = '#1c1711'; g.lineWidth = 3;
+    g.beginPath(); g.moveTo(p.x, p.y - 14); g.lineTo(p.x + 12, p.y + 6); g.lineTo(p.x - 12, p.y + 6); g.closePath(); g.stroke(); g.fill();
+    g.font = '400 28px "Black Han Sans", sans-serif'; g.textAlign = 'center'; g.lineWidth = 6; g.strokeText(ZONES[z].n, p.x, p.y + 40); g.fillText(ZONES[z].n, p.x, p.y + 40);
+  }
+  const T = S.travel;
+  const at = T ? (() => { const A = P(T.from), Bp = P(T.to), t = T.p, cx = (A.x + Bp.x) / 2 + 30, cy = (A.y + Bp.y) / 2 - 20; return { x: (1 - t) ** 2 * A.x + 2 * (1 - t) * t * cx + t * t * Bp.x, y: (1 - t) ** 2 * A.y + 2 * (1 - t) * t * cy + t * t * Bp.y, a: Math.atan2(Bp.y - A.y, Bp.x - A.x) }; })() : { x: P(S.zone).x - 40, y: P(S.zone).y + 6, a: 0 };
+  if (PORTRAIT.trike && PORTRAIT.trike.complete) { g.save(); g.translate(at.x, at.y); if (Math.cos(at.a) < 0) g.scale(-1, 1); g.drawImage(PORTRAIT.trike, -60, -60, 120, 92); g.restore(); }
+  else drawDino(g, 'trike', at.x, at.y, at.a, 46, performance.now() / 300, { still: !T });
+}
+function renderHeader() {
+  $('rMoney').textContent = fmt(S.money); $('rCargo').textContent = `${cargoUsed()}/${capacity()}`; $('rDay').textContent = S.day;
+  $('sub').textContent = S.travel ? `${ZONES[S.travel.from].n} → ${ZONES[S.travel.to].n} 이동 중` : `${ZONES[S.zone].n} · 멸망 후 ${S.day}일차`;
+}
+function renderAll() { renderHeader(); if (view === 'town') renderTown(); if (view === 'party') renderParty(); if (view === 'map') renderMap(); }
+function setView(v) { view = v; document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.v === v)); ['town', 'party', 'map'].forEach(k => $('v-' + k).hidden = k !== v); renderAll(); }
+
+function addRare(foes, z, chance) {
+  if (Math.random() < chance) foes[foes.length - 1].type = pick(ZONES[z].rare);
+  return foes;
+}
+function huntFoes(z, tier) {
+  const Z = ZONES[z], H = HUNTS[tier];
+  if (H.boss) return [{ type: BOSSES[Z.boss].base, lv: Z.lv + 6, boss: Z.boss }, { type: pick(Z.wild), lv: Z.lv + 4 }, { type: pick(Z.wild), lv: Z.lv + 4 }];
+  const n = H.n[0] + Math.round(Math.random() * (H.n[1] - H.n[0]));
+  return addRare(Array.from({ length: n }, () => ({ type: pick(Z.wild), lv: Z.lv + H.lv[0] + Math.round(rand(0, H.lv[1] - H.lv[0])) })), z, H.rare);
+}
+document.body.addEventListener('click', e => {
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const act = b.dataset.act, z = S.zone;
+  if (act === 'buy') { const g = b.dataset.g; let n = b.dataset.n === 'max' ? 40 : +b.dataset.n, spent = 0; while (n-- > 0 && S.money >= price(z, g) && cargoUsed() < capacity()) { const p = price(z, g); S.money -= p; spent += p; S.cargo[g] = (S.cargo[g] || 0) + 1; S.press[z][g] += 0.025; } if (spent) { sfx('coin'); S.stats.trades++; } }
+  else if (act === 'sell') { const g = b.dataset.g; let got = 0; while (S.cargo[g] > 0) { const p = sellPrice(z, g); S.money += p; got += p; S.cargo[g]--; S.press[z][g] = Math.max(0.4, S.press[z][g] - 0.022); } delete S.cargo[g]; S.stats.earned += got; gainCxp(got / 12); sfx('coin'); toast(`${GOODS[g].n}을 팔아 ${got} 크레딧`, 'good'); }
+  else if (act === 'hire') { const t = b.dataset.t, D = UNITS[t]; if (S.money < D.cost) return; S.money -= D.cost; const u = addUnit(t, Math.max(1, ZONES[z].lv - 1), party().length < partyCap()); sfx('coin'); toast(`${D.n}을 고용했어요${u.inParty ? '' : ' (상단이 가득 차 대기)'}`, 'good'); }
+  else if (act === 'aid') { for (const u of S.units) { const mh = maxHp(u); u.hp = Math.max(u.hp, Math.round(mh * 0.5)); u.ko = false; } toast('구호소에서 쉬고 모두 일어났어요', 'good'); sfx('arrive'); }
+  else if (act === 'heal') { const cost = +b.dataset.cost; if (S.money < cost) return; S.money -= cost; for (const u of S.units) { u.hp = maxHp(u); u.ko = false; } toast('모두 푹 쉬었어요', 'good'); sfx('arrive'); }
+  else if (act === 'dart') { const n = +b.dataset.n, cost = n === 5 ? 165 : 35; if (S.money < cost) return; S.money -= cost; S.darts += n; sfx('coin'); }
+  else if (act === 'hunt') {
+    const tier = +b.dataset.tier; if (tier > (S.cleared[z] || 0)) return;
+    if (!party().some(u => !u.ko && u.type !== 'leader') && party().find(u => u.type === 'leader').ko) { toast('싸울 수 있는 대원이 없어요. 여관에서 쉬세요', 'warn'); return; }
+    if (USE3D) { enterField(z, tier); return; }
+    const foes = huntFoes(z, tier); startBattle({ kind: 'hunt', zone: z, tier, foes, boss: HUNTS[tier].boss ? ZONES[z].boss : null }); if (HUNTS[tier].boss) sfx('roar');
+  }
+  else if (act === 'toggle') { const u = S.units.find(x => x.id === +b.dataset.id); if (!u) return; if (!u.inParty && party().length >= partyCap()) { toast(`지금은 대장 포함 ${partyCap()}명까지예요. 상단 레벨을 올리면 늘어나요 (최대 12명)`); return; } u.inParty = !u.inParty; if (cargoUsed() > capacity()) toast('짐칸이 모자라요. 출발 전에 짐을 줄이세요', 'warn'); }
+  else if (act === 'tsec') { townSec = b.dataset.k; sfx('tap'); }
+  else if (act === 'psec') { partySec = b.dataset.k; sfx('tap'); }
+  else if (act === 'go') startTravel(b.dataset.z);
+  else if (act === 'quest') {
+    const q = S.quests[z][+b.dataset.i]; if (!q) return;
+    if (q.type === 'deliver') { if ((S.cargo[q.g] || 0) < q.n) return; S.cargo[q.g] -= q.n; if (!S.cargo[q.g]) delete S.cargo[q.g]; } else if (q.prog < q.n) return;
+    S.money += q.money; S.stats.earned += q.money; gainCxp(q.xp); S.quests[z].splice(+b.dataset.i, 1); sfx('coin'); toast(`의뢰 완료 · ${q.money} 크레딧`, 'good');
+  }
+  else if (act === 'craft') {
+    const R = RECIPES[b.dataset.r], n = +b.dataset.n; if (S.jobs[z] || n < 1) return;
+    if (S.money < R.fee * n || !Object.entries(R.in).every(([g, k]) => (S.cargo[g] || 0) >= k * n)) return;
+    for (const [g, k] of Object.entries(R.in)) { S.cargo[g] -= k * n; if (!S.cargo[g]) delete S.cargo[g]; }
+    S.money -= R.fee * n; S.jobs[z] = { r: b.dataset.r, left: n, total: n, t: 0 }; sfx('tap'); toast(`${R.n} ${n}회를 맡겼어요`);
+  }
+  else if (act === 'collect') {
+    const o = S.out[z] || {}; let left = 0;
+    for (const [g, k] of Object.entries(o)) { if (g === 'dart') { S.darts += k; o[g] = 0; } else { const got = addCargo(g, k); o[g] = k - got; left += k - got; } }
+    sfx('coin'); toast(left ? `짐칸이 모자라 ${left}개는 공방에 남겨 뒀어요` : '완성품을 모두 찾았어요', left ? 'warn' : 'good');
+  }
+  else if (act === 'skill') { const k = b.dataset.k; if (S.sp < 1 || sk(k) >= SKILL_MAX) return; S.sp--; S.skills[k] = sk(k) + 1; sfx('capture'); }
+  else if (act === 'unit') { unitModal(+b.dataset.id); return; }
+  else if (act === 'pickItem') { itemModal(+b.dataset.id, b.dataset.slot); return; }
+  else if (act === 'equip' || act === 'unequip') {
+    const u = S.units.find(x => x.id === +b.dataset.id); u.eq = u.eq || {}; const r = u.hp / maxHp(u);
+    if (act === 'equip') { const i = S.items.findIndex(x => x.id === +b.dataset.it); if (i < 0) return; const it = S.items.splice(i, 1)[0]; if (u.eq[it.slot]) S.items.push(u.eq[it.slot]); u.eq[it.slot] = it; }
+    else { const sl = b.dataset.slot; if (u.eq[sl]) { S.items.push(u.eq[sl]); u.eq[sl] = null; } }
+    u.hp = Math.max(u.ko ? 0 : 1, Math.round(maxHp(u) * r)); sfx('coin'); save(); renderAll(); unitModal(u.id); return;
+  }
+  else if (act === 'sellItem') { const i = S.items.findIndex(x => x.id === +b.dataset.it); if (i < 0) return; const it = S.items.splice(i, 1)[0], pr = itemPrice(it); S.money += pr; S.stats.earned += pr; sfx('coin'); toast(`${it.n}을(를) ${pr} 크레딧에 팔았어요`); }
+  else if (act === 'gear') {
+    const u = S.units.find(x => x.id === +b.dataset.id), key = b.dataset.k, item = key === 'gw' ? 'weapon' : 'armor', need = (u[key] || 0) + 1;
+    if ((u[key] || 0) >= 3 || (S.cargo[item] || 0) < need) return;
+    S.cargo[item] -= need; if (!S.cargo[item]) delete S.cargo[item]; const r = u.hp / maxHp(u); u[key] = need; u.hp = Math.round(maxHp(u) * r); sfx('capture'); save(); renderAll(); unitModal(u.id); return;
+  }
+  else if (act === 'promote') {
+    const u = S.units.find(x => x.id === +b.dataset.id), P = PROMO[u.tier || 0];
+    if (!P || u.lv < P.lv || S.clv < P.clv || S.money < P.cost) return;
+    S.money -= P.cost; u.tier = (u.tier || 0) + 1; u.hp = maxHp(u); u.ko = false; sfx('win'); toast(`${unitName(u)}(으)로 ${UNITS[u.type].cls === 'dino' ? '성장' : '전직'}했어요`, 'good'); save(); renderAll(); unitModal(u.id); return;
+  }
+  else if (act === 'closeBattle') { closeBattle(); return; }
+  else if (act === 'close') closeModal();
+  else if (act === 'snd') { sndInit(); S.snd = (S.snd + 2) % 3; applySnd(); }
+  save(); renderAll();
+});
+$('tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { sfx('tap'); setView(b.dataset.v); } });
+document.addEventListener('pointerdown', sndInit);
+$('modal').addEventListener('click', e => { if (e.target.id === 'modal' && !$('mcard').querySelector('[data-act="closeBattle"]')) closeModal(); });
+window.addEventListener('resize', () => { if (B) resizeBattle(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
+
+/* ================================================================
+   LOOP
+   ================================================================ */
+let last = performance.now(), acc = 0, uiAcc = 0, saveAcc = 0;
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  tick(dt);
+  if (B && !B.over) { acc += dt * bSpeed; let k = 0; while (acc >= 1 / 30 && k < 8) { bStep(1 / 30); acc -= 1 / 30; k++; } if (k >= 8) acc = 0; }
+  if (B) renderBattle(dt);
+  else if (F) renderField(dt);
+  else if (view === 'map' && M3 && M3.canvas.isConnected) renderMap3D(dt);
+  uiAcc += dt;
+  if (uiAcc > 0.5) { uiAcc = 0; renderHeader(); if (view === 'map' && S.travel) { const bar = $('tBar'); if (bar) bar.style.width = (S.travel.p * 100) + '%'; drawMap(); } }
+  saveAcc += dt; if (saveAcc > 5) { saveAcc = 0; save(); }
+}
+S = load() || freshState();
+if (!S.units || !S.units.length) freshState();
+for (const u of S.units) { if (u.type === 'pachy') u.type = 'para'; if (u.type === 'sarco') u.type = 'stego'; }
+S.items = S.items || []; S.cleared = S.cleared || {};
+S.clv = S.clv || 1; S.cxp = S.cxp || 0; S.sp = S.sp || 0; S.skills = S.skills || {}; S.jobs = S.jobs || {}; S.out = S.out || {}; S.quests = S.quests || {};
+for (const z of Object.keys(ZONES)) for (const g of Object.keys(GOODS)) { if (S.drift[z][g] === undefined) S.drift[z][g] = 1; if (S.press[z][g] === undefined) S.press[z][g] = 1; }
+ensureQuests();
+S.dex = S.dex || {}; for (const u of S.units) if (UNITS[u.type].cls === 'dino') S.dex[u.type] = 2;
+$('v-town').innerHTML = '<div id="loading"><b style="font-family:var(--f-display);font-size:20px;color:var(--rust)">공룡 상단</b><span id="loadTxt">공룡 모델 불러오는 중…</span></div>';
+loadModels((n, t) => { const el = $('loadTxt'); if (el) el.textContent = `공룡 모델 불러오는 중 ${n}/${t}`; }).then(ok => {
+  USE3D = ok;
+  if (ok) { try { makePortraits(); } catch (e) { USE3D = false; } }
+  setTimeout(() => setView('town'), 50);
+});
+if (S.stats.battles === 0) setTimeout(() => toast('잿빛 평원에서 시작해요 · 곡물을 싸게 사서 무너진 도시에 팔아 보세요'), 600);
+window.__dino = { get S() { return S; }, get B() { return B; }, get F() { return F; } };
+requestAnimationFrame(frame);
+})();
+</script>
+
+</body>
+</html>
