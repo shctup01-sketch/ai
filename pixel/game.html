@@ -775,7 +775,8 @@ const BOSSES = {
 };
 const lvMul = lv => 1 + 0.12 * (lv - 1);
 const xpNeed = lv => lv <= 30 ? Math.round((16 * Math.pow(lv, 2.2) + 24) * 0.75) : lv <= 50 ? Math.round((16 * Math.pow(lv, 2.2) + 24) * (0.75 + (lv - 30) * 0.0875)) : Math.round(218460 * (1 + (lv - 50) * 0.03));
-const xpDiff = d => d <= -8 ? 0.1 : d < -3 ? 1 + (d + 3) * 0.18 : Math.min(1.3, 1 + d * 0.03);   // d = enemy level minus yours
+const xpDiff = d => d <= -8 ? 0.1 : d < -3 ? 1 + (d + 3) * 0.18 : Math.min(2, 1 + d * 0.06);
+const xpKill = lv => 9 * lv * (lv > 30 ? Math.sqrt(lv / 30) : 1);   // past level 30 a kill is worth more than its level alone, so the far lands are worth the walk   // d = enemy level minus yours
 const lvEdge = (a, t) => clamp(1 + 0.07 * ((a.lv || 1) - (t.lv || 1)), 0.3, 1.6);                // fighting above your level hurts both ways
 const wildMul = lv => (1 + 0.05 * (lv - 1)) * (lv >= 20 ? 1.6 : lv >= 10 ? 1.25 : 1) * Math.min(1, 0.62 + 0.05 * lv) * 0.72 * (1 + clamp(lv - 14, 0, 36) * 0.04 + Math.max(0, lv - 50) * 0.01) * (1 + Math.max(0, lv - 45) * 0.008);                                                      // wild things grow tougher than level alone
 // The last lands are tuned for caravans of heroes in their signature sets: from level 120 the wild hits harder and lasts longer, steeply near 200.
@@ -1290,7 +1291,7 @@ function onKill(u, t) {
     if (t.side === 0) { flash(0.25, '212,87,60'); sfx('down', 300); } }
   if (t.side === 1) {
     S.stats.kills = (S.stats.kills || 0) + 1;
-    B.xp += 9 * t.lv * (t.boss ? 8 : 1);
+    B.xp += xpKill(t.lv) * (t.boss ? 8 : 1) * (B.opt.kind === 'hunt' ? 1 + 0.25 * Math.min(3, B.opt.tier || 0) : 1);   // deeper grounds of the same land pay more: +25% a step
     if (B.opt.kind !== 'escort') for (const [g, k] of Object.entries(ZONES[B.opt.zone].loot)) { const x = k * (t.size / 20) * rand(0.6, 1.3) * (1 + 0.15 * sk('loot')) * 0.18 * (t.boss ? 5 : 1), n = Math.floor(x) + (Math.random() < x % 1 ? 1 : 0); if (n) B.loot[g] = (B.loot[g] || 0) + n; }
     if (B.opt.kind !== 'escort') for (const [g, lv, ch] of JUNK) if (t.lv >= lv && Math.random() < ch * (t.boss ? 6 : 1) * (1 + 0.15 * sk('loot'))) B.loot[g] = (B.loot[g] || 0) + 1;
     if (B.opt.kind !== 'escort' && t.lv >= 50 && Math.random() < (t.boss ? 0.08 : t.lv >= 70 ? 0.0005 : 0)) B.loot.relic = (B.loot.relic || 0) + 1;   // the heart of a hero's set: bosses of the deep lands, almost never anything else
@@ -2729,7 +2730,7 @@ function updWorld(dt) {
       if (!W.autoOrg) autoAnchor(); const AO = W.autoOrg, AR = autoR();
       const us = party(), hp = us.reduce((s, u) => s + (u.ko ? 0 : u.hp / maxHp(u)), 0) / Math.max(1, us.length), top = Math.max(...us.map(u => u.lv)), pw = partyPower() * 0.9, few = us.length <= 2;
       if (hp < (few ? 0.55 : 0.4)) { if (!W.resting) { W.resting = true; toast(S.pots ? '체력을 채우는 중이에요' : '체력이 낮아 쉬는 중이에요 · 회복약이 없어요', 'warn'); } }
-      else { if (hp > (few ? 0.9 : 0.7)) W.resting = false; if (!W.resting) { const p = W.packs.filter(p => !(p.dead > 0) && p.mons.length && !p.boss && p.mons[0].f.lv <= top + 3 && p.mons.reduce((q, m) => q + wildPower(m.f.type, m.f.lv), 0) <= pw && d2(p.cx, p.cy, AO.x, AO.y) < AR * AR).sort((a, b) => d2(a.cx, a.cy, L.x, L.y) - d2(b.cx, b.cy, L.x, L.y))[0]; if (p) { W.target = p; W.noPack = false; } else { if (!W.noPack) { W.noPack = true; toast('범위 안에 잡을 만한 무리가 없어요 · 다시 나타날 때까지 기다려요 (범위는 상단 메뉴에서 넓힐 수 있어요)'); } if (d2(L.x, L.y, AO.x, AO.y) > 60 * 60) { L.tx = AO.x; L.ty = AO.y; } } } }
+      else { if (hp > (few ? 0.9 : 0.7)) W.resting = false; if (!W.resting) { const p = W.packs.filter(p => !(p.dead > 0) && p.mons.length && Math.max(...p.mons.map(m => m.f.lv)) <= top + 3 && p.mons.reduce((q, m) => q + wildPower(m.f.type, m.f.lv) * (m.f.boss ? BOSSES[m.f.boss].hp * 1.2 : 1), 0) <= pw &&   /* bosses too, when the caravan is strong enough for them */ d2(p.cx, p.cy, AO.x, AO.y) < AR * AR).sort((a, b) => d2(a.cx, a.cy, L.x, L.y) - d2(b.cx, b.cy, L.x, L.y))[0]; if (p) { W.target = p; W.noPack = false; } else { if (!W.noPack) { W.noPack = true; toast('범위 안에 잡을 만한 무리가 없어요 · 다시 나타날 때까지 기다려요 (범위는 상단 메뉴에서 넓힐 수 있어요)'); } if (d2(L.x, L.y, AO.x, AO.y) > 60 * 60) { L.tx = AO.x; L.ty = AO.y; } } } }
     }
     W.callT -= dt; if (W.callT <= 0) { W.callT = rand(7, 14); if (!inTown()) sfx(Math.random() < 0.3 ? 'callBig' : 'call'); }
   }
