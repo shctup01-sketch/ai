@@ -1853,11 +1853,11 @@ function makeKK(C, tier = 0, set = null, plain = false) {
   const hero = !!(set && set.S), sk = (set && set.m) || 0;
   // ordinary hands: the job colour, dulled and dusty. Heroes: their own colours, brighter, more of them as the set is made
   const wash = hero ? srgb(0xffffff) : srgb(C.tint).lerp(srgb(0xffffff), 0.45), dust = srgb(0x9c927e), c1 = hero ? srgb(set.S.c1) : null; if (!hero && plain) wash.lerp(dust, 0.4);
-  const mat = (o, skin, emis) => { const m = new THREE.MeshLambertMaterial({ map: o.map || null, color: o.map ? wash.clone() : (o.color ? o.color.clone() : wash.clone()), skinning: skin }); if (c1 && skin) { m.color.lerp(c1, sk & 2 ? 0.55 : 0.4); m.emissive = srgb(set.S.c1); m.emissiveIntensity = 0.12; } if (emis) { m.emissive = srgb(emis); m.emissiveIntensity = 0.55; } return m; };
+  const mat = (o, skin, emis) => { const m = new THREE.MeshLambertMaterial({ map: o.map || null, color: o.map ? wash.clone() : (o.color ? o.color.clone() : wash.clone()), skinning: skin }); if (c1 && skin) { m.color.lerp(c1, sk & 2 ? 0.55 : 0.4); m.emissive = srgb(set.S.c1); m.emissiveIntensity = 0.12; } else if (skin && tier >= 2) m.color.lerp(srgb(0xfff0c8), 0.12 * (tier - 1)); if (emis) { m.emissive = srgb(emis); m.emissiveIntensity = 0.55; } return m; };
   inst.traverse(m => { if (!m.isMesh) return; if (C.hide && C.hide.test(m.name)) { m.visible = false; return; } m.material = Array.isArray(m.material) ? m.material.map(o => mat(o, !!m.isSkinnedMesh)) : mat(m.material, !!m.isSkinnedMesh); });
   const box0 = new THREE.Box3().setFromObject(inst), H0 = box0.max.y - box0.min.y, k = 21 / H0; inst.scale.setScalar(k); inst.position.y = -box0.min.y * k;
   g.updateMatrixWorld(true);
-  const bone = n => inst.getObjectByName(n.replace('.', '')), glowC = set && set.S && (set.m & 1) ? set.S.c2 : null;
+  const bone = n => inst.getObjectByName(n.replace('.', '')), glowC = set && set.S && (set.m & 1) ? set.S.c2 : tier >= 4 ? 0x58c8ff : tier >= 3 ? 0xff9a30 : null;
   const hand = (side, f) => { const b = bone('handslot.' + side); if (!b || !KK[f]) return; const w = KK[f].scene.clone(); w.traverse(m => { if (m.isMesh) m.material = mat(m.material, false, glowC); }); b.add(w); };
   hand('r', C.r); hand('l', C.l);
   // ornaments are built where the bones stand in the idle pose (the clips turn the rig round from its rest pose), then fastened to them so they follow every move
@@ -1869,18 +1869,32 @@ function makeKK(C, tier = 0, set = null, plain = false) {
   const hH = Math.max(4, top - head.y), hW = hH * 0.95, back = -fz * hW * 0.42, gold = lam(0xe3a843), glow = c => lam(c, { emissive: srgb(c), emissiveIntensity: 0.8 });
   const put = (bn, geo, m, x, y, z, rx = 0, rz = 0) => { const msh = new THREE.Mesh(geo, typeof m === 'number' ? lam(m) : m); msh.position.set(x, y, z); msh.rotation.x = rx; msh.rotation.z = rz; s.add(msh); const b = bone(bn); if (b) b.attach(msh); return msh; }, B3 = (w, h, d) => new THREE.BoxGeometry(w, h, d);
   for (const [where, kind] of C.tool || []) kkTool(kind, where, { bone, put, B3, glowC, head, chest, top, hH, hW, back, fz });
-  if (hero) {   // what marks a hero at a glance, set or no set: a cape in their colours with a bright hem, gold on the shoulders, a badge on the chest
-    if (tier < 2) { put('chest', B3(hW * 0.9, top * 0.44, 0.45), lam(set.S.c1), 0, chest.y - top * 0.12, back - fz * 0.65); put('chest', B3(hW * 0.92, top * 0.05, 0.5), glow(set.S.c2), 0, chest.y - top * 0.33, back - fz * 0.66); }
-    if (tier < 1) for (const sd of ['l', 'r']) { const sh = P('upperarm.' + sd); if (sh) put('upperarm.' + sd, B3(hW * 0.36, hH * 0.13, hW * 0.38), gold, sh.x * 1.05, sh.y + hH * 0.1, sh.z); }
-    put('chest', B3(hW * 0.46, top * 0.26, 0.3), lam(set.S.c1), 0, chest.y - top * 0.06, fz * hW * 0.36); for (const sd of [-1, 1]) put('chest', B3(hW * 0.06, top * 0.26, 0.34), gold, sd * hW * 0.23, chest.y - top * 0.06, fz * hW * 0.37);   // a tabard in their colours, edged in gold
-    put('chest', new THREE.OctahedronGeometry(hW * 0.1), glow(set.S.c2), 0, chest.y + 0.6, fz * hW * 0.52); }
-  for (const sd of ['l', 'r']) { const sh = P('upperarm.' + sd); if (!sh) continue;
-    if (tier >= 1) put('upperarm.' + sd, B3(hW * 0.42, hH * 0.18, hW * 0.44), tier >= 2 ? gold : lam(0x9a9a94), sh.x * 1.05, sh.y + hH * 0.12, sh.z);
-    if (tier >= 3) put('upperarm.' + sd, new THREE.ConeGeometry(hW * 0.07, hH * 0.32, 4), gold, sh.x * 1.12, sh.y + hH * 0.36, sh.z); }
-  if (tier >= 2) { put('chest', B3(hW * 0.86, top * 0.42, 0.5), 0xa02a20, 0, chest.y - top * 0.12, back - fz * 0.6); put('head', B3(hW * 0.12, hH * 0.38, hW * 0.24), gold, 0, top + hH * 0.08, -fz * hW * 0.08, -0.35 * fz); }
-  if (tier >= 3) put('chest', new THREE.OctahedronGeometry(hW * 0.09), glow(tier >= 4 ? 0x58c8ff : 0xd03a2a), 0, chest.y + 0.6, fz * hW * 0.42);
-  if (tier >= 4) { const cr = tier >= 4 ? glow(0xfff0a0) : gold; put('head', B3(hW * 0.62, hH * 0.1, hW * 0.62), cr, 0, top - hH * 0.02, 0); for (const [x, z] of [[-1, -1], [1, -1], [-1, 1], [1, 1], [0, 1.2]]) put('head', B3(hW * 0.08, hH * 0.18, hW * 0.08), cr, x * hW * 0.26, top + hH * 0.1, z * hW * 0.26);
-    const wing = lam(0xbfe8ff, { emissive: srgb(0x8fd8ff), emissiveIntensity: 0.6, transparent: true, opacity: 0.78 }); for (const sd of [-1, 1]) { put('chest', B3(hW * 0.62, top * 0.36, 0.4), wing, sd * hW * 0.52, chest.y + top * 0.08, back - fz * 1, 0, sd * -0.55); put('chest', new THREE.SphereGeometry(hW * 0.09, 7, 5), glow(0x58c8ff), sd * hW * 0.95, chest.y + top * 0.2, 0); } }
+  // ---- promotion: every step adds something you can see from any side, and each looks richer than the last ----
+  //  1st: steel pauldrons, a belt with a buckle, bracers  2nd: the metal turns gold, a cape (the hero's own), a crest  3rd: a breastplate with a burning
+  //  jewel, spiked pauldrons, a long gold-banded cape, a glowing weapon  4th: crown of light, wings, orbiting orbs and a cold-light shimmer on the body
+  const T1 = lam(0x9aa0a8), TG = tier >= 4 ? glow(0xfff0a0) : gold, capeC = hero ? set.S.c1 : tier >= 4 ? 0x2a3a8a : 0xa02a20, hemC = hero ? set.S.c2 : tier >= 4 ? 0x8fe4ff : 0xe3a843;
+  const waist = chest.y - top * 0.16;
+  if (tier >= 1) {
+    for (const sd of ['l', 'r']) { const sh = P('upperarm.' + sd), lw = P('lowerarm.' + sd); if (!sh) continue;
+      put('upperarm.' + sd, B3(hW * 0.5, hH * 0.2, hW * 0.52), tier >= 2 ? TG : T1, sh.x * 1.12, sh.y + hH * 0.12, sh.z); put('upperarm.' + sd, B3(hW * 0.54, hH * 0.06, hW * 0.56), tier >= 2 ? lam(0x7a4a1a) : lam(0x5a5a60), sh.x * 1.12, sh.y + hH * 0.02, sh.z);
+      if (lw) put('lowerarm.' + sd, B3(hW * 0.2, hH * 0.18, hW * 0.2), tier >= 2 ? TG : T1, lw.x, lw.y - hH * 0.08, lw.z);
+      if (tier >= 3) for (const q of [-1, 0, 1]) put('upperarm.' + sd, new THREE.ConeGeometry(hW * 0.06, hH * (q ? 0.28 : 0.4), 4), TG, sh.x * 1.12 + q * hW * 0.12, sh.y + hH * (q ? 0.32 : 0.4), sh.z); }
+    put('chest', B3(hW * 0.5, hH * 0.14, hW * 0.5), tier >= 2 ? TG : T1, 0, chest.y + hH * 0.2, 0);   // gorget at the neck
+    put('chest', B3(hW * 0.66, hH * 0.1, hW * 0.56), tier >= 2 ? TG : lam(0x5a3a22), 0, waist, 0); put('chest', B3(hW * 0.14, hH * 0.13, 0.3), tier >= 3 ? glow(tier >= 4 ? 0x8fe4ff : 0xffb040) : TG, 0, waist, fz * hW * 0.29); }
+  if (tier >= 2 || hero) {   // the cape: red for ordinary hands, the hero's colour for heroes; longer and banded in gold from the 3rd step
+    const len = tier >= 3 ? 0.56 : 0.44; put('chest', B3(hW * 0.92, top * len, 0.45), lam(capeC), 0, chest.y - top * (len / 2 - 0.1), back - fz * 0.65);
+    put('chest', B3(hW * 0.94, top * 0.05, 0.5), tier >= 2 || hero ? glow(hemC) : lam(hemC), 0, chest.y - top * (len - 0.08), back - fz * 0.66);
+    if (tier >= 3) for (const y of [0.12, 0.26]) put('chest', B3(hW * 0.94, top * 0.025, 0.5), TG, 0, chest.y - top * y, back - fz * 0.67);
+    if (tier >= 2) put('chest', B3(hW * 0.96, hH * 0.12, hW * 0.3), TG, 0, chest.y + hH * 0.16, back - fz * 0.45); }   // gold clasp across the shoulders
+  if (tier >= 2) { put('head', B3(hW * 0.12, hH * 0.42, hW * 0.3), TG, 0, top + hH * 0.1, -fz * hW * 0.08, -0.35 * fz); put('head', B3(hW * 0.1, hH * 0.3, hW * 0.22), lam(capeC), 0, top + hH * 0.02, -fz * hW * 0.3, -0.8 * fz); }
+  if (tier >= 3) { put('chest', B3(hW * 0.58, top * 0.2, 0.36), tier >= 4 ? lam(0xdfe8f0, { emissive: srgb(0x8fd8ff), emissiveIntensity: 0.25 }) : lam(0xc8ccd0), 0, chest.y + top * 0.02, fz * hW * 0.42);
+    put('chest', B3(hW * 0.6, top * 0.025, 0.4), TG, 0, chest.y + top * 0.11, fz * hW * 0.43); put('chest', new THREE.OctahedronGeometry(hW * 0.13), glow(tier >= 4 ? 0x58c8ff : 0xff5030), 0, chest.y + top * 0.02, fz * hW * 0.56); }
+  if (tier >= 4) { put('head', B3(hW * 0.66, hH * 0.12, hW * 0.66), TG, 0, top - hH * 0.02, 0); for (const [x, z] of [[-1, -1], [1, -1], [-1, 1], [1, 1], [0, 1.25], [0, -1.25]]) put('head', new THREE.ConeGeometry(hW * 0.06, hH * 0.26, 4), TG, x * hW * 0.27, top + hH * 0.16, z * hW * 0.27);
+    put('head', new THREE.OctahedronGeometry(hW * 0.08), glow(0x58c8ff), 0, top + hH * 0.06, fz * hW * 0.34);
+    const wing = lam(0x9fd8ff, { emissive: srgb(0x58b8ff), emissiveIntensity: 0.55, transparent: true, opacity: 0.75 }), wing2 = lam(0xdff4ff, { emissive: srgb(0x8fd8ff), emissiveIntensity: 0.7, transparent: true, opacity: 0.8 });
+    for (const sd of [-1, 1]) { put('chest', B3(hW * 0.72, top * 0.42, 0.4), wing, sd * hW * 0.6, chest.y + top * 0.1, back - fz * 1.1, 0, sd * -0.55); put('chest', B3(hW * 0.5, top * 0.3, 0.4), wing2, sd * hW * 1.05, chest.y + top * 0.22, back - fz * 1.2, 0, sd * -0.95);
+      put('chest', new THREE.SphereGeometry(hW * 0.1, 7, 5), glow(0x58c8ff), sd * hW * 0.98, chest.y + top * 0.24, 0); }
+    inst.traverse(m => { if (m.isSkinnedMesh) for (const mm of [].concat(m.material)) { mm.emissive = srgb(0x8fd8ff); mm.emissiveIntensity = Math.max(mm.emissiveIntensity || 0, 0.06); } }); }
   if (set && set.S && (set.m & 2)) put('chest', B3(hW * 0.8, hH * 0.1, hW * 0.62), glow(set.S.c2), 0, chest.y - top * 0.16, 0);
   if (hero) { const Z = set.S, o = Z.orn, gl = sk & 4 ? glow(Z.c2) : lam(Z.c2), base = lam(Z.c1);   // the ornament is always worn; the charm makes it shine
     if (o === 'plume') { put('head', B3(hW * 0.1, hH * 0.6, hW * 0.18), gl, 0, top + hH * 0.24, -fz * hW * 0.12, -0.4 * fz); put('head', B3(hW * 0.08, hH * 0.4, hW * 0.14), base, 0, top + hH * 0.12, -fz * hW * 0.3, -0.8 * fz); }
