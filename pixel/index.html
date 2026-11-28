@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}
 #upd{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:999;padding:11px 18px;border-radius:14px;border:2px solid #f3c79a;background:#d4763c;color:#1c120a;font:700 14px system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.5)}</style>
-<script>window.__VER="20261128-095655"</script>
+<script>window.__VER="20261128-104441"</script>
 </head>
 <body>
 <title>공룡 상단 픽셀</title>
@@ -1592,7 +1592,7 @@ const ART_FILES = { 'leader:gunner': 'leader-gunner', 'leader:warrior': 'leader-
 const ARTIMG = {}, artSrc = k => 'art/' + ART_FILES[k] + '.webp';
 for (const k of Object.keys(ART_FILES)) { const im = new Image(); im.onload = () => { ARTIMG[k] = im; for (const q of Object.keys(ART)) if (q.startsWith(k.split(':')[0] + '|')) delete ART[q]; }; im.src = artSrc(k); }
 function unitArt(type, tier = 0, dark = false) {
-  { const im = ARTIMG[type === 'leader' ? 'leader:' + ((typeof S !== 'undefined' && S && S.cls) || 'gunner') : type];   // not met yet: the same picture, nearly blacked out
+  { const im = tier >= 1000 ? null : ARTIMG[type === 'leader' ? 'leader:' + ((typeof S !== 'undefined' && S && S.cls) || 'gunner') : type];   // not met yet: the same picture, nearly blacked out
     if (im) { const k2 = 'x|' + type + '|' + (type === 'leader' ? S.cls : '') + (dark ? '|d' : ''); if (!ART[k2]) { const c = document.createElement('canvas'); c.width = 560; c.height = 448; const x = c.getContext('2d'); x.imageSmoothingQuality = 'high'; if (dark) x.filter = 'grayscale(1) brightness(0.3) contrast(1.3) blur(3px)'; x.drawImage(im, 0, 0, 560, 448); ART[k2] = c; } return ART[k2]; } }
   const key = type + '|' + tier + (type === 'leader' ? S.cls : '') + (dark ? '|d' : ''); if (ART[key]) return ART[key];
   const W0 = 280, H0 = 224, cv = document.createElement('canvas'); cv.width = W0; cv.height = H0; const g = cv.getContext('2d'), D = UNITS[type], dino = D.cls === 'dino';
@@ -1626,7 +1626,7 @@ function unitArt(type, tier = 0, dark = false) {
   return ART[key] = cv;
 }
 function portrait(cv, type, tint) {
-  if (cv.dataset.art) { const g0 = cv.getContext('2d'); const a0 = unitArt(type, Math.max(0, lkT(+cv.dataset.t || 0)), cv.dataset.art === 'unk'); cv.width = a0.width; cv.height = a0.height; g0.imageSmoothingEnabled = false; g0.drawImage(a0, 0, 0); cv.style.imageRendering = a0.width > 280 ? 'auto' : ''; return; }
+  if (cv.dataset.art) { const g0 = cv.getContext('2d'); const t0 = +cv.dataset.t || 0, a0 = unitArt(type, t0 >= 1000 && type !== 'leader' ? t0 : Math.max(0, lkT(t0)), cv.dataset.art === 'unk'); cv.width = a0.width; cv.height = a0.height; g0.imageSmoothingEnabled = false; g0.drawImage(a0, 0, 0); cv.style.imageRendering = a0.width > 280 ? 'auto' : ''; return; }
   const g = cv.getContext('2d'), w = cv.width, h = cv.height; g.clearRect(0, 0, w, h);
   { const im = cutOf(type); if (im) { const dino = (UNITS[type] || {}).cls === 'dino'; cv.style.imageRendering = 'auto'; g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
       const gr = g.createRadialGradient(w / 2, h * 0.6, 0, w / 2, h * 0.6, h * 0.8); gr.addColorStop(0, 'rgba(240,170,110,.38)'); gr.addColorStop(1, 'rgba(240,170,110,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
@@ -1901,7 +1901,7 @@ function makeKK(C, tier = 0, set = null, plain = false) {
     put('chest', B3(hW * 0.5, hH * 0.14, hW * 0.5), tier >= 2 ? TG : T1, 0, chest.y + hH * 0.2, 0);   // gorget at the neck
     { const sash = lam(hero ? set.S.c2 : 0x2f6fb0), sg = put('chest', B3(hW * 0.16, top * 0.34, 0.22), sash, 0, chest.y - top * 0.04, fz * hW * 0.36); sg.rotation.z = 0.7; const sb = put('chest', B3(hW * 0.16, top * 0.34, 0.22), sash, 0, chest.y - top * 0.04, back - fz * 0.3); sb.rotation.z = -0.7; }   // a sash over the shoulder, front and back
     put('chest', new THREE.CylinderGeometry(hW * 0.11, hW * 0.11, 0.25, 8), tier >= 2 ? TG : lam(0xdfe4ea, { emissive: srgb(0x9ab0c8), emissiveIntensity: 0.35 }), -hW * 0.17, chest.y + 0.5, fz * hW * 0.44, Math.PI / 2);   // a silver rank badge
-    put('head', B3(hW * 0.7, hH * 0.1, hW * 0.7), tier >= 2 ? TG : T1, 0, top - hH * 0.2, 0); put('head', B3(hW * 0.12, hH * 0.18, hW * 0.12), tier >= 2 ? TG : lam(0xdfe4ea), 0, top - hH * 0.08, fz * hW * 0.34);   // a steel circlet round the head
+    { const ring = put('head', new THREE.TorusGeometry(hW * 0.36, hH * 0.035, 5, 16), tier >= 2 ? TG : T1, 0, top - hH * 0.24, 0); ring.rotation.x = Math.PI / 2; } put('head', B3(hW * 0.12, hH * 0.18, hW * 0.12), tier >= 2 ? TG : lam(0xdfe4ea), 0, top - hH * 0.08, fz * hW * 0.34);   // a steel circlet round the head
     if (tier === 1 && !hero) { put('chest', B3(hW * 0.98, top * 0.2, 0.4), lam(0x4a5a70), 0, chest.y - top * 0.02, back - fz * 0.6); put('chest', B3(hW * 1.0, top * 0.03, 0.45), lam(0xdfe4ea), 0, chest.y - top * 0.12, back - fz * 0.62); }   // a short shoulder mantle until the 2nd step brings the full cape
     put('chest', B3(hW * 0.66, hH * 0.1, hW * 0.56), tier >= 2 ? TG : lam(0x5a3a22), 0, waist, 0); put('chest', B3(hW * 0.14, hH * 0.13, 0.3), tier >= 3 ? glow(tier >= 4 ? 0x8fe4ff : 0xffb040) : TG, 0, waist, fz * hW * 0.29); }
   if (tier >= 2 || hero) {   // the cape: red for ordinary hands, the hero's colour for heroes; longer and banded in gold from the 3rd step
@@ -1909,7 +1909,7 @@ function makeKK(C, tier = 0, set = null, plain = false) {
     put('chest', B3(hW * 0.94, top * 0.05, 0.5), tier >= 2 || hero ? glow(hemC) : lam(hemC), 0, chest.y - top * (len - 0.08), back - fz * 0.66);
     if (tier >= 3) for (const y of [0.12, 0.26]) put('chest', B3(hW * 0.94, top * 0.025, 0.5), TG, 0, chest.y - top * y, back - fz * 0.67);
     if (tier >= 2) put('chest', B3(hW * 0.96, hH * 0.12, hW * 0.3), TG, 0, chest.y + hH * 0.16, back - fz * 0.45); }   // gold clasp across the shoulders
-  if (tier >= 2) { put('head', B3(hW * 0.12, hH * 0.42, hW * 0.3), TG, 0, top + hH * 0.1, -fz * hW * 0.08, -0.35 * fz); put('head', B3(hW * 0.1, hH * 0.3, hW * 0.22), lam(capeC), 0, top + hH * 0.02, -fz * hW * 0.3, -0.8 * fz); }
+  if (tier >= 2) { put('head', B3(hW * 0.06, hH * 0.34, hW * 0.16), TG, 0, top + hH * 0.06, -fz * hW * 0.1, -0.35 * fz); put('head', B3(hW * 0.06, hH * 0.26, hW * 0.14), lam(capeC), 0, top - hH * 0.02, -fz * hW * 0.28, -0.8 * fz); }
   if (tier >= 3) { put('chest', B3(hW * 0.58, top * 0.2, 0.36), tier >= 4 ? lam(0xdfe8f0, { emissive: srgb(0x8fd8ff), emissiveIntensity: 0.25 }) : lam(0xc8ccd0), 0, chest.y + top * 0.02, fz * hW * 0.42);
     put('chest', B3(hW * 0.6, top * 0.025, 0.4), TG, 0, chest.y + top * 0.11, fz * hW * 0.43); put('chest', new THREE.OctahedronGeometry(hW * 0.13), glow(tier >= 4 ? 0x58c8ff : 0xff5030), 0, chest.y + top * 0.02, fz * hW * 0.56); }
   if (tier >= 4) { put('head', B3(hW * 0.66, hH * 0.12, hW * 0.66), TG, 0, top - hH * 0.02, 0); for (const [x, z] of [[-1, -1], [1, -1], [-1, 1], [1, 1], [0, 1.25], [0, -1.25]]) put('head', new THREE.ConeGeometry(hW * 0.06, hH * 0.26, 4), TG, x * hW * 0.27, top + hH * 0.16, z * hW * 0.27);
@@ -2465,6 +2465,13 @@ function unitSprite(type, len, tier = 0, lazy = false) {
   if (lazy && USE3D && !SYNC_GEN) { if (!SPRQ.has(key) && !(SPRJOB && SPRJOB.key === key)) { SPRQ.set(key, [type, len, tier]); PERF.sprN++; } return null; }
   SPRQ.delete(key); const pt0 = performance.now(); runGen(unitSpriteGen(type, len, tier, key)); PERF.spr += performance.now() - pt0; return SPR[key];
 }
+// once a sheet is baked, the meshes made for it are thrown away: their GPU buffers and materials are freed, but never the geometry
+// and textures shared with the loaded models
+let SHARED_GEO = null;
+function freeObj(root) {
+  if (!SHARED_GEO) { SHARED_GEO = new Set(); const add = o => o && o.traverse(m => { if (m.geometry) SHARED_GEO.add(m.geometry); }); for (const M of Object.values(MODELS)) add(M.obj); for (const g of Object.values(KK)) add(g.scene); }
+  root.traverse(m => { if (m.geometry && !SHARED_GEO.has(m.geometry)) m.geometry.dispose(); if (m.material) for (const mt of [].concat(m.material)) mt.dispose(); });
+}
 function* unitSpriteGen(type, len, tier, key) {
   const D = UNITS[type] || (CASH_KIND[type] === 'human' ? UNITS.scout : UNITS.trike), kind = type === 'turret' ? 'turret' : D.cls === 'dino' ? 'dino' : 'human';
   const hd = kind === 'human' ? 2 : 1, fw = type === 'wagon' ? Math.ceil(len * 3.4) + 8 : kind === 'dino' ? Math.ceil(len * 1.5) + 8 : kind === 'human' ? 74 * hd : 30, fh = fw, spr = { fw, fh, an: {}, kind, hd };
@@ -2493,7 +2500,7 @@ function* unitSpriteGen(type, len, tier, key) {
     }
     spr.an[name] = { cv: pixelize(cv), n }; yield;
   }
-  b.sc.remove(obj.root); return SPR[key] = spr;
+  b.sc.remove(obj.root); freeObj(obj.root); return SPR[key] = spr;
 }
 // Field sprites cut out of the illustrations. One picture per unit: it is mirrored to face left or right
 // and moved by code (a bob for walking, a lunge for attacking, a fall for dying) instead of frame animation.
@@ -4023,6 +4030,7 @@ function frame(now) {
   if (B && !B.over) { acc += dt * bSpeed; let k = 0; while (acc >= 1 / 30 && k < 8) { bStep(1 / 30); acc -= 1 / 30; k++; } if (k >= 8) acc = 0; }
   if (W && worldLive()) { if (bcv.width !== Math.round(bcv.clientWidth * dpr)) resizeBattle(); updWorld(dt); renderWorld(dt); }
   uiAcc += dt;
+  if (B && B.over && $('modal').hidden) { B.idleOver = (B.idleOver || 0) + dt; if (B.idleOver > 2.5) closeBattle(); }   // a finished fight whose result box is gone never leaves the game stuck
   if (uiAcc > 0.5) { uiAcc = 0; const t0 = performance.now(); renderHeader(); { const fb = $('fightBar'); if (fb) { if (B && !B.over) $('fightTxt').textContent = `전투 중 · 적 ${alive(1).length}마리 남음`; else { fb.querySelector('span').textContent = '전투가 끝났어요'; } } } if (W && worldLive() && !B) { if (W.crew.length !== party().filter(u => !u.ko).length) syncCrew(); updField(); } PERF.ui += performance.now() - t0; PERF.uiN++; }
   saveAcc += dt; if (saveAcc > 5) { saveAcc = 0; const t0 = performance.now(); save(); PERF.save += performance.now() - t0; PERF.saveN++; }
 }
@@ -4140,7 +4148,7 @@ requestAnimationFrame(frame);
 <button id="upd" hidden>새 패치가 있어요 · 눌러서 적용</button>
 <script>
 (function () {
-  var VER = "20261128-095655";
+  var VER = "20261128-104441";
   if (!/^https?:$/.test(location.protocol)) return;
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
   var btn = document.getElementById('upd');
