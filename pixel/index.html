@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}
 #upd{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:999;padding:11px 18px;border-radius:14px;border:2px solid #f3c79a;background:#d4763c;color:#1c120a;font:700 14px system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.5)}</style>
-<script>window.__VER="20261128-094337"</script>
+<script>window.__VER="20261128-094712"</script>
 </head>
 <body>
 <title>공룡 상단 픽셀</title>
@@ -656,7 +656,7 @@ const HSET_ENH = [0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.25, 0.2, 0.15], HSET_SAFE
 const hsetStat = (u, sl) => { const q = itemStat({ slot: sl, r: 4, lv: u.lv, en: ENH_MAX, hx: 1 }), k = 1 + 0.1 * hsetEn(u, sl); for (const a in q) q[a] *= k; return q; }, hsetText = (u, sl) => { const q = hsetStat(u, sl); return Object.entries(q).map(([k, v]) => `${{ atk: '공격', hp: '체력', def: '방어' }[k]} +${Math.round(v * 100)}%`).join(' · '); };
 const hsetName = (u, sl) => `${HSET[hk(u)].n}의 ${sl === 'weapon' ? (u.type === 'leader' ? LEAD_WORD[S.cls] : HSET_WORD[u.type]) || '무기' : HSET_SLOT[sl]}`;
 const setAura = team => { const A = { aAtk: 0, aDef: 0, aHp: 0, aRegen: 0, aDino: 0, cargo: 0, speed: 0, cook: 0, enh: 0 }; if (team || (S && S.units)) for (const u of team || S.units) { const ab = (team || (u.inParty && !u.ko)) && hsetFull(u); if (ab) for (const k in A) A[k] += ab[k] || 0; } return A; };
-const lkT = t => t >= 1000 ? t % 10 : t, lkSet = t => t >= 1000 ? { S: HSET[HKEYS[Math.floor((t - 1000) / 100)]], m: Math.floor(t % 100 / 10) } : null;
+const lkT = t => t >= 1000 ? t % 10 : t, lkSet = t => t >= 1000 ? { S: HSET[HKEYS[Math.floor((t - 1000) / 100)]], k: HKEYS[Math.floor((t - 1000) / 100)], m: Math.floor(t % 100 / 10) } : null;
 const heroCost = h => 1000000 + UNITS[h.type].cost * 1500;   // heroes are a long-term goal, not an early purchase
 const hireAll = () => Object.keys(UNITS).filter(t => UNITS[t].cls === 'human' && t !== 'leader').sort((a, b) => UNITS[a].cost - UNITS[b].cost);
 const unitSkill = u => u.elite && ELITE[u.type] ? ELITE[u.type].sk : skillOf(u.type);
@@ -1821,6 +1821,20 @@ const KK_MERC = {   // every hired hand is a KayKit body, dressed in the job's c
   shaman:    { body: 'KK_Mage', r: 'KK_w_staff', clips: KC('Ranged_Magic_Shoot') },
   runnerC:   { body: 'KK_Rogue', r: 'KK_w_dagger', tool: [['back', 'satchel']], clips: KC('Melee_1H_Attack_Stab') },
   scribeC:   { body: 'KK_Mage', l: 'KK_w_spellbook_open', clips: KC('Ranged_Magic_Shoot') } };
+// heroes never wear the body their job's ordinary hands wear: each has a body of their own (the job's tool stays)
+const KK_HERO = {
+  '은빛 화살 세라': { body: 'KK_Knight', hide: /Helmet|Visor|Cape/ }, '폭풍 사수 유나': { body: 'KK_Mage', hide: /Hat|Cape/ },
+  '백발 창수 고르': { body: 'KK_Barbarian', hide: null }, '철의 여인 타샤': { body: 'KK_Ranger', hide: /Quiver|Cape/ },
+  '잿눈 카이': { body: 'KK_Ranger', hide: /Quiver|Cape/ }, '그림자 넬라': { body: 'KK_Rogue', hide: /Cape/ },
+  '고철의 손 벤': { body: 'KK_Barbarian', hide: /BearHat/ }, '무쇠팔 도건': { body: 'KK_Knight', hide: /Visor|Cape/ },
+  '늪의 의원 모아': { body: 'KK_Rogue_Hooded', hide: /Mask|Cape/ }, '약초꾼 이든': { body: 'KK_Ranger', hide: /Quiver|Cape/ },
+  '붉은 망토 리브': { body: 'KK_Rogue', hide: /Cape/ }, '독안개 실': { body: 'KK_Mage', hide: /Cape/ },
+  '외다리 한': { body: 'KK_Knight', hide: /Helmet|Visor|Cape/ }, '천 리 길 보로': { body: 'KK_Ranger', hide: /Quiver|Cape/ },
+  '바람발 시아': { body: 'KK_Ranger', hide: /Quiver|Cape/ }, '철문 바르가': { body: 'KK_Barbarian', hide: null },
+  '투기장의 왕 도란': { body: 'KK_Knight', hide: /Visor|Cape/ }, '외눈 사수 켈': { body: 'KK_Rogue_Hooded', hide: /Cape/ },
+  '쌍권총 레아': { body: 'KK_Rogue', hide: /Cape/ }, '불꽃 손 미로': { body: 'KK_Rogue', hide: /Cape/ },
+  '공룡의 벗 유카': { body: 'KK_Ranger', hide: /Quiver|Cape/ }, '큰솥의 달인 마루': { body: 'KK_Rogue', hide: /Cape/ },
+  '무쇠팔 고른': { body: 'KK_Knight', hide: /Visor|Cape/ }, '안개 무녀 소하': { body: 'KK_Rogue_Hooded', hide: /Mask|Cape/ } };
 for (const [t, c] of Object.entries(KK_MERC)) c.tint = (HUMAN_PAL[t] || [0xb0a080])[0];   // each job keeps the colour it had before
 const KK_FILES = [...new Set([...Object.values(KK_LEAD), ...Object.values(KK_MERC)].flatMap(c => [c.body, c.r, c.l].filter(Boolean))), 'KK_Anims'];
 let LEADER_CLS = 'gunner', KK_FACE = 0;   // KayKit bodies face +z like the game's own models
@@ -1904,7 +1918,7 @@ function makeKK(C, tier = 0, set = null, plain = false) {
   return { root: g, spin: s, mixer, acts, cur: null, kk: true, human: true, inst, aim: C.aim || 0 };   // aim: the shooting clips hold the gun out to the side, so the body turns to point it forward
 }
 function makeHuman3(type, tier = 0, set = null) {
-  if (KK.KK_Anims) { const spec = type === 'leader' ? KK_LEAD[LEADER_CLS] : KK_MERC[type]; if (spec) { const kk = makeKK(spec, tier, set || (type === 'leader' ? { S: HSET['L:' + LEADER_CLS], m: 0 } : null), type !== 'leader'); if (kk) return kk; } }
+  if (KK.KK_Anims) { const spec = type === 'leader' ? KK_LEAD[LEADER_CLS] : set && KK_HERO[set.k] && KK_MERC[type] ? Object.assign({}, KK_MERC[type], KK_HERO[set.k]) : KK_MERC[type]; if (spec) { const kk = makeKK(spec, tier, set || (type === 'leader' ? { S: HSET['L:' + LEADER_CLS], m: 0 } : null), type !== 'leader'); if (kk) return kk; } }
   const orig = type; if (type === 'leader' && LEADER_LOOK) type = LEADER_LOOK;
   const type0 = type; type = HUMAN_AS[type] || type;
   const [body, pants] = HUMAN_PAL[type0] || HUMAN3[type0] || HUMAN3[type], g = new THREE.Group(), s = new THREE.Group(); g.add(s);
@@ -4108,7 +4122,7 @@ requestAnimationFrame(frame);
 <button id="upd" hidden>새 패치가 있어요 · 눌러서 적용</button>
 <script>
 (function () {
-  var VER = "20261128-094337";
+  var VER = "20261128-094712";
   if (!/^https?:$/.test(location.protocol)) return;
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
   var btn = document.getElementById('upd');
