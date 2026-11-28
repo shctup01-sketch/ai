@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}
 #upd{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:999;padding:11px 18px;border-radius:14px;border:2px solid #f3c79a;background:#d4763c;color:#1c120a;font:700 14px system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.5)}</style>
-<script>window.__VER="20261128-093324"</script>
+<script>window.__VER="20261128-094337"</script>
 </head>
 <body>
 <title>공룡 상단 픽셀</title>
@@ -1700,7 +1700,7 @@ const MODEL_TINT = { iguan: [0x5a7a4a, 0.55], pachyc: [0x9a6a3a, 0.55], micro: [
 const BABY = { trike: 'G_Triceratops', styra: 'G_Triceratops', trikeIron: 'G_Triceratops', trikeRed: 'G_Triceratops', stego: 'G_Stegosaurus', kentro: 'G_Stegosaurus', stegoRust: 'G_Stegosaurus', trex: 'G_Trex', allo: 'G_Trex', dilo: 'G_Trex', trexYoung: 'G_Trex',
   carno: 'G_Carnotaurus', spino: 'G_Spinosaurus', anky: 'G_Ankylosaurus', pachyc: 'G_Pachycephalosaurus', para: 'G_Pachycephalosaurus', iguan: 'G_Pachycephalosaurus', paraGold: 'G_Pachycephalosaurus',
   raptor: 'G_Oviraptor', compy: 'G_Oviraptor', micro: 'G_Oviraptor', utah: 'G_Oviraptor', raptorShadow: 'G_Oviraptor', raptorVenom: 'G_Oviraptor', ovi: 'G_Oviraptor', apato: 'G_Plesiosaurus', diplo: 'G_Plesiosaurus', brachio: 'G_Plesiosaurus', apatoMoss: 'G_Plesiosaurus', plesio: 'G_Plesiosaurus', ptero: 'G_Pterodactylus' };
-const isBaby = u => !!(u && UNITS[u.type] && UNITS[u.type].cls === 'dino' && u.grade !== undefined && !(u.tier > 0) && BABY[u.type]), lookTier = u => isBaby(u) ? -1 : hsetOf(u) && hsetMask(u) ? 1000 + HKEYS.indexOf(hk(u)) * 100 + hsetMask(u) * 10 + Math.min(9, u.tier || 0) : u.tier || 0;
+const isBaby = u => !!(u && UNITS[u.type] && UNITS[u.type].cls === 'dino' && u.grade !== undefined && !(u.tier > 0) && BABY[u.type]), lookTier = u => isBaby(u) ? -1 : hsetOf(u) ? 1000 + HKEYS.indexOf(hk(u)) * 100 + hsetMask(u) * 10 + Math.min(9, u.tier || 0) : u.tier || 0;   // heroes never share a look with ordinary hands
 const MODELS = {}, PORTRAIT = {}, PROPS = {}, ZONESHOT = {};
 let G3 = null;
 const has3D = (() => { try { const c = document.createElement('canvas'); return !!(window.THREE && THREE.FBXLoader && THREE.SkeletonUtils && (c.getContext('webgl') || c.getContext('experimental-webgl'))); } catch (e) { return false; } })();
@@ -1795,26 +1795,76 @@ const lam = (col, extra = {}) => new THREE.MeshLambertMaterial(Object.assign({ c
 const HUMAN3 = { leader: [0x7a6448, 0x3a2e22], hunter: [0x56633a, 0x3a3020], spear: [0x6c5c4a, 0x3a3026], scout: [0x3e5236, 0x2a2a24], shield: [0x5a6470, 0x30343a], gladiator: [0x8a3a2a, 0x3a2a20], crossbow: [0x6a6a66, 0x2e2e2c], gunner: [0x3a4a6a, 0x2a2420], bomber: [0x3a3a38, 0x4a3a26], tamer: [0x8a6a3a, 0x4a3422], cook: [0xe8e4da, 0x4a4038], smith: [0x5a4634, 0x2e2620], shaman: [0x5a3a7a, 0x2a2030], sniper: [0x444a44, 0x2a2e2a],
                  porter: [0x8a7a5a, 0x4a4030], mechanic: [0xc06a20, 0x34405a], medic: [0xe2ddd0, 0x6a6a70], venomer: [0x3e4a34, 0x24281c] };
 const KK = {}, KK_LEAD = {   // body, what to hide, the weapon in each hand, the colour wash, and the four clips: idle, walk, attack, death
-  gunner:   { body: 'KK_Ranger', hide: /Quiver|Cape/, rifle: 1, aim: Math.PI / 2, tint: 0xd6c8ac, clips: ['Idle_A', 'Walking_A', 'Ranged_2H_Shoot', 'Death_A'] },
+  gunner:   { body: 'KK_Ranger', hide: /Quiver|Cape/, tool: [['r', 'rifle']], aim: Math.PI / 2, tint: 0xd6c8ac, clips: ['Idle_A', 'Walking_A', 'Ranged_2H_Shoot', 'Death_A'] },
   warrior:  { body: 'KK_Barbarian', r: 'KK_w_axe_1handed', l: 'KK_w_shield_round_barbarian', tint: 0xdccab0, clips: ['Idle_A', 'Walking_A', 'Melee_1H_Attack_Chop', 'Death_A'] },
   archer:   { body: 'KK_Ranger', l: 'KK_w_bow_withString', tint: 0xd2c6aa, clips: ['Idle_A', 'Walking_A', 'Ranged_Bow_Release', 'Death_A'] },
-  tamer:    { body: 'KK_Rogue_Hooded', r: 'KK_w_dagger', whip: 1, tint: 0xdcc6a2, clips: ['Idle_A', 'Walking_A', 'Melee_1H_Attack_Stab', 'Death_A'] },
-  merchant: { body: 'KK_Rogue', r: 'KK_w_crossbow_1handed', aim: Math.PI / 2, pack: 1, tint: 0xe2d2b2, clips: ['Idle_A', 'Walking_A', 'Ranged_1H_Shoot', 'Death_A'] } };
-const KK_FILES = [...new Set(Object.values(KK_LEAD).flatMap(c => [c.body, c.r, c.l].filter(Boolean))), 'KK_Anims'];
+  tamer:    { body: 'KK_Rogue_Hooded', r: 'KK_w_dagger', tool: [['l', 'whip']], tint: 0xdcc6a2, clips: ['Idle_A', 'Walking_A', 'Melee_1H_Attack_Stab', 'Death_A'] },
+  merchant: { body: 'KK_Rogue', r: 'KK_w_crossbow_1handed', aim: Math.PI / 2, tool: [['back', 'bigpack']], tint: 0xe2d2b2, clips: ['Idle_A', 'Walking_A', 'Ranged_1H_Shoot', 'Death_A'] } };
+const KC = a => ['Idle_A', 'Walking_A', a, 'Death_A'], AIM = Math.PI / 2;
+const KK_MERC = {   // every hired hand is a KayKit body, dressed in the job's colours with the job's tool
+  hunter:    { body: 'KK_Ranger', hide: /Cape/, l: 'KK_w_bow_withString', clips: KC('Ranged_Bow_Release') },
+  spear:     { body: 'KK_Knight', hide: /Cape|Visor/, tool: [['r', 'spear']], l: 'KK_w_shield_badge_color', clips: KC('Melee_1H_Attack_Stab') },
+  sniper:    { body: 'KK_Rogue_Hooded', hide: /Cape/, tool: [['r', 'longrifle']], aim: AIM, clips: KC('Ranged_2H_Shoot') },
+  mechanic:  { body: 'KK_Rogue', hide: /Cape/, tool: [['r', 'wrench'], ['back', 'toolbox']], clips: KC('Melee_1H_Attack_Chop') },
+  medic:     { body: 'KK_Mage', hide: /Hat|Cape/, tool: [['r', 'dartgun'], ['l', 'medkit'], ['head', 'cap']], aim: AIM, clips: KC('Ranged_1H_Shoot') },
+  porter:    { body: 'KK_Barbarian', hide: /BearHat/, tool: [['back', 'bigpack'], ['r', 'stick']], clips: KC('Melee_1H_Attack_Chop') },
+  venomer:   { body: 'KK_Rogue_Hooded', tool: [['r', 'blowgun'], ['back', 'tanks']], aim: AIM, clips: KC('Ranged_2H_Shoot') },
+  scout:     { body: 'KK_Rogue', r: 'KK_w_dagger', l: 'KK_w_dagger', clips: KC('Melee_1H_Attack_Stab') },
+  shield:    { body: 'KK_Knight', r: 'KK_w_sword_1handed', l: 'KK_w_shield_badge_color', clips: KC('Melee_1H_Attack_Chop') },
+  gladiator: { body: 'KK_Barbarian', r: 'KK_w_axe_2handed', clips: KC('Melee_2H_Attack_Chop') },
+  crossbow:  { body: 'KK_Ranger', hide: /Quiver/, r: 'KK_w_crossbow_2handed', aim: AIM, clips: KC('Ranged_2H_Shoot') },
+  gunner:    { body: 'KK_Ranger', hide: /Quiver|Cape/, tool: [['r', 'rifle']], aim: AIM, clips: KC('Ranged_2H_Shoot') },
+  bomber:    { body: 'KK_Barbarian', hide: /BearHat/, r: 'KK_w_smokebomb', tool: [['back', 'bombs'], ['head', 'goggles']], clips: KC('Throw') },
+  tamer:     { body: 'KK_Rogue_Hooded', hide: /Mask/, r: 'KK_w_dagger', tool: [['l', 'whip']], clips: KC('Melee_1H_Attack_Stab') },
+  cook:      { body: 'KK_Barbarian', hide: /BearHat/, tool: [['r', 'ladle'], ['head', 'chefhat'], ['chest', 'apron']], clips: KC('Melee_1H_Attack_Chop') },
+  smith:     { body: 'KK_Barbarian', hide: /BearHat/, tool: [['r', 'hammer'], ['chest', 'apron']], clips: KC('Melee_1H_Attack_Chop') },
+  shaman:    { body: 'KK_Mage', r: 'KK_w_staff', clips: KC('Ranged_Magic_Shoot') },
+  runnerC:   { body: 'KK_Rogue', r: 'KK_w_dagger', tool: [['back', 'satchel']], clips: KC('Melee_1H_Attack_Stab') },
+  scribeC:   { body: 'KK_Mage', l: 'KK_w_spellbook_open', clips: KC('Ranged_Magic_Shoot') } };
+for (const [t, c] of Object.entries(KK_MERC)) c.tint = (HUMAN_PAL[t] || [0xb0a080])[0];   // each job keeps the colour it had before
+const KK_FILES = [...new Set([...Object.values(KK_LEAD), ...Object.values(KK_MERC)].flatMap(c => [c.body, c.r, c.l].filter(Boolean))), 'KK_Anims'];
 let LEADER_CLS = 'gunner', KK_FACE = 0;   // KayKit bodies face +z like the game's own models
-function makeKK(cls, tier = 0, set = null) {
-  const C = KK_LEAD[cls], G = C && KK[C.body], AN = KK.KK_Anims; if (!G || !AN) return null;
+function kkTool(kind, where, o) {   // hand tools are built in the hand slot's own units (about 1 = a forearm); body gear in model units at the bone
+  const { bone, put, B3, glowC, head, chest, top, hH, hW, back, fz } = o, L = (c) => glowC ? lam(c, { emissive: srgb(glowC), emissiveIntensity: 0.5 }) : lam(c);
+  if (where === 'r' || where === 'l') { const b = bone('handslot.' + where); if (!b) return; const gp = new THREE.Group(), bx = (w, h, d, col, x, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), L(col)); m.position.set(x, y, z); gp.add(m); return m; };
+    if (kind === 'rifle' || kind === 'longrifle') { const k = kind === 'longrifle' ? 1.35 : 1; bx(0.09, 0.09, 1.25 * k, 0x34343a, 0, 0.06, 0.62 * k); bx(0.16, 0.2, 0.55, 0x4a3a2a, 0, 0, 0.05); bx(0.14, 0.26, 0.34, 0x6a4a2a, 0, -0.05, -0.36); bx(0.06, 0.16, 0.08, 0x2a2a2e, 0, -0.14, 0.12); bx(0.1, 0.06, 0.18, 0x8a8a90, 0, 0.16, 0.1); if (k > 1) bx(0.08, 0.08, 0.36, 0x1c1c20, 0, 0.18, 0.28); }
+    else if (kind === 'dartgun') { bx(0.08, 0.08, 0.6, 0x8a8a90, 0, 0.05, 0.3); bx(0.12, 0.26, 0.12, 0x5a3a2a, 0, -0.1, 0); bx(0.1, 0.1, 0.12, 0xc8402e, 0, 0.12, 0.05); }
+    else if (kind === 'blowgun') { bx(0.07, 0.07, 1.5, 0x5a6a3a, 0, 0.04, 0.55); bx(0.1, 0.1, 0.1, 0x9aff6a, 0, 0.04, 1.28); }
+    else if (kind === 'spear') { bx(0.07, 2.2, 0.07, 0x6a4a2a, 0, 0.55, 0); const tip = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.4, 4), L(0xc8c8c0)); tip.position.set(0, 1.85, 0); gp.add(tip); bx(0.2, 0.06, 0.06, 0xa02a20, 0, 1.6, 0); }
+    else if (kind === 'wrench') { bx(0.08, 0.8, 0.06, 0x8a8a90, 0, 0.3, 0); bx(0.3, 0.12, 0.08, 0x8a8a90, 0, 0.74, 0); bx(0.08, 0.16, 0.08, 0x8a8a90, -0.11, 0.86, 0); bx(0.08, 0.16, 0.08, 0x8a8a90, 0.11, 0.86, 0); }
+    else if (kind === 'hammer') { bx(0.08, 0.9, 0.08, 0x6a4a2a, 0, 0.35, 0); bx(0.24, 0.24, 0.46, 0x4a4a50, 0, 0.82, 0); }
+    else if (kind === 'ladle') { bx(0.05, 0.9, 0.05, 0x8a8a90, 0, 0.35, 0); const cup = new THREE.Mesh(new THREE.SphereGeometry(0.16, 7, 5, 0, 6.3, 0, 1.6), L(0xb0b0b8)); cup.position.set(0, 0.84, 0.1); cup.rotation.x = Math.PI; gp.add(cup); }
+    else if (kind === 'stick') { bx(0.08, 1.6, 0.08, 0x7a5a34, 0, 0.4, 0); }
+    else if (kind === 'medkit') { bx(0.42, 0.32, 0.18, 0xe8e0cc, 0, 0, 0.08); bx(0.08, 0.22, 0.2, 0xc8402e, 0, 0, 0.08); bx(0.22, 0.08, 0.2, 0xc8402e, 0, 0, 0.08); }
+    else if (kind === 'whip') { let y = 0, z = 0; for (let q = 0; q < 7; q++) { const a = 0.35 + q * 0.32, seg = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.2), lam(q ? 0x4a3422 : 0x2a1c12)); y -= Math.sin(a) * 0.17; z += Math.cos(a) * 0.17; seg.position.set(0, y, z); seg.rotation.x = a; gp.add(seg); } }
+    b.add(gp); return; }
+  if (where === 'back') {
+    if (kind === 'bigpack') { put('chest', B3(hW * 0.72, hH * 0.85, hW * 0.42), 0x7a5a34, 0, chest.y + 0.5, back - fz * 1.1); put('chest', B3(hW * 0.76, 0.6, hW * 0.46), 0x4a3422, 0, chest.y + hH * 0.48, back - fz * 1.1); put('chest', B3(hW * 0.5, hH * 0.3, hW * 0.3), 0xc8b078, 0, chest.y + hH * 0.72, back - fz * 1.1); }
+    else if (kind === 'toolbox') put('chest', B3(hW * 0.55, hH * 0.45, hW * 0.32), 0xc06a20, 0, chest.y + 0.2, back - fz * 0.9);
+    else if (kind === 'tanks') for (const sd of [-1, 1]) put('chest', new THREE.CylinderGeometry(hW * 0.11, hW * 0.11, hH * 0.7, 7), 0x6a8a3a, sd * hW * 0.15, chest.y + 0.4, back - fz * 0.9);
+    else if (kind === 'bombs') for (const sd of [-1, 0, 1]) put('chest', new THREE.SphereGeometry(hW * 0.1, 7, 5), 0x2a2a2e, sd * hW * 0.2, chest.y + 0.2, back - fz * 0.95);
+    else if (kind === 'satchel') put('chest', B3(hW * 0.42, hH * 0.4, hW * 0.24), 0x1f8f9c, hW * 0.2, chest.y - 0.6, back - fz * 0.8);
+    return; }
+  if (where === 'head') {
+    if (kind === 'cap') { put('head', B3(hW * 0.62, hH * 0.16, hW * 0.62), 0xf0ece0, 0, top - hH * 0.12, 0); put('head', B3(hW * 0.16, hH * 0.1, 0.2), 0xc8402e, 0, top - hH * 0.12, fz * hW * 0.32); }
+    else if (kind === 'chefhat') { put('head', new THREE.CylinderGeometry(hW * 0.3, hW * 0.26, hH * 0.5, 9), 0xf4f0e8, 0, top + hH * 0.1, 0); }
+    else if (kind === 'goggles') { put('head', B3(hW * 0.7, hH * 0.12, hW * 0.1), 0x3a3a40, 0, head.y + hH * 0.55, fz * hW * 0.5); for (const sd of [-1, 1]) put('head', new THREE.CylinderGeometry(hW * 0.1, hW * 0.1, 0.4, 8), 0xe3a843, sd * hW * 0.17, head.y + hH * 0.55, fz * hW * 0.55, Math.PI / 2); }
+    return; }
+  if (where === 'chest' && kind === 'apron') put('chest', B3(hW * 0.62, top * 0.3, 0.3), 0xe8e0cc, 0, chest.y - top * 0.12, fz * hW * 0.36);
+}
+function makeKK(C, tier = 0, set = null, plain = false) {
+  const G = C && KK[C.body], AN = KK.KK_Anims; if (!G || !AN) return null;
   const inst = THREE.SkeletonUtils.clone(G.scene), g = new THREE.Group(), s = new THREE.Group(); g.add(s); s.add(inst);
-  const wash = srgb(C.tint), c1 = set && set.S && (set.m & 2) ? srgb(set.S.c1) : null;
-  const mat = (o, skin, emis) => { const m = new THREE.MeshLambertMaterial({ map: o.map || null, color: o.map ? wash.clone() : (o.color ? o.color.clone() : wash.clone()), skinning: skin }); if (c1 && skin) m.color.lerp(c1, 0.38); if (emis) { m.emissive = srgb(emis); m.emissiveIntensity = 0.55; } return m; };
+  const hero = !!(set && set.S), sk = (set && set.m) || 0;
+  // ordinary hands: the job colour, dulled and dusty. Heroes: their own colours, brighter, more of them as the set is made
+  const wash = hero ? srgb(0xffffff) : srgb(C.tint).lerp(srgb(0xffffff), 0.45), dust = srgb(0x9c927e), c1 = hero ? srgb(set.S.c1) : null; if (!hero && plain) wash.lerp(dust, 0.4);
+  const mat = (o, skin, emis) => { const m = new THREE.MeshLambertMaterial({ map: o.map || null, color: o.map ? wash.clone() : (o.color ? o.color.clone() : wash.clone()), skinning: skin }); if (c1 && skin) { m.color.lerp(c1, sk & 2 ? 0.55 : 0.4); m.emissive = srgb(set.S.c1); m.emissiveIntensity = 0.12; } if (emis) { m.emissive = srgb(emis); m.emissiveIntensity = 0.55; } return m; };
   inst.traverse(m => { if (!m.isMesh) return; if (C.hide && C.hide.test(m.name)) { m.visible = false; return; } m.material = Array.isArray(m.material) ? m.material.map(o => mat(o, !!m.isSkinnedMesh)) : mat(m.material, !!m.isSkinnedMesh); });
   const box0 = new THREE.Box3().setFromObject(inst), H0 = box0.max.y - box0.min.y, k = 21 / H0; inst.scale.setScalar(k); inst.position.y = -box0.min.y * k;
   g.updateMatrixWorld(true);
   const bone = n => inst.getObjectByName(n.replace('.', '')), glowC = set && set.S && (set.m & 1) ? set.S.c2 : null;
   const hand = (side, f) => { const b = bone('handslot.' + side); if (!b || !KK[f]) return; const w = KK[f].scene.clone(); w.traverse(m => { if (m.isMesh) m.material = mat(m.material, false, glowC); }); b.add(w); };
   hand('r', C.r); hand('l', C.l);
-  if (C.rifle) { const b = bone('handslot.r'); if (b) { const r = new THREE.Group(), bx = (w, h, d, col, x, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), glowC ? lam(col, { emissive: srgb(glowC), emissiveIntensity: 0.5 }) : lam(col)); m.position.set(x, y, z); r.add(m); };
-    bx(0.09, 0.09, 1.25, 0x34343a, 0, 0.06, 0.62); bx(0.16, 0.2, 0.55, 0x4a3a2a, 0, 0, 0.05); bx(0.14, 0.26, 0.34, 0x6a4a2a, 0, -0.05, -0.36); bx(0.06, 0.16, 0.08, 0x2a2a2e, 0, -0.14, 0.12); bx(0.1, 0.06, 0.18, 0x8a8a90, 0, 0.16, 0.1); b.add(r); } }
   // ornaments are built where the bones stand in the idle pose (the clips turn the rig round from its rest pose), then fastened to them so they follow every move
   const mixer = new THREE.AnimationMixer(inst), acts = {}; ['idle', 'walk', 'attack', 'death'].forEach((nm, q) => { const clip = AN.animations.find(a => a.name === C.clips[q]); if (clip) acts[nm] = mixer.clipAction(clip); });
   inst.rotation.y = KK_FACE; if (acts.idle) { acts.idle.play(); mixer.setTime(0); } g.updateMatrixWorld(true);
@@ -1823,8 +1873,12 @@ function makeKK(cls, tier = 0, set = null) {
   const toe = P('toes.l'), foot = P('foot.l'), fz = 1;   // which way the body faces in the idle pose
   const hH = Math.max(4, top - head.y), hW = hH * 0.95, back = -fz * hW * 0.42, gold = lam(0xe3a843), glow = c => lam(c, { emissive: srgb(c), emissiveIntensity: 0.8 });
   const put = (bn, geo, m, x, y, z, rx = 0, rz = 0) => { const msh = new THREE.Mesh(geo, typeof m === 'number' ? lam(m) : m); msh.position.set(x, y, z); msh.rotation.x = rx; msh.rotation.z = rz; s.add(msh); const b = bone(bn); if (b) b.attach(msh); return msh; }, B3 = (w, h, d) => new THREE.BoxGeometry(w, h, d);
-  if (C.pack) { put('chest', B3(hW * 0.7, hH * 0.8, hW * 0.4), 0x7a5a34, 0, chest.y + 0.4, back - fz * 1); put('chest', B3(hW * 0.74, 0.6, hW * 0.44), 0x4a3422, 0, chest.y + 1.8, back - fz * 1); }
-  if (C.whip) { const b = bone('handslot.l'); if (b) { let y = 0, z = 0; for (let q = 0; q < 7; q++) { const a = 0.35 + q * 0.32, seg = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.2), lam(q ? 0x4a3422 : 0x2a1c12)); y -= Math.sin(a) * 0.17; z += Math.cos(a) * 0.17; seg.position.set(0, y, z); seg.rotation.x = a; b.add(seg); } } }
+  for (const [where, kind] of C.tool || []) kkTool(kind, where, { bone, put, B3, glowC, head, chest, top, hH, hW, back, fz });
+  if (hero) {   // what marks a hero at a glance, set or no set: a cape in their colours with a bright hem, gold on the shoulders, a badge on the chest
+    if (tier < 2) { put('chest', B3(hW * 0.9, top * 0.44, 0.45), lam(set.S.c1), 0, chest.y - top * 0.12, back - fz * 0.65); put('chest', B3(hW * 0.92, top * 0.05, 0.5), glow(set.S.c2), 0, chest.y - top * 0.33, back - fz * 0.66); }
+    if (tier < 1) for (const sd of ['l', 'r']) { const sh = P('upperarm.' + sd); if (sh) put('upperarm.' + sd, B3(hW * 0.36, hH * 0.13, hW * 0.38), gold, sh.x * 1.05, sh.y + hH * 0.1, sh.z); }
+    put('chest', B3(hW * 0.46, top * 0.26, 0.3), lam(set.S.c1), 0, chest.y - top * 0.06, fz * hW * 0.36); for (const sd of [-1, 1]) put('chest', B3(hW * 0.06, top * 0.26, 0.34), gold, sd * hW * 0.23, chest.y - top * 0.06, fz * hW * 0.37);   // a tabard in their colours, edged in gold
+    put('chest', new THREE.OctahedronGeometry(hW * 0.1), glow(set.S.c2), 0, chest.y + 0.6, fz * hW * 0.52); }
   for (const sd of ['l', 'r']) { const sh = P('upperarm.' + sd); if (!sh) continue;
     if (tier >= 1) put('upperarm.' + sd, B3(hW * 0.42, hH * 0.18, hW * 0.44), tier >= 2 ? gold : lam(0x9a9a94), sh.x * 1.05, sh.y + hH * 0.12, sh.z);
     if (tier >= 3) put('upperarm.' + sd, new THREE.ConeGeometry(hW * 0.07, hH * 0.32, 4), gold, sh.x * 1.12, sh.y + hH * 0.36, sh.z); }
@@ -1833,7 +1887,7 @@ function makeKK(cls, tier = 0, set = null) {
   if (tier >= 4) { const cr = tier >= 4 ? glow(0xfff0a0) : gold; put('head', B3(hW * 0.62, hH * 0.1, hW * 0.62), cr, 0, top - hH * 0.02, 0); for (const [x, z] of [[-1, -1], [1, -1], [-1, 1], [1, 1], [0, 1.2]]) put('head', B3(hW * 0.08, hH * 0.18, hW * 0.08), cr, x * hW * 0.26, top + hH * 0.1, z * hW * 0.26);
     const wing = lam(0xbfe8ff, { emissive: srgb(0x8fd8ff), emissiveIntensity: 0.6, transparent: true, opacity: 0.78 }); for (const sd of [-1, 1]) { put('chest', B3(hW * 0.62, top * 0.36, 0.4), wing, sd * hW * 0.52, chest.y + top * 0.08, back - fz * 1, 0, sd * -0.55); put('chest', new THREE.SphereGeometry(hW * 0.09, 7, 5), glow(0x58c8ff), sd * hW * 0.95, chest.y + top * 0.2, 0); } }
   if (set && set.S && (set.m & 2)) put('chest', B3(hW * 0.8, hH * 0.1, hW * 0.62), glow(set.S.c2), 0, chest.y - top * 0.16, 0);
-  if (set && set.S && (set.m & 4)) { const Z = set.S, o = Z.orn, gl = glow(Z.c2), base = lam(Z.c1);
+  if (hero) { const Z = set.S, o = Z.orn, gl = sk & 4 ? glow(Z.c2) : lam(Z.c2), base = lam(Z.c1);   // the ornament is always worn; the charm makes it shine
     if (o === 'plume') { put('head', B3(hW * 0.1, hH * 0.6, hW * 0.18), gl, 0, top + hH * 0.24, -fz * hW * 0.12, -0.4 * fz); put('head', B3(hW * 0.08, hH * 0.4, hW * 0.14), base, 0, top + hH * 0.12, -fz * hW * 0.3, -0.8 * fz); }
     else if (o === 'crown') { put('head', B3(hW * 0.6, hH * 0.12, hW * 0.6), gl, 0, top + hH * 0.02, 0); for (const [x, z] of [[-1, -1], [1, -1], [-1, 1], [1, 1], [0, 1.2]]) put('head', B3(hW * 0.08, hH * 0.2, hW * 0.08), gl, x * hW * 0.25, top + hH * 0.14, z * hW * 0.25); }
     else if (o === 'horns') for (const sd of [-1, 1]) put('head', new THREE.ConeGeometry(hW * 0.08, hH * 0.5, 5), gl, sd * hW * 0.34, top + hH * 0.1, 0, 0, sd * -0.6);
@@ -1850,7 +1904,7 @@ function makeKK(cls, tier = 0, set = null) {
   return { root: g, spin: s, mixer, acts, cur: null, kk: true, human: true, inst, aim: C.aim || 0 };   // aim: the shooting clips hold the gun out to the side, so the body turns to point it forward
 }
 function makeHuman3(type, tier = 0, set = null) {
-  if (type === 'leader' && KK.KK_Anims) { const kk = makeKK(LEADER_CLS, tier, set); if (kk) return kk; }
+  if (KK.KK_Anims) { const spec = type === 'leader' ? KK_LEAD[LEADER_CLS] : KK_MERC[type]; if (spec) { const kk = makeKK(spec, tier, set || (type === 'leader' ? { S: HSET['L:' + LEADER_CLS], m: 0 } : null), type !== 'leader'); if (kk) return kk; } }
   const orig = type; if (type === 'leader' && LEADER_LOOK) type = LEADER_LOOK;
   const type0 = type; type = HUMAN_AS[type] || type;
   const [body, pants] = HUMAN_PAL[type0] || HUMAN3[type0] || HUMAN3[type], g = new THREE.Group(), s = new THREE.Group(); g.add(s);
@@ -4054,7 +4108,7 @@ requestAnimationFrame(frame);
 <button id="upd" hidden>새 패치가 있어요 · 눌러서 적용</button>
 <script>
 (function () {
-  var VER = "20261128-093324";
+  var VER = "20261128-094337";
   if (!/^https?:$/.test(location.protocol)) return;
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
   var btn = document.getElementById('upd');
